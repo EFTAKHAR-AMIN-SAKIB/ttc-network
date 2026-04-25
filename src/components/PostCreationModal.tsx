@@ -8,8 +8,9 @@ import {
     Sparkles, AlertTriangle, Loader2, ImageIcon, School
 } from "lucide-react";
 import { createPost, getMyClubs, type FirestoreClub } from "@/lib/firestore";
-import { uploadFile } from "@/lib/cloudinary";
+import { uploadFile } from "@/lib/storage";
 import { colleges } from "@/data/colleges";
+import { useToast } from "@/contexts/ToastContext";
 
 interface PostCreationModalProps {
     isOpen: boolean;
@@ -24,7 +25,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const [visibility, setVisibility] = useState<"public" | "campus">("public");
     const [type, setType] = useState<"event" | "club">("event");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+    const { showToast } = useToast();
     const [linkPreview, setLinkPreview] = useState<any>(null);
     const [isFetchingLink, setIsFetchingLink] = useState(false);
 
@@ -70,7 +71,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) {
-            alert("Image must be under 5MB");
+            showToast("Image must be under 5MB", "error");
             return;
         }
         setThumbnailFile(file);
@@ -113,10 +114,11 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
             setDescription("");
             setShareLink("");
             removeThumbnail();
+            showToast("Update shared successfully!", "success");
             onClose();
         } catch (err) {
             console.error(err);
-            alert("Failed to share update. Please try again.");
+            showToast("Failed to share update. Please try again.", "error");
         } finally {
             setIsSubmitting(false);
         }

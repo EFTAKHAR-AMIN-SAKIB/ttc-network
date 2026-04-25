@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FirestoreNotification } from "@/lib/firestore";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const notifIcons: Record<string, any> = {
     post_approved: CheckCircle,
@@ -55,6 +56,11 @@ export function NotificationCenter({
     onMarkAllRead,
 }: NotificationCenterProps) {
     const router = useRouter();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const formatTime = (ts: any) => {
         if (!ts?.seconds) return "";
@@ -168,76 +174,77 @@ export function NotificationCenter({
                 </AnimatePresence>
             </div>
 
-            {/* Mobile Slide-over */}
-            <div className="md:hidden">
-                <AnimatePresence>
-                    {isOpen && (
-                        <>
-                            {/* Backdrop */}
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={onClose}
-                                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
-                            />
-                            {/* Panel */}
-                            <motion.div
-                                initial={{ x: "100%" }}
-                                animate={{ x: 0 }}
-                                exit={{ x: "100%" }}
-                                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                                className="fixed inset-y-0 right-0 w-[85%] max-w-sm bg-white dark:bg-[#0f1117] shadow-[-10px_0_40px_rgba(0,0,0,0.2)] z-[100] flex flex-col"
-                            >
-                                {/* Header */}
-                                <div className="px-6 py-6 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
-                                    <h2 className="text-xl font-black text-gray-900 dark:text-gray-100">Updates</h2>
-                                    <button 
-                                        onClick={onClose}
-                                        className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-
-                                {/* Actions */}
-                                {unreadCount > 0 && (
-                                    <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/30 flex justify-between items-center">
-                                        <span className="text-xs font-bold text-gray-500">{unreadCount} unread items</span>
+            {/* Mobile Full-Screen Modal */}
+            {mounted && typeof document !== "undefined" && createPortal(
+                <div className="md:hidden">
+                    <AnimatePresence>
+                        {isOpen && (
+                            <div className="fixed inset-0 z-[9999] flex flex-col bg-white dark:bg-[#0C0C10]">
+                                <motion.div
+                                    initial={{ opacity: 0, y: "100%" }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: "100%" }}
+                                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                    className="flex flex-col h-full w-full relative"
+                                >
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
+                                        <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                                            <Bell className="text-primary" size={20} /> Updates
+                                            {unreadCount > 0 && (
+                                                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black rounded-full animate-pulse">
+                                                    {unreadCount} NEW
+                                                </span>
+                                            )}
+                                        </h2>
                                         <button 
-                                            onClick={onMarkAllRead}
-                                            className="text-xs font-black text-primary uppercase"
+                                            onClick={onClose}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 dark:bg-[#161620] text-gray-500 active:scale-95 transition-transform"
                                         >
-                                            Clear All
+                                            <X size={18} />
                                         </button>
                                     </div>
-                                )}
 
-                                {/* List */}
-                                <div className="flex-1 overflow-y-auto no-scrollbar py-4">
-                                    {notifications.length > 0 ? (
-                                        <>
-                                            {notifications.map((notif) => (
-                                                <NotificationItem 
-                                                    key={notif.id} 
-                                                    notif={notif} 
-                                                    onClick={() => handleNotifClick(notif)} 
-                                                    formatTime={formatTime}
-                                                    isMobile 
-                                                />
-                                            ))}
-                                        </>
-                                    ) : (
-                                        <div className="h-full flex items-center justify-center -mt-20">
-                                            <EmptyState />
+                                    {/* Actions */}
+                                    {unreadCount > 0 && (
+                                        <div className="px-4 py-3 bg-gray-50 dark:bg-[#161620] border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{unreadCount} unread items</span>
+                                            <button 
+                                                onClick={onMarkAllRead}
+                                                className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/10 px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+                                            >
+                                                Mark all read
+                                            </button>
                                         </div>
                                     )}
-                                </div>
-                            </motion.div>
-                        </>
-                    )}
-                </AnimatePresence>
-            </div>
+
+                                    {/* List */}
+                                    <div className="flex-1 overflow-y-auto p-2 no-scrollbar space-y-2 pb-safe">
+                                        {notifications.length > 0 ? (
+                                            <>
+                                                {notifications.map((notif) => (
+                                                    <NotificationItem 
+                                                        key={notif.id} 
+                                                        notif={notif} 
+                                                        onClick={() => handleNotifClick(notif)} 
+                                                        formatTime={formatTime}
+                                                        isMobile 
+                                                    />
+                                                ))}
+                                            </>
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center -mt-20">
+                                                <EmptyState />
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
+                </div>,
+                document.body
+            )}
         </>
     );
 }
@@ -250,11 +257,13 @@ function NotificationItem({ notif, onClick, formatTime, isMobile }: { notif: any
         <button
             onClick={onClick}
             className={`w-full text-left flex items-start gap-4 transition-all group ${
-                isMobile ? "px-6 py-5 border-b border-gray-50 dark:border-gray-900/50" : "px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-            } ${!notif.read ? "bg-blue-50/40 dark:bg-blue-900/10" : "opacity-75 hover:opacity-100"}`}
+                isMobile 
+                ? "p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#161620]" 
+                : "px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+            } ${!notif.read ? (isMobile ? "bg-primary/5 border-primary/20 dark:bg-primary/10" : "bg-blue-50/40 dark:bg-blue-900/10") : "opacity-75 hover:opacity-100"}`}
         >
             <div className={`shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 ${colorClass}`}>
-                <Icon size={isMobile ? 22 : 18} />
+                <Icon size={isMobile ? 20 : 18} />
             </div>
             <div className="flex-1 min-w-0 pt-0.5">
                 <p className={`text-sm leading-[1.5] ${!notif.read ? "font-bold text-gray-900 dark:text-gray-100" : "font-medium text-gray-600 dark:text-gray-400"}`}>

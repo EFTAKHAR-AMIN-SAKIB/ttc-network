@@ -36,7 +36,7 @@ interface SiteSettingsContextType extends SiteSettings {
 const DEFAULTS: SiteSettings = {
     siteName: "TTC Network",
     siteTagline: "One Platform. All Colleges. Every Story.",
-    logoUrl: "/logos/ttc-emblem.png",
+    logoUrl: "/logos/ttc network.png",
 };
 
 // ═══════════════════════════════════════════════════

@@ -16,11 +16,12 @@ import {
     addDirectMember,
     ClubMember, ClubRequest, ClubActivity
 } from "@/lib/firestore";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
+import { deleteFromCloudinary } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import { createClubAction, getClubsAction, deleteClubAction } from "@/lib/actions";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 
 interface ClubManagerProps {
     collegeId: string;
@@ -91,6 +92,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
+    const { showToast } = useToast();
 
     const fileInputRefLogo = useRef<HTMLInputElement>(null);
     const fileInputRefBanner = useRef<HTMLInputElement>(null);
@@ -162,13 +164,13 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
     }, [selectedClub?.id]);
 
     const handleSaveSettings = async () => {
-        if (!selectedClub || !selectedClub.name) return alert("Club name is required!");
+        if (!selectedClub || !selectedClub.name) { showToast("Club name is required!", "error"); return; }
         setLoading(true);
         try {
             await updateClub(selectedClub.id, selectedClub);
-            alert("Club settings updated!");
+            showToast("Club settings updated!", "success");
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setLoading(false);
         }
@@ -183,7 +185,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
     };
 
     const handleCreateClub = async () => {
-        if (!profile?.uid) return alert("You must be logged in.");
+        if (!profile?.uid) { showToast("You must be logged in.", "error"); return; }
         if (!validateForm()) return;
 
         setLoading(true);
@@ -221,14 +223,14 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                 await updateClub(newClubId, updates);
             }
 
-            alert("✅ Club created successfully!");
+            showToast("Club created successfully!", "success");
             setIsCreating(false);
             setNewClub(emptyForm);
             setNewClubLogoFile(null);
             setNewClubBannerFile(null);
             setFormErrors({});
         } catch (err: any) {
-            alert(err.message || "Failed to create club.");
+            showToast(err.message || "Failed to create club.", "error");
         } finally {
             setLoading(false);
         }
@@ -250,7 +252,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
             if (res?.error) throw new Error(res.error);
             if (selectedClub?.id === id) setSelectedClub(null);
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setConfirmLoading(false);
             closeConfirm();
@@ -274,7 +276,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                 setSelectedClub({ ...selectedClub, isActive: newStatus });
             }
         } catch (err: any) {
-            alert(err.message || "Failed to update club status");
+            showToast(err.message || "Failed to update club status", "error");
         } finally {
             setConfirmLoading(false);
             closeConfirm();
@@ -296,9 +298,9 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
             const url = await uploadFile(`clubs/${selectedClub.id}/${field}`, file);
             await updateClub(selectedClub.id, { [field]: url });
             setSelectedClub({ ...selectedClub, [field]: url });
-            alert("Image uploaded successfully!");
+            showToast("Image uploaded successfully!", "success");
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setLoading(false);
             e.target.value = "";
@@ -313,7 +315,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
             setAddMemberSearch("");
             setShowAddMember(false);
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setAddingMemberId(null);
         }
@@ -340,7 +342,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
         try {
             await approveClubMember(selectedClub.id, userId);
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         }
     };
 
@@ -349,7 +351,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
         try {
             await rejectClubMember(selectedClub.id, userId);
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         }
     };
 
@@ -367,7 +369,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
         try {
             await removeClubMember(selectedClub.id, userId);
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message, "error");
         } finally {
             setConfirmLoading(false);
             closeConfirm();

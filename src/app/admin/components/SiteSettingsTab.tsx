@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { updateSiteSettings, getSiteSettingsDoc } from "@/lib/firestore";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToCloudinary } from "@/lib/storage";
 
 /* ═══════════════════════════════════════════════════
    DEFAULTS
@@ -25,7 +25,7 @@ import { uploadToCloudinary } from "@/lib/cloudinary";
 const DEFAULTS = {
     siteName: "TTC Network",
     siteTagline: "One Platform. All Colleges. Every Story.",
-    logoUrl: "/logos/ttc-emblem.png",
+    logoUrl: "/logos/ttc network.png",
 };
 
 /* ═══════════════════════════════════════════════════

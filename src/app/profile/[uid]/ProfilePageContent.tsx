@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     AtSign, Globe, Briefcase, Plus, CheckCircle, Info, AlertTriangle, ChevronRight, Share2, MapPin, 
-    Target, Pencil, Save, X, Camera, Loader2, ImageIcon,
+    Target, Pencil, Save, X, Camera, Loader2, ImageIcon, Trash2, Search,
     Heart, Clock, Shield, Activity, GraduationCap, Building, Quote, BookOpen, BookText, User, Award,
     Sparkles, Sparkle, Mail, ExternalLink, Calendar, Copy, Check, ChevronDown, MessageSquare, ThumbsUp,
-    Phone, MessageCircle, UserCheck, UserPlus
+    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -19,9 +19,23 @@ import { getDb } from "@/lib/firebase";
 import { useAuth, type UserProfile } from "@/contexts/AuthContext";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
-import { subscribeUserStories, getUserActivity, checkIsFollowing, toggleFollowUser } from "@/lib/firestore";
+import { useConfirm } from "@/contexts/ConfirmContext";
+import { 
+    subscribeUserStories, 
+    getUserActivity, 
+    checkIsFollowing, 
+    toggleFollowUser, 
+    deleteOwnStory, 
+    deleteOwnPost, 
+    getUserFeedContent,
+    addAchievement,
+    removeAchievement
+} from "@/lib/firestore";
+import { uploadFile } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import StoryCard from "@/components/StoryCard";
+import PostCard from "@/components/PostCard";
+import StudyNoteCard from "@/app/study/components/StudyNoteCard";
 import ImageLightbox from "@/components/ImageLightbox";
 
 // ═══════════════════════════════════════════════════
@@ -52,7 +66,7 @@ const RoleTag = ({ role }: { role: string }) => {
     );
 };
 
-const ActivityItem = ({ act }: { act: any }) => {
+const ActivityItem = ({ act, isOwn, onDelete, onNavigate }: { act: any; isOwn?: boolean; onDelete?: (id: string, type: string) => void; onNavigate?: () => void }) => {
     const icons: Record<string, any> = {
         post: Globe,
         story: BookText,
@@ -60,28 +74,105 @@ const ActivityItem = ({ act }: { act: any }) => {
         reaction: Heart
     };
     const Icon = icons[act.activityType] || Activity;
+    const statusColors: Record<string, string> = {
+        pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+        rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+        published: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+        approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    };
     
     return (
-        <div className="flex gap-4 p-5 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-3xl group hover:border-primary/20 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-gray-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <Icon size={18} />
+        <div 
+            onClick={onNavigate}
+            className={`flex gap-3 sm:gap-4 p-4 sm:p-5 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-2xl sm:rounded-3xl group hover:border-primary/20 transition-all ${onNavigate ? 'cursor-pointer active:scale-[0.98]' : ''}`}
+        >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 dark:bg-gray-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
+                <Icon size={16} className="sm:w-[18px] sm:h-[18px]" />
             </div>
-            <div className="flex-1">
-                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
-                    {act.activityType === 'story' && "Shared a new story"}
-                    {act.activityType === 'post' && "Posted an update"}
-                    {act.activityType === 'comment' && "Commented on a post"}
-                    {act.activityType === 'reaction' && "Inspired by a story"}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                        {act.activityType === 'story' && "Shared a new story"}
+                        {act.activityType === 'post' && "Posted an update"}
+                        {act.activityType === 'comment' && "Commented on a post"}
+                        {act.activityType === 'reaction' && "Inspired by a story"}
+                    </div>
+                    {isOwn && act.status && act.status !== 'approved' && act.status !== 'published' && (
+                        <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${statusColors[act.status] || ''}`}>
+                            {act.status}
+                        </span>
+                    )}
                 </div>
-                <div className="text-xs text-gray-400 mt-1 line-clamp-1">{act.caption || act.content || act.title || "Social activity..."}</div>
+                <div className="text-xs text-gray-400 mt-1 line-clamp-1">{act.caption || act.content || act.title || act.text || act.eventName || "Social activity..."}</div>
                 <div className="flex items-center gap-2 mt-2 text-[9px] font-black uppercase text-gray-300 tracking-widest">
                     <Clock size={10} />
-                    {act.timestamp?.seconds ? new Date(act.timestamp.seconds * 1000).toLocaleDateString() : "Recently"}
+                    {act.timestamp?.seconds ? new Date(act.timestamp.seconds * 1000).toLocaleDateString() : act.createdAt?.seconds ? new Date(act.createdAt.seconds * 1000).toLocaleDateString() : "Recently"}
+                    {onNavigate && <ChevronRight size={10} className="ml-auto text-gray-300 group-hover:text-primary transition-colors" />}
                 </div>
             </div>
+            {isOwn && onDelete && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(act.id, act.activityType); }}
+                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100 shrink-0 self-center"
+                    title="Delete"
+                >
+                    <Trash2 size={14} />
+                </button>
+            )}
         </div>
     );
 };
+
+function AchievementModal({ isOpen, onClose, onUpload, isUploading }: { isOpen: boolean; onClose: () => void; onUpload: (data: any) => Promise<void>; isUploading: boolean }) {
+    const [title, setTitle] = useState("");
+    const [issuer, setIssuer] = useState("");
+    const [date, setDate] = useState("");
+    const [file, setFile] = useState<File | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title || !file) return;
+        await onUpload({ title, issuer, date, file });
+        setTitle(""); setIssuer(""); setDate(""); setFile(null);
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800"
+            >
+                <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-navy-900 dark:text-white">Add Achievement</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Title</label>
+                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Best Student Award" className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Issuer / Organization</label>
+                        <input type="text" value={issuer} onChange={(e) => setIssuer(e.target.value)} placeholder="e.g. Dhaka University" className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Date</label>
+                        <input type="text" value={date} onChange={(e) => setDate(e.target.value)} placeholder="e.g. Jan 2024" className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Certificate File (Image or PDF)</label>
+                        <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} required className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer" />
+                    </div>
+                    <button type="submit" disabled={isUploading} className="w-full py-4 bg-primary text-white font-black rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                        {isUploading ? <Loader2 size={18} className="animate-spin" /> : "Upload Achievement"}
+                    </button>
+                </form>
+            </motion.div>
+        </div>
+    );
+}
 
 // ═══════════════════════════════════════════════════
 //  TAB COMPONENTS
@@ -258,8 +349,10 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
 export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {}) {
     const params = useParams();
     const uid = uidOverride || (params.uid as string);
+    const router = useRouter();
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
 
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -269,8 +362,39 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     
     // Tab Data
     const [userStories, setUserStories] = useState<any[]>([]);
-    const [userActivity, setUserActivity] = useState<any[]>([]);
-    const [loadingActivity, setLoadingActivity] = useState(false);
+    const [userFeed, setUserFeed] = useState<{ posts: any[], stories: any[], notices: any[], studyMaterials: any[], comments: any[] }>({ posts: [], stories: [], notices: [], studyMaterials: [], comments: [] });
+    const [loadingFeed, setLoadingFeed] = useState(true);
+    const [feedSearchTerm, setFeedSearchTerm] = useState("");
+    const [activeActivityTab, setActiveActivityTab] = useState("all");
+    const [showAchievementModal, setShowAchievementModal] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const filteredFeed = useMemo(() => {
+        if (!feedSearchTerm.trim()) return userFeed;
+        const q = feedSearchTerm.toLowerCase();
+        return {
+            posts: userFeed.posts.filter(p => p.eventName?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)),
+            stories: userFeed.stories.filter(s => s.content?.toLowerCase().includes(q)),
+            notices: userFeed.notices.filter(n => n.title?.toLowerCase().includes(q) || n.body?.toLowerCase().includes(q)),
+            studyMaterials: userFeed.studyMaterials.filter(sm => sm.title?.toLowerCase().includes(q) || sm.description?.toLowerCase().includes(q)),
+            comments: userFeed.comments.filter(c => c.content?.toLowerCase().includes(q))
+        };
+    }, [userFeed, feedSearchTerm]);
+
+    const allActivity = useMemo(() => {
+        const interleaved = [
+            ...filteredFeed.posts.map(p => ({ ...p, activityType: 'post' })),
+            ...filteredFeed.stories.map(s => ({ ...s, activityType: 'story' })),
+            ...filteredFeed.notices.map(n => ({ ...n, activityType: 'notice' })),
+            ...filteredFeed.studyMaterials.map(sm => ({ ...sm, activityType: 'study' })),
+            ...filteredFeed.comments.map(c => ({ ...c, activityType: 'comment' }))
+        ];
+        return interleaved.sort((a: any, b: any) => {
+            const timeA = a.timestamp?.seconds || a.createdAt?.seconds || a.date?.seconds || 0;
+            const timeB = b.timestamp?.seconds || b.createdAt?.seconds || b.date?.seconds || 0;
+            return timeB - timeA;
+        });
+    }, [filteredFeed]);
     
     // Follow State
     const [isFollowing, setIsFollowing] = useState(false);
@@ -297,6 +421,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const tabsRef = useRef<HTMLDivElement>(null);
 
     const isOwnProfile = user?.uid === uid;
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         const db = getDb();
@@ -310,10 +435,24 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             setLoading(false);
         });
 
-        // Stories Subscription
+        // Feed Fetching
+        const fetchFeed = async () => {
+            setLoadingFeed(true);
+            try {
+                const feed = await getUserFeedContent(uid, user?.uid === uid);
+                setUserFeed(feed);
+            } catch (err) {
+                console.error("Failed to fetch user feed", err);
+            } finally {
+                setLoadingFeed(false);
+            }
+        };
+        fetchFeed();
+
+        // Stories Subscription — pass isOwner to filter appropriately
         const unsubStories = subscribeUserStories(uid, (st) => {
             setUserStories(st);
-        });
+        }, user?.uid === uid);
 
         return () => {
             unsubUser();
@@ -339,22 +478,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [contactOpen]);
 
-    // Fetch Activity when tab opens
-    useEffect(() => {
-        if (activeTab === "activity") {
-            setLoadingActivity(true);
-            getUserActivity(uid)
-                .then(acts => {
-                    setUserActivity(acts);
-                })
-                .catch(err => {
-                    console.error("Activity fetch error:", err);
-                })
-                .finally(() => {
-                    setLoadingActivity(false);
-                });
-        }
-    }, [activeTab, uid]);
+
 
     const handleFollowToggle = useCallback(async () => {
         if (!user?.uid || followLoading) return;
@@ -385,6 +509,50 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         showToast(`${label} copied to clipboard!`, "success");
     };
 
+    const handleAchievementUpload = async (data: any) => {
+        if (!uid) return;
+        setIsUploading(true);
+        try {
+            const fileURL = await uploadFile(`users/${uid}/achievements`, data.file);
+            await addAchievement(uid, {
+                title: data.title,
+                issuer: data.issuer || "",
+                date: data.date || "",
+                fileURL,
+                type: data.file.type.includes('pdf') ? 'pdf' : 'image'
+            });
+            showToast("Achievement added successfully!", "success");
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to upload achievement.", "error");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleAchievementDelete = async (achievementId: string) => {
+        const confirmed = await confirm({
+            title: "Delete Achievement?",
+            message: "This will permanently remove this record from your profile.",
+            confirmText: "Delete",
+            variant: "danger",
+        });
+
+        if (confirmed) {
+            setConfirmLoading(true);
+            try {
+                await removeAchievement(uid, achievementId);
+                showToast("Achievement removed.", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Failed to remove achievement.", "error");
+            } finally {
+                setConfirmLoading(false);
+                closeConfirm();
+            }
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] dark:bg-[#0c0c10]">
             <Loader2 className="animate-spin text-primary" size={40} />
@@ -408,7 +576,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             <div className="relative">
                 {/* Banner */}
                 <div 
-                    className="h-64 md:h-80 w-full relative group cursor-zoom-in"
+                    className="h-44 sm:h-64 md:h-80 w-full relative group cursor-zoom-in"
                     onClick={() => openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1544648151-1823eddfc5e3?auto=format&fit=crop&q=80&w=2071", "Profile Banner")}
                 >
                     <Image 
@@ -433,12 +601,12 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
 
                 {/* Profile Identity Strip */}
-                <div className="max-w-7xl mx-auto px-6 relative">
-                    <div className="flex flex-col md:flex-row items-center md:items-end gap-6 -mt-16 md:-mt-20 relative z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
+                    <div className="flex flex-col md:flex-row items-center md:items-end gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative z-10">
                         {/* Avatar */}
                         <div className="relative group/avatar">
                             <div 
-                                className="w-32 h-32 md:w-44 md:h-44 rounded-[2.5rem] md:rounded-[3.5rem] bg-white border-[10px] border-[#FAFAF8] dark:border-[#0c0c10] overflow-hidden shadow-2xl relative cursor-zoom-in"
+                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-44 md:h-44 rounded-[2rem] sm:rounded-[2.5rem] md:rounded-[3.5rem] bg-white border-[6px] sm:border-[10px] border-[#FAFAF8] dark:border-[#0c0c10] overflow-hidden shadow-2xl relative cursor-zoom-in"
                                 onClick={() => openLightbox(profileData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.displayName)}&background=1A56DB&color=fff&size=500`, profileData.displayName)}
                             >
                                 <Image 
@@ -467,7 +635,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         {/* Name & Basic Info */}
                         <div className="flex-1 text-center md:text-left pb-2">
                             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
-                                <h1 className="text-3xl md:text-4xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
+                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
                                     {profileData.displayName}
                                 </h1>
                                 {profileData.roleVerified && (
@@ -617,12 +785,12 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             </div>
 
             {/* 2. STATS STRIP & TABS */}
-            <div className="max-w-7xl mx-auto px-6 mt-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-12 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-12 items-start">
                 
                 {/* LEFT SIDEBAR (L-SIDEBAR) — 3 cols */}
                 <div className="lg:col-span-3 space-y-8">
                     {/* College Card */}
-                    <div className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2.5rem] p-8 shadow-sm">
+                    <div className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-8 shadow-sm">
                         <div className="text-[10px] font-black uppercase text-gray-400 tracking-[0.25em] mb-4">Official Base</div>
                         <h3 className="text-xl font-black text-navy-900 dark:text-gray-100 leading-tight mb-1">{college?.name || "TTC Community"}</h3>
                         <p className="text-xs font-bold text-gray-400 mb-6">{college?.city || "National Registry"}</p>
@@ -690,11 +858,10 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 <div className="lg:col-span-6 space-y-12 min-h-[600px]">
                     
                     {/* Sticky Tabs Navigation */}
-                    <div ref={tabsRef} className="sticky top-0 z-40 bg-[#FAFAF8]/80 dark:bg-[#0c0c10]/80 backdrop-blur-xl -mx-4 px-4 py-4 rounded-b-3xl border-b border-slate-100 dark:border-gray-800">
-                        <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+                    <div ref={tabsRef} className="sticky top-0 z-40 bg-[#FAFAF8]/80 dark:bg-[#0c0c10]/80 backdrop-blur-xl -mx-4 px-4 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-b border-slate-100 dark:border-gray-800">
+                        <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar pb-1">
                             {[
                                 { id: "about", label: "About", icon: Info },
-                                { id: "stories", label: "Stories", icon: BookText },
                                 { id: "activity", label: "Activity", icon: Activity },
                                 { id: "skills", label: "Credentials", icon: Award },
                             ].map((tab) => (
@@ -724,28 +891,6 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                             {activeTab === "about" && (
                                 <AboutTab key="about-tab" profile={profileData} isTeacher={isTeacher} />
                             )}
-                            {activeTab === "stories" && (
-                                <motion.div 
-                                    key="stories-tab"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="space-y-6"
-                                >
-                                    {userStories.length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-6">
-                                            {userStories.map((story) => (
-                                                <StoryCard key={story.id} story={story} />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
-                                            <BookOpen className="text-slate-100 dark:text-gray-800 mb-6" size={64} />
-                                            <h4 className="text-xl font-black text-gray-300 uppercase tracking-widest">Collecting Narratives</h4>
-                                            <p className="text-xs text-gray-400 font-bold mt-2">Personal stories will appear here once published.</p>
-                                        </div>
-                                    )}
-                                </motion.div>
-                            )}
                             {activeTab === "activity" && (
                                 <motion.div 
                                     key="activity-tab"
@@ -753,21 +898,164 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     animate={{ opacity: 1, y: 0 }}
                                     className="space-y-6"
                                 >
-                                    {loadingActivity ? (
+                                    {/* LinkedIn-style Filter Pills */}
+                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+                                        {[
+                                            { id: "all", label: "All Activity" },
+                                            { id: "posts", label: "Posts" },
+                                            { id: "comments", label: "Comments" },
+                                            { id: "stories", label: "Stories" },
+                                            { id: "notices", label: "Notices" },
+                                            { id: "study", label: "Study Materials" }
+                                        ].map(pill => (
+                                            <button
+                                                key={pill.id}
+                                                onClick={() => setActiveActivityTab(pill.id)}
+                                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                                                    activeActivityTab === pill.id 
+                                                    ? "bg-primary text-white shadow-lg shadow-primary/30" 
+                                                    : "bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 border-2 border-slate-100 dark:border-gray-800"
+                                                }`}
+                                            >
+                                                {pill.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {loadingFeed ? (
                                         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div>
-                                    ) : userActivity.length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-4">
-                                            {userActivity.map((act) => (
-                                                <ActivityItem key={act.id} act={act} />
-                                            ))}
-                                        </div>
                                     ) : (
-                                        <div className="p-12 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-[2.5rem] flex items-center gap-6">
-                                            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><Sparkle size={20} /></div>
-                                            <div>
-                                                <div className="text-sm font-black text-navy-900 dark:text-gray-100">Joined TTC Network</div>
-                                                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Founding Member • Spring 2026</div>
-                                            </div>
+                                        <div className="space-y-6">
+                                            {activeActivityTab === "all" && allActivity.length > 0 && (
+                                                <div className="grid grid-cols-1 gap-6">
+                                                    {allActivity.map((act) => {
+                                                        if (act.activityType === 'post') {
+                                                            return (
+                                                                <div key={act.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${act.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative">
+                                                                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                                                    <PostCard post={act} profile={profileData} hideManageOptions={true} />
+                                                                </div>
+                                                            );
+                                                        } else if (act.activityType === 'story') {
+                                                            return (
+                                                                <div key={act.id} onClick={() => router.push(`/story/${act.id}`)} className="cursor-pointer">
+                                                                    <StoryCard story={act} />
+                                                                </div>
+                                                            );
+                                                        } else if (act.activityType === 'notice') {
+                                                            return (
+                                                                <div key={act.id} onClick={() => router.push(`/notice`)} className="cursor-pointer p-5 border-2 border-slate-100 dark:border-gray-800 rounded-3xl bg-white dark:bg-gray-900 shadow-sm hover:-translate-y-1 transition-transform">
+                                                                    <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
+                                                                        {act.date ? new Date(act.date?.seconds * 1000).toLocaleDateString() : 'Just now'}
+                                                                    </div>
+                                                                    <div className="text-lg font-black text-navy-900 dark:text-gray-100">{act.title}</div>
+                                                                    <p className="text-sm text-gray-500 mt-2 line-clamp-2 leading-relaxed">{act.body}</p>
+                                                                </div>
+                                                            );
+                                                        } else if (act.activityType === 'study') {
+                                                            return (
+                                                                <div key={act.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/study`); }} className="cursor-pointer group/study transition-transform hover:-translate-y-1 relative">
+                                                                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/study:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                                                    <StudyNoteCard post={act} currentUserId={user?.uid} isAdmin={false} />
+                                                                </div>
+                                                            );
+                                                        } else if (act.activityType === 'comment') {
+                                                            return (
+                                                                <ActivityItem 
+                                                                    key={act.id} 
+                                                                    act={act}
+                                                                    isOwn={isOwnProfile}
+                                                                    onNavigate={() => {
+                                                                        const postId = act.postId || act.id;
+                                                                        router.push(`/news-feed?post=${postId}`);
+                                                                    }}
+                                                                />
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {activeActivityTab === "posts" && filteredFeed.posts.length > 0 && (
+                                                <div className="grid gap-6">
+                                                    {filteredFeed.posts.map(post => (
+                                                        <div key={post.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${post.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative">
+                                                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                                            <PostCard post={post} profile={profileData} hideManageOptions={true} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {activeActivityTab === "comments" && filteredFeed.comments.length > 0 && (
+                                                <div className="grid gap-4">
+                                                    {filteredFeed.comments.map(comment => (
+                                                        <ActivityItem 
+                                                            key={comment.id} 
+                                                            act={{ ...comment, activityType: 'comment' }}
+                                                            isOwn={isOwnProfile}
+                                                            onNavigate={() => {
+                                                                const postId = comment.postId || comment.id;
+                                                                router.push(`/news-feed?post=${postId}`);
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {activeActivityTab === "stories" && filteredFeed.stories.length > 0 && (
+                                                <div className="grid gap-6">
+                                                    {filteredFeed.stories.map(story => (
+                                                        <div key={story.id} onClick={() => router.push(`/story/${story.id}`)} className="cursor-pointer">
+                                                            <StoryCard story={story} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {activeActivityTab === "notices" && filteredFeed.notices.length > 0 && (
+                                                <div className="grid gap-4">
+                                                    {filteredFeed.notices.map(notice => (
+                                                        <div key={notice.id} onClick={() => router.push(`/notice`)} className="cursor-pointer p-5 border-2 border-slate-100 dark:border-gray-800 rounded-3xl bg-white dark:bg-gray-900 shadow-sm hover:-translate-y-1 transition-transform">
+                                                            <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
+                                                                {notice.date ? new Date(notice.date?.seconds * 1000).toLocaleDateString() : 'Just now'}
+                                                            </div>
+                                                            <div className="text-lg font-black text-navy-900 dark:text-gray-100">{notice.title}</div>
+                                                            <p className="text-sm text-gray-500 mt-2 line-clamp-2 leading-relaxed">{notice.body}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {activeActivityTab === "study" && filteredFeed.studyMaterials.length > 0 && (
+                                                <div className="grid gap-6">
+                                                    {filteredFeed.studyMaterials.map(study => (
+                                                        <div key={study.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/study`); }} className="cursor-pointer group/study transition-transform hover:-translate-y-1 relative">
+                                                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/study:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                                            <StudyNoteCard post={study} currentUserId={user?.uid} isAdmin={false} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Empty States */}
+                                            {activeActivityTab === "all" && allActivity.length === 0 && (
+                                                <div className="p-8 sm:p-12 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-2xl sm:rounded-[2.5rem] flex items-center gap-4 sm:gap-6">
+                                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-xl sm:rounded-2xl flex items-center justify-center text-primary shrink-0"><Sparkle size={18} /></div>
+                                                    <div>
+                                                        <div className="text-sm font-black text-navy-900 dark:text-gray-100">Joined TTC Network</div>
+                                                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Founding Member • Spring 2026</div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {activeActivityTab !== "all" && filteredFeed[(activeActivityTab === "study" ? "studyMaterials" : activeActivityTab) as keyof typeof filteredFeed].length === 0 && (
+                                                <div className="p-10 sm:p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                                    <Activity className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                                    <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No ${activeActivityTab} Yet</h4>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </motion.div>
@@ -777,11 +1065,85 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     key="skills-tab"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="p-16 border-4 border-dashed border-slate-100 rounded-[3.5rem] text-center"
+                                    className="space-y-12"
                                 >
-                                    <Award className="mx-auto text-primary opacity-20 mb-4" size={48} />
-                                    <h4 className="text-sm font-black uppercase text-gray-400 tracking-widest">Digital Credentials</h4>
-                                    <p className="text-xs text-gray-300 font-bold mt-2">Verified badges and certificates will be listed here.</p>
+                                    {/* 1. Badges Section */}
+                                    <section>
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Verified Badges</h3>
+                                            <div className="h-[2px] flex-1 bg-slate-50 dark:bg-gray-800 ml-6" />
+                                        </div>
+                                        
+                                        {profileData.badges && profileData.badges.length > 0 ? (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+                                                {profileData.badges.map((badge) => (
+                                                    <div key={badge.id} className="p-6 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2.5rem] group hover:border-primary/20 transition-all text-center">
+                                                        <div className="w-16 h-16 mx-auto mb-4 relative flex items-center justify-center">
+                                                            {badge.imageURL ? (
+                                                                <img src={badge.imageURL} alt={badge.name} className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all" />
+                                                            ) : (
+                                                                <Award className="w-full h-full text-primary" />
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs font-black text-navy-900 dark:text-gray-100 truncate">{badge.name}</div>
+                                                        <div className="text-[10px] text-gray-400 mt-1 line-clamp-1">{badge.description}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-10 border-2 border-dashed border-slate-100 dark:border-gray-800 rounded-[2.5rem] text-center">
+                                                <Award className="mx-auto text-slate-200 dark:text-gray-800 mb-4" size={32} />
+                                                <p className="text-xs font-bold text-gray-300">No badges yet.</p>
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    {/* 2. Achievements Section */}
+                                    <section>
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Academic & Digital Achievements</h3>
+                                            {isOwnProfile && (
+                                                <button 
+                                                    onClick={() => setShowAchievementModal(true)}
+                                                    className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ml-4"
+                                                >
+                                                    <Plus size={14} /> Add New
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {profileData.achievementsList && profileData.achievementsList.length > 0 ? (
+                                            <div className="space-y-4">
+                                                {profileData.achievementsList.map((ach) => (
+                                                    <div key={ach.id} className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-3xl group hover:border-primary/10 transition-all">
+                                                        <div className="w-12 h-12 bg-slate-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
+                                                            {ach.type === 'pdf' ? <BookOpen size={20} /> : <ImageIcon size={20} />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-sm font-black text-navy-900 dark:text-gray-100 truncate">{ach.title}</div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[10px] font-bold text-gray-400">{ach.issuer}</span>
+                                                                <span className="text-[10px] text-gray-300">·</span>
+                                                                <span className="text-[10px] font-bold text-primary">{ach.date}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <a href={ach.fileURL} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-primary transition-colors"><Eye size={16} /></a>
+                                                            {isOwnProfile && (
+                                                                <button onClick={() => handleAchievementDelete(ach.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                                <GraduationCap className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                                <h4 className="text-sm font-black text-gray-300 uppercase tracking-widest">No achievements listed</h4>
+                                                <p className="text-[10px] text-gray-400 mt-2 max-w-[200px]">Upload your certificates and awards to showcase your expertise.</p>
+                                            </div>
+                                        )}
+                                    </section>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -817,17 +1179,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         </div>
                     </div>
 
-                    {/* Similar Users / Community Spotlight */}
-                    <div className="space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 px-2">Community Spotlight</h4>
-                        <div className="p-6 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-[2rem] flex items-center gap-4 group cursor-pointer hover:border-primary/20 transition-all">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 font-black">?</div>
-                            <div>
-                                <div className="text-xs font-black text-navy-900 dark:text-gray-100">Future Collaborator</div>
-                                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Dhaka TTC Member</div>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </div>
 
@@ -844,6 +1196,14 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 src={lightbox.src}
                 alt={lightbox.alt}
                 onClose={() => setLightbox(prev => ({ ...prev, open: false }))}
+            />
+
+            {/* Achievement Upload Modal */}
+            <AchievementModal 
+                isOpen={showAchievementModal}
+                onClose={() => setShowAchievementModal(false)}
+                onUpload={handleAchievementUpload}
+                isUploading={isUploading}
             />
         </div>
     );

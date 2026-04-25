@@ -29,11 +29,13 @@ import {
 type QALanguage = "bengali" | "english" | "both";
 
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
+import { type UserProfile } from "@/contexts/AuthContext";
 
 export default function QAManagerTab({ profile }: { profile: UserProfile }) {
     const [cards, setCards] = useState<(FirestoreQACard & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const { showToast } = useToast();
     const [editId, setEditId] = useState<string | null>(null);
     const [showNew, setShowNew] = useState(false);
     const [newCard, setNewCard] = useState<{ question: string; answer: string; language: QALanguage }>({ question: "", answer: "", language: "bengali" });
@@ -54,11 +56,10 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
             await createQACard({ ...newCard, order: cards.length + 1, isVisible: true });
             setShowNew(false);
             setNewCard({ question: "", answer: "", language: "bengali" });
-            setMessage("✅ Card created!");
-            setTimeout(() => setMessage(""), 3000);
+            showToast("✅ Card created!", "success");
             loadCards();
         } catch (err) {
-            setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -67,11 +68,10 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
         try {
             await updateQACard(editId, editCard);
             setEditId(null);
-            setMessage("✅ Card updated!");
-            setTimeout(() => setMessage(""), 3000);
+            showToast("✅ Card updated!", "success");
             loadCards();
         } catch (err) {
-            setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -80,7 +80,7 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
             await updateQACard(id, { isVisible: !current });
             loadCards();
         } catch (err) {
-            setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -96,11 +96,10 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
         setIsLoading(true);
         try {
             await deleteQACard(id);
-            setMessage("Card deleted.");
-            setTimeout(() => setMessage(""), 3000);
+            showToast("Card deleted.", "info");
             loadCards();
         } catch (err) {
-            setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         } finally {
             close();
         }
@@ -115,7 +114,7 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
             await reorderQACards(reordered);
             loadCards();
         } catch (err) {
-            setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -128,7 +127,7 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
             await reorderQACards(reordered);
             loadCards();
         } catch (err) {
-            setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -157,13 +156,7 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage FAQs, Admission Guide, and Builder settings for the homepage.</p>
                 </div>
             </div>
-            <AnimatePresence>
-                {message && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm font-semibold text-emerald-700 dark:text-emerald-300"
-                    >{message}</motion.div>
-                )}
-            </AnimatePresence>
+
 
             {/* Add New Button */}
             <button onClick={() => setShowNew(true)}

@@ -4,16 +4,15 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Save, X, Code, Image as ImageIcon, Type, Link as LinkIcon, Loader2 } from "lucide-react";
 import { getBuilderSettings, updateBuilderSettings, type FirestoreBuilderSettings } from "@/lib/firestore";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToCloudinary } from "@/lib/storage";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function BuilderManagerTab() {
     const [settings, setSettings] = useState<FirestoreBuilderSettings | null>(null);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const { showToast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
-
-    const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(""), 3000); };
 
     const loadData = async () => {
         setLoading(true);
@@ -33,9 +32,9 @@ export default function BuilderManagerTab() {
         setIsSaving(true);
         try {
             await updateBuilderSettings(settings);
-            flash("✅ Builder Settings saved!");
+            showToast("✅ Builder Settings saved!", "success");
         } catch (err) {
-            flash(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
         setIsSaving(false);
     };
@@ -47,10 +46,10 @@ export default function BuilderManagerTab() {
         try {
             const result = await uploadToCloudinary(file, "avatars", "builder", "builder_profile");
             setSettings({ ...settings, imageUrl: result.url, imageMode: "image" });
-            flash("✅ Image uploaded. Don't forget to save!");
+            showToast("✅ Image uploaded. Don't forget to save!", "success");
         } catch (error) {
             console.error("Upload error:", error);
-            flash(`❌ Image upload failed: ${error instanceof Error ? error.message : "Error"}`);
+            showToast(`❌ Image upload failed: ${error instanceof Error ? error.message : "Error"}`, "error");
         }
         setUploadingImage(false);
     };
@@ -78,15 +77,7 @@ export default function BuilderManagerTab() {
                 <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
             </div>
 
-            <AnimatePresence>
-                {message && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className={`p-3 rounded-xl text-sm font-semibold border ${message.includes("❌") ? "bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800 text-red-700 dark:text-red-300" : "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"}`}
-                    >
-                        {message}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
 
             <div className="bg-white dark:bg-[#16181C] rounded-[20px] p-6 border border-gray-100 dark:border-white/5 shadow-sm">
                 <div className="flex items-center justify-between mb-6">

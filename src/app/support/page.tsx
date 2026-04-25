@@ -35,14 +35,122 @@ import {
     Sparkles,
     AlertTriangle,
     FileText,
-    Pencil
+    Pencil,
+    CreditCard,
+    QrCode,
+    ExternalLink
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getApprovedGifts, getSupportSettings, getSupportPhases, getBuilderSettings, submitGift, updateSupportSettings, type FirestoreGift, type SupportSettings, type SupportPhase, type FirestoreBuilderSettings } from "@/lib/firestore";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import BuilderPopupModal from "@/components/BuilderPopupModal";
+
+const CONFIG = {
+    stripeLink: "https://donate.stripe.com/test_14A9AU2l3g027rq8V12cg00",
+    cryptoWallet: "0xCa78EFEda896070E997BbA0c82deA12a5ca7DEc3",
+    bkashNumber: "01805107667",
+    raised: 12500,
+    supporters: "48",
+    goal: 50000,
+    currencySymbol: "৳"
+};
+
+/* ═══════════════════════════════════════════════════
+   PREMIUM UI COMPONENTS
+   ═══════════════════════════════════════════════════ */
+
+function MeshGradient() {
+    return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40 dark:opacity-20">
+            <motion.div 
+                animate={{
+                    x: [0, 100, 0],
+                    y: [0, 50, 0],
+                    scale: [1, 1.2, 1],
+                }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-1/4 -left-1/4 w-full h-full bg-cyan-400/30 rounded-full blur-[120px]" 
+            />
+            <motion.div 
+                animate={{
+                    x: [0, -80, 0],
+                    y: [0, 100, 0],
+                    scale: [1, 1.5, 1],
+                }}
+                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                className="absolute top-1/2 -right-1/4 w-full h-full bg-purple-400/20 rounded-full blur-[150px]" 
+            />
+            <motion.div 
+                animate={{
+                    x: [0, 50, 0],
+                    y: [0, -50, 0],
+                    scale: [1, 1.1, 1],
+                }}
+                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+                className="absolute -bottom-1/4 left-1/4 w-full h-full bg-amber-400/10 rounded-full blur-[100px]" 
+            />
+        </div>
+    );
+}
+
+function StatPill({ label, value, icon: Icon, delay = 0 }: { label: string, value: string | number, icon: any, delay?: number }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay, duration: 0.8, type: "spring" }}
+            className="flex items-center gap-3 px-5 py-3 bg-white/50 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-2xl shadow-xl shadow-black/5"
+        >
+            <div className="w-10 h-10 rounded-xl bg-amber-400/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Icon size={20} />
+            </div>
+            <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
+                <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-lg font-black text-gray-900 dark:text-white leading-none mt-1"
+                >
+                    {value}
+                </motion.p>
+            </div>
+        </motion.div>
+    );
+}
+
+function ShimmerProgressBar({ raised, goal }: { raised: number, goal: number }) {
+    const percentage = Math.min(100, (raised / goal) * 100);
+    
+    return (
+        <div className="w-full space-y-3">
+            <div className="flex justify-between items-end">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">Platform Growth Phase</p>
+                <p className="text-xl font-black text-amber-600 dark:text-amber-400">{Math.round(percentage)}%</p>
+            </div>
+            <div className="h-4 w-full bg-gray-200/50 dark:bg-white/5 rounded-full overflow-hidden border border-white/10 relative">
+                <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percentage}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 relative"
+                >
+                    <motion.div 
+                        animate={{ x: ["-100%", "200%"] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12"
+                    />
+                </motion.div>
+            </div>
+            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                <span>Raised: {CONFIG.currencySymbol}{raised.toLocaleString()}</span>
+                <span>Goal: {CONFIG.currencySymbol}{goal.toLocaleString()}</span>
+            </div>
+        </div>
+    );
+}
 
 /* ═══════════════════════════════════════════════════
    CONFETTI COMPONENT — Canvas-based particle system
@@ -718,11 +826,211 @@ function HowToSend() {
 }
 
 /* ═══════════════════════════════════════════════════
-   MAIN SUPPORT PAGE
+   PAYMENT CARD COMPONENT
    ═══════════════════════════════════════════════════ */
+function PaymentCard({ giftAmount, setGiftAmount, onGiftSubmit, config }: { giftAmount: string, setGiftAmount: (val: string) => void, onGiftSubmit: () => void, config: typeof CONFIG }) {
+    const [activeTab, setActiveTab] = useState<"card" | "bkash" | "crypto">("card");
+    const [copied, setCopied] = useState(false);
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const tabs = [
+        { id: "card", label: "Card", icon: CreditCard },
+        { id: "bkash", label: "bKash", icon: Smartphone },
+        { id: "crypto", label: "Crypto", icon: Wallet }
+    ];
+
+    return (
+        <div className="w-full max-w-[480px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/20 dark:border-white/10 shadow-2xl overflow-hidden group">
+            {/* Tab Header */}
+            <div className="flex p-2 bg-gray-100/50 dark:bg-white/5 m-4 rounded-2xl relative">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-all relative z-10 ${activeTab === tab.id ? "text-gray-900 dark:text-white" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                    >
+                        <tab.icon size={14} />
+                        {tab.label}
+                        {activeTab === tab.id && (
+                            <motion.div
+                                layoutId="activeTab"
+                                className="absolute inset-0 bg-white dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 -z-10"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                        )}
+                    </button>
+                ))}
+            </div>
+
+            <div className="p-8 pt-4">
+                <AnimatePresence mode="wait">
+                    {activeTab === "card" && (
+                        <motion.div
+                            key="card"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-6"
+                        >
+                            <div className="text-center space-y-2 mb-8">
+                                <h3 className="text-xl font-black text-gray-900 dark:text-white">Secure Card Payment</h3>
+                                <p className="text-xs text-gray-500 font-medium">Powered by Stripe Global Infrastructure</p>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                {[100, 500, 1000].map(amt => (
+                                    <button
+                                        key={amt}
+                                        onClick={() => setGiftAmount(String(amt))}
+                                        className={`py-4 rounded-2xl text-sm font-black transition-all border ${giftAmount === String(amt) ? "bg-amber-400 text-slate-900 border-transparent shadow-lg shadow-amber-400/20" : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-white/5 hover:border-amber-400/50"}`}
+                                    >
+                                        ৳{amt}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <input
+                                type="number"
+                                value={giftAmount}
+                                onChange={e => setGiftAmount(e.target.value)}
+                                placeholder="Enter custom amount..."
+                                className="w-full p-5 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-center font-black text-xl placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-600 focus:ring-4 focus:ring-amber-400/10 focus:border-amber-400 transition-all outline-none"
+                            />
+
+                            <motion.a
+                                href={config.stripeLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full py-5 bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-900 font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 text-lg"
+                            >
+                                <CreditCard size={20} /> Pay with Card <ExternalLink size={14} className="opacity-50" />
+                            </motion.a>
+                            
+                            <div className="flex items-center justify-center gap-4 pt-2 opacity-30 grayscale">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-5" />
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {activeTab === "bkash" && (
+                        <motion.div
+                            key="bkash"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-6"
+                        >
+                            <div className="bg-[#E2136E] rounded-3xl p-8 text-white relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                                <div className="relative z-10 space-y-6">
+                                    <div className="flex justify-between items-start">
+                                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-[#E2136E] font-black text-xl">b</div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Recipient</p>
+                                            <p className="text-lg font-black tracking-tight">bKash Personal</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Account Number</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-2xl font-mono font-black tracking-tighter">{config.bkashNumber}</p>
+                                            <button onClick={() => copyToClipboard(config.bkashNumber)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                                                {copied ? <Check size={20} /> : <Copy size={20} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={onGiftSubmit}
+                                className="w-full py-5 bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-900 font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 text-lg"
+                            >
+                                <Heart size={20} fill="currentColor" /> I Sent a Gift
+                            </motion.button>
+                            <p className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest">Verify transaction to get your badge</p>
+                        </motion.div>
+                    )}
+
+                    {activeTab === "crypto" && (
+                        <motion.div
+                            key="crypto"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-6"
+                        >
+                            <div className="text-center space-y-2 mb-4">
+                                <h3 className="text-xl font-black text-gray-900 dark:text-white">Web3 / Crypto Payment</h3>
+                                <p className="text-xs text-gray-500 font-medium">Support via Blockchain networks</p>
+                            </div>
+
+                            <div className="flex justify-center py-2">
+                                <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-inner">
+                                    <img 
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${config.cryptoWallet}`} 
+                                        alt="Wallet QR" 
+                                        className="w-32 h-32"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Wallet Address</p>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-[11px] font-mono font-bold text-gray-600 dark:text-gray-300 break-all">{config.cryptoWallet}</p>
+                                    <button onClick={() => copyToClipboard(config.cryptoWallet)} className="shrink-0 p-2 text-gray-400 hover:text-amber-500 transition-colors">
+                                        {copied ? <Check size={16} /> : <Copy size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Accepted Networks</p>
+                                <div className="flex flex-wrap justify-center gap-2">
+                                    {["Ethereum", "BNB Chain", "Polygon", "Base"].map(net => (
+                                        <span key={net} className="px-3 py-1 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-full text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">{net}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+            
+            {/* Trust Badges below payment area inside card but distinct */}
+            <div className="p-6 bg-gray-50/50 dark:bg-white/5 border-t border-gray-100 dark:border-white/5 flex items-center justify-around">
+                <div className="flex flex-col items-center gap-1 opacity-50">
+                    <Shield size={16} className="text-emerald-500" />
+                    <span className="text-[8px] font-black uppercase tracking-tighter text-gray-500">Secured</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 opacity-50">
+                    <CheckCircle2 size={16} className="text-blue-500" />
+                    <span className="text-[8px] font-black uppercase tracking-tighter text-gray-500">Student-Built</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 opacity-50">
+                    <Sparkles size={16} className="text-amber-500" />
+                    <span className="text-[8px] font-black uppercase tracking-tighter text-gray-500">100% Direct</span>
+                </div>
+            </div>
+        </div>
+    );
+}
 export default function SupportPage() {
     const { siteName } = useSiteSettings();
     const { user, profile } = useAuth();
+    const { showToast } = useToast();
     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
     const [isEditingNote, setIsEditingNote] = useState(false);
     const [editNote, setEditNote] = useState("");
@@ -740,6 +1048,141 @@ export default function SupportPage() {
     const [copied, setCopied] = useState(false);
     const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
     const [showBuilderPopup, setShowBuilderPopup] = useState(false);
+
+    const [isEditingSettings, setIsEditingSettings] = useState(false);
+    const [tempSettings, setTempSettings] = useState<Partial<SupportSettings>>({});
+
+    const activeConfig = {
+        stripeLink: settings.stripeLink || CONFIG.stripeLink,
+        cryptoWallet: settings.cryptoWallet || CONFIG.cryptoWallet,
+        bkashNumber: settings.bkashNumber || CONFIG.bkashNumber,
+        raised: settings.raised ?? CONFIG.raised,
+        goal: settings.goal ?? CONFIG.goal,
+        supporters: String(settings.supporters ?? CONFIG.supporters),
+        currencySymbol: settings.currencySymbol || CONFIG.currencySymbol,
+    };
+
+    const handleSaveSettings = async () => {
+        setIsSaving(true);
+        try {
+            await updateSupportSettings(tempSettings);
+            setSettings(prev => ({ ...prev, ...tempSettings }));
+            setIsEditingSettings(false);
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to save settings.", "error");
+        }
+        setIsSaving(false);
+    };
+
+    const AdminSupportPanel = () => (
+        <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed top-24 right-6 z-[100] w-80 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-[2rem] shadow-2xl overflow-hidden"
+        >
+            <div className="p-6 bg-slate-50 dark:bg-slate-950/50 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Shield className="text-amber-500" size={18} />
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Admin Hub</span>
+                </div>
+                <button 
+                    onClick={() => setIsEditingSettings(!isEditingSettings)}
+                    className={`p-2 rounded-xl transition-all ${isEditingSettings ? "bg-amber-500 text-white" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-amber-500"}`}
+                >
+                    <Edit size={14} />
+                </button>
+            </div>
+
+            <AnimatePresence>
+                {isEditingSettings && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stripe Link</label>
+                                <input 
+                                    type="text" 
+                                    value={tempSettings.stripeLink ?? activeConfig.stripeLink}
+                                    onChange={e => setTempSettings(prev => ({ ...prev, stripeLink: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Crypto Wallet</label>
+                                <input 
+                                    type="text" 
+                                    value={tempSettings.cryptoWallet ?? activeConfig.cryptoWallet}
+                                    onChange={e => setTempSettings(prev => ({ ...prev, cryptoWallet: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold font-mono"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">bKash Number</label>
+                                <input 
+                                    type="text" 
+                                    value={tempSettings.bkashNumber ?? activeConfig.bkashNumber}
+                                    onChange={e => setTempSettings(prev => ({ ...prev, bkashNumber: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Raised</label>
+                                    <input 
+                                        type="number" 
+                                        value={tempSettings.raised ?? activeConfig.raised}
+                                        onChange={e => setTempSettings(prev => ({ ...prev, raised: Number(e.target.value) }))}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Goal</label>
+                                    <input 
+                                        type="number" 
+                                        value={tempSettings.goal ?? activeConfig.goal}
+                                        onChange={e => setTempSettings(prev => ({ ...prev, goal: Number(e.target.value) }))}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Supporters</label>
+                                    <input 
+                                        type="text" 
+                                        value={tempSettings.supporters ?? activeConfig.supporters}
+                                        onChange={e => setTempSettings(prev => ({ ...prev, supporters: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Currency</label>
+                                    <input 
+                                        type="text" 
+                                        value={tempSettings.currencySymbol ?? activeConfig.currencySymbol}
+                                        onChange={e => setTempSettings(prev => ({ ...prev, currencySymbol: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
+                                    />
+                                </div>
+                            </div>
+                            <button 
+                                onClick={handleSaveSettings}
+                                disabled={isSaving}
+                                className="w-full py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                            >
+                                {isSaving ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
 
     useEffect(() => {
         getApprovedGifts().then(setSupporters).catch(console.error);
@@ -768,7 +1211,7 @@ export default function SupportPage() {
             setIsEditingNote(false);
         } catch (err) {
             console.error(err);
-            alert("Failed to save note.");
+            showToast("Failed to save note.", "error");
         }
         setIsSaving(false);
     };
@@ -827,7 +1270,7 @@ export default function SupportPage() {
             setGiftName("");
         } catch (err) {
             console.error(err);
-            alert("Failed to submit verification. Please try again.");
+            showToast("Failed to submit verification. Please try again.", "error");
         }
         setGiftSubmitted(false);
     };
@@ -835,163 +1278,120 @@ export default function SupportPage() {
     const presetAmounts = [50, 100, 200, 500, 1000];
 
     return (
-        <div className="bg-gray-50 dark:bg-[#08080c] transition-colors duration-500 pb-24">
-            <div className="max-w-6xl mx-auto px-4 pt-12">
+        <div className="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-32 overflow-hidden selection:bg-amber-400 selection:text-slate-900">
+            {isAdmin && <AdminSupportPanel />}
+            {/* ===== Vision Roadmap (Top Section) ===== */}
+            <div className="max-w-7xl mx-auto px-6 relative pt-12 pb-24">
                 <VisionRoadmap phases={phases} supporters={supporters} />
             </div>
 
-            {/* ===== Hero ===== */}
-            <div className="relative pt-20 pb-24 overflow-hidden bg-white dark:bg-[#0c0c12] border-t border-b border-gray-100 dark:border-gray-800">
-                <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" 
-                    style={{ backgroundImage: "radial-gradient(circle at 1px 1px, var(--primary) 1px, transparent 0)", backgroundSize: "40px 40px" }} />
+            {/* ===== Hero Section with Mesh Gradient (Now Middle) ===== */}
+            <div className="relative pt-32 pb-40 overflow-hidden border-t border-b border-gray-200 dark:border-white/5">
+                <MeshGradient />
                 
-                <div className="max-w-6xl mx-auto px-4 relative">
-                    <div className="flex flex-col lg:flex-row gap-16 lg:gap-24 items-center">
-                        {/* Left: Heading and Note */}
-                        <div className="flex-1 text-left">
-                            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-                                <div className="relative inline-block mb-12">
-                                    <h1 className="text-4xl sm:text-6xl tracking-tighter leading-tight relative z-10">
-                                        <span className="font-extralight text-gray-500 dark:text-gray-400">Support</span>{" "}
-                                        <span className="font-black text-gray-900 dark:text-white">TTC Network</span>
-                                    </h1>
-                                    <UnderlineSVG color="text-amber-500/60 dark:text-amber-400/40" />
+                <div className="max-w-7xl mx-auto px-6 relative z-10">
+                    <div className="flex flex-col lg:flex-row gap-16 lg:gap-32 items-center">
+                        {/* Left: Content & Mission */}
+                        <div className="flex-1 space-y-12">
+                            <motion.div 
+                                initial={{ opacity: 0, x: -30 }} 
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.8 }}
+                                className="space-y-6"
+                            >
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-400/10 border border-amber-400/20 rounded-full">
+                                    <Sparkles size={14} className="text-amber-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Keep The Dream Alive</span>
                                 </div>
-                                
-                                <div className="relative group">
-                                    {isAdmin && !isEditingNote && (
-                                        <button 
-                                            onClick={() => setIsEditingNote(true)}
-                                            className="absolute -right-12 top-0 p-2 text-gray-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                    )}
-                                    
-                                    {isEditingNote ? (
-                                        <div className="space-y-4">
-                                            <textarea 
-                                                value={editNote}
-                                                onChange={(e) => setEditNote(e.target.value)}
-                                                className="w-full bg-gray-50 dark:bg-black/20 border-2 border-primary/20 rounded-2xl p-6 text-sm font-medium focus:ring-4 focus:ring-primary/5 outline-none min-h-[150px]"
-                                            />
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    onClick={handleSaveNote}
-                                                    disabled={isSaving}
-                                                    className="px-6 py-2 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 flex items-center gap-2"
-                                                >
-                                                    {isSaving ? "Saving..." : <><Save size={14} /> Save Note</>}
-                                                </button>
-                                                <button 
-                                                    onClick={() => {
-                                                        setIsEditingNote(false);
-                                                        setEditNote(settings.supportPageNote || "");
-                                                    }}
-                                                    className="px-6 py-2 bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs font-black uppercase tracking-widest rounded-xl"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed space-y-6">
-                                            {settings.supportPageNote ? (
-                                                settings.supportPageNote.split('\n').map((p, idx) => (
-                                                    <p key={idx} className={idx === 0 ? "font-bold text-gray-900 dark:text-white" : "font-medium opacity-80"}>
-                                                        {p}
-                                                    </p>
-                                                ))
-                                            ) : (
-                                                <>
-                                                    <p className="font-bold text-gray-900 dark:text-white">
-                                                        Assalamu Alaikum. TTC Network is built independently to connect educators across Bangladesh.
-                                                    </p>
-                                                    <p className="font-medium opacity-80">
-                                                        This platform was not designed in a corporate office. It was imagined by a student who felt the same disconnection and decided to build the solution himself.
-                                                    </p>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                <h1 className="text-5xl sm:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter">
+                                    Fueling the Future of <span className="text-amber-500">TTC Network</span>
+                                </h1>
+                                <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-xl">
+                                    TTC Network is built independently to connect educators across Bangladesh. Your support—no matter how small—directly accelerates our mission to empower every student.
+                                </p>
+                            </motion.div>
+
+                            {/* Animated Stat Pills */}
+                            <div className="flex flex-wrap gap-4">
+                                <StatPill label="Raised" value={`${activeConfig.currencySymbol}${activeConfig.raised.toLocaleString()}`} icon={Wallet} delay={0.2} />
+                                <StatPill label="Supporters" value={activeConfig.supporters} icon={Users} delay={0.4} />
+                                <StatPill label="Trust Score" value="100%" icon={Shield} delay={0.6} />
+                            </div>
+
+                            {/* Progress Bar */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.8 }}
+                                className="max-w-md"
+                            >
+                                <ShimmerProgressBar raised={activeConfig.raised} goal={activeConfig.goal} />
                             </motion.div>
                         </div>
 
-                        {/* Right: bKash Card */}
-                        <div className="w-full lg:w-[420px] shrink-0">
-                            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-                                {fundingOpen ? (
-                                    <div className="bg-white dark:bg-[#111118] rounded-[2.5rem] border border-gray-200 dark:border-pink-500/20 shadow-2xl overflow-hidden group">
-                                        <div className="p-10 bg-[#E2136E] dark:bg-opacity-90 text-white relative overflow-hidden">
-                                            {/* Decorative circle */}
-                                            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-110 transition-transform duration-700" />
-                                            
-                                            <div className="flex items-center justify-between mb-10 relative z-10">
-                                                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#E2136E] font-black text-3xl shadow-2xl">b</div>
-                                                <div className="text-right">
-                                                    <div className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-80">Secured via</div>
-                                                    <div className="text-2xl font-black">bKash Personal</div>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2 relative z-10">
-                                                <div className="text-[10px] uppercase font-black tracking-[0.3em] opacity-70">Send Money To</div>
-                                                <div className="text-3xl font-mono font-black tracking-tighter flex items-center gap-4">
-                                                    {bkashNumber}
-                                                    <button onClick={copyNumber} className="hover:scale-110 transition-transform active:scale-95">
-                                                        {copied ? <Check size={24} className="text-white" /> : <Copy size={24} className="opacity-60 hover:opacity-100" />}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-10 space-y-8">
-                                            <div className="grid grid-cols-3 gap-3">
-                                                {[100, 500, 1000].map(amt => (
-                                                    <button 
-                                                        key={amt} 
-                                                        onClick={() => setGiftAmount(String(amt))}
-                                                        className={`py-4 rounded-2xl text-sm font-black transition-all border ${giftAmount === String(amt) ? "bg-primary dark:bg-amber-500 text-white border-transparent shadow-[0_10px_20px_-5px_rgba(255,165,0,0.4)]" : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700 hover:border-amber-400/50"}`}
-                                                    >
-                                                        ৳{amt}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <input 
-                                                type="number" 
-                                                value={giftAmount} 
-                                                onChange={e => setGiftAmount(e.target.value)} 
-                                                placeholder="Custom Amount..." 
-                                                className="w-full p-5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-center font-black text-xl placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-600 focus:ring-4 focus:ring-primary/10 dark:focus:ring-amber-500/10 focus:border-primary dark:focus:border-amber-500 transition-all outline-none" 
-                                            />
-                                            <motion.button
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => setShowGiftForm(true)}
-                                                className="w-full py-5 bg-primary dark:bg-amber-500 text-white font-black rounded-2xl shadow-xl shadow-primary/20 dark:shadow-amber-500/20 flex items-center justify-center gap-3 text-lg"
-                                            >
-                                                <Heart size={20} fill="currentColor" /> I Sent a Gift
-                                            </motion.button>
-                                            <p className="text-center text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-[0.2em] pt-2">Verification Required</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="p-10 bg-emerald-50 dark:bg-emerald-900/10 rounded-[2.5rem] border border-emerald-100 dark:border-emerald-500/20 text-center shadow-sm">
-                                         <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white mx-auto mb-8 shadow-xl shadow-emerald-500/20">
-                                            <Check size={40} strokeWidth={3} />
-                                         </div>
-                                         <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mb-4 tracking-tight">Support Goal Reached</h3>
-                                         <p className="text-sm text-emerald-800/80 dark:text-emerald-300/60 leading-relaxed font-medium">
-                                            {fundingMessage || "We have reached our goal for this phase! Thank you for the incredible support."}
-                                         </p>
-                                    </div>
-                                )}
-                            </motion.div>
-                        </div>
+                        {/* Right: Payment Card */}
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
+                            className="w-full lg:w-auto"
+                        >
+                            <PaymentCard 
+                                giftAmount={giftAmount} 
+                                setGiftAmount={setGiftAmount} 
+                                onGiftSubmit={() => setShowGiftForm(true)} 
+                                config={activeConfig}
+                            />
+                        </motion.div>
                     </div>
                 </div>
             </div>
 
+            {/* ===== Why Support? Section (Bento Grid) ===== */}
+            <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20 pb-24">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[
+                        { 
+                            title: "Sustainability", 
+                            desc: "Servers and infrastructure require constant resources. Your support ensures we stay online 24/7.", 
+                            icon: Server, 
+                            color: "bg-blue-500" 
+                        },
+                        { 
+                            title: "Innovation", 
+                            desc: "We're building features like real-time study hubs and career networking tools for educators.", 
+                            icon: Palette, 
+                            color: "bg-purple-500" 
+                        },
+                        { 
+                            title: "Community", 
+                            desc: "100% of your gift goes back into the platform. No corporate overhead, just student-powered growth.", 
+                            icon: Heart, 
+                            color: "bg-rose-500" 
+                        }
+                    ].map((item, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: i * 0.1 }}
+                            whileHover={{ y: -5 }}
+                            className="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-white/5 rounded-[2rem] shadow-xl shadow-black/5 flex flex-col items-start gap-6"
+                        >
+                            <div className={`w-12 h-12 rounded-2xl ${item.color}/10 flex items-center justify-center text-white`}>
+                                <div className={`w-full h-full rounded-2xl ${item.color} flex items-center justify-center shadow-lg`}>
+                                    <item.icon size={20} />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{item.title}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">{item.desc}</p>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            </div>
 
             <div className="max-w-6xl mx-auto px-4 relative z-10 mt-12">
                 <HowToSend />

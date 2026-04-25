@@ -22,10 +22,12 @@ import { canEditStudyPost } from "@/lib/permissions";
 import { Save, Trash2, Pencil, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 
 export default function StudyPage() {
     const { user, profile } = useAuth();
+    const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +37,6 @@ export default function StudyPage() {
     const [pendingCount, setPendingCount] = useState(0);
     const [heroSettings, setHeroSettings] = useState<StudyHeroSettings | null>(null);
     const [editingPost, setEditingPost] = useState<(FirestoreStudyPost & { id: string }) | null>(null);
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
     const { confirm, setIsLoading, close } = useConfirm();
 
     useEffect(() => {
@@ -103,11 +104,10 @@ export default function StudyPage() {
         setIsLoading(true);
         try {
             await deleteStudyPost(id);
-            setToastMessage("Post deleted successfully");
-            setTimeout(() => setToastMessage(null), 3500);
+            showToast("Post deleted successfully", "success");
         } catch (err) {
             console.error("Delete study post failed:", err);
-            alert("Failed to delete post.");
+            showToast("Failed to delete post.", "error");
         } finally {
             close();
         }
@@ -318,27 +318,12 @@ export default function StudyPage() {
                     profile={profile} 
                     editPost={editingPost}
                     onSuccess={(msg) => {
-                        setToastMessage(msg);
-                        setTimeout(() => setToastMessage(null), 3500);
+                        showToast(msg, "success");
                     }}
                 />
             )}
 
-            {/* Success Toast */}
-            <AnimatePresence>
-                {toastMessage && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -40, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -40, scale: 0.95 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                        className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-2xl shadow-2xl shadow-emerald-500/30 font-bold text-sm"
-                    >
-                        <CheckCircle2 size={20} className="shrink-0" />
-                        {toastMessage}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
 
 
             <GenericModerationPanel 

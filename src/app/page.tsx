@@ -598,60 +598,73 @@ export default function HomePage() {
             </motion.p>
           </motion.div>
 
-          {/* New Problem Grid */}
-          <div className="space-y-12 sm:space-y-20">
-            {STORY_TIMELINE.map((problem, i) => {
-              const Icon = problem.icon;
-              return (
-                <div key={problem.id} className="relative group">
-                  {/* Background Number (Desktop Only) */}
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-12 hidden lg:block opacity-10 pointer-events-none">
-                     <span className="text-[140px] font-black text-[#F5B800] dark:text-amber-500 leading-none select-none">
-                        {i + 1}
-                     </span>
-                  </div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
-                    transition={{ duration: 0.7, delay: i * 0.1 }}
-                    className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center"
-                  >
-                    {/* Ghost Number / Spacer on the left for text alignment */}
-                    <div className="hidden lg:block lg:col-span-1" />
-
-                    {/* Content Card */}
-                    <div className="lg:col-span-10">
-                       <div className={`p-8 sm:p-12 rounded-[2.5rem] relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:scale-[1.01] rotate-0 ${i % 2 === 0 ? 'lg:rotate-1' : 'lg:-rotate-1'}`}
-                            style={{ backgroundColor: '#FFF9C4' }}>
-                          
-                          {/* Decorative Tape Element */}
-                          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-10 bg-white/40 dark:bg-black/10 backdrop-blur-sm border-x border-black/5 rotate-2" />
-
-                          <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-                            <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-white dark:bg-black/5 flex items-center justify-center shadow-lg border border-black/5">
-                              <Icon size={32} className="text-accent" strokeWidth={1.5} />
-                            </div>
-                            
-                            <div className="flex-1">
-                              <h3 className="text-2xl sm:text-4xl font-black text-gray-900 leading-tight mb-4 font-caveat">
-                                {problem.title}
-                              </h3>
-                              <p className="text-lg sm:text-xl text-gray-700 leading-relaxed font-medium">
-                                {problem.story}
-                              </p>
-                            </div>
-                          </div>
-                       </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Horizontal Separator */}
-                  {i < STORY_TIMELINE.length - 1 && (
-                    <div className="mt-12 sm:mt-20 w-full h-px bg-gradient-to-r from-transparent via-gray-100 dark:via-white/5 to-transparent" />
-                  )}
+          {/* Magic Bento Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
+            {/* Featured Card - Problem 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="md:col-span-2 group relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/10 dark:to-amber-900/5 p-8 sm:p-12 border border-amber-200/50 dark:border-amber-500/20 shadow-xl"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                <Landmark size={200} />
+              </div>
+              <div className="relative z-10 flex flex-col lg:flex-row gap-8 items-center">
+                <div className="flex-shrink-0 w-20 h-20 rounded-3xl bg-white dark:bg-black/20 flex items-center justify-center shadow-lg transform group-hover:rotate-6 transition-transform duration-500">
+                  <Landmark size={40} className="text-amber-600 dark:text-amber-400" />
                 </div>
+                <div className="flex-1 text-center lg:text-left">
+                  <h3 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white leading-tight mb-4 font-sora">
+                    {STORY_TIMELINE[0].title}
+                  </h3>
+                  <p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                    {STORY_TIMELINE[0].story}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Remaining Problems 2-5 in a 2x2 Style Grid */}
+            {STORY_TIMELINE.slice(1).map((problem, i) => {
+              const Icon = problem.icon;
+              const colors = [
+                "from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/5 border-blue-200/50 dark:border-blue-500/20",
+                "from-purple-50 to-fuchsia-50 dark:from-purple-900/10 dark:to-fuchsia-900/5 border-purple-200/50 dark:border-purple-500/20",
+                "from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/5 border-emerald-200/50 dark:border-emerald-500/20",
+                "from-rose-50 to-pink-50 dark:from-rose-900/10 dark:to-pink-900/5 border-rose-200/50 dark:border-rose-500/20"
+              ];
+              const iconColors = [
+                "text-blue-600 dark:text-blue-400",
+                "text-purple-600 dark:text-purple-400",
+                "text-emerald-600 dark:text-emerald-400",
+                "text-rose-600 dark:text-rose-400"
+              ];
+
+              return (
+                <motion.div
+                  key={problem.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  className={`md:col-span-1 group relative p-6 sm:p-8 rounded-[2rem] bg-gradient-to-br ${colors[i % colors.length]} border shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1`}
+                >
+                  <div className="flex flex-col gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-black/20 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-500">
+                      <Icon size={24} className={iconColors[i % iconColors.length]} />
+                    </div>
+                    <div>
+                      <h4 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora">
+                        {problem.title}
+                      </h4>
+                      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4 group-hover:line-clamp-none transition-all duration-500">
+                        {problem.story}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
               );
             })}
           </div>

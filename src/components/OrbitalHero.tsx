@@ -171,8 +171,9 @@ function OrbitingLogo({
 /* ═══════════════════════════════════════════════════════════
    COSMIC PARTICLE
    ═══════════════════════════════════════════════════════════ */
-function CosmicParticle({ x, y, size, color, duration, delay }: {
+function CosmicParticle({ x, y, size, color, duration, delay, randomX, randomY }: {
     x: number; y: number; size: number; color: string; duration: number; delay: number;
+    randomX: number[]; randomY: number[];
 }) {
     return (
         <motion.div
@@ -180,8 +181,8 @@ function CosmicParticle({ x, y, size, color, duration, delay }: {
             style={{ width: size, height: size, left: `${x}%`, top: `${y}%`, background: color }}
             animate={{
                 opacity: [0, 0.7, 0],
-                x: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 40],
-                y: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 40],
+                x: randomX,
+                y: randomY,
             }}
             transition={{ duration, delay, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -362,19 +363,26 @@ export default function OrbitalHero() {
         return () => window.removeEventListener("resize", update);
     }, []);
 
-    const particles = useMemo(() => {
+    const [particles, setParticles] = useState<any[]>([]);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
         const colors = [
             "rgba(230,57,70,0.4)", "rgba(230,57,70,0.25)", "rgba(255,255,255,0.25)",
             "rgba(230,57,70,0.3)", "rgba(255,255,255,0.15)", "rgba(230,57,70,0.2)",
         ];
-        return Array.from({ length: 10 }, (_, i) => ({
+        const newParticles = Array.from({ length: 10 }, (_, i) => ({
             x: 15 + Math.random() * 70,
             y: 15 + Math.random() * 70,
             size: 2 + Math.random() * 2,
             color: colors[i % colors.length],
             duration: 5 + Math.random() * 5,
             delay: Math.random() * 4,
+            randomX: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 40],
+            randomY: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 40],
         }));
+        setParticles(newParticles);
     }, []);
 
     return (

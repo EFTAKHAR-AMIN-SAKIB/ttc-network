@@ -13,6 +13,7 @@ import {
     approveModerationItem,
     rejectModerationItem
 } from "@/lib/firestore";
+import { useToast } from "@/contexts/ToastContext";
 
 interface GenericModerationPanelProps {
     isOpen: boolean;
@@ -29,6 +30,7 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
     const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
     const [isProcessing, setIsProcessing] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     const isAdminOrSuper = profile?.role === "admin" || profile?.role === "super_manager";
 
@@ -71,7 +73,7 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
             await approveModerationItem(type, id);
         } catch (err) {
             console.error(err);
-            alert("Approval failed.");
+            showToast("Approval failed.", "error");
         } finally {
             setIsProcessing(null);
         }
@@ -84,7 +86,7 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
             await rejectModerationItem(type, id, reason);
         } catch (err) {
             console.error(err);
-            alert("Rejection failed.");
+            showToast("Rejection failed.", "error");
         } finally {
             setIsProcessing(null);
             setRejectReason(prev => {

@@ -35,6 +35,7 @@ import {
     type FirestoreCollege,
 } from "@/lib/firestore";
 import { UserProfile } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function ManagementTab({ profile: initialProfile }: { profile: UserProfile }) {
     const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
@@ -45,7 +46,7 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
     const [colleges, setColleges] = useState<(FirestoreCollege & { id: string })[]>([]);
     
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const { showToast } = useToast();
     const [activeSection, setActiveSection] = useState<"approvals" | "users">("approvals");
 
     // Section-specific error states
@@ -123,21 +124,18 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
             // If we detected any section errors during a full load, show a global warning
             const hasAnyError = Object.values(sectionErrors).some(v => v);
             if (!targetSection && hasAnyError) {
-                setMessage({ type: "error", text: "Some sections failed to load. Please check your data connection or indexes." });
+                showToast("Some sections failed to load. Please check your data connection or indexes.", "error");
             }
         } catch (err) {
             console.error("Critical fail:", err);
-            setMessage({ type: "error", text: "Global authentication or connection failure." });
+            showToast("Global authentication or connection failure.", "error");
         }
         setLoading(false);
     };
 
     useEffect(() => { loadData(); }, []);
 
-    const showMessage = (text: string, type: "success" | "error" = "success") => {
-        setMessage({ text, type });
-        setTimeout(() => setMessage(null), 3000);
-    };
+
 
     /* ─── Approvals ─── */
     const handleAction = async (type: "post" | "story" | "notice", id: string, action: "approve" | "reject") => {
@@ -151,10 +149,10 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
             } else if (type === "notice") {
                 await updateNoticeStatus(id, action === "approve" ? "approved" : "rejected");
             }
-            showMessage(`✅ ${type} ${action}d successfully.`, "success");
+            showToast(`✅ ${type} ${action}d successfully.`, "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error");
+            showToast(`❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`, "error");
         }
     };
 
@@ -162,10 +160,10 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
     const handleRoleChange = async (userId: string, user: FirestoreUser, newRole: FirestoreUser["role"]) => {
         try {
             await updateUserRole(userId, newRole, newRole === "admin" || newRole === "manager");
-            showMessage(`✅ Role updated to ${newRole}`, "success");
+            showToast(`✅ Role updated to ${newRole}`, "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ Error: ${err instanceof Error ? err.message : "Error"}`, "error");
+            showToast(`❌ Error: ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -174,20 +172,20 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
         if (!col) return;
         try {
             await updateUserRoleAndCollege(userId, user.role, user.roleVerified, col.id, col.shortName || col.name);
-            showMessage(`✅ College updated to ${col.shortName}`, "success");
+            showToast(`✅ College updated to ${col.shortName}`, "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ Error: ${err instanceof Error ? err.message : "Error"}`, "error");
+            showToast(`❌ Error: ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
     const handleVerifyToggle = async (userId: string, user: FirestoreUser) => {
         try {
             await updateUserRole(userId, user.role, !user.roleVerified);
-            showMessage(user.roleVerified ? "Verification removed." : "✅ Role verified!", "success");
+            showToast(user.roleVerified ? "Verification removed." : "✅ Role verified!", "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ Error: ${err instanceof Error ? err.message : "Error"}`, "error");
+            showToast(`❌ Error: ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -221,20 +219,7 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
 
     return (
         <div className="space-y-6">
-            <AnimatePresence>
-                {message && (
-                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-                        className={`mb-6 p-4 border rounded-2xl text-sm font-semibold flex items-center gap-3 shadow-lg ${
-                            message.type === "success" 
-                            ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
-                            : "bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-300"
-                        }`}
-                    >
-                        {message.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
-                        {message.text}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
 
             <div className="flex bg-white dark:bg-[#1a1b23] p-1 rounded-xl border border-gray-100 dark:border-gray-800 inline-flex shadow-sm">
                 <button 

@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getNotices, deleteNotice, updateNotice, type FirestoreNotice } from "@/lib/firestore";
 import { seedDatabaseAction } from "@/lib/actions";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { type UserProfile } from "@/types";
+import { type UserProfile } from "@/contexts/AuthContext";
 
 export default function NoticesTab({ profile }: { profile: UserProfile }) {
     const [notices, setNotices] = useState<(FirestoreNotice & { id: string })[]>([]);

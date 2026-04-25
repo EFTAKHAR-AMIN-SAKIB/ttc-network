@@ -46,3 +46,9 @@ next-env.d.ts
 !.eslintrc.json
 !firebase.json
 !firestore.indexes.json
+
+# dev/test artifacts
+analysis_results.md
+dummy_cert.jpg
+src/lib/test_upload.jpg
+.gemini/

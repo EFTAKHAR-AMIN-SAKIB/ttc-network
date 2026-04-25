@@ -1,10 +1,17 @@
 /**
- * Cloudinary Upload Utility
- * ==========================
- * Replaces Firebase Storage for all file uploads.
- * Uses Cloudinary free tier (25 credits/month = ~25GB bandwidth).
+ * ⚠️  DEPRECATED — LEGACY FILE
+ * ==============================
+ * This module has been replaced by `storage.ts` which uses
+ * Cloudflare R2 for all new uploads.
  *
- * All uploads go through a Next.js API route to keep
+ * No files import from this module anymore.
+ * Kept for reference and potential rollback only.
+ * Safe to delete once R2 migration is fully verified.
+ *
+ * Original purpose:
+ * Cloudinary Upload Utility — handled all file uploads via
+ * Cloudinary free tier (25 credits/month = ~25GB bandwidth).
+ * All uploads went through a Next.js API route to keep
  * the Cloudinary secret off the client.
  */
 

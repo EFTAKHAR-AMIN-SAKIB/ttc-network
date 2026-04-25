@@ -60,11 +60,12 @@ const ROLES = [
 
 import { UserProfile } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function GiftsTab({ profile }: { profile: UserProfile }) {
     const [gifts, setGifts] = useState<(FirestoreGift & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const { showToast } = useToast();
 
     // Verifications state
     const [selectedPhases, setSelectedPhases] = useState<Record<string, string>>({});
@@ -111,10 +112,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
 
     useEffect(() => { loadData(); }, []);
 
-    const showMessage = (msg: string) => {
-        setMessage(msg);
-        setTimeout(() => setMessage(""), 3000);
-    };
+
 
     // ───────────────────────────────────────────────────
     // VERIFICATIONS
@@ -124,20 +122,20 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
             const phaseId = selectedPhases[id] || undefined;
             const role = selectedRoles[id] || "patron";
             await approveGift(id, phaseId, role);
-            showMessage("✅ Supporter approved! Badge issued.");
+            showToast("✅ Supporter approved! Badge issued.", "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
     const handleReject = async (id: string) => {
         try {
             await rejectGift(id);
-            showMessage("Supporter rejected.");
+            showToast("Supporter rejected.", "info");
             loadData();
         } catch (err) {
-            showMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
     };
 
@@ -146,7 +144,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
     // ───────────────────────────────────────────────────
     const handleAddContributor = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!manualUserId) return showMessage("❌ User ID is required.");
+        if (!manualUserId) return showToast("❌ User ID is required.", "error");
         
         setAddingManual(true);
         try {
@@ -157,7 +155,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                 phaseId: manualPhase || undefined,
                 role: manualRole
             });
-            showMessage("✅ Contributor added successfully! They are now live on the Support page.");
+            showToast("✅ Contributor added successfully! They are now live on the Support page.", "success");
             setManualUserId("");
             setManualMessage("");
             setManualAmount("");
@@ -165,7 +163,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
             setManualRole("patron");
             loadData();
         } catch (err) {
-            showMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
         setAddingManual(false);
     };
@@ -176,16 +174,16 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
     const handleSaveSettings = async () => {
         try {
             await updateSupportSettings(settings);
-            showMessage("✅ Settings saved!");
-        } catch (err) { showMessage(`❌ ${err}`); }
+            showToast("✅ Settings saved!", "success");
+        } catch (err) { showToast(`❌ ${err}`, "error"); }
     };
 
     const handleSavePhase = async () => {
-        if (!editingPhase || !editingPhase.title) return showMessage("❌ Title is required");
+        if (!editingPhase || !editingPhase.title) return showToast("❌ Title is required", "error");
         try {
             if (editingPhase.id) {
                 await updateSupportPhase(editingPhase.id, editingPhase);
-                showMessage("✅ Phase updated!");
+                showToast("✅ Phase updated!", "success");
             } else {
                 await createSupportPhase({ 
                     ...editingPhase, 
@@ -200,11 +198,11 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                     targetAmount: editingPhase.targetAmount || 0,
                     tractionLevel: editingPhase.tractionLevel || 0
                 } as SupportPhase);
-                showMessage("✅ Phase created!");
+                showToast("✅ Phase created!", "success");
             }
             setEditingPhase(null);
             loadData();
-        } catch (err) { showMessage(`❌ ${err}`); }
+        } catch (err) { showToast(`❌ ${err}`, "error"); }
     };
 
     const handleDeletePhase = async (id: string) => {
@@ -216,9 +214,9 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
 
         try {
             await deleteSupportPhase(id);
-            showMessage("✅ Phase deleted!");
+            showToast("✅ Phase deleted!", "success");
             loadData();
-        } catch (err) { showMessage(`❌ ${err}`); }
+        } catch (err) { showToast(`❌ ${err}`, "error"); }
     };
 
     const handleRestoreRoadmap = async () => {
@@ -231,10 +229,10 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
         setSeeding(true);
         try {
             await seedRoadmapPhases();
-            showMessage("✅ Default roadmap restored!");
+            showToast("✅ Default roadmap restored!", "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
         setSeeding(false);
     };
@@ -248,11 +246,11 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
         setSavingGift(true);
         try {
             await updateGift(editingGift.id, editingGift);
-            showMessage("✅ Supporter updated!");
+            showToast("✅ Supporter updated!", "success");
             setEditingGift(null);
             loadData();
         } catch (err) {
-            showMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
         setSavingGift(false);
     };
@@ -270,10 +268,10 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
         setIsLoading(true);
         try {
             await deleteGift(id);
-            showMessage("🗑️ Supporter removed.");
+            showToast("🗑️ Supporter removed.", "success");
             loadData();
         } catch (err) {
-            showMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         } finally {
             close();
         }
@@ -300,13 +298,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
 
     return (
         <div className="space-y-6">
-            <AnimatePresence>
-                {message && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm font-semibold text-emerald-700 dark:text-emerald-300"
-                    >{message}</motion.div>
-                )}
-            </AnimatePresence>
+
 
             {/* Sub-tabs */}
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit overflow-x-auto max-w-full">

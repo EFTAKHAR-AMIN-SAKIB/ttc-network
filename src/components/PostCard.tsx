@@ -16,14 +16,14 @@ import { RichText, ExpandableText, timeAgo } from "@/components/Social/SocialUti
 interface PostCardProps {
     post: any;
     profile: any;
-    onEdit: (post: any) => void;
-    onDelete: (id: string) => void;
-    onApprove: (id: string) => void;
-    onReject: (id: string) => void;
-    editingId: string | null;
-    isSaving: boolean;
-    autoFocus: boolean;
-    onTagClick: (tag: string) => void;
+    onEdit?: (post: any) => void;
+    onDelete?: (id: string) => void;
+    onApprove?: (id: string) => void;
+    onReject?: (id: string) => void;
+    editingId?: string | null;
+    isSaving?: boolean;
+    autoFocus?: boolean;
+    onTagClick?: (tag: string) => void;
     // ... other edit states
     editEventName?: string;
     setEditEventName?: (v: string) => void;
@@ -41,8 +41,9 @@ interface PostCardProps {
     setEditThumbnailFile?: (v: File | null) => void;
     editThumbnailPreview?: string | null;
     setEditThumbnailPreview?: (v: string | null) => void;
-    onSaveEdit: () => void;
-    onCancelEdit: () => void;
+    onSaveEdit?: () => void;
+    onCancelEdit?: () => void;
+    hideManageOptions?: boolean;
 }
 
 const roleColors: Record<string, string> = {
@@ -125,7 +126,7 @@ export default function PostCard({
     editThumbnailUrl, setEditThumbnailUrl,
     editThumbnailFile, setEditThumbnailFile,
     editThumbnailPreview, setEditThumbnailPreview,
-    onSaveEdit, onCancelEdit
+    onSaveEdit, onCancelEdit, hideManageOptions
 }: PostCardProps) {
     const [showComments, setShowComments] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
@@ -133,7 +134,7 @@ export default function PostCard({
     
     const isOwner = profile?.uid === post.creatorId;
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
-    const canManage = isOwner || isAdmin || (profile?.role === "manager" && profile?.collegeId === post.collegeId);
+    const canManage = !hideManageOptions && (isOwner || isAdmin || (profile?.role === "manager" && profile?.collegeId === post.collegeId));
     
     const isEditing = editingId === post.id;
 
@@ -285,8 +286,8 @@ export default function PostCard({
             {/* Top Bar: Author & Meta */}
             <div className="flex items-start justify-between mb-6 relative z-50">
                 <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-xl font-black text-gray-400 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm shadow-black/5">
+                    <Link href={`/profile/${post.creatorId}`} className="relative cursor-pointer group/author transition-transform active:scale-95">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-xl font-black text-gray-400 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm shadow-black/5 group-hover/author:border-primary/50 transition-colors">
                             {post.createdBy?.avatar ? (
                                 <img src={post.createdBy.avatar} className="w-full h-full object-cover" />
                             ) : (post.createdBy?.name?.charAt(0) || "?")}
@@ -296,10 +297,12 @@ export default function PostCard({
                                 <Clock size={10} />
                             </div>
                         )}
-                    </div>
+                    </Link>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{post.createdBy?.name}</h3>
+                            <Link href={`/profile/${post.creatorId}`} className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight hover:text-primary transition-colors">
+                                {post.createdBy?.name}
+                            </Link>
                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${roleColors[post.createdBy?.role] || 'bg-gray-100 text-gray-500'}`}>
                                 {roleLabels[post.createdBy?.role] || post.createdBy?.role}
                             </span>
@@ -338,7 +341,7 @@ export default function PostCard({
                                                 onClick={(e) => { 
                                                     e.stopPropagation();
                                                     setShowOptions(false); 
-                                                    onEdit(post); 
+                                                    onEdit?.(post); 
                                                 }}
                                                 className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
                                             >
@@ -371,7 +374,7 @@ export default function PostCard({
                     </h2>
                 </div>
 
-                <ExpandableText text={post.description || ""} onTagClick={onTagClick} />
+                <ExpandableText text={post.description || ""} onTagClick={onTagClick || undefined} />
                 
                 {!post.thumbnailUrl && <LinkPreviewCard post={post} />}
                 {post.thumbnailUrl && (

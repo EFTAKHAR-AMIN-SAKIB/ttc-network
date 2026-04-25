@@ -1,5 +1,5 @@
 import { UserProfile } from "@/contexts/AuthContext";
-import { FirestoreNotice, FirestorePost, FirestoreStory, FirestoreClub } from "./firestore";
+import { FirestoreNotice, FirestorePost, FirestoreStory, FirestoreClub, FirestoreStudyPost } from "./firestore";
 
 export type ActionPermission = {
     canEdit: boolean;

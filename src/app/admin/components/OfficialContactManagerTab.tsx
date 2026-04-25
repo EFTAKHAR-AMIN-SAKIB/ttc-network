@@ -4,14 +4,13 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Save, Globe, Mail, Facebook, Twitter, Linkedin, ShieldCheck, Type, Link as LinkIcon, Loader2 } from "lucide-react";
 import { getOfficialSettings, updateOfficialSettings, type FirestoreOfficialSettings } from "@/lib/firestore";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function OfficialContactManagerTab() {
     const [settings, setSettings] = useState<FirestoreOfficialSettings | null>(null);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const { showToast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
-
-    const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(""), 3000); };
 
     const loadData = async () => {
         setLoading(true);
@@ -31,9 +30,9 @@ export default function OfficialContactManagerTab() {
         setIsSaving(true);
         try {
             await updateOfficialSettings(settings);
-            flash("✅ Official Contact Settings saved!");
+            showToast("✅ Official Contact Settings saved!", "success");
         } catch (err) {
-            flash(`❌ ${err instanceof Error ? err.message : "Error"}`);
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
         }
         setIsSaving(false);
     };
@@ -61,15 +60,7 @@ export default function OfficialContactManagerTab() {
                 <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
             </div>
 
-            <AnimatePresence>
-                {message && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className={`p-3 rounded-xl text-sm font-semibold border ${message.includes("❌") ? "bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800 text-red-700 dark:text-red-300" : "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"}`}
-                    >
-                        {message}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
 
             <div className="bg-white dark:bg-[#16181C] rounded-[20px] p-6 border border-gray-100 dark:border-white/5 shadow-sm">
                 <div className="flex items-center justify-between mb-6">

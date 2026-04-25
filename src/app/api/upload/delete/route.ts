@@ -1,12 +1,40 @@
 /**
- * Cloudinary Delete API Route
- * ============================
- * Server-side endpoint that deletes an image from Cloudinary
- * by extracting its public_id from the URL.
+ * Delete API Route — R2 + Legacy Cloudinary
+ * ============================================
+ * Deletes files by URL. Auto-detects the storage provider:
+ * - R2 URLs → S3 DeleteObject
+ * - Cloudinary URLs → Cloudinary SDK destroy
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { v2 as cloudinary } from "cloudinary";
+
+// ── R2 ────────────────────────────────────────────
+
+const R2 = {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+    endpoint: process.env.R2_ENDPOINT || "",
+    bucket: process.env.R2_BUCKET_NAME || "",
+};
+
+let _s3: S3Client | null = null;
+function getS3(): S3Client {
+    if (_s3) return _s3;
+    _s3 = new S3Client({
+        region: "auto",
+        endpoint: R2.endpoint,
+        credentials: {
+            accessKeyId: R2.accessKeyId,
+            secretAccessKey: R2.secretAccessKey,
+        },
+        forcePathStyle: true,
+    });
+    return _s3;
+}
+
+// ── Cloudinary (legacy) ───────────────────────────
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -14,69 +42,61 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// ── Handler ───────────────────────────────────────
+
 export async function POST(request: NextRequest) {
     try {
-        if (
-            !process.env.CLOUDINARY_CLOUD_NAME ||
-            !process.env.CLOUDINARY_API_KEY ||
-            !process.env.CLOUDINARY_API_SECRET
-        ) {
-            return NextResponse.json(
-                { error: "Cloudinary not configured" },
-                { status: 500 }
-            );
-        }
-
         const { url } = await request.json();
 
         if (!url || typeof url !== "string") {
             return NextResponse.json({ error: "No URL provided" }, { status: 400 });
         }
 
-        // Extract public_id from Cloudinary URL
-        // URL format: https://res.cloudinary.com/{cloud}/image/upload/v{version}/{public_id}.{ext}
-        const publicId = extractPublicId(url);
+        // ─── R2 URL ──────────────────────────────
+        if (url.includes("r2.dev") || url.includes("r2.cloudflarestorage.com")) {
+            const key = new URL(url).pathname.replace(/^\//, "");
+            if (!key) {
+                return NextResponse.json({ error: "Invalid R2 URL" }, { status: 400 });
+            }
 
-        if (!publicId) {
-            return NextResponse.json({ error: "Could not extract public_id from URL" }, { status: 400 });
+            await getS3().send(new DeleteObjectCommand({
+                Bucket: R2.bucket,
+                Key: key,
+            }));
+
+            return NextResponse.json({ success: true, provider: "r2" });
         }
 
-        const result = await cloudinary.uploader.destroy(publicId, {
-            invalidate: true,
-        });
+        // ─── Cloudinary URL ──────────────────────
+        if (url.includes("cloudinary.com")) {
+            const publicId = extractCloudinaryId(url);
+            if (!publicId) {
+                return NextResponse.json({ error: "Could not extract public_id" }, { status: 400 });
+            }
 
-        return NextResponse.json({ 
-            success: result.result === "ok",
-            result: result.result 
-        });
+            const result = await cloudinary.uploader.destroy(publicId, { invalidate: true });
+            return NextResponse.json({ success: result.result === "ok", provider: "cloudinary" });
+        }
+
+        // ─── Unknown ─────────────────────────────
+        return NextResponse.json({ success: false, provider: "unknown" });
+
     } catch (error) {
-        console.error("Delete error:", error);
+        console.error("[Delete API]", error);
         return NextResponse.json(
             { error: error instanceof Error ? error.message : "Delete failed" },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
 
-/**
- * Extract Cloudinary public_id from a secure URL.
- * Handles URLs like:
- *   https://res.cloudinary.com/xxx/image/upload/v123/ttc-connect/logos/abc123.jpg
- * Returns: "ttc-connect/logos/abc123"
- */
-function extractPublicId(url: string): string | null {
+function extractCloudinaryId(url: string): string | null {
     try {
-        const urlObj = new URL(url);
-        const pathname = urlObj.pathname;
-        
-        // Match /image/upload/v{digits}/ pattern
-        const uploadMatch = pathname.match(/\/image\/upload\/v\d+\/(.+)$/);
-        if (!uploadMatch) return null;
-
-        const pathWithExt = uploadMatch[1];
-        // Remove file extension
-        const lastDot = pathWithExt.lastIndexOf(".");
-        return lastDot > 0 ? pathWithExt.substring(0, lastDot) : pathWithExt;
+        const match = new URL(url).pathname.match(/\/image\/upload\/v\d+\/(.+)$/);
+        if (!match) return null;
+        const p = match[1];
+        const dot = p.lastIndexOf(".");
+        return dot > 0 ? p.substring(0, dot) : p;
     } catch {
         return null;
     }

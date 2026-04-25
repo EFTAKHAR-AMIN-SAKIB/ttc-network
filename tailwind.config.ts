@@ -22,6 +22,7 @@ const config: Config = {
       fontFamily: {
         bengali: ["var(--font-hind-siliguri)", "sans-serif"],
         english: ["var(--font-plus-jakarta)", "sans-serif"],
+        handwritten: ["var(--font-caveat)", "cursive"],
       },
       borderRadius: {
         card: "14px",

@@ -29,7 +29,7 @@ import {
     type StudyHeroSettings
 } from "@/lib/firestore";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { type UserProfile } from "@/types";
+import { type UserProfile } from "@/contexts/AuthContext";
 
 export default function StudyTab({ profile, onCountRefresh }: { profile: UserProfile; onCountRefresh?: () => void }) {
     const [posts, setPosts] = useState<(FirestoreStudyPost & { id: string })[]>([]);

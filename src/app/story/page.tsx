@@ -13,6 +13,7 @@ import GenericModerationPanel from "@/components/Moderation/GenericModerationPan
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import StoryCard from "@/components/StoryCard";
+import { useToast } from "@/contexts/ToastContext";
 import StoryFilter from "@/components/StoryFilter";
 import StorySkeleton from "@/components/StorySkeleton";
 import StoryShareModal from "@/components/StoryShareModal";
@@ -29,6 +30,7 @@ export default function StoryPage() {
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [editingStory, setEditingStory] = useState<Story | null>(null);
     const { confirm, setIsLoading, close } = useConfirm();
+    const { showToast } = useToast();
     
     // Dynamic Hero Stats
     const [heroData, setHeroData] = useState<StoryHeroSettings | null>(null);
@@ -90,7 +92,7 @@ export default function StoryPage() {
             await deleteStory(id);
         } catch (err) {
             console.error("Delete story failed:", err);
-            alert("Failed to delete story.");
+            showToast("Failed to delete story.", "error");
         } finally {
             close();
         }

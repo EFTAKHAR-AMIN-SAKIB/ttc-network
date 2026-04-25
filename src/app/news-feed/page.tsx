@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus, X, Shield, Sparkles, Loader2, Trash2
@@ -11,11 +12,12 @@ import {
     subscribePosts, subscribeModerationCount, deletePost, updatePost,
     type FirestorePost 
 } from "@/lib/firestore";
-import { uploadFile, deleteFromCloudinary } from "@/lib/cloudinary";
+import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import PostCard from "@/components/PostCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 import SearchBar from "./components/SearchBar";
 import PostCreationModal from "@/components/PostCreationModal";
 
@@ -23,7 +25,8 @@ import PostCreationModal from "@/components/PostCreationModal";
 type Post = FirestorePost & { id: string };
 
 /* ─── MAIN PAGE ─── */
-export default function NewsFeedPage() {
+function NewsFeedInner() {
+    const searchParams = useSearchParams();
     const { profile, loading: loadingAuth } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [activeTab, setActiveTab] = useState<"event" | "club" | any>("event");
@@ -47,9 +50,23 @@ export default function NewsFeedPage() {
     const [editThumbnailPreview, setEditThumbnailPreview] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const { confirm, setIsLoading, close } = useConfirm();
+    const { showToast } = useToast();
 
     const [targetPostId, setTargetPostId] = useState<string | null>(null);
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+    // Deep-link: read ?post= query param from profile activity click-through
+    useEffect(() => {
+        const postParam = searchParams.get('post');
+        if (postParam) {
+            setTargetPostId(postParam);
+            // Scroll to the post after a short delay to let DOM render
+            setTimeout(() => {
+                const el = document.getElementById(`post-${postParam}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 800);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const unsubPosts = subscribePosts((data) => {
@@ -99,7 +116,7 @@ export default function NewsFeedPage() {
             await deletePost(id);
         } catch (err) {
             console.error("Delete post failed:", err);
-            alert("Failed to delete post.");
+            showToast("Failed to delete post.", "error");
         } finally {
             close();
         }
@@ -157,7 +174,7 @@ export default function NewsFeedPage() {
             handleCancelEdit();
         } catch (err) {
             console.error("Save edit failed:", err);
-            alert("Failed to save changes.");
+            showToast("Failed to save changes.", "error");
         } finally {
             setIsSaving(false);
         }
@@ -343,8 +360,8 @@ export default function NewsFeedPage() {
                 ) : (
                     <div className="space-y-12 pb-32">
                         {filteredPosts.map(post => (
+                            <div key={post.id} id={`post-${post.id}`} className={targetPostId === post.id ? 'ring-2 ring-primary/50 rounded-3xl transition-all' : ''}>
                             <PostCard
-                                key={post.id}
                                 post={post}
                                 profile={profile}
                                 onEdit={handleEditStart}
@@ -374,6 +391,7 @@ export default function NewsFeedPage() {
                                 onSaveEdit={handleSaveEdit}
                                 onCancelEdit={handleCancelEdit}
                             />
+                            </div>
                         ))}
                         {filteredPosts.length === 0 && (
                             <div className="text-center py-24 bg-white dark:bg-[#1a1b23] rounded-[3rem] border-2 border-dashed border-gray-100 dark:border-gray-800 flex flex-col items-center">
@@ -410,5 +428,17 @@ export default function NewsFeedPage() {
 
 
         </div>
+    );
+}
+
+export default function NewsFeedPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex items-center justify-center">
+                <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+        }>
+            <NewsFeedInner />
+        </Suspense>
     );
 }

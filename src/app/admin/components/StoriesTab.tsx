@@ -29,13 +29,14 @@ import {
     type StoryHeroSettings
 } from "@/lib/firestore";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { type UserProfile } from "@/types";
+import { useToast } from "@/contexts/ToastContext";
+import { type UserProfile } from "@/contexts/AuthContext";
 
 export default function StoriesTab({ profile, onCountRefresh }: { profile: UserProfile; onCountRefresh?: () => void }) {
     const [stories, setStories] = useState<(FirestoreStory & { id: string })[]>([]);
     const [filter, setFilter] = useState<"pending" | "published" | "all">("pending");
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const { showToast } = useToast();
     const [previewId, setPreviewId] = useState<string | null>(null);
     const [rejectId, setRejectId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState("");
@@ -67,10 +68,9 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
         setHeroSaving(true);
         try {
             await updateStoryHeroSettings(heroData);
-            setMessage("✅ Hero statistics updated!");
-            setTimeout(() => setMessage(""), 3000);
+            showToast("✅ Hero statistics updated!", "success");
         } catch (err) {
-            setMessage("❌ Failed to update hero stats.");
+            showToast("❌ Failed to update hero stats.", "error");
         }
         setHeroSaving(false);
     };
@@ -106,12 +106,11 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
     const handleApprove = async (storyId: string) => {
         try {
             await approveStory(storyId);
-            setMessage("✅ Story published!");
-            setTimeout(() => setMessage(""), 3000);
+            showToast("✅ Story published!", "success");
             loadStories();
             onCountRefresh?.();
         } catch (err) {
-            setMessage(`❌ Error: ${err instanceof Error ? err.message : "Unknown"}`);
+            showToast(`❌ Error: ${err instanceof Error ? err.message : "Unknown"}`, "error");
         }
     };
 
@@ -119,14 +118,13 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
         if (!rejectId || !rejectReason.trim()) return;
         try {
             await rejectStory(rejectId, rejectReason);
-            setMessage("Story rejected. Author notified.");
+            showToast("Story rejected. Author notified.", "info");
             setRejectId(null);
             setRejectReason("");
-            setTimeout(() => setMessage(""), 3000);
             loadStories();
             onCountRefresh?.();
         } catch (err) {
-            setMessage(`❌ Error: ${err instanceof Error ? err.message : "Unknown"}`);
+            showToast(`❌ Error: ${err instanceof Error ? err.message : "Unknown"}`, "error");
         }
     };
 
@@ -142,12 +140,11 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
         setConfirmLoading(true);
         try {
             await deleteStory(postId);
-            setMessage("✅ Story deleted!");
-            setTimeout(() => setMessage(""), 3000);
+            showToast("✅ Story deleted!", "success");
             loadStories();
             onCountRefresh?.();
         } catch (err) {
-            setMessage("❌ Failed to delete story.");
+            showToast("❌ Failed to delete story.", "error");
         } finally {
             setConfirmLoading(false);
             closeConfirm();
@@ -168,23 +165,7 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
 
     return (
         <div className="space-y-10">
-            <AnimatePresence>
-                {message && (
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9, y: -20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                        className={`p-5 rounded-3xl border shadow-2xl flex items-center gap-4 fixed top-10 left-1/2 -translate-x-1/2 z-[200] min-w-[300px] backdrop-blur-xl ${
-                            message.includes("❌") 
-                                ? "bg-red-500/90 border-red-400 text-white" 
-                                : "bg-emerald-500/90 border-emerald-400 text-white"
-                        }`}
-                    >
-                        {message.includes("❌") ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
-                        <span className="font-bold text-sm">{message}</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
 
             {/* Hero Configuration */}
             {profile.role === "admin" && (

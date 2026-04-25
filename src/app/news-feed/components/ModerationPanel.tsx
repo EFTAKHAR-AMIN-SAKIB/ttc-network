@@ -14,6 +14,7 @@ import {
     rejectPost,
     type FirestorePost
 } from "@/lib/firestore";
+import { useToast } from "@/contexts/ToastContext";
 
 interface ModerationPanelProps {
     isOpen: boolean;
@@ -29,6 +30,7 @@ export default function ModerationPanel({ isOpen, onClose, profile }: Moderation
     const [expandedPosts, setExpandedPosts] = useState<string[]>([]);
     const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
     const [isProcessing, setIsProcessing] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     const isAdminOrSuper = profile?.role === "admin" || profile?.role === "super_manager";
 
@@ -69,7 +71,7 @@ export default function ModerationPanel({ isOpen, onClose, profile }: Moderation
             await approvePost(id);
         } catch (err) {
             console.error(err);
-            alert("Approval failed.");
+            showToast("Approval failed.", "error");
         } finally {
             setIsProcessing(null);
         }
@@ -82,7 +84,7 @@ export default function ModerationPanel({ isOpen, onClose, profile }: Moderation
             await rejectPost(id, reason);
         } catch (err) {
             console.error(err);
-            alert("Rejection failed.");
+            showToast("Rejection failed.", "error");
         } finally {
             setIsProcessing(null);
             setRejectReason(prev => {

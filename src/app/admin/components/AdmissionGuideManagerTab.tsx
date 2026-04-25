@@ -75,13 +75,14 @@ const getIconByName = (name: string): LucideIcon => {
 };
 
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function AdmissionGuideManagerTab() {
     const [steps, setSteps] = useState<(FirestoreAdmissionStep & { id: string })[]>([]);
     const [costs, setCosts] = useState<(FirestoreAdmissionCostItem & { id: string })[]>([]);
     const [settings, setSettings] = useState<FirestoreAdmissionSettings | null>(null);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
+    const { showToast } = useToast();
 
     // Step editing
     const [editStepId, setEditStepId] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function AdmissionGuideManagerTab() {
         sectionTitle: "", sectionSubtitle: "", costTitle: "", isVisible: true
     });
 
-    const flash = (msg: string) => { setMessage(msg); setTimeout(() => setMessage(""), 3000); };
+
 
     const loadData = async () => {
         setLoading(true);
@@ -136,9 +137,9 @@ export default function AdmissionGuideManagerTab() {
             });
             setShowNewStep(false);
             setNewStep({ title: "", subtitle: "", description: "", iconName: "Monitor" });
-            flash("✅ Step created!");
+            showToast("✅ Step created!", "success");
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     const handleUpdateStep = async () => {
@@ -146,14 +147,14 @@ export default function AdmissionGuideManagerTab() {
         try {
             await updateAdmissionStep(editStepId, editStep);
             setEditStepId(null);
-            flash("✅ Step updated!");
+            showToast("✅ Step updated!", "success");
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     const handleToggleStepVisibility = async (id: string, current: boolean) => {
         try { await updateAdmissionStep(id, { isVisible: !current }); loadData(); }
-        catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     const handleDeleteStep = async (id: string) => {
@@ -168,9 +169,9 @@ export default function AdmissionGuideManagerTab() {
         setIsLoading(true);
         try {
             await deleteAdmissionStep(id);
-            flash("Step deleted.");
+            showToast("Step deleted.", "info");
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
         finally { close(); }
     };
 
@@ -183,7 +184,7 @@ export default function AdmissionGuideManagerTab() {
         try {
             await reorderAdmissionSteps(newSteps.map((s, i) => ({ id: s.id, order: i + 1 })));
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     // ─── Cost Handlers ───
@@ -197,9 +198,9 @@ export default function AdmissionGuideManagerTab() {
             });
             setShowNewCost(false);
             setNewCost({ label: "", amount: "", isHighlighted: false });
-            flash("✅ Cost item created!");
+            showToast("✅ Cost item created!", "success");
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     const handleUpdateCost = async () => {
@@ -207,14 +208,14 @@ export default function AdmissionGuideManagerTab() {
         try {
             await updateAdmissionCost(editCostId, editCost);
             setEditCostId(null);
-            flash("✅ Cost updated!");
+            showToast("✅ Cost updated!", "success");
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     const handleToggleCostVisibility = async (id: string, current: boolean) => {
         try { await updateAdmissionCost(id, { isVisible: !current }); loadData(); }
-        catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     const handleDeleteCost = async (id: string) => {
@@ -229,9 +230,9 @@ export default function AdmissionGuideManagerTab() {
         setIsLoading(true);
         try {
             await deleteAdmissionCost(id);
-            flash("Cost item deleted.");
+            showToast("Cost item deleted.", "info");
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
         finally { close(); }
     };
 
@@ -244,17 +245,17 @@ export default function AdmissionGuideManagerTab() {
         try {
             await reorderAdmissionCosts(newCosts.map((c, i) => ({ id: c.id, order: i + 1 })));
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     // ─── Settings Handler ───
     const handleSaveSettings = async () => {
         try {
             await updateAdmissionSettings(editSettings);
-            flash("✅ Settings saved!");
+            showToast("✅ Settings saved!", "success");
             setShowSettings(false);
             loadData();
-        } catch (err) { flash(`❌ ${err instanceof Error ? err.message : "Error"}`); }
+        } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
     if (loading) {
@@ -283,14 +284,7 @@ export default function AdmissionGuideManagerTab() {
                 <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
             </div>
 
-            {/* Status + Settings */}
-            <AnimatePresence>
-                {message && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm font-semibold text-emerald-700 dark:text-emerald-300"
-                    >{message}</motion.div>
-                )}
-            </AnimatePresence>
+
 
             <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setShowSettings(!showSettings)}

@@ -8,7 +8,7 @@ import Image from "next/image";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToCloudinary } from "@/lib/storage";
 import { colleges } from "@/data/colleges";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useToast } from "@/contexts/ToastContext";

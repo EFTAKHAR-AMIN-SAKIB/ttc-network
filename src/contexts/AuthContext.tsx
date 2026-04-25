@@ -59,6 +59,23 @@ export interface CertificationEntry {
     url?: string;
 }
 
+export interface Badge {
+    id: string;
+    name: string;
+    description: string;
+    imageURL: string;
+    dateEarned: string;
+}
+
+export interface Achievement {
+    id: string;
+    title: string;
+    issuer: string;
+    date: string;
+    fileURL: string;
+    type: 'image' | 'pdf' | 'other';
+}
+
 export interface AwardEntry {
     id: string;
     title: string;
@@ -128,6 +145,8 @@ export interface UserProfile {
     publications?: PublicationEntry[];
     socialLinks?: SocialLink[];
     clubPosition?: string; // e.g., "President", "Member", or empty
+    badges?: Badge[];
+    achievementsList?: Achievement[];
 }
 
 interface AuthContextType {

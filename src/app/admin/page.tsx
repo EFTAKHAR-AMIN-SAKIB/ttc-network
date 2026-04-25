@@ -41,7 +41,7 @@ import ManagementTab from "./components/ManagementTab";
 import SiteSettingsTab from "./components/SiteSettingsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { deleteFromCloudinary } from "@/lib/cloudinary";
+import { deleteFromCloudinary } from "@/lib/storage";
 
 /* ─── Form Input Component ─── */
 function FormInput({ label, value, onChange, type = "text", placeholder = "" }: {

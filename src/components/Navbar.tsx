@@ -12,6 +12,7 @@ import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
 import { subscribeNotifications, markNotificationRead, markAllNotificationsRead, type FirestoreNotification } from "@/lib/firestore";
 import { NotificationCenter } from "./NotificationCenter";
+import HumanLogo from "./HumanLogo";
 
 const navLinks = [
     { href: "/", label: "Home" },
@@ -35,8 +36,14 @@ export default function Navbar() {
     const [searchOpen, setSearchOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState<(FirestoreNotification & { id: string })[]>([]);
+    const [mounted, setMounted] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
+
+    // Mounted check for hydration
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -138,35 +145,7 @@ export default function Navbar() {
         <nav className="sticky top-0 z-50 bg-white/80 dark:bg-[#0f1117]/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
-                    {/* Logo — Emblem + Styled Text */}
-                    <Link href="/" className="flex items-center gap-2.5 group">
-                        <Image
-                            src={logoUrl}
-                            alt={siteName}
-                            width={40}
-                            height={40}
-                            className="object-contain h-9 w-9 sm:h-10 sm:w-10 rounded-full"
-                            priority
-                        />
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-xl sm:text-2xl font-extrabold tracking-tight font-english"
-                                style={{
-                                    background: "linear-gradient(135deg, #1a5276, #0e6655)",
-                                    WebkitBackgroundClip: "text",
-                                    WebkitTextFillColor: "transparent",
-                                }}>
-                                {firstWord}
-                            </span>
-                            <span className="text-[10px] sm:text-xs font-bold tracking-[0.15em] uppercase"
-                                style={{
-                                    background: "linear-gradient(135deg, #2D2F8F, #E63946)",
-                                    WebkitBackgroundClip: "text",
-                                    WebkitTextFillColor: "transparent",
-                                }}>
-                                {restWords}
-                            </span>
-                        </div>
-                    </Link>
+                    <HumanLogo logoUrl={logoUrl} siteName={siteName} />
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-1">
@@ -247,26 +226,28 @@ export default function Navbar() {
                             aria-label="Toggle theme"
                         >
                             <AnimatePresence mode="wait">
-                                {theme === "light" ? (
-                                    <motion.div
-                                        key="moon"
-                                        initial={{ rotate: -90, scale: 0 }}
-                                        animate={{ rotate: 0, scale: 1 }}
-                                        exit={{ rotate: 90, scale: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeOut" }}
-                                    >
-                                        <Moon size={18} className="text-gray-600 group-hover:text-primary transition-colors" />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="sun"
-                                        initial={{ rotate: 90, scale: 0 }}
-                                        animate={{ rotate: 0, scale: 1 }}
-                                        exit={{ rotate: -90, scale: 0 }}
-                                        transition={{ duration: 0.3, ease: "easeOut" }}
-                                    >
-                                        <Sun size={18} className="text-amber-400 group-hover:text-amber-300 transition-colors" />
-                                    </motion.div>
+                                {mounted && (
+                                    theme === "light" ? (
+                                        <motion.div
+                                            key="moon"
+                                            initial={{ rotate: -90, scale: 0 }}
+                                            animate={{ rotate: 0, scale: 1 }}
+                                            exit={{ rotate: 90, scale: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeOut" }}
+                                        >
+                                            <Moon size={18} className="text-gray-600 group-hover:text-primary transition-colors" />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="sun"
+                                            initial={{ rotate: 90, scale: 0 }}
+                                            animate={{ rotate: 0, scale: 1 }}
+                                            exit={{ rotate: -90, scale: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeOut" }}
+                                        >
+                                            <Sun size={18} className="text-amber-400 group-hover:text-amber-300 transition-colors" />
+                                        </motion.div>
+                                    )
                                 )}
                             </AnimatePresence>
                         </button>

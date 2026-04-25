@@ -24,10 +24,11 @@ import {
 import { 
     subscribeNotices, createNotice, updateNoticeStatus, getColleges, updateNotice, deleteNotice, subscribeModerationCount, type FirestoreNotice 
 } from "@/lib/firestore";
-import { uploadFile, deleteFromCloudinary } from "@/lib/cloudinary";
+import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useToast } from "@/contexts/ToastContext";
 import { canEditNotice } from "@/lib/permissions";
 
 type Notice = FirestoreNotice & { id: string };
@@ -81,6 +82,7 @@ function PostNoticeModal({
     const [colleges, setColleges] = useState<{ id: string, name: string }[]>([]);
     const [selectedCollegeId, setSelectedCollegeId] = useState("");
     const [visibility, setVisibility] = useState<"public" | "campus">("public");
+    const { showToast } = useToast();
 
     // Thumbnail state
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -99,7 +101,7 @@ function PostNoticeModal({
     const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5MB"); return; }
+        if (file.size > 5 * 1024 * 1024) { showToast("Image must be under 5MB", "info"); return; }
         setThumbnailFile(file);
         setThumbnailPreview(URL.createObjectURL(file));
     };
@@ -134,9 +136,11 @@ function PostNoticeModal({
                 ...(thumbnailUrl ? { thumbnailUrl } : {}),
                 ...(isAdmin && selectedCollegeId ? { collegeId: selectedCollegeId } : {})
             });
+            showToast("Notice posted successfully! Pending review.", "success");
             onClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to post notice");
+            console.error(err);
+            showToast(err instanceof Error ? err.message : "Failed to post notice", "error");
         } finally {
             setSubmitting(false);
         }
@@ -390,6 +394,7 @@ export default function NoticePage() {
 
     // Delete Modal state
     const { confirm, setIsLoading, close } = useConfirm();
+    const { showToast } = useToast();
 
     // Can this user post notices?
     const canPost = !!profile;
@@ -410,7 +415,8 @@ export default function NoticePage() {
         const unsubCount = subscribeModerationCount(
             "notices",
             profile?.collegeId,
-            (count) => setPendingCount(count)
+            isAdmin,
+            (count: number) => setPendingCount(count)
         );
 
         if (isAdmin) {
@@ -521,7 +527,7 @@ export default function NoticePage() {
             setEditThumbnailFile(null);
         } catch (err) {
             console.error(err);
-            alert("Failed to save changes.");
+            showToast("Failed to save changes.", "error");
         } finally {
             setIsSaving(false);
         }
@@ -542,7 +548,7 @@ export default function NoticePage() {
             await deleteNotice(id);
         } catch (err) {
             console.error(err);
-            alert("Failed to delete notice.");
+            showToast("Failed to delete notice.", "error");
         } finally {
             close();
         }
@@ -1032,11 +1038,14 @@ export default function NoticePage() {
             </AnimatePresence>
 
             {/* Moderation Panel */}
-            <GenericModerationPanel
-                isOpen={showModeration}
-                onClose={() => setShowModeration(false)}
-                type="notices"
-            />
+            {profile && (
+                <GenericModerationPanel
+                    isOpen={showModeration}
+                    onClose={() => setShowModeration(false)}
+                    type="notices"
+                    profile={profile}
+                />
+            )}
         </div>
     );
 }

@@ -14,6 +14,10 @@ const nextConfig = {
             },
             {
                 protocol: "https",
+                hostname: "pub-9172f31a1ae846ef8b20fc71e0cb1b17.r2.dev",
+            },
+            {
+                protocol: "https",
                 hostname: "lh3.googleusercontent.com",
             },
             {
@@ -27,6 +31,14 @@ const nextConfig = {
             {
                 protocol: "https",
                 hostname: "ui-avatars.com",
+            },
+            {
+                protocol: "https",
+                hostname: "drive.google.com",
+            },
+            {
+                protocol: "https",
+                hostname: "doc-08-0s-docs.googleusercontent.com",
             },
         ],
     },

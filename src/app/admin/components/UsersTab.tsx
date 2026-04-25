@@ -13,11 +13,16 @@ import {
     Lock,
     Settings2,
     X,
+    Award,
+    Plus,
+    Loader2
 } from "lucide-react";
 import {
     getAllUsers,
     updateUserRole,
     updateUserModeration,
+    grantBadge,
+    revokeBadge,
     type FirestoreUser,
 } from "@/lib/firestore";
 import { UserProfile } from "@/contexts/AuthContext";
@@ -30,6 +35,7 @@ export default function UsersTab({ profile }: { profile: UserProfile }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [moderatingUser, setModeratingUser] = useState<(FirestoreUser & { id: string }) | null>(null);
     const [updating, setUpdating] = useState(false);
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
 
     const loadUsers = async () => {
         setLoading(true);
@@ -62,6 +68,56 @@ export default function UsersTab({ profile }: { profile: UserProfile }) {
             setTimeout(() => setMessage(""), 3000);
         } catch (err) {
             setMessage(`❌ ${err instanceof Error ? err.message : "Error"}`);
+        }
+        setUpdating(false);
+    };
+
+    const handleGrantBadge = async (badgeData: { name: string; description: string; imageURL: string }) => {
+        if (!moderatingUser) return;
+        setUpdating(true);
+        try {
+            await grantBadge(moderatingUser.id, badgeData);
+            setMessage("✅ Badge granted successfully!");
+            
+            // Update local state immediately so user sees it
+            const newBadge = {
+                ...badgeData,
+                id: 'temp-' + Math.random().toString(36).substring(2), // Temp ID until refresh
+                dateEarned: new Date().toISOString()
+            };
+            setModeratingUser({
+                ...moderatingUser,
+                badges: [...(moderatingUser.badges || []), newBadge]
+            });
+            
+            setTimeout(() => setMessage(""), 3000);
+            loadUsers(); // Background refresh
+        } catch (err) {
+            setMessage(`❌ ${err instanceof Error ? err.message : "Error granting badge"}`);
+        }
+        setUpdating(false);
+    };
+
+    const handleRevokeBadge = async (badgeId: string) => {
+        if (!moderatingUser) return;
+        // Using a more reliable confirmation or just proceed for now to debug
+        // if (!confirm("Are you sure you want to revoke this badge?")) return;
+        
+        setUpdating(true);
+        try {
+            console.log("Attempting to revoke badge:", badgeId, "for user:", moderatingUser.id);
+            await revokeBadge(moderatingUser.id, badgeId);
+            setMessage("✅ Badge revoked.");
+            
+            // Update local state to reflect change immediately
+            const updatedBadges = (moderatingUser.badges || []).filter((b: any) => b.id !== badgeId);
+            setModeratingUser({ ...moderatingUser, badges: updatedBadges });
+            
+            loadUsers();
+            setTimeout(() => setMessage(""), 3000);
+        } catch (err) {
+            console.error("Revoke error:", err);
+            setMessage(`❌ ${err instanceof Error ? err.message : "Error revoking badge"}`);
         }
         setUpdating(false);
     };
@@ -304,11 +360,110 @@ export default function UsersTab({ profile }: { profile: UserProfile }) {
                                         })}
                                     </div>
                                 </div>
+
+                                {/* Current Badges */}
+                                {moderatingUser.badges && moderatingUser.badges.length > 0 && (
+                                    <div className="space-y-3 pt-6 border-t border-gray-50 dark:border-gray-700">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Current Badges</h4>
+                                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{moderatingUser.badges.length}</span>
+                                        </div>
+                                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                                            {moderatingUser.badges.map((badge: any) => (
+                                                <div key={badge.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 group hover:border-primary/20 transition-all">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center p-1.5 shadow-sm border border-gray-100 dark:border-gray-700 group-hover:scale-110 transition-transform">
+                                                            {badge.imageURL ? (
+                                                                <img src={badge.imageURL} alt={badge.name} className="w-full h-full object-contain" />
+                                                            ) : (
+                                                                <Award className="text-primary" size={16} />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-black text-navy-900 dark:text-white">{badge.name}</p>
+                                                            <p className="text-[10px] text-gray-500 font-medium line-clamp-1">{badge.description}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleRevokeBadge(badge.id)}
+                                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
+                                                        title="Revoke Badge"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Award Badge */}
+                                <div className="space-y-3 pt-6 border-t border-gray-50 dark:border-gray-700">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Recognition</h4>
+                                    <button 
+                                        onClick={() => setShowBadgeModal(true)}
+                                        className="w-full py-4 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Award size={16} /> Award New Badge
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
+
+            <BadgeGrantModal 
+                isOpen={showBadgeModal}
+                onClose={() => setShowBadgeModal(false)}
+                onGrant={handleGrantBadge}
+                isUpdating={updating}
+            />
+        </div>
+    );
+}
+
+function BadgeGrantModal({ isOpen, onClose, onGrant, isUpdating }: { isOpen: boolean; onClose: () => void; onGrant: (data: any) => Promise<void>; isUpdating: boolean }) {
+    const [name, setName] = useState("");
+    const [description, setDescription] = useState("");
+    const [imageURL, setImageURL] = useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await onGrant({ name, description, imageURL });
+        setName(""); setDescription(""); setImageURL("");
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800"
+            >
+                <div className="p-5 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-navy-900 dark:text-white">Award Badge</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X size={18} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Badge Name</label>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Early Supporter" className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Description</label>
+                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Joined during the pioneer phase" className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white h-20 resize-none" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Icon URL (Cloudinary/Direct)</label>
+                        <input type="text" value={imageURL} onChange={(e) => setImageURL(e.target.value)} placeholder="https://..." className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
+                    </div>
+                    <button type="submit" disabled={isUpdating} className="w-full py-4 bg-primary text-white font-black rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                        {isUpdating ? <Loader2 size={18} className="animate-spin" /> : "Grant Badge"}
+                    </button>
+                </form>
+            </motion.div>
         </div>
     );
 }

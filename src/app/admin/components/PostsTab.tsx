@@ -13,9 +13,9 @@ import {
     Filter
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getPendingPosts, getApprovedPosts, updatePostStatus, deletePostAction, type FirestorePost } from "@/lib/firestore";
+import { getPendingPosts, getApprovedPosts, approvePost, rejectPost, deletePost, type FirestorePost } from "@/lib/firestore";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { type UserProfile } from "@/types";
+import { type UserProfile } from "@/contexts/AuthContext";
 
 export default function PostsTab({ profile }: { profile: UserProfile }) {
     const [posts, setPosts] = useState<(FirestorePost & { id: string })[]>([]);
@@ -51,7 +51,11 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
 
     const handleAction = async (id: string, action: "approve" | "reject") => {
         try {
-            await updatePostStatus(id, action === "approve" ? "approved" : "rejected");
+            if (action === "approve") {
+                await approvePost(id);
+            } else {
+                await rejectPost(id);
+            }
             setMessage(action === "approve" ? "✅ Post approved" : "✅ Post rejected");
             setTimeout(() => setMessage(""), 3000);
             loadPosts();
@@ -71,7 +75,7 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
 
         setConfirmLoading(true);
         try {
-            await deletePostAction(profile.uid, postId);
+            await deletePost(postId);
             setMessage("✅ Post deleted successfully");
             setTimeout(() => setMessage(""), 3000);
             loadPosts();

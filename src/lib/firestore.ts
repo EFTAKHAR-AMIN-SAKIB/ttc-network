@@ -35,7 +35,7 @@ import {
     type QueryConstraint
 } from "firebase/firestore";
 import { getDb, getAuthInstance } from "./firebase";
-import { uploadFile as cloudinaryUpload, deleteFromCloudinary } from "./cloudinary";
+import { uploadFile as cloudinaryUpload, deleteFromCloudinary } from "./storage";
 
 // ═══════════════════════════════════════════════════
 //  TYPES
@@ -288,6 +288,13 @@ export interface SupportSettings {
     supportPageActive: boolean;
     supportPageNote?: string;
     supportPageSubtext?: string;
+    stripeLink?: string;
+    cryptoWallet?: string;
+    bkashNumber?: string;
+    raised?: number;
+    goal?: number;
+    supporters?: string | number;
+    currencySymbol?: string;
 }
 
 export interface FirestoreStudyPost {
@@ -418,6 +425,8 @@ export interface FirestoreUser {
     isShadowBanned?: boolean;
     restrictions?: string[]; // e.g., ["posts", "stories", "notices", "gifts"]
     banReason?: string;
+    badges?: any[];
+    achievementsList?: any[];
     createdAt: Timestamp | null;
 }
 
@@ -1367,7 +1376,7 @@ export async function approveModerationItem(collectionName: string, id: string):
     if (creatorId) {
         const title = data.eventName || data.title || data.name || "item";
         await createNotification(creatorId, {
-            type: `${collectionName.slice(0, -1)}_approved`,
+            type: `${collectionName.slice(0, -1)}_approved` as any,
             message: `Your ${collectionName.slice(0, -1)} "${title}" has been approved.`,
             relatedId: id,
             relatedType: collectionName.slice(0, -1) as any
@@ -1399,7 +1408,7 @@ export async function rejectModerationItem(collectionName: string, id: string, r
     if (creatorId) {
         const title = data.eventName || data.title || data.name || "item";
         await createNotification(creatorId, {
-            type: `${collectionName.slice(0, -1)}_rejected`,
+            type: `${collectionName.slice(0, -1)}_rejected` as any,
             message: `Your ${collectionName.slice(0, -1)} "${title}" was not approved.${reason ? ` Reason: ${reason}` : ""}`,
             relatedId: id,
             relatedType: collectionName.slice(0, -1) as any
@@ -1540,8 +1549,9 @@ export async function deleteStory(id: string): Promise<void> {
 
 /**
  * Subscribes to stories authored by a specific user.
+ * @param isOwner - If true (viewing own profile), shows all statuses. If false, only published/approved.
  */
-export function subscribeUserStories(uid: string, callback: (data: (FirestoreStory & { id: string })[]) => void) {
+export function subscribeUserStories(uid: string, callback: (data: (FirestoreStory & { id: string })[]) => void, isOwner: boolean = false) {
     const q = query(
         collection(getDb(), "stories"),
         where("authorId", "==", uid),
@@ -1549,41 +1559,158 @@ export function subscribeUserStories(uid: string, callback: (data: (FirestoreSto
     );
     
     return onSnapshot(q, (snap) => {
-        const stories = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreStory) }));
+        let stories = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreStory) }));
+        // Non-owners only see published non-private stories
+        if (!isOwner) {
+            stories = stories.filter(s => s.status === "published" && s.visibility !== "private");
+        }
         callback(stories);
     });
 }
 
 /**
+ * Delete own post (user-facing). Verifies the current user is the post creator.
+ */
+export async function deleteOwnPost(postId: string): Promise<void> {
+    const auth = getAuthInstance();
+    const user = auth.currentUser;
+    if (!user) throw new Error("Auth required");
+
+    const postRef = doc(getDb(), "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found");
+    
+    const data = postSnap.data() as FirestorePost;
+    if (data.creatorId !== user.uid) throw new Error("You can only delete your own posts");
+
+    // Clean up thumbnail
+    try {
+        if (data.thumbnailUrl) await deleteFromCloudinary(data.thumbnailUrl);
+    } catch (err) {
+        console.warn("[Firestore] Thumbnail cleanup error:", err);
+    }
+    await deleteDoc(postRef);
+}
+
+/**
+ * Delete own story (user-facing). Verifies the current user is the story author.
+ */
+export async function deleteOwnStory(storyId: string): Promise<void> {
+    const auth = getAuthInstance();
+    const user = auth.currentUser;
+    if (!user) throw new Error("Auth required");
+
+    const storyRef = doc(getDb(), "stories", storyId);
+    const storySnap = await getDoc(storyRef);
+    if (!storySnap.exists()) throw new Error("Story not found");
+    
+    const data = storySnap.data() as FirestoreStory;
+    if (data.authorId !== user.uid) throw new Error("You can only delete your own stories");
+
+    // Clean up thumbnail
+    try {
+        if (data.thumbnailUrl) await deleteFromCloudinary(data.thumbnailUrl);
+    } catch (err) {
+        console.warn("[Firestore] Thumbnail cleanup error:", err);
+    }
+    await deleteDoc(storyRef);
+}
+
+/**
  * Fetches recent activity for a user (posts, reactions, comments)
  * This is a composite fetch for the Activity tab.
+ * @param isOwner - If true, shows all statuses. If false, only approved/published.
  */
-export async function getUserActivity(uid: string) {
+export async function getUserActivity(uid: string, isOwner: boolean = false) {
     const db = getDb();
     
     // 1. User's Posts
     const postsQ = query(collection(db, "posts"), where("creatorId", "==", uid), orderBy("timestamp", "desc"), limit(10));
     const postsSnap = await getDocs(postsQ);
-    const posts = postsSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'post' }));
+    const posts = postsSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'post' as const }));
 
     // 2. User's Stories
     const storiesQ = query(collection(db, "stories"), where("authorId", "==", uid), orderBy("timestamp", "desc"), limit(10));
     const storiesSnap = await getDocs(storiesQ);
-    const stories = storiesSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'story' }));
+    const stories = storiesSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'story' as const }));
 
-    // 3. User's Comments
+    // 3. User's Comments (include postId for navigation)
     const commentsQ = query(collection(db, "comments"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(10));
     const commentsSnap = await getDocs(commentsQ);
-    const comments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'comment' }));
+    const comments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'comment' as const }));
+
+    // Filter out rejected/pending items for non-owner viewers
+    let all: any[] = [...posts, ...stories, ...comments];
+    if (!isOwner) {
+        all = all.filter((item: any) => {
+            if (item.visibility === 'private') return false;
+            if (item.activityType === 'comment') return true; // comments don't have status
+            const status = item.status || '';
+            return status === 'approved' || status === 'published';
+        });
+    }
 
     // Interleave them by creation time
-    const all = [...posts, ...stories, ...comments].sort((a: any, b: any) => {
+    all.sort((a: any, b: any) => {
         const timeA = a.timestamp?.seconds || a.createdAt?.seconds || 0;
         const timeB = b.timestamp?.seconds || b.createdAt?.seconds || 0;
         return timeB - timeA;
     });
 
-    return all.slice(0, 15);
+    return all.slice(0, 20);
+}
+
+/**
+ * Fetches feed content (posts, stories, notices, study materials) for a specific user
+ * Used for the "My Feed" tab on user profiles
+ */
+export async function getUserFeedContent(uid: string, isOwner: boolean = false) {
+    const db = getDb();
+    
+    // 1. User's Posts
+    const postsQ = query(collection(db, "posts"), where("creatorId", "==", uid), orderBy("timestamp", "desc"), limit(20));
+    const postsSnap = await getDocs(postsQ);
+    let posts = postsSnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'post' as const }));
+
+    // 2. User's Stories
+    const storiesQ = query(collection(db, "stories"), where("authorId", "==", uid), orderBy("timestamp", "desc"), limit(20));
+    const storiesSnap = await getDocs(storiesQ);
+    let stories = storiesSnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'story' as const }));
+
+    // 3. User's Notices (Sort locally to avoid needing a new composite index)
+    const noticesQ = query(collection(db, "notices"), where("authorId", "==", uid));
+    const noticesSnap = await getDocs(noticesQ);
+    let notices = noticesSnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'notice' as const }));
+    notices.sort((a: any, b: any) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
+    notices = notices.slice(0, 20);
+
+    // 4. User's Study Materials (Sort locally to avoid needing a new composite index)
+    const studyQ = query(collection(db, "studyPosts"), where("authorId", "==", uid));
+    const studySnap = await getDocs(studyQ);
+    let studyMaterials = studySnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'study' as const }));
+    studyMaterials.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    studyMaterials = studyMaterials.slice(0, 20);
+
+    // 5. User's Comments
+    const commentsQ = query(collection(db, "comments"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(20));
+    const commentsSnap = await getDocs(commentsQ);
+    let comments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'comment' as const }));
+
+    // Apply visibility filters for non-owners
+    if (!isOwner) {
+        posts = posts.filter((p: any) => (p.status === 'published' || p.status === 'approved') && p.visibility !== 'private');
+        stories = stories.filter((s: any) => (s.status === 'published' || s.status === 'approved') && s.visibility !== 'private');
+        notices = notices.filter((n: any) => (n.status === 'published' || n.status === 'approved' || !n.status) && n.visibility !== 'private');
+        studyMaterials = studyMaterials.filter((sm: any) => (sm.status === 'published' || sm.status === 'approved' || !sm.status) && sm.visibility !== 'private');
+    }
+
+    return {
+        posts,
+        stories,
+        notices,
+        studyMaterials,
+        comments
+    };
 }
 
 export async function reactToStory(id: string, reaction: "inspired" | "relatable" | "insightful" | "respect" | "powerful" | "relate" | "love" | "fire" | "wow" | "clap"): Promise<{ added: boolean }> {
@@ -1752,7 +1879,20 @@ export async function toggleNoticeUrgent(id: string, isUrgent: boolean): Promise
 
 export async function getCurrentUserProfile(): Promise<FirestoreUser & { id: string } | null> {
     const auth = getAuthInstance();
-    const user = auth.currentUser;
+    
+    // Helper to wait for auth state if not immediately available
+    const getAuthUser = (): Promise<any> => {
+        if (auth.currentUser) return Promise.resolve(auth.currentUser);
+        return new Promise((resolve) => {
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+                unsubscribe();
+                resolve(user);
+            });
+            setTimeout(() => { unsubscribe(); resolve(null); }, 5000);
+        });
+    };
+
+    const user = await getAuthUser();
     if (!user || !user.uid) return null;
     try {
         return await getDocById<FirestoreUser>("users", user.uid);
@@ -1763,7 +1903,6 @@ export async function getCurrentUserProfile(): Promise<FirestoreUser & { id: str
 }
 
 export async function getAllUsers(): Promise<(FirestoreUser & { id: string })[]> {
-    await requireAdminOrManager();
     const q = query(collection(getDb(), "users"), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }));
@@ -1821,7 +1960,7 @@ export async function getProfilesByIds(uids: string[]): Promise<(FirestoreUser &
     if (!uids || uids.length === 0) return [];
     
     try {
-        const uniqueUids = [...new Set(uids)];
+        const uniqueUids = Array.from(new Set(uids));
         const profiles = await Promise.all(
             uniqueUids.map(uid => 
                 getDocById<FirestoreUser>("users", uid)
@@ -1909,9 +2048,10 @@ export async function markAllNotificationsRead(uid: string): Promise<void> {
 // ═══════════════════════════════════════════════════
 
 export async function getVisibleQACards(): Promise<(FirestoreQACard & { id: string })[]> {
-    const q = query(collection(getDb(), "qaCards"), where("isVisible", "==", true), orderBy("order", "asc"));
+    const q = query(collection(getDb(), "qaCards"), where("isVisible", "==", true));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreQACard) }));
+    const cards = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreQACard) }));
+    return cards.sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 export async function getAllQACards(): Promise<(FirestoreQACard & { id: string })[]> {
@@ -3093,6 +3233,96 @@ export async function reactToContent(contentId: string, reaction: string, conten
 
         await updateDoc(contentRef, updates);
         return { added: true };
+    }
+}
+
+// ═══════════════════════════════════════════════════
+//  CREDENTIALS (BADGES & ACHIEVEMENTS)
+// ═══════════════════════════════════════════════════
+
+export async function grantBadge(userId: string, badgeData: { name: string; description: string; imageURL: string }): Promise<void> {
+    await requireAdminOrManager();
+    const userRef = doc(getDb(), "users", userId);
+    const badge = {
+        ...badgeData,
+        id: Math.random().toString(36).substring(2, 11),
+        dateEarned: new Date().toISOString(),
+    };
+    await updateDoc(userRef, {
+        badges: arrayUnion(badge)
+    });
+}
+
+export async function addAchievement(userId: string, achievementData: { title: string; issuer: string; date: string; fileURL: string; type: 'image' | 'pdf' | 'other' }): Promise<void> {
+    const profile = await getCurrentUserProfile();
+    if (!profile || profile.id !== userId) throw new Error("Unauthorized: You can only add your own achievements.");
+
+    const userRef = doc(getDb(), "users", userId);
+    const achievement = {
+        ...achievementData,
+        id: Math.random().toString(36).substring(2, 11),
+    };
+    await updateDoc(userRef, {
+        achievementsList: arrayUnion(achievement)
+    });
+}
+
+export async function removeAchievement(userId: string, achievementId: string): Promise<void> {
+    const profile = await getCurrentUserProfile();
+    if (!profile || profile.id !== userId) throw new Error("Unauthorized: You can only remove your own achievements.");
+
+    const userRef = doc(getDb(), "users", userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) throw new Error("User not found");
+
+    const userData = userSnap.data();
+    const achievementsList = userData.achievementsList || [];
+    const achievementToDelete = achievementsList.find((a: any) => a.id === achievementId);
+
+    if (!achievementToDelete) return;
+
+    if (achievementToDelete.fileURL) {
+        try {
+            await deleteFromCloudinary(achievementToDelete.fileURL);
+        } catch (err) {
+            console.error("[Firestore] Failed to delete achievement file from Cloudinary:", err);
+        }
+    }
+
+    await updateDoc(userRef, {
+        achievementsList: arrayRemove(achievementToDelete)
+    });
+}
+
+export async function revokeBadge(userId: string, badgeId: string): Promise<void> {
+    console.log(`[Firestore] Revoking badge: ${badgeId} for user: ${userId}`);
+    await requireAdminOrManager();
+    const userRef = doc(getDb(), "users", userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) throw new Error("User not found");
+
+    const userData = userSnap.data() as FirestoreUser;
+    const currentBadges = userData.badges || [];
+    
+    // Attempt to match by ID, but fallback to name if ID is missing or doesn't match
+    // This handles legacy data that might not have the new 'id' field
+    const updatedBadges = currentBadges.filter((b: any) => {
+        if (badgeId && b.id === badgeId) return false;
+        // If the badgeId passed is actually the name (for legacy support)
+        if (b.name === badgeId && !b.id) return false;
+        return true;
+    });
+
+    console.log(`[Firestore] Badges found: ${currentBadges.length}, after filter: ${updatedBadges.length}`);
+
+    if (currentBadges.length !== updatedBadges.length) {
+        await updateDoc(userRef, {
+            badges: updatedBadges
+        });
+        console.log(`[Firestore] Badge revoked successfully in DB`);
+    } else {
+        console.error(`[Firestore] Badge with ID ${badgeId} not found in user's badges array.`);
+        throw new Error("Badge not found on user profile.");
     }
 }
 
