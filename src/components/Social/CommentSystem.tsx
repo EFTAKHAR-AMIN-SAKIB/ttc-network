@@ -104,14 +104,12 @@ export function CommentItem({
                                 currentUserId={user?.uid}
                             />
                         </div>
-                        {!comment.parentId && (
-                            <button 
-                                onClick={() => onReply(comment.userName, comment.id)}
-                                className="text-[10px] font-black uppercase tracking-tighter text-gray-400 hover:text-primary transition-colors flex items-center gap-1"
-                            >
-                                <Reply size={12} /> Reply
-                            </button>
-                        )}
+                        <button 
+                            onClick={() => onReply(comment.userName, comment.parentId || comment.id)}
+                            className="text-[10px] font-black uppercase tracking-tighter text-gray-400 hover:text-primary transition-colors flex items-center gap-1"
+                        >
+                            <Reply size={12} /> Reply
+                        </button>
                         {isAuthor && (
                             <button 
                                 onClick={handleDelete}
@@ -172,6 +170,21 @@ export function CommentSystem({
         if (!contentId) return;
         return subscribeComments(contentId, (all) => {
             setComments(all);
+
+            // Auto-scroll to specific comment if hash matches
+            if (typeof window !== "undefined" && window.location.hash.startsWith("#comment-")) {
+                const commentId = window.location.hash.substring(1);
+                // We use a small timeout to ensure the DOM has rendered the new comment items
+                setTimeout(() => {
+                    const el = document.getElementById(commentId);
+                    if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        // Add a subtle highlight effect
+                        el.classList.add("ring-2", "ring-primary", "ring-offset-2");
+                        setTimeout(() => el.classList.remove("ring-2", "ring-primary", "ring-offset-2"), 3000);
+                    }
+                }, 500);
+            }
         });
     }, [contentId]);
 
@@ -281,7 +294,13 @@ export function CommentSystem({
                                 contentType={contentType}
                                 onReply={(userName, parentId) => {
                                     setReplyTo({ userName, parentId });
-                                    inputRef.current?.focus();
+                                    setText(prev => prev.startsWith(`@${userName}`) ? prev : `@${userName} ${prev}`);
+                                    setTimeout(() => {
+                                        if (inputRef.current) {
+                                            inputRef.current.focus();
+                                            inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
+                                        }
+                                    }, 10);
                                 }}
                             />
                             {getReplies(comment.id).map(reply => (
@@ -292,7 +311,13 @@ export function CommentSystem({
                                     contentType={contentType}
                                     onReply={(userName, parentId) => {
                                         setReplyTo({ userName, parentId });
-                                        inputRef.current?.focus();
+                                        setText(prev => prev.startsWith(`@${userName}`) ? prev : `@${userName} ${prev}`);
+                                        setTimeout(() => {
+                                            if (inputRef.current) {
+                                                inputRef.current.focus();
+                                                inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
+                                            }
+                                        }, 10);
                                     }}
                                 />
                             ))}

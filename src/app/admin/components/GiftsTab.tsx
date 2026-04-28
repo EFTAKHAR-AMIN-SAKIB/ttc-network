@@ -196,7 +196,8 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                     personalNote: editingPhase.personalNote || editingPhase.founderNote || "",
                     currentAmount: editingPhase.currentAmount || 0,
                     targetAmount: editingPhase.targetAmount || 0,
-                    tractionLevel: editingPhase.tractionLevel || 0
+                    tractionLevel: editingPhase.tractionLevel || 0,
+                    showFundraising: editingPhase.showFundraising || false
                 } as SupportPhase);
                 showToast("✅ Phase created!", "success");
             }
@@ -907,6 +908,15 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                                             <option value="Hammer">Hammer</option>
                                             <option value="Megaphone">Megaphone</option>
                                         </select>
+                                    </div>
+                                    <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-400 whitespace-nowrap">Show Fundraising:</span>
+                                        <button 
+                                            onClick={() => setEditingPhase({...editingPhase, showFundraising: !editingPhase.showFundraising})}
+                                            className={`w-10 h-5 rounded-full transition-colors relative ${editingPhase.showFundraising ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}
+                                        >
+                                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${editingPhase.showFundraising ? 'left-6' : 'left-1'}`} />
+                                        </button>
                                     </div>
                                 </div>
                                 <textarea value={editingPhase.description || ""} onChange={e => setEditingPhase({...editingPhase, description: e.target.value})} placeholder="Phase Description" className="px-3 py-2 rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700 text-sm w-full min-h-[60px]" />

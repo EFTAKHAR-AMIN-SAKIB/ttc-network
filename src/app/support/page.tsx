@@ -596,7 +596,7 @@ function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; 
 
                 {/* Status/Supporters area */}
                 <div className="shrink-0 flex flex-col items-center md:items-end gap-3 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-50 dark:border-gray-800">
-                    {isInProgress && !phase.title.toLowerCase().includes("phase 2") && (
+                    {phase.showFundraising && (
                         <div className="text-center md:text-right">
                              <div className="text-[10px] uppercase font-black tracking-widest text-gray-400 dark:text-gray-500 mb-1">Raised</div>
                              <div className="text-4xl font-black text-[#E2136E] dark:text-pink-500 tracking-tighter leading-none flex items-baseline gap-1">

@@ -101,9 +101,9 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                 type,
                 eventName: eventName.trim(),
                 description: description.trim(),
-                shareLink: shareLink.trim() || "https://ttcnetwork.com",
+                ...(shareLink.trim() ? { shareLink: shareLink.trim() } : {}),
                 visibility,
-                linkPreview: linkPreview || { title: eventName, description: description.slice(0, 100), thumbnail: "", domain: "ttcnetwork.com" },
+                ...(linkPreview ? { linkPreview } : {}),
                 collegeId: profile?.collegeId,
                 ...(thumbnailUrl ? { thumbnailUrl } : {}),
                 ...(type === "club" ? { clubName: selectedClubName } : {})

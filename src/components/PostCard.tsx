@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, ExternalLink, Globe, Lock, School, MapPin, 
@@ -137,6 +137,17 @@ export default function PostCard({
     const canManage = !hideManageOptions && (isOwner || isAdmin || (profile?.role === "manager" && profile?.collegeId === post.collegeId));
     
     const isEditing = editingId === post.id;
+    
+    // Auto-expand comments if the URL hash points to a comment on this post
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const expandId = params.get("commentPostId");
+            if (expandId === post.id) {
+                setShowComments(true);
+            }
+        }
+    }, [post.id]);
 
     if (isEditing) {
         return (

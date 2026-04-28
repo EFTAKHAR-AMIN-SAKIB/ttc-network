@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { v2 as cloudinary } from "cloudinary";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 // ── R2 ────────────────────────────────────────────
 
@@ -46,6 +47,33 @@ cloudinary.config({
 
 export async function POST(request: NextRequest) {
     try {
+        // ── Auth check: require valid session ─────────────
+        const sessionCookie = request.cookies.get("ttc_session")?.value;
+        if (!sessionCookie || !adminAuth) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        let decodedToken;
+        try {
+            decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+        } catch {
+            return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+        }
+
+        // Verify role (admin or manager)
+        if (!adminDb) {
+            return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+        }
+
+        const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
+        if (!userDoc.exists) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        const userData = userDoc.data();
+        if (userData?.role !== "admin" && userData?.role !== "manager" && userData?.role !== "super_manager") {
+            return NextResponse.json({ error: "Forbidden: Only admins and managers can delete files" }, { status: 403 });
+        }
+
         const { url } = await request.json();
 
         if (!url || typeof url !== "string") {

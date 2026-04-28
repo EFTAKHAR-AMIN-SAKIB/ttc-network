@@ -13,7 +13,7 @@ import {
 import Image from "next/image";
 import {
     doc, getDoc, updateDoc,
-    collection, query, where, onSnapshot, orderBy, limit
+    collection, query, where, onSnapshot, orderBy, limit, getDocs
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { useAuth, type UserProfile } from "@/contexts/AuthContext";
@@ -29,7 +29,8 @@ import {
     deleteOwnPost, 
     getUserFeedContent,
     addAchievement,
-    removeAchievement
+    removeAchievement,
+    deleteComment
 } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
@@ -348,9 +349,30 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
 
 export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {}) {
     const params = useParams();
-    const uid = uidOverride || (params.uid as string);
+    const urlUid = uidOverride || (params.uid as string);
+    const [uid, setUid] = useState<string | null>(null);
+
+    useEffect(() => {
+        const resolve = async () => {
+            if (!urlUid) return;
+            const db = getDb();
+            const docSnap = await getDoc(doc(db, "users", urlUid));
+            if (docSnap.exists()) {
+                setUid(urlUid);
+            } else {
+                const q = query(collection(db, "users"), where("username", "==", urlUid), limit(1));
+                const qSnap = await getDocs(q);
+                if (!qSnap.empty) {
+                    setUid(qSnap.docs[0].id);
+                } else {
+                    setUid(urlUid);
+                }
+            }
+        };
+        resolve();
+    }, [urlUid]);
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, profile: currentUserProfile } = useAuth();
     const { showToast } = useToast();
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
 
@@ -424,6 +446,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!uid) return;
         const db = getDb();
         const unsubUser = onSnapshot(doc(db, "users", uid), (snap) => {
             if (snap.exists()) {
@@ -479,6 +502,88 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     }, [contactOpen]);
 
 
+
+    const handleDeletePost = async (id: string) => {
+        const confirmed = await confirm({
+            title: "Delete Post?",
+            message: "Are you sure you want to delete this post?",
+            confirmText: "Delete",
+            variant: "danger"
+        });
+        if (!confirmed) return;
+        setConfirmLoading(true);
+        try {
+            await deleteOwnPost(id);
+            showToast("Post deleted", "success");
+            setUserFeed(prev => ({ 
+                ...prev, 
+                posts: prev.posts.filter(p => p.id !== id),
+                comments: prev.comments.filter(c => c.postId !== id)
+            }));
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to delete", "error");
+        } finally {
+            setConfirmLoading(false);
+            closeConfirm();
+        }
+    };
+
+    const handleEditPost = (post: any) => {
+        router.push(`/news-feed?post=${post.id}&edit=true`);
+    };
+
+    const handleDeleteStory = async (id: string) => {
+        const confirmed = await confirm({
+            title: "Delete Story?",
+            message: "Are you sure you want to delete this story?",
+            confirmText: "Delete",
+            variant: "danger"
+        });
+        if (!confirmed) return;
+        setConfirmLoading(true);
+        try {
+            await deleteOwnStory(id);
+            showToast("Story deleted", "success");
+            setUserFeed(prev => ({ 
+                ...prev, 
+                stories: prev.stories.filter(s => s.id !== id),
+                comments: prev.comments.filter(c => c.postId !== id)
+            }));
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to delete", "error");
+        } finally {
+            setConfirmLoading(false);
+            closeConfirm();
+        }
+    };
+
+    const handleEditStory = (story: any) => {
+        router.push(`/story?story=${story.id}&edit=true`);
+    };
+
+    const handleDeleteComment = async (commentId: string, postId: string) => {
+        const confirmed = await confirm({
+            title: "Delete Comment?",
+            message: "Are you sure you want to delete this comment?",
+            confirmText: "Delete",
+            variant: "danger"
+        });
+        if (!confirmed) return;
+        setConfirmLoading(true);
+        try {
+            await deleteComment(commentId, postId);
+            showToast("Comment deleted", "success");
+            setUserFeed(prev => ({ ...prev, comments: prev.comments.filter(c => c.id !== commentId) }));
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to delete comment", "error");
+        } finally {
+            setConfirmLoading(false);
+            closeConfirm();
+        }
+    };
 
     const handleFollowToggle = useCallback(async () => {
         if (!user?.uid || followLoading) return;
@@ -933,13 +1038,13 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                             return (
                                                                 <div key={act.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${act.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative">
                                                                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
-                                                                    <PostCard post={act} profile={profileData} hideManageOptions={true} />
+                                                                    <PostCard post={act} profile={currentUserProfile} hideManageOptions={!isOwnProfile} onDelete={handleDeletePost} onEdit={handleEditPost} />
                                                                 </div>
                                                             );
                                                         } else if (act.activityType === 'story') {
                                                             return (
                                                                 <div key={act.id} onClick={() => router.push(`/story/${act.id}`)} className="cursor-pointer">
-                                                                    <StoryCard story={act} />
+                                                                    <StoryCard story={act} onDelete={isOwnProfile ? handleDeleteStory : undefined} onEdit={isOwnProfile ? handleEditStory : undefined} />
                                                                 </div>
                                                             );
                                                         } else if (act.activityType === 'notice') {
@@ -965,6 +1070,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                                     key={act.id} 
                                                                     act={act}
                                                                     isOwn={isOwnProfile}
+                                                                    onDelete={(id) => handleDeleteComment(id, act.postId || id)}
                                                                     onNavigate={() => {
                                                                         const postId = act.postId || act.id;
                                                                         router.push(`/news-feed?post=${postId}`);
@@ -982,7 +1088,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                     {filteredFeed.posts.map(post => (
                                                         <div key={post.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${post.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative">
                                                             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
-                                                            <PostCard post={post} profile={profileData} hideManageOptions={true} />
+                                                            <PostCard post={post} profile={currentUserProfile} hideManageOptions={!isOwnProfile} onDelete={handleDeletePost} onEdit={handleEditPost} />
                                                         </div>
                                                     ))}
                                                 </div>
@@ -995,6 +1101,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                             key={comment.id} 
                                                             act={{ ...comment, activityType: 'comment' }}
                                                             isOwn={isOwnProfile}
+                                                            onDelete={(id) => handleDeleteComment(id, comment.postId || id)}
                                                             onNavigate={() => {
                                                                 const postId = comment.postId || comment.id;
                                                                 router.push(`/news-feed?post=${postId}`);
@@ -1008,7 +1115,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                 <div className="grid gap-6">
                                                     {filteredFeed.stories.map(story => (
                                                         <div key={story.id} onClick={() => router.push(`/story/${story.id}`)} className="cursor-pointer">
-                                                            <StoryCard story={story} />
+                                                            <StoryCard story={story} onDelete={isOwnProfile ? handleDeleteStory : undefined} onEdit={isOwnProfile ? handleEditStory : undefined} />
                                                         </div>
                                                     ))}
                                                 </div>

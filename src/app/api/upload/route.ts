@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { adminAuth } from "@/lib/firebase-admin";
 
 // ═══════════════════════════════════════════════════
 //  R2 CLIENT
@@ -83,6 +84,17 @@ function randomId(len = 8): string {
 
 export async function POST(request: NextRequest) {
     try {
+        // ── Auth check: require valid session ─────────────
+        const sessionCookie = request.cookies.get("ttc_session")?.value;
+        if (!sessionCookie || !adminAuth) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        try {
+            await adminAuth.verifySessionCookie(sessionCookie, true);
+        } catch {
+            return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+        }
+
         if (!isConfigured) {
             return NextResponse.json(
                 { error: "R2 not configured. Check .env.local" },
@@ -92,8 +104,10 @@ export async function POST(request: NextRequest) {
 
         const formData = await request.formData();
         const file = formData.get("file") as File | null;
-        const folder = (formData.get("folder") as string) || "uploads";
-        const publicId = formData.get("publicId") as string | null;
+        const rawFolder = (formData.get("folder") as string) || "uploads";
+        const folder = rawFolder.replace(/[^a-zA-Z0-9_-]/g, ""); // Prevent path traversal
+        const rawPublicId = formData.get("publicId") as string | null;
+        const publicId = rawPublicId ? rawPublicId.replace(/[^a-zA-Z0-9_-]/g, "") : null;
 
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });

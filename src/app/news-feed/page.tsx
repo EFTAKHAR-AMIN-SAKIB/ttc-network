@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -54,19 +54,9 @@ function NewsFeedInner() {
 
     const [targetPostId, setTargetPostId] = useState<string | null>(null);
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const hasScrolledRef = useRef<string | null>(null);
 
-    // Deep-link: read ?post= query param from profile activity click-through
-    useEffect(() => {
-        const postParam = searchParams.get('post');
-        if (postParam) {
-            setTargetPostId(postParam);
-            // Scroll to the post after a short delay to let DOM render
-            setTimeout(() => {
-                const el = document.getElementById(`post-${postParam}`);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 800);
-        }
-    }, [searchParams]);
+    // Moved useEffect down below handleEditStart
 
     useEffect(() => {
         const unsubPosts = subscribePosts((data) => {
@@ -133,6 +123,32 @@ function NewsFeedInner() {
         setEditThumbnailFile(null);
         setEditThumbnailPreview(post.thumbnailUrl || null);
     };
+
+    // Deep-link: read ?post= and ?edit= query params
+    useEffect(() => {
+        const postParam = searchParams.get('post');
+        const editParam = searchParams.get('edit');
+        if (postParam && posts.length > 0) {
+            setTargetPostId(postParam);
+            
+            // Check if post exists in current list
+            const postExists = posts.some(p => p.id === postParam);
+            if (postExists && hasScrolledRef.current !== postParam) {
+                hasScrolledRef.current = postParam;
+                setTimeout(() => {
+                    const el = document.getElementById(`post-${postParam}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+                
+                if (editParam === 'true' && !editingPostId) {
+                    const postToEdit = posts.find(p => p.id === postParam);
+                    if (postToEdit) {
+                        setTimeout(() => handleEditStart(postToEdit), 200);
+                    }
+                }
+            }
+        }
+    }, [searchParams, posts, editingPostId]);
 
     const handleCancelEdit = () => {
         setEditingPostId(null);

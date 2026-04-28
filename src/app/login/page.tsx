@@ -75,7 +75,9 @@ function LoginPageInner() {
     const router = useRouter();
     const { showToast } = useToast();
     const searchParams = useSearchParams();
-    const redirectTo = searchParams.get("redirect") || "/";
+    const rawRedirect = searchParams.get("redirect") || "/";
+    // Sanitize redirect: only allow relative paths (prevent open redirect)
+    const redirectTo = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
     const { siteName, logoUrl } = useSiteSettings();
 
     const [email, setEmail] = useState("");

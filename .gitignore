@@ -52,3 +52,7 @@ analysis_results.md
 dummy_cert.jpg
 src/lib/test_upload.jpg
 .gemini/
+scripts/check*.ts
+scripts/cleanup*.ts
+scripts/inspect_*.ts
+test-rules.js

@@ -1,4 +1,4 @@
-import { doc, getDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, writeBatch, runTransaction } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 
 // ═══════════════════════════════════════════════════
@@ -60,11 +60,13 @@ export async function isUsernameAvailable(username: string): Promise<boolean> {
 }
 
 /**
- * Claim a username for a user. Uses a batch write to atomically:
- * 1. Create a doc in `usernames/{username}` → { uid }
- * 2. Update `users/{uid}` → { username }
+ * Claim a username for a user using a Firestore transaction.
+ * This ensures atomicity — no two users can claim the same username
+ * simultaneously (prevents TOCTOU race condition).
  *
- * If the user already has a username, the old one is released.
+ * 1. Inside a transaction, reads `usernames/{username}` to check availability.
+ * 2. If available, atomically creates the username doc and updates the user doc.
+ * 3. If the user already has a username, the old one is released.
  */
 export async function claimUsername(
     uid: string,
@@ -79,29 +81,35 @@ export async function claimUsername(
         return { success: false, error: validation.error };
     }
 
-    // Check availability
-    const available = await isUsernameAvailable(trimmed);
-    if (!available) {
-        return { success: false, error: "Username is already taken" };
-    }
-
     try {
         const db = getDb();
-        const batch = writeBatch(db);
 
-        // Release old username if present
-        if (oldUsername && oldUsername !== trimmed) {
-            batch.delete(doc(db, "usernames", oldUsername.toLowerCase()));
-        }
+        await runTransaction(db, async (txn) => {
+            // Check availability inside the transaction (atomic read)
+            const usernameRef = doc(db, "usernames", trimmed);
+            const existing = await txn.get(usernameRef);
 
-        // Claim new username
-        batch.set(doc(db, "usernames", trimmed), { uid });
-        batch.update(doc(db, "users", uid), { username: trimmed });
+            if (existing.exists()) {
+                throw new Error("Username is already taken");
+            }
 
-        await batch.commit();
+            // Release old username if present
+            if (oldUsername && oldUsername !== trimmed) {
+                txn.delete(doc(db, "usernames", oldUsername.toLowerCase()));
+            }
+
+            // Claim new username
+            txn.set(usernameRef, { uid });
+            txn.update(doc(db, "users", uid), { username: trimmed });
+        });
+
         return { success: true };
-    } catch (err) {
+    } catch (err: any) {
         console.error("[username] Failed to claim username:", err);
-        return { success: false, error: "Failed to save username. Please try again." };
+        const message = err?.message?.includes("already taken")
+            ? "Username is already taken"
+            : "Failed to save username. Please try again.";
+        return { success: false, error: message };
     }
 }
+

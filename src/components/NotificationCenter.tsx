@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCircle, X, BookText, Globe, MessageSquare, Award, Heart, Scroll } from "lucide-react";
+import { Bell, CheckCircle, X, BookText, Globe, MessageSquare, Award, Heart, Scroll, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FirestoreNotification } from "@/lib/firestore";
@@ -21,6 +21,11 @@ const notifIcons: Record<string, any> = {
     club_join_approved: Award,
     club_join_rejected: X,
     comment: MessageSquare,
+    reaction: Heart,
+    follow: UserPlus,
+    badge_received: Award,
+    mention: MessageSquare,
+    reply: MessageSquare,
 };
 
 const notifColors: Record<string, string> = {
@@ -36,6 +41,11 @@ const notifColors: Record<string, string> = {
     club_join_approved: "text-[#1A5276] bg-[#1A5276]/5",
     club_join_rejected: "text-red-500 bg-red-50 dark:bg-red-500/10",
     comment: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
+    reaction: "text-pink-500 bg-pink-50 dark:bg-pink-500/10",
+    follow: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    badge_received: "text-amber-500 bg-amber-50 dark:bg-amber-500/10",
+    mention: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    reply: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
 };
 
 interface NotificationCenterProps {

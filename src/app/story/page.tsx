@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, PenLine, Sparkles, School, Users, Trash2, Shield, Plus } from "lucide-react";
+import { BookOpen, PenLine, Sparkles, School, Users, Trash2, Shield, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { 
     subscribeStories, deleteStory, type FirestoreStory,
     subscribeModerationCount, subscribeStoryHeroSettings, getTotalUserCount,
@@ -20,7 +21,7 @@ import StoryShareModal from "@/components/StoryShareModal";
 
 type Story = FirestoreStory & { id: string };
 
-export default function StoryPage() {
+function StoryPageInner() {
     const { user, profile, loading: loadingAuth } = useAuth();
     const [stories, setStories] = useState<Story[]>([]);
     const [activeTab, setActiveTab] = useState("all");
@@ -38,10 +39,11 @@ export default function StoryPage() {
 
     useEffect(() => {
         if (loadingAuth) return;
+        const isAdmin = profile?.role === "admin" || profile?.role === "manager" || profile?.role === "super_manager";
         const unsubStories = subscribeStories((data) => {
             setStories(data as Story[]);
             setLoading(false);
-        });
+        }, isAdmin);
 
         const unsubCount = subscribeModerationCount(
             "stories",
@@ -64,6 +66,20 @@ export default function StoryPage() {
             unsubHero();
         };
     }, [loadingAuth, profile]);
+
+    const searchParams = useSearchParams();
+    
+    useEffect(() => {
+        const storyParam = searchParams.get('story');
+        const editParam = searchParams.get('edit');
+        if (storyParam && editParam === 'true' && stories.length > 0 && !showSubmitModal) {
+            const storyToEdit = stories.find(s => s.id === storyParam);
+            if (storyToEdit) {
+                setEditingStory(storyToEdit);
+                setShowSubmitModal(true);
+            }
+        }
+    }, [searchParams, stories, showSubmitModal]);
 
     const filteredStories = stories.filter((s) => {
         const isOwner = profile?.uid && s.authorId === profile.uid;
@@ -236,5 +252,17 @@ export default function StoryPage() {
                 type="stories"
             />
         </div>
+    );
+}
+
+export default function StoryPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 dark:bg-[#0c0c10] flex items-center justify-center">
+                <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+        }>
+            <StoryPageInner />
+        </Suspense>
     );
 }

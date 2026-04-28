@@ -280,6 +280,7 @@ export interface SupportPhase {
     tractionLevel?: number;
     founderNote?: string;
     personalNote?: string; // New: editable personal commentary for each phase
+    showFundraising?: boolean; // New: toggle to show/hide fundraising stats for this phase
 }
 
 export interface SupportSettings {
@@ -519,7 +520,12 @@ export interface FirestoreNotification {
     | "gift_approved"
     | "club_join_approved"
     | "club_join_rejected"
-    | "comment";
+    | "comment"
+    | "reaction"
+    | "follow"
+    | "badge_received"
+    | "mention"
+    | "reply";
     message: string;
     relatedId: string;
     relatedType: string;
@@ -1087,7 +1093,10 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
 
     Object.keys(fullPost).forEach(key => fullPost[key] === undefined && delete fullPost[key]);
 
-    await addDoc(collection(getDb(), "posts"), fullPost);
+    const docRef = await addDoc(collection(getDb(), "posts"), fullPost);
+
+    // Handle Mentions in post description
+    await handleMentions(post.description || "", `/news-feed?commentPostId=${docRef.id}`, profile, docRef.id, "post");
 }
 
 export function subscribePosts(callback: (data: (FirestorePost & { id: string })[]) => void) {
@@ -1193,7 +1202,8 @@ export async function approvePost(id: string): Promise<void> {
         type: "post_approved",
         message: `Your post "${post.eventName || 'Update'}" has been approved and is now live.`,
         relatedId: id,
-        relatedType: "post"
+        relatedType: "post",
+        targetUrl: `/news-feed#post-${id}`
     });
 }
 
@@ -1215,7 +1225,8 @@ export async function rejectPost(id: string, reason?: string): Promise<void> {
         type: "post_rejected",
         message: `Your post "${post.eventName || 'Update'}" was not approved.${reason ? ` Reason: ${reason}` : ""}`,
         relatedId: id,
-        relatedType: "post"
+        relatedType: "post",
+        targetUrl: `/profile/${post.creatorId}`
     });
 }
 
@@ -1418,7 +1429,13 @@ export async function rejectModerationItem(collectionName: string, id: string, r
 
 
 export async function updatePost(id: string, data: Partial<FirestorePost>): Promise<void> {
-    await updateDoc(doc(getDb(), "posts", id), data);
+    // Allowlist: prevent mutation of sensitive fields
+    const ALLOWED_POST_FIELDS = ['title', 'content', 'type', 'tags', 'thumbnailUrl', 'eventName', 'eventDate', 'eventLocation', 'eventDescription', 'linkUrl', 'visibility'];
+    const clean = Object.fromEntries(
+        Object.entries(data).filter(([k]) => ALLOWED_POST_FIELDS.includes(k))
+    );
+    if (Object.keys(clean).length === 0) return;
+    await updateDoc(doc(getDb(), "posts", id), clean);
 }
 
 export async function deletePost(id: string): Promise<void> {
@@ -1435,6 +1452,7 @@ export async function deletePost(id: string): Promise<void> {
         console.warn("[Firestore] Error cleaning up post thumbnail:", err);
     }
     await deleteDoc(doc(getDb(), "posts", id));
+    await deleteAllCommentsForContent(id);
 }
 
 // ═══════════════════════════════════════════════════
@@ -1466,7 +1484,10 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
         isAuthorShadowBanned: profile.isShadowBanned || false,
     };
 
-    await addDoc(collection(getDb(), "stories"), fullStory);
+    const docRef = await addDoc(collection(getDb(), "stories"), fullStory);
+
+    // Handle Mentions in story content
+    await handleMentions(story.fullStory || "", `/story/${docRef.id}`, profile, docRef.id, "story");
 }
 
 export function subscribeStories(callback: (data: (FirestoreStory & { id: string })[]) => void, isAdminOrManager: boolean = false) {
@@ -1518,17 +1539,47 @@ export { getApprovedStories as getPublishedStories };
 
 export async function approveStory(id: string): Promise<void> {
     await requireAdminOrManager();
+    const storySnap = await getDoc(doc(getDb(), "stories", id));
+    if (!storySnap.exists()) return;
+    const story = storySnap.data() as FirestoreStory;
+    
     await updateDoc(doc(getDb(), "stories", id), { status: "published" });
+
+    await createNotification(story.authorId, {
+        type: "story_approved",
+        message: `Your story "${story.title}" has been published.`,
+        relatedId: id,
+        relatedType: "story",
+        targetUrl: `/story/${id}`
+    }).catch(e => console.error("Notification failed", e));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function rejectStory(id: string, _reason: string): Promise<void> {
     await requireAdminOrManager();
+    const storySnap = await getDoc(doc(getDb(), "stories", id));
+    if (!storySnap.exists()) return;
+    const story = storySnap.data() as FirestoreStory;
+
     await updateDoc(doc(getDb(), "stories", id), { status: "rejected" });
+
+    await createNotification(story.authorId, {
+        type: "story_rejected",
+        message: `Your story "${story.title}" was rejected.`,
+        relatedId: id,
+        relatedType: "story",
+        targetUrl: `/profile/${story.authorId}`
+    }).catch(e => console.error("Notification failed", e));
 }
 
 export async function updateStory(id: string, data: Partial<FirestoreStory>): Promise<void> {
-    await updateDoc(doc(getDb(), "stories", id), data);
+    // Allowlist: prevent mutation of sensitive fields
+    const ALLOWED_STORY_FIELDS = ['title', 'content', 'mediaUrl', 'mediaType', 'visibility', 'tags'];
+    const clean = Object.fromEntries(
+        Object.entries(data).filter(([k]) => ALLOWED_STORY_FIELDS.includes(k))
+    );
+    if (Object.keys(clean).length === 0) return;
+    await updateDoc(doc(getDb(), "stories", id), clean);
 }
 
 export async function deleteStory(id: string): Promise<void> {
@@ -1545,6 +1596,7 @@ export async function deleteStory(id: string): Promise<void> {
         console.warn("[Firestore] Error cleaning up story thumbnail:", err);
     }
     await deleteDoc(doc(getDb(), "stories", id));
+    await deleteAllCommentsForContent(id);
 }
 
 /**
@@ -1590,6 +1642,7 @@ export async function deleteOwnPost(postId: string): Promise<void> {
         console.warn("[Firestore] Thumbnail cleanup error:", err);
     }
     await deleteDoc(postRef);
+    await deleteAllCommentsForContent(postId);
 }
 
 /**
@@ -1614,6 +1667,7 @@ export async function deleteOwnStory(storyId: string): Promise<void> {
         console.warn("[Firestore] Thumbnail cleanup error:", err);
     }
     await deleteDoc(storyRef);
+    await deleteAllCommentsForContent(storyId);
 }
 
 /**
@@ -1804,7 +1858,13 @@ export async function updateNoticeStatus(id: string, status: "approved" | "rejec
 }
 
 export async function updateNotice(id: string, data: Partial<FirestoreNotice>): Promise<void> {
-    await updateDoc(doc(getDb(), "notices", id), { ...data, date: serverTimestamp() });
+    // Allowlist: prevent mutation of sensitive fields
+    const ALLOWED_NOTICE_FIELDS = ['title', 'content', 'category', 'attachmentUrl', 'visibility', 'isPinned', 'isUrgent'];
+    const clean = Object.fromEntries(
+        Object.entries(data).filter(([k]) => ALLOWED_NOTICE_FIELDS.includes(k))
+    );
+    if (Object.keys(clean).length === 0) return;
+    await updateDoc(doc(getDb(), "notices", id), { ...clean, date: serverTimestamp() });
 }
 
 export async function deleteNotice(id: string): Promise<void> {
@@ -1937,12 +1997,20 @@ export async function searchUsersForClub(clubId: string, collegeId: string): Pro
 }
 
 export async function updateUserRole(userId: string, role: FirestoreUser["role"], verified: boolean): Promise<void> {
-    await requireAdminOrManager();
+    const currentProfile = await requireAdminOrManager();
+    // Managers cannot assign admin/super_manager roles (privilege escalation prevention)
+    if (currentProfile.role === 'manager' && (role === 'admin' || role === 'super_manager')) {
+        throw new Error('Unauthorized: Managers cannot assign admin or super_manager roles.');
+    }
     await updateDoc(doc(getDb(), "users", userId), { role, roleVerified: verified });
 }
 
 export async function updateUserRoleAndCollege(userId: string, role: string, verified: boolean, collegeId: string, college: string): Promise<void> {
-    await requireAdminOrManager();
+    const currentProfile = await requireAdminOrManager();
+    // Managers cannot assign admin/super_manager roles (privilege escalation prevention)
+    if (currentProfile.role === 'manager' && (role === 'admin' || role === 'super_manager')) {
+        throw new Error('Unauthorized: Managers cannot assign admin or super_manager roles.');
+    }
     await updateDoc(doc(getDb(), "users", userId), { role, roleVerified: verified, collegeId, college });
 }
 
@@ -2342,7 +2410,8 @@ export async function seedRoadmapPhases(): Promise<void> {
             order: 1,
             progress: 100,
             color: "emerald",
-            icon: "Layout"
+            icon: "Layout",
+            showFundraising: true
         },
         {
             title: "Phase 2: Developing the Backend",
@@ -2351,7 +2420,8 @@ export async function seedRoadmapPhases(): Promise<void> {
             order: 2,
             progress: 65,
             color: "blue",
-            icon: "Server"
+            icon: "Server",
+            showFundraising: true
         },
         {
             title: "Phase 3: Building the Mobile App",
@@ -2360,7 +2430,8 @@ export async function seedRoadmapPhases(): Promise<void> {
             order: 3,
             progress: 0,
             color: "purple",
-            icon: "Smartphone"
+            icon: "Smartphone",
+            showFundraising: false
         }
     ];
 
@@ -2410,6 +2481,7 @@ export async function approveGift(id: string, phaseId?: string, role?: string): 
         message: `Your contribution of ৳${gift.amount} has been verified! Thank you for your support.`,
         relatedId: id,
         relatedType: "gift",
+        targetUrl: `/support`
     });
 }
 
@@ -2502,49 +2574,63 @@ export async function syncUserProfileUpdates(
     role: string
 ): Promise<void> {
     const db = getDb();
-    const batch = writeBatch(db);
+
+    // Collect all update operations first, then chunk into batches of 499
+    // (Firestore batch limit is 500 operations)
+    const updates: { ref: any; data: Record<string, any> }[] = [];
 
     // 1. Posts
     const postsQ = query(collection(db, "posts"), where("creatorId", "==", uid));
     const postsSnap = await getDocs(postsQ);
-    postsSnap.forEach(doc => {
-        batch.update(doc.ref, {
-            "createdBy.name": displayName,
-            "createdBy.avatar": photoURL || displayName[0] || "?",
-            "createdBy.role": role
+    postsSnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: {
+                "createdBy.name": displayName,
+                "createdBy.avatar": photoURL || displayName[0] || "?",
+                "createdBy.role": role
+            }
         });
     });
 
     // 2. Stories
     const storiesQ = query(collection(db, "stories"), where("authorId", "==", uid));
     const storiesSnap = await getDocs(storiesQ);
-    storiesSnap.forEach(doc => {
-        batch.update(doc.ref, {
-            name: displayName,
-            authorPhoto: photoURL
+    storiesSnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: { name: displayName, authorPhoto: photoURL }
         });
     });
 
     // 3. Notices
     const noticesQ = query(collection(db, "notices"), where("authorId", "==", uid));
     const noticesSnap = await getDocs(noticesQ);
-    noticesSnap.forEach(doc => {
-        batch.update(doc.ref, {
-            postedBy: displayName
+    noticesSnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: { postedBy: displayName }
         });
     });
 
     // 4. Gifts (Supporters)
     const giftsQ = query(collection(db, "gifts"), where("userId", "==", uid));
     const giftsSnap = await getDocs(giftsQ);
-    giftsSnap.forEach(doc => {
-        batch.update(doc.ref, {
-            name: displayName,
-            photoURL: photoURL
+    giftsSnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: { name: displayName, photoURL: photoURL }
         });
     });
 
-    await batch.commit();
+    // Commit in chunks of 499 to stay under Firestore's 500-operation batch limit
+    const MAX_BATCH = 499;
+    for (let i = 0; i < updates.length; i += MAX_BATCH) {
+        const chunk = updates.slice(i, i + MAX_BATCH);
+        const batch = writeBatch(db);
+        chunk.forEach(op => batch.update(op.ref, op.data));
+        await batch.commit();
+    }
 }
 
 /**
@@ -2661,6 +2747,30 @@ export function subscribeSiteSettings(callback: (settings: SiteSettingsDoc | nul
         }
     });
 }
+async function handleMentions(text: string, targetUrl: string, profile: any, relatedId: string, relatedType: string) {
+    if (!text) return;
+    const mentions = text.match(/@(\w+)/g);
+    if (!mentions) return;
+
+    const uniqueUsernames = Array.from(new Set(mentions.map(m => m.slice(1).toLowerCase())));
+    
+    for (const username of uniqueUsernames) {
+        if (username === profile.username?.toLowerCase()) continue;
+        
+        const users = await getAllUsersByUsername(username);
+        if (users.length > 0) {
+            const targetUser = users[0];
+            await createNotification(targetUser.id!, {
+                type: "mention",
+                message: `${profile.displayName} mentioned you: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
+                relatedId,
+                relatedType,
+                targetUrl
+            }).catch(e => console.warn(`Mention notification to ${username} failed`, e));
+        }
+    }
+}
+
 /**
  * Comment System Actions
  */
@@ -2702,24 +2812,53 @@ export async function addComment(
             await updateDoc(parentRef, { commentsCount: increment(1) });
 
             // Notify author if it's someone else
-            const authorId = parentData.authorId || parentData.userId; // posts use authorId, stories might use userId
+            const authorId = parentData.creatorId || parentData.authorId || parentData.userId; // posts use creatorId, stories use authorId, others might use userId
             if (authorId && authorId !== profile.id) {
                 let targetUrl = "";
-                if (contentType === "post") targetUrl = `/news-feed#comment-${docRef.id}`;
+                if (contentType === "post") targetUrl = `/news-feed?commentPostId=${contentId}#comment-${docRef.id}`;
                 else if (contentType === "story") targetUrl = `/story/${contentId}#comment-${docRef.id}`;
-                else if (contentType === "study") targetUrl = `/study#comment-${docRef.id}`;
+                else if (contentType === "study") targetUrl = `/study?commentPostId=${contentId}#comment-${docRef.id}`;
 
-                await addDoc(collection(db, "notifications"), {
-                    recipientId: authorId,
+                await createNotification(authorId, {
                     type: "comment",
                     message: `${profile.displayName} commented on your ${contentType}: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
                     relatedId: contentId,
                     relatedType: contentType,
                     targetUrl,
-                    read: false,
-                    createdAt: serverTimestamp(),
-                });
+                }).catch(e => console.warn("Failed to send comment notification", e));
             }
+
+            // Notify parent comment author if it's a reply
+            if (parentId) {
+                const parentCommentSnap = await getDoc(doc(db, "comments", parentId));
+                if (parentCommentSnap.exists()) {
+                    const parentCommentData = parentCommentSnap.data();
+                    const parentAuthorId = parentCommentData.userId;
+                    // Only notify if parent author is not current user AND not already notified as post author
+                    const postAuthorId = parentData.creatorId || parentData.authorId || parentData.userId;
+                    if (parentAuthorId && parentAuthorId !== profile.id && parentAuthorId !== postAuthorId) {
+                        let targetUrl = "";
+                        if (contentType === "post") targetUrl = `/news-feed?commentPostId=${contentId}#comment-${docRef.id}`;
+                        else if (contentType === "story") targetUrl = `/story/${contentId}#comment-${docRef.id}`;
+                        else if (contentType === "study") targetUrl = `/study?commentPostId=${contentId}#comment-${docRef.id}`;
+
+                        await createNotification(parentAuthorId, {
+                            type: "reply",
+                            message: `${profile.displayName} replied to your comment: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
+                            relatedId: contentId,
+                            relatedType: contentType,
+                            targetUrl,
+                        }).catch(e => console.warn("Failed to send reply notification", e));
+                    }
+                }
+            }
+
+            // Handle Mentions in comment
+            let mentionUrl = "";
+            if (contentType === "post") mentionUrl = `/news-feed?commentPostId=${contentId}#comment-${docRef.id}`;
+            else if (contentType === "story") mentionUrl = `/story/${contentId}#comment-${docRef.id}`;
+            else if (contentType === "study") mentionUrl = `/study?commentPostId=${contentId}#comment-${docRef.id}`;
+            await handleMentions(text, mentionUrl, profile, contentId, contentType);
         }
     } catch (err) {
         console.warn(`Could not update commentsCount or notify for ${contentType} ${contentId}`, err);
@@ -2737,6 +2876,23 @@ export async function updateComment(commentId: string, text: string): Promise<vo
         text,
         updatedAt: serverTimestamp() 
     });
+}
+
+export async function deleteAllCommentsForContent(contentId: string): Promise<void> {
+    try {
+        const db = getDb();
+        const commentsQ = query(collection(db, "comments"), where("postId", "==", contentId));
+        const commentsSnap = await getDocs(commentsQ);
+        if (!commentsSnap.empty) {
+            const batch = writeBatch(db);
+            commentsSnap.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+        }
+    } catch (err) {
+        console.warn(`[Firestore] Error deleting associated comments for content ${contentId}:`, err);
+    }
 }
 
 export async function deleteComment(commentId: string, contentId: string, contentType: "post" | "story" | "study" = "post"): Promise<void> {
@@ -2963,6 +3119,17 @@ export async function toggleFollowUser(currentUserId: string, targetUserId: stri
         targetBatch.set(followerRef, { followedAt: ts });
         targetBatch.update(targetUserRef, { followersCount: increment(1) });
         await targetBatch.commit();
+
+        const currentUserDoc = await getDoc(currentUserRef);
+        const currentUserName = currentUserDoc.exists() ? currentUserDoc.data().displayName : "Someone";
+        
+        await createNotification(targetUserId, {
+            type: "follow",
+            message: `${currentUserName} started following you.`,
+            relatedId: currentUserId,
+            relatedType: "user",
+            targetUrl: `/profile/${currentUserId}`
+        }).catch(e => console.error("Notification failed", e));
     }
 
     return !isAlreadyFollowing; // returns new state: true = now following
@@ -3069,7 +3236,10 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
         return acc;
     }, {});
 
-    await addDoc(collection(getDb(), "studyPosts"), cleanedPost);
+    const docRef = await addDoc(collection(getDb(), "studyPosts"), cleanedPost);
+
+    // Handle Mentions in study post content
+    await handleMentions(post.content || "", `/study?commentPostId=${docRef.id}`, userProfile, docRef.id, "study");
 };
 
 export const getPendingStudyPosts = async () => {
@@ -3117,6 +3287,7 @@ export const deleteStudyPost = async (id: string) => {
         console.warn("[Firestore] Error cleaning up study post thumbnail:", err);
     }
     await deleteDoc(doc(getDb(), "studyPosts", id));
+    await deleteAllCommentsForContent(id);
 };
 
 export const updateStudyPost = async (id: string, data: Partial<FirestoreStudyPost>) => {
@@ -3232,6 +3403,34 @@ export async function reactToContent(contentId: string, reaction: string, conten
         }
 
         await updateDoc(contentRef, updates);
+
+        // Notifications logic
+        let recipientId = "";
+        let targetUrl = "";
+        if (contentType === "post") {
+            recipientId = data.creatorId || data.authorId;
+            targetUrl = `/news-feed#post-${contentId}`;
+        } else if (contentType === "story") {
+            recipientId = data.authorId;
+            targetUrl = `/story/${contentId}`;
+        } else if (contentType === "study") {
+            recipientId = data.authorId;
+            targetUrl = `/study#study-${contentId}`;
+        } else if (contentType === "comment") {
+            recipientId = data.userId;
+            targetUrl = data.postId ? `/news-feed#comment-${contentId}` : "";
+        }
+
+        if (recipientId && recipientId !== user.uid) {
+            await createNotification(recipientId, {
+                type: "reaction",
+                message: `${user.displayName || "Someone"} reacted to your ${contentType}`,
+                relatedId: contentId,
+                relatedType: contentType,
+                targetUrl
+            }).catch(e => console.error("Notification failed", e));
+        }
+
         return { added: true };
     }
 }
@@ -3251,6 +3450,14 @@ export async function grantBadge(userId: string, badgeData: { name: string; desc
     await updateDoc(userRef, {
         badges: arrayUnion(badge)
     });
+
+    await createNotification(userId, {
+        type: "badge_received",
+        message: `You received the ${badgeData.name} badge!`,
+        relatedId: badge.id,
+        relatedType: "badge",
+        targetUrl: `/profile/${userId}`
+    }).catch(e => console.error("Notification failed", e));
 }
 
 export async function addAchievement(userId: string, achievementData: { title: string; issuer: string; date: string; fileURL: string; type: 'image' | 'pdf' | 'other' }): Promise<void> {

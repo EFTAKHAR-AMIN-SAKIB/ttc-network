@@ -1,9 +1,57 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { adminDb } from '@/lib/firebase-admin';
+import dns from 'dns';
+import http from 'http';
+import https from 'https';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 
-export async function GET(req: Request) {
+// ── SSRF Protection: Block private/internal IP ranges ──
+const BLOCKED_HOSTS = [
+    /^localhost$/i,
+    /^127\.\d+\.\d+\.\d+$/,
+    /^10\.\d+\.\d+\.\d+$/,
+    /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
+    /^192\.168\.\d+\.\d+$/,
+    /^169\.254\.\d+\.\d+$/,
+    /^0\.0\.0\.0$/,
+    /^\[?::1\]?$/,
+    /^\[?fe80:/i,
+    /^\[?fd[0-9a-f]{2}:/i,
+    /^metadata\.google\.internal$/i,
+];
+
+function isBlockedHost(hostname: string): boolean {
+    return BLOCKED_HOSTS.some(re => re.test(hostname));
+}
+
+const safeLookup = (hostname: string, options: dns.LookupOptions, callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void) => {
+    dns.lookup(hostname, options, (err, address, family) => {
+        if (err) return callback(err, address as any, family);
+        const ip = typeof address === 'string' ? address : address[0].address;
+        if (isBlockedHost(ip)) {
+            return callback(new Error(`Blocked IP address: ${ip}`), ip, family);
+        }
+        callback(null, ip, family);
+    });
+};
+
+const secureHttpAgent = new http.Agent({ lookup: safeLookup as any });
+const secureHttpsAgent = new https.Agent({ lookup: safeLookup as any });
+
+export async function GET(req: NextRequest) {
+    // ── Auth check: require valid session ─────────────
+    const sessionCookie = req.cookies.get("ttc_session")?.value;
+    if (!sessionCookie || !adminAuth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    try {
+        await adminAuth.verifySessionCookie(sessionCookie, true);
+    } catch {
+        return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const url = searchParams.get('url');
 
@@ -13,6 +61,15 @@ export async function GET(req: Request) {
 
     try {
         const targetUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
+
+        // ── SSRF check: block private/internal URLs ──
+        if (targetUrl.protocol !== 'http:' && targetUrl.protocol !== 'https:') {
+            return NextResponse.json({ error: 'Only HTTP/HTTPS URLs are allowed' }, { status: 400 });
+        }
+        if (isBlockedHost(targetUrl.hostname)) {
+            return NextResponse.json({ error: 'This URL is not allowed' }, { status: 400 });
+        }
+
         const domain = targetUrl.hostname.replace('www.', '');
 
         // 1. Check cache first
@@ -58,7 +115,10 @@ export async function GET(req: Request) {
                         'User-Agent': 'TTC-Network-Bot/1.0 (+https://ttcnetwork.web.app/bot)',
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
                     },
-                    timeout: 8000
+                    timeout: 8000,
+                    maxRedirects: 3,
+                    httpAgent: secureHttpAgent,
+                    httpsAgent: secureHttpsAgent,
                 });
 
                 const html = response.data;
@@ -108,6 +168,9 @@ export async function GET(req: Request) {
 
         return NextResponse.json(preview);
     } catch (e: any) {
-        return NextResponse.json({ error: 'Invalid URL or scraping failed', details: e.message }, { status: 400 });
+        console.error('[LinkPreview] Error:', e?.message);
+        // Don't leak server error details to the client
+        return NextResponse.json({ error: 'Invalid URL or scraping failed' }, { status: 400 });
     }
 }
+

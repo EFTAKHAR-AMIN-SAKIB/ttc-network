@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
@@ -29,6 +29,16 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
 
     const currentReactionList = (post.reactedBy?.inspired || []) as string[];
     const isAlreadyFresh = currentUserId ? currentReactionList.includes(currentUserId) : false;
+
+    // Auto-expand comments if the URL points to this post
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("commentPostId") === post.id) {
+                setShowComments(true);
+            }
+        }
+    }, [post.id]);
 
     return (
         <motion.div

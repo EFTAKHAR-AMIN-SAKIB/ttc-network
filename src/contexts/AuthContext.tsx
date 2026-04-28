@@ -231,15 +231,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!user) return;
         const p = await fetchOrCreateProfile(user);
         setProfile(p);
-        // Sync session cookie with updated profile
+        // Sync server session and role cookie with updated profile
         if (p) {
-            const sessionData = {
-                uid: p.uid,
-                email: p.email,
-                role: p.role,
-                collegeId: p.collegeId,
-            };
-            document.cookie = `ttc_session=${encodeURIComponent(JSON.stringify(sessionData))}; path=/; max-age=604800`;
+            try {
+                const idToken = await user.getIdToken(true);
+                await fetch("/api/session", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ idToken }),
+                });
+                // Set a non-HttpOnly role cookie for middleware role checks
+                // (the actual session is HttpOnly and server-verified)
+                document.cookie = `ttc_role=${p.role}; path=/; max-age=604800; SameSite=Lax`;
+            } catch (err) {
+                console.warn("[AuthContext] Failed to refresh server session:", err);
+            }
         }
     };
 
@@ -249,8 +255,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await signOut(auth);
             setUser(null);
             setProfile(null);
-            // Clear session cookie
-            document.cookie = "ttc_session=; path=/; max-age=0";
+            // Clear server session cookie via API
+            await fetch("/api/session", { method: "DELETE" }).catch(() => {});
+            // Clear role cookie
+            document.cookie = "ttc_role=; path=/; max-age=0";
         } catch (err) {
             console.error("[AuthContext] Logout failed:", err);
         }
@@ -264,20 +272,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const p = await fetchOrCreateProfile(firebaseUser);
                 setProfile(p);
                 
-                // Keep Next.js middleware cookie strictly in sync with latest Firestore profile
+                // Create server-signed session cookie via API
                 if (p) {
-                   const sessionData = {
-                       uid: p.uid,
-                       email: p.email,
-                       role: p.role,
-                       collegeId: p.collegeId,
-                   };
-                   document.cookie = `ttc_session=${encodeURIComponent(JSON.stringify(sessionData))}; path=/; max-age=604800`;
+                    try {
+                        const idToken = await firebaseUser.getIdToken();
+                        await fetch("/api/session", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ idToken }),
+                        });
+                        // Set a non-HttpOnly role cookie for middleware role checks
+                        document.cookie = `ttc_role=${p.role}; path=/; max-age=604800; SameSite=Lax`;
+                    } catch (err) {
+                        console.warn("[AuthContext] Failed to create server session:", err);
+                    }
                 }
             } else {
                 setUser(null);
                 setProfile(null);
-                document.cookie = "ttc_session=; path=/; max-age=0";
+                await fetch("/api/session", { method: "DELETE" }).catch(() => {});
+                document.cookie = "ttc_role=; path=/; max-age=0";
             }
             setLoading(false);
         });

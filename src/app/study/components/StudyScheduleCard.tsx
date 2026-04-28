@@ -64,6 +64,16 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
         return () => clearInterval(timer);
     }, [post.startTime]);
 
+    // Auto-expand comments if the URL points to this post
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("commentPostId") === post.id) {
+                setShowComments(true);
+            }
+        }
+    }, [post.id]);
+
     const startDate = safeDate(post.startTime);
 
     return (
