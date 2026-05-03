@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import {
-    doc, getDoc, updateDoc,
+    doc, getDoc, updateDoc, serverTimestamp,
     collection, query, where, onSnapshot, orderBy, limit, getDocs
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
@@ -390,6 +390,10 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [activeActivityTab, setActiveActivityTab] = useState("all");
     const [showAchievementModal, setShowAchievementModal] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadingBanner, setUploadingBanner] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const bannerInputRef = useRef<HTMLInputElement>(null);
+    const photoInputRef = useRef<HTMLInputElement>(null);
 
     const filteredFeed = useMemo(() => {
         if (!feedSearchTerm.trim()) return userFeed;
@@ -658,6 +662,42 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         }
     };
 
+    const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !uid) return;
+        setUploadingBanner(true);
+        try {
+            const url = await uploadFile(`banners/${uid}`, file);
+            const db = getDb();
+            await updateDoc(doc(db, "users", uid), { bannerURL: url, updatedAt: serverTimestamp() });
+            showToast("Banner updated!", "success");
+        } catch (err) {
+            console.error("Banner upload failed:", err);
+            showToast("Failed to update banner.", "error");
+        } finally {
+            setUploadingBanner(false);
+            if (bannerInputRef.current) bannerInputRef.current.value = "";
+        }
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !uid) return;
+        setUploadingPhoto(true);
+        try {
+            const url = await uploadFile(`profile-photos/${uid}`, file);
+            const db = getDb();
+            await updateDoc(doc(db, "users", uid), { photoURL: url, updatedAt: serverTimestamp() });
+            showToast("Profile photo updated!", "success");
+        } catch (err) {
+            console.error("Photo upload failed:", err);
+            showToast("Failed to update profile photo.", "error");
+        } finally {
+            setUploadingPhoto(false);
+            if (photoInputRef.current) photoInputRef.current.value = "";
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] dark:bg-[#0c0c10]">
             <Loader2 className="animate-spin text-primary" size={40} />
@@ -696,11 +736,12 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         <button 
                             onClick={(e) => {
                                 e.stopPropagation();
-                                setEditDrawerOpen(true);
+                                bannerInputRef.current?.click();
                             }}
-                            className="absolute bottom-6 right-6 p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-2xl border border-white/20 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2 text-xs font-bold shadow-xl z-10"
+                            disabled={uploadingBanner}
+                            className="absolute bottom-6 right-6 p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-2xl border border-white/20 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2 text-xs font-bold shadow-xl z-10 disabled:opacity-70"
                         >
-                            <Camera size={16} /> Edit Banner
+                            {uploadingBanner ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {uploadingBanner ? "Uploading..." : "Edit Banner"}
                         </button>
                     )}
                 </div>
@@ -724,11 +765,11 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     <div 
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setEditDrawerOpen(true);
+                                            photoInputRef.current?.click();
                                         }}
                                         className="absolute inset-0 bg-navy-900/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
                                     >
-                                        <Camera className="text-white" size={24} />
+                                        {uploadingPhoto ? <Loader2 className="text-white animate-spin" size={24} /> : <Camera className="text-white" size={24} />}
                                     </div>
                                 )}
                             </div>
@@ -1289,6 +1330,22 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
                 </div>
             </div>
+
+            {/* Hidden file inputs for banner and profile photo */}
+            <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleBannerUpload}
+            />
+            <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoUpload}
+            />
 
             {/* Profile Edit Drawer */}
             <ProfileEditDrawer 

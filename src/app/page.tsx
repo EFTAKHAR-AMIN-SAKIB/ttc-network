@@ -94,34 +94,34 @@ const QA_STYLES = [
 
 /* ─── Story Timeline Data ─── */
 const STORY_TIMELINE = [
-  { 
+  {
     id: "identity",
     title: "TTC Exists. But No One Really Knows It.",
-    icon: Landmark, 
+    icon: Landmark,
     story: "B.Ed Honours is a real bachelor's degree. But ask anyone outside the teacher community — they'll just say 'oh, that's the teacher training place.' There's no single space to showcase what TTC truly is — its teachers, students, programmes, and achievements. TTC deserved a proper identity. It never had one.",
   },
-  { 
+  {
     id: "bridge",
     title: "Teachers and Students — In the Same System, But Worlds Apart.",
-    icon: Users, 
+    icon: Users,
     story: "A teacher in Feni has no idea what a brilliant teacher in Dhaka is doing. A student finishing their first year has no way to reach a senior who already walked that path. The TTC community is scattered — and there was no bridge.",
   },
-  { 
+  {
     id: "meaning",
     title: "What Am I Even Doing Here?",
-    icon: Target, 
+    icon: Target,
     story: "Most TTC students enter without a clear picture of what this journey means or where it leads. No platform existed where they could ask real questions, share their confusion, explore ideas, or understand what it truly means to build a career as a TTCian.",
   },
-  { 
+  {
     id: "information",
     title: "The Notice Was There. You Just Missed It.",
-    icon: ClipboardList, 
+    icon: ClipboardList,
     story: "Important updates buried in group chats. Notice boards with faded ink. A new student trying to decide whether to enrol in B.Ed Honours — with nowhere reliable to look. Information existed, but it was never organized for the people who needed it most.",
   },
-  { 
+  {
     id: "knowledge",
     title: "The Study Material Vanished With the Batch.",
-    icon: Book, 
+    icon: Book,
     story: "A teacher shares a resource in class. A student needs it three months later — it's gone. Teachers re-share the same material batch after batch with no central home. Students scramble when it matters most. Knowledge existed — it just had nowhere to live.",
   },
 ];
@@ -370,7 +370,7 @@ export default function HomePage() {
   const [admissionCosts, setAdmissionCosts] = useState<(FirestoreAdmissionCostItem & { id: string })[]>([]);
   const [admissionSettings, setAdmissionSettings] = useState<FirestoreAdmissionSettings | null>(null);
   const [loadingAdmission, setLoadingAdmission] = useState(true);
-  
+
   const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
   const [officialSettings, setOfficialSettings] = useState<FirestoreOfficialSettings | null>(null);
   const [showBuilderPopup, setShowBuilderPopup] = useState(false);
@@ -563,131 +563,167 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ===== WHY TTC NETWORK EXISTS (Before & After Timeline) ===== */}
-      <section className="py-24 sm:py-32 px-4 relative overflow-hidden bg-white dark:bg-[#08080A]">
-        <div className="max-w-6xl mx-auto relative">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={containerVariants}
-            className="text-center mb-24"
-          >
+      {/* ===== WHY TTC NETWORK EXISTS (Card-Based Storytelling) ===== */}
+      <section className="py-24 sm:py-32 px-4 relative overflow-hidden bg-[#050505]">
+        <div className="max-w-6xl mx-auto relative z-10">
+
+          {/* Header */}
+          <div className="text-center mb-16">
             <motion.div
-              variants={itemVariants}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-accent/5 rounded-full mb-6 border border-accent/10"
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 rounded-full mb-6 border border-red-500/10"
             >
-              <Heart size={14} className="text-accent" />
-              <span className="text-xs font-bold text-accent tracking-widest uppercase">
+              <Heart size={14} className="text-red-500" />
+              <span className="text-[10px] font-black tracking-widest uppercase text-red-500">
                 The Origin Story
               </span>
             </motion.div>
 
             <motion.h2
-              variants={itemVariants}
-              className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white font-sora tracking-tighter"
-            >
-              Why TTC Network <span className="text-accent">Exists</span>
-            </motion.h2>
-
-            <motion.p
-              variants={itemVariants}
-              className="mt-6 text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed font-medium"
-            >
-              Every TTC student and teacher deserves better. Here&apos;s what we kept seeing — and couldn&apos;t ignore.
-            </motion.p>
-          </motion.div>
-
-          {/* Magic Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
-            {/* Featured Card - Problem 1 */}
-            <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="md:col-span-2 group relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/10 dark:to-amber-900/5 p-8 sm:p-12 border border-amber-200/50 dark:border-amber-500/20 shadow-xl"
+              className="text-4xl sm:text-6xl font-black text-white mb-6 font-sora tracking-tight"
             >
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-                <Landmark size={200} />
-              </div>
-              <div className="relative z-10 flex flex-col lg:flex-row gap-8 items-center">
-                <div className="flex-shrink-0 w-20 h-20 rounded-3xl bg-white dark:bg-black/20 flex items-center justify-center shadow-lg transform group-hover:rotate-6 transition-transform duration-500">
-                  <Landmark size={40} className="text-amber-600 dark:text-amber-400" />
+              Why TTC Network <span className="text-red-500">Exists</span>
+            </motion.h2>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed font-medium"
+            >
+              Every TTC student and teacher deserves better. Here&apos;s what we kept seeing — and couldn&apos;t ignore.
+            </motion.p>
+          </div>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* 01. Identity (Full Width Top Card) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="md:col-span-2 relative group overflow-hidden p-8 sm:p-12 rounded-[2rem] border border-amber-500/20 bg-amber-500/[0.03] hover:bg-amber-500/[0.06] transition-all duration-500"
+            >
+              <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+                <div className="w-16 h-16 shrink-0 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                  <Landmark size={32} />
                 </div>
-                <div className="flex-1 text-center lg:text-left">
-                  <h3 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white leading-tight mb-4 font-sora">
+                <div className="flex-1">
+                  <h3 className="text-2xl sm:text-3xl font-black text-white mb-6 leading-tight">
                     {STORY_TIMELINE[0].title}
                   </h3>
-                  <p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                  <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-3xl">
                     {STORY_TIMELINE[0].story}
                   </p>
                 </div>
               </div>
+
+              {/* Large decorative icon in background */}
+              <Landmark size={200} className="absolute -bottom-10 -right-10 text-amber-500/5 rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700" />
             </motion.div>
 
-            {/* Remaining Problems 2-5 in a 2x2 Style Grid */}
-            {STORY_TIMELINE.slice(1).map((problem, i) => {
-              const Icon = problem.icon;
-              const colors = [
-                "from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/5 border-blue-200/50 dark:border-blue-500/20",
-                "from-purple-50 to-fuchsia-50 dark:from-purple-900/10 dark:to-fuchsia-900/5 border-purple-200/50 dark:border-purple-500/20",
-                "from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/5 border-emerald-200/50 dark:border-emerald-500/20",
-                "from-rose-50 to-pink-50 dark:from-rose-900/10 dark:to-pink-900/5 border-rose-200/50 dark:border-rose-500/20"
-              ];
-              const iconColors = [
-                "text-blue-600 dark:text-blue-400",
-                "text-purple-600 dark:text-purple-400",
-                "text-emerald-600 dark:text-emerald-400",
-                "text-rose-600 dark:text-rose-400"
-              ];
+            {/* 02. Bridge (Blue) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-blue-500/20 bg-blue-500/[0.03] hover:bg-blue-500/[0.06] transition-all duration-500"
+            >
+              <div className="relative z-10">
+                <div className="w-12 h-12 shrink-0 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 mb-8">
+                  <Users size={24} />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 leading-snug">
+                  {STORY_TIMELINE[1].title}
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                  {STORY_TIMELINE[1].story}
+                </p>
+              </div>
+            </motion.div>
 
-              return (
-                <motion.div
-                  key={problem.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className={`md:col-span-1 group relative p-6 sm:p-8 rounded-[2rem] bg-gradient-to-br ${colors[i % colors.length]} border shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1`}
-                >
-                  <div className="flex flex-col gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-black/20 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-500">
-                      <Icon size={24} className={iconColors[i % iconColors.length]} />
-                    </div>
-                    <div>
-                      <h4 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora">
-                        {problem.title}
-                      </h4>
-                      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4 group-hover:line-clamp-none transition-all duration-500">
-                        {problem.story}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+            {/* 03. Meaning (Purple) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-purple-500/20 bg-purple-500/[0.03] hover:bg-purple-500/[0.06] transition-all duration-500"
+            >
+              <div className="relative z-10">
+                <div className="w-12 h-12 shrink-0 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 mb-8">
+                  <Target size={24} />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 leading-snug">
+                  {STORY_TIMELINE[2].title}
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                  {STORY_TIMELINE[2].story}
+                </p>
+              </div>
+            </motion.div>
+
+            {/* 04. Information (Green) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-emerald-500/20 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06] transition-all duration-500"
+            >
+              <div className="relative z-10">
+                <div className="w-12 h-12 shrink-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 mb-8">
+                  <ClipboardList size={24} />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 leading-snug">
+                  {STORY_TIMELINE[3].title}
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                  {STORY_TIMELINE[3].story}
+                </p>
+              </div>
+            </motion.div>
+
+            {/* 05. Knowledge (Red) */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-red-500/20 bg-red-500/[0.03] hover:bg-red-500/[0.06] transition-all duration-500"
+            >
+              <div className="relative z-10">
+                <div className="w-12 h-12 shrink-0 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-8">
+                  <Book size={24} />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 leading-snug">
+                  {STORY_TIMELINE[4].title}
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                  {STORY_TIMELINE[4].story}
+                </p>
+              </div>
+            </motion.div>
+
           </div>
+        </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.5 }}
-            className="mt-32 pt-20 border-t border-dashed border-gray-200 dark:border-white/10 text-center"
-          >
-            <p className="text-xl sm:text-3xl font-bold text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed italic mb-12">
-              &quot;These weren&apos;t small inconveniences. They were walls. <br />
-              TTC Network was built to tear them down — one by one.&quot;
-            </p>
-
-            <Link href="/news-feed" className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-white font-black rounded-full shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all text-lg group">
-              See How We&apos;re Solving It
-              <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-            </Link>
-          </motion.div>
+        {/* Background Gradients */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-500/5 blur-[120px] rounded-full" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-500/5 blur-[120px] rounded-full" />
         </div>
       </section>
+
+
 
       {/* ===== WHAT IT MEANS FOR EVERY TTCIAN (Emotional Narrative) ===== */}
       <section className="py-24 sm:py-32 px-4 relative bg-[#FAFAFA] dark:bg-[#08080A]">
@@ -882,14 +918,14 @@ export default function HomePage() {
                   <div className="w-32 h-32 sm:w-40 sm:h-40 relative z-10">
                     <div className="absolute inset-0 hand-drawn-border text-primary dark:text-indigo-400 rotate-6" />
                     <div className="absolute inset-0 hand-drawn-border text-accent -rotate-3" />
-                    
+
                     <div className="absolute inset-2 rounded-full overflow-hidden bg-gray-100 dark:bg-white/5">
                       {builderSettings?.imageMode === 'image' && builderSettings?.imageUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img 
-                          src={builderSettings.imageUrl} 
-                          alt={builderSettings.builderName} 
-                          className="object-cover w-full h-full grayscale hover:grayscale-0 transition-all duration-700" 
+                        <img
+                          src={builderSettings.imageUrl}
+                          alt={builderSettings.builderName}
+                          className="object-cover w-full h-full grayscale hover:grayscale-0 transition-all duration-700"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-4xl font-black text-gray-300 dark:text-white/20">
@@ -898,7 +934,7 @@ export default function HomePage() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Persona Annotation */}
                   <div className="absolute -right-12 top-1/2 -translate-y-1/2 rotate-12 font-handwritten text-xl text-accent dark:text-pink-500 whitespace-nowrap">
                     built by a student.
@@ -924,7 +960,7 @@ export default function HomePage() {
                     <p className="font-medium">
                       {builderSettings?.descriptionPara1 || "This platform was not designed in a corporate office. It was imagined by a student sitting inside Government Teachers' Training College, Feni."}
                     </p>
-                    
+
                     {/* The Centerpiece Quote */}
                     <blockquote className="py-12 relative">
                       <div className="text-6xl sm:text-8xl text-gray-100 dark:text-white/5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
@@ -956,7 +992,7 @@ export default function HomePage() {
                       >
                         Say Hello 👋
                       </button>
-                      
+
                       <div className="flex items-center gap-2 group cursor-default">
                         <Heart size={20} className="text-accent group-hover:scale-125 transition-transform" fill="currentColor" />
                         <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
@@ -976,10 +1012,10 @@ export default function HomePage() {
       {officialSettings && <OfficialContactCard settings={officialSettings} />}
 
       {/* ===== BUILDER POPUP MODAL ===== */}
-      <BuilderPopupModal 
-        show={showBuilderPopup} 
-        onClose={() => setShowBuilderPopup(false)} 
-        builderSettings={builderSettings!} 
+      <BuilderPopupModal
+        show={showBuilderPopup}
+        onClose={() => setShowBuilderPopup(false)}
+        builderSettings={builderSettings!}
       />
 
     </div>
