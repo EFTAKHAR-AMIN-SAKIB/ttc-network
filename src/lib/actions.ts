@@ -60,20 +60,20 @@ async function getAuthenticatedUser(uid: string) {
  * COLLEGES SEED DATA
  */
 const colleges = [
-    { id: "dhaka", name: "Govt. Teachers' Training College, Dhaka", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ঢাকা", city: "Dhaka", established: 1909, slug: "ttc-dhaka", logo: "", hasLogo: false },
-    { id: "feni", name: "Govt. Teachers' Training College, Feni", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ফেনী", city: "Feni", established: 1962, slug: "ttc-feni", logo: "", hasLogo: false },
-    { id: "rajshahi", name: "Govt. Teachers' Training College, Rajshahi", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, রাজশাহী", city: "Rajshahi", established: 1955, slug: "ttc-rajshahi", logo: "", hasLogo: false },
-    { id: "cumilla", name: "Govt. Teachers' Training College, Cumilla", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, কুমিল্লা", city: "Cumilla", established: 1962, slug: "ttc-cumilla", logo: "", hasLogo: false },
-    { id: "sylhet", name: "Govt. Teachers' Training College, Sylhet", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, সিলেট", city: "Sylhet", established: 1946, slug: "ttc-sylhet", logo: "", hasLogo: false },
-    { id: "chattagram", name: "Govt. Teachers' Training College, Chattagram", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, চট্টগ্রাম", city: "Chattagram", established: 1958, slug: "ttc-chattagram", logo: "", hasLogo: false },
-    { id: "rangpur", name: "Govt. Teachers' Training College, Rangpur", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, রংপুর", city: "Rangpur", established: 1882, slug: "ttc-rangpur", logo: "", hasLogo: false },
-    { id: "khulna", name: "Govt. Teachers' Training College, Khulna", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, খুলনা", city: "Khulna", established: 1970, slug: "ttc-khulna", logo: "", hasLogo: false },
-    { id: "mymensingh", name: "Govt. Women's Teachers' Training College, Mymensingh", nameBn: "সরকারি মহিলা টিচার্স ট্রেনিং কলেজ, ময়মনসিংহ", city: "Mymensingh", established: 1952, slug: "ttc-mymensingh", logo: "", hasLogo: false },
-    { id: "jashore", name: "Govt. Teachers' Training College, Jashore", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, যশোর", city: "Jashore", established: 1963, slug: "ttc-jashore", logo: "", hasLogo: false },
-    { id: "barishal", name: "Govt. Teachers' Training College, Barishal", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, বরিশাল", city: "Barishal", established: 1999, slug: "ttc-barishal", logo: "", hasLogo: false },
-    { id: "faridpur", name: "Govt. Teachers' Training College, Faridpur", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ফরিদপুর", city: "Faridpur", established: 2005, slug: "ttc-faridpur", logo: "", hasLogo: false },
-    { id: "pabna", name: "Govt. B.Ed College, Pabna", nameBn: "সরকারি বি.এড কলেজ, পাবনা", city: "Pabna", established: 1998, slug: "bed-pabna", logo: "", hasLogo: false },
-    { id: "bogura", name: "Govt. B.Ed College, Bogura", nameBn: "সরকারি বি.এড কলেজ, বগুড়া", city: "Bogura", established: 2000, slug: "bed-bogura", logo: "", hasLogo: false },
+    { id: "dhaka", name: "Govt. Teachers' Training College, Dhaka", shortName: "TTC Dhaka", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ঢাকা", city: "Dhaka", established: 1909, slug: "ttc-dhaka", logo: "", hasLogo: false },
+    { id: "feni", name: "Govt. Teachers' Training College, Feni", shortName: "TTC Feni", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ফেনী", city: "Feni", established: 1962, slug: "ttc-feni", logo: "", hasLogo: false },
+    { id: "rajshahi", name: "Govt. Teachers' Training College, Rajshahi", shortName: "TTC Rajshahi", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, রাজশাহী", city: "Rajshahi", established: 1955, slug: "ttc-rajshahi", logo: "", hasLogo: false },
+    { id: "cumilla", name: "Govt. Teachers' Training College, Cumilla", shortName: "TTC Cumilla", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, কুমিল্লা", city: "Cumilla", established: 1962, slug: "ttc-cumilla", logo: "", hasLogo: false },
+    { id: "sylhet", name: "Govt. Teachers' Training College, Sylhet", shortName: "TTC Sylhet", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, সিলেট", city: "Sylhet", established: 1946, slug: "ttc-sylhet", logo: "", hasLogo: false },
+    { id: "chattagram", name: "Govt. Teachers' Training College, Chattagram", shortName: "TTC Chattagram", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, চট্টগ্রাম", city: "Chattagram", established: 1958, slug: "ttc-chattagram", logo: "", hasLogo: false },
+    { id: "rangpur", name: "Govt. Teachers' Training College, Rangpur", shortName: "TTC Rangpur", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, রংপুর", city: "Rangpur", established: 1882, slug: "ttc-rangpur", logo: "", hasLogo: false },
+    { id: "khulna", name: "Govt. Teachers' Training College, Khulna", shortName: "TTC Khulna", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, খুলনা", city: "Khulna", established: 1970, slug: "ttc-khulna", logo: "", hasLogo: false },
+    { id: "mymensingh", name: "Govt. Women's Teachers' Training College, Mymensingh", shortName: "TTC Mymensingh", nameBn: "সরকারি মহিলা টিচার্স ট্রেনিং কলেজ, ময়মনসিংহ", city: "Mymensingh", established: 1952, slug: "ttc-mymensingh", logo: "", hasLogo: false },
+    { id: "jashore", name: "Govt. Teachers' Training College, Jashore", shortName: "TTC Jashore", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, যশোর", city: "Jashore", established: 1963, slug: "ttc-jashore", logo: "", hasLogo: false },
+    { id: "barishal", name: "Govt. Teachers' Training College, Barishal", shortName: "TTC Barishal", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, বরিশাল", city: "Barishal", established: 1999, slug: "ttc-barishal", logo: "", hasLogo: false },
+    { id: "faridpur", name: "Govt. Teachers' Training College, Faridpur", shortName: "TTC Faridpur", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ফরিদপুর", city: "Faridpur", established: 2005, slug: "ttc-faridpur", logo: "", hasLogo: false },
+    { id: "pabna", name: "Govt. B.Ed College, Pabna", shortName: "B.Ed Pabna", nameBn: "সরকারি বি.এড কলেজ, পাবনা", city: "Pabna", established: 1998, slug: "bed-pabna", logo: "", hasLogo: false },
+    { id: "bogura", name: "Govt. B.Ed College, Bogura", shortName: "B.Ed Bogura", nameBn: "সরকারি বি.এড কলেজ, বগুড়া", city: "Bogura", established: 2000, slug: "bed-bogura", logo: "", hasLogo: false },
 ];
 
 const collegeProfiles: any = {
@@ -151,7 +151,7 @@ export async function seedDatabaseAction(uid: string) {
 
     let collegesCount = 0;
     for (const college of colleges) {
-        const prof = collegeProfiles[college.id] || { shortName: college.name, location: college.city, principal: "TBD", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "", achievements: [], color: "#2563eb", social: { facebook: "", website: "" }, teachersList: [], clubs: [] };
+        const prof = collegeProfiles[college.id] || { shortName: college.shortName || college.name, location: college.city, principal: "TBD", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "", achievements: [], color: "#2563eb", social: { facebook: "", website: "" }, teachersList: [], clubs: [] };
         await adminDb.collection("colleges").doc(college.id).set({
             ...college,
             ...prof,

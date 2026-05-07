@@ -22,6 +22,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     sendPasswordResetEmail,
+    onAuthStateChanged,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getAuthInstance, getDb } from "@/lib/firebase";
@@ -83,9 +84,25 @@ function LoginPageInner() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
     const [isCapsLocked, setIsCapsLocked] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(true);
+
+    // Redirect already-logged-in users away from login page
+    useEffect(() => {
+        const auth = getAuthInstance();
+        const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+            if (firebaseUser) {
+                // User is already signed in — redirect them away
+                router.replace(redirectTo === "/" ? `/profile/${firebaseUser.uid}` : redirectTo);
+            } else {
+                // Not signed in — show the login form
+                setCheckingAuth(false);
+            }
+        });
+        return () => unsub();
+    }, [router, redirectTo]);
 
     // Caps Lock Detection
     const checkCapsLock = (e: any) => {
@@ -95,6 +112,15 @@ function LoginPageInner() {
             setIsCapsLocked(false);
         }
     };
+
+    // While checking if user is already logged in, show a loading spinner
+    if (checkingAuth) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
+                <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+        );
+    }
 
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();

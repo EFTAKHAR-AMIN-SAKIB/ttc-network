@@ -596,7 +596,7 @@ function CollegeInfoInner() {
                 hasLogo: !!(fs.logo || c.logo),
                 coverUrl: fs.coverUrl || "",
                 name: fs.name || c.name,
-                shortName: fs.shortName || c.shortName,
+                shortName: (fs.shortName && fs.shortName !== (fs.name || c.name)) ? fs.shortName : c.shortName,
                 description: fs.description || c.description,
                 principal: {
                     name: fs.principal?.name || c.principal.name,

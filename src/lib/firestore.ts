@@ -505,6 +505,10 @@ export interface FirestoreOfficialSettings {
     trustLine: string;
 }
 
+export interface FirestoreOriginStorySettings {
+    isVisible: boolean;
+}
+
 export interface FirestoreNotification {
     id?: string;
     recipientId: string;
@@ -2341,6 +2345,24 @@ export async function updateOfficialSettings(settings: FirestoreOfficialSettings
     await setDoc(doc(getDb(), "settings", "official"), settings);
 }
 
+// ═══════════════════════════════════════════════════
+//  ORIGIN STORY SECTION SETTINGS
+// ═══════════════════════════════════════════════════
+
+const DEFAULT_ORIGIN_STORY_SETTINGS: FirestoreOriginStorySettings = {
+    isVisible: true,
+};
+
+export async function getOriginStorySettings(): Promise<FirestoreOriginStorySettings> {
+    const snap = await getDoc(doc(getDb(), "settings", "originStory"));
+    return snap.exists() ? (snap.data() as FirestoreOriginStorySettings) : DEFAULT_ORIGIN_STORY_SETTINGS;
+}
+
+export async function updateOriginStorySettings(settings: FirestoreOriginStorySettings): Promise<void> {
+    await requireAdminOrManager();
+    await setDoc(doc(getDb(), "settings", "originStory"), settings);
+}
+
 // --- Study Hero Settings ---
 
 const DEFAULT_STUDY_HERO_SETTINGS: StudyHeroSettings = {
@@ -2620,6 +2642,26 @@ export async function syncUserProfileUpdates(
         updates.push({
             ref: d.ref,
             data: { name: displayName, photoURL: photoURL }
+        });
+    });
+
+    // 5. Study Posts
+    const studyQ = query(collection(db, "studyPosts"), where("authorId", "==", uid));
+    const studySnap = await getDocs(studyQ);
+    studySnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: { authorName: displayName, authorPhoto: photoURL, authorRole: role }
+        });
+    });
+
+    // 6. Comments
+    const commentsQ = query(collection(db, "comments"), where("userId", "==", uid));
+    const commentsSnap = await getDocs(commentsQ);
+    commentsSnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: { userName: displayName, userAvatar: photoURL, userRole: role }
         });
     });
 

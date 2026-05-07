@@ -32,17 +32,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Verify the ID token is valid and recent (max 5 minutes old)
+        // Verify the ID token is valid and not revoked
         const decodedToken = await adminAuth.verifyIdToken(idToken, true);
-
-        // Only create session if the token was issued recently (within 5 minutes)
-        const tokenAge = Date.now() - decodedToken.auth_time * 1000;
-        if (tokenAge > 5 * 60 * 1000) {
-            return NextResponse.json(
-                { error: "Token is too old. Please sign in again." },
-                { status: 401 }
-            );
-        }
 
         // Create a server-signed session cookie
         const sessionCookie = await adminAuth.createSessionCookie(idToken, {

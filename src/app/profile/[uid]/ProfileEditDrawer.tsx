@@ -12,7 +12,7 @@ import { colleges } from "@/data/colleges";
 import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { useToast } from "@/contexts/ToastContext";
-import { checkUsernameAvailability } from "@/lib/firestore";
+import { checkUsernameAvailability, syncUserProfileUpdates } from "@/lib/firestore";
 import { 
     CollapsibleSection, 
     FormInput, 
@@ -89,6 +89,15 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
             await refreshProfile();
             showToast("Profile updated successfully!", "success");
             onClose();
+
+            // Propagate name/photo/role changes to all denormalized content (posts, stories, gifts, comments, etc.)
+            // Runs in background so the UI doesn't block
+            syncUserProfileUpdates(
+                profile.uid,
+                saveData.displayName || profile.displayName,
+                formData.photoURL || profile.photoURL || "",
+                formData.role || profile.role || "student"
+            ).catch(err => console.error("[ProfileSync] Background sync failed:", err));
         } catch (err) {
             console.error("Failed to update profile:", err);
             showToast("Failed to save changes.", "error");

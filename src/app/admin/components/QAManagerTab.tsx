@@ -16,6 +16,7 @@ import {
     X,
     GripVertical,
     HelpCircle,
+    Heart,
 } from "lucide-react";
 import {
     getQACards,
@@ -23,7 +24,10 @@ import {
     updateQACard,
     deleteQACard,
     reorderQACards,
+    getOriginStorySettings,
+    updateOriginStorySettings,
     type FirestoreQACard,
+    type FirestoreOriginStorySettings,
 } from "@/lib/firestore";
 
 type QALanguage = "bengali" | "english" | "both";
@@ -49,6 +53,29 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
     };
 
     useEffect(() => { loadCards(); }, []);
+
+    /* ─── Origin Story Settings ─── */
+    const [originStorySettings, setOriginStorySettings] = useState<FirestoreOriginStorySettings | null>(null);
+    const [savingOriginStory, setSavingOriginStory] = useState(false);
+
+    useEffect(() => {
+        getOriginStorySettings().then(setOriginStorySettings).catch(console.error);
+    }, []);
+
+    const handleToggleOriginStory = async () => {
+        if (!originStorySettings) return;
+        const newValue = !originStorySettings.isVisible;
+        setSavingOriginStory(true);
+        try {
+            await updateOriginStorySettings({ isVisible: newValue });
+            setOriginStorySettings({ isVisible: newValue });
+            showToast(newValue ? "✅ Origin Story section is now visible." : "Origin Story section is now hidden.", newValue ? "success" : "info");
+        } catch (err) {
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
+        } finally {
+            setSavingOriginStory(false);
+        }
+    };
 
     const handleCreate = async () => {
         if (!newCard.question.trim() || !newCard.answer.trim()) return;
@@ -244,6 +271,54 @@ export default function QAManagerTab({ profile }: { profile: UserProfile }) {
                 ))
             )}
 
+
+            {/* ─── Origin Story Section Toggle ─── */}
+            <div className="mt-8">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
+                    <div className="flex items-center gap-2 px-4 py-1.5 bg-red-500/10 rounded-full">
+                        <Heart size={14} className="text-red-500" />
+                        <span className="text-xs font-bold text-red-500 uppercase tracking-wider">Origin Story</span>
+                    </div>
+                    <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white">
+                                <Heart size={18} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-white">"Why TTC Network Exists" Section</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Toggle the Origin Story section visibility on the homepage.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleToggleOriginStory}
+                            disabled={savingOriginStory || !originStorySettings}
+                            className={`relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0 ${
+                                originStorySettings?.isVisible
+                                    ? "bg-red-500 shadow-md shadow-red-500/20"
+                                    : "bg-gray-300 dark:bg-gray-600"
+                            } ${savingOriginStory ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg"}`}
+                        >
+                            <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${
+                                originStorySettings?.isVisible ? "left-[30px]" : "left-0.5"
+                            }`} />
+                        </button>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            originStorySettings?.isVisible
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                        }`}>
+                            {originStorySettings?.isVisible ? "Visible on Homepage" : "Hidden from Homepage"}
+                        </span>
+                    </div>
+                </div>
+            </div>
 
             {/* ─── Admission Guide Manager ─── */}
             <AdmissionGuideManagerTab />

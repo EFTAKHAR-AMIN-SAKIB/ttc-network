@@ -30,7 +30,8 @@ import {
     getUserFeedContent,
     addAchievement,
     removeAchievement,
-    deleteComment
+    deleteComment,
+    syncUserProfileUpdates
 } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
@@ -688,6 +689,17 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             const url = await uploadFile(`profile-photos/${uid}`, file);
             const db = getDb();
             await updateDoc(doc(db, "users", uid), { photoURL: url, updatedAt: serverTimestamp() });
+            
+            if (profileData) {
+                // Sync to posts, stories, gifts, comments, etc.
+                syncUserProfileUpdates(
+                    uid,
+                    profileData.displayName,
+                    url,
+                    profileData.role
+                ).catch(err => console.error("Photo sync failed:", err));
+            }
+            
             showToast("Profile photo updated!", "success");
         } catch (err) {
             console.error("Photo upload failed:", err);

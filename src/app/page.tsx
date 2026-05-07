@@ -47,12 +47,14 @@ import {
   getAdmissionSettings,
   getBuilderSettings,
   getOfficialSettings,
+  getOriginStorySettings,
   type FirestoreQACard,
   type FirestoreAdmissionStep,
   type FirestoreAdmissionCostItem,
   type FirestoreAdmissionSettings,
   type FirestoreBuilderSettings,
   type FirestoreOfficialSettings,
+  type FirestoreOriginStorySettings,
 } from "@/lib/firestore";
 
 /* ─── Icon Map (resolves Firestore iconName → Lucide component) ─── */
@@ -373,6 +375,7 @@ export default function HomePage() {
 
   const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
   const [officialSettings, setOfficialSettings] = useState<FirestoreOfficialSettings | null>(null);
+  const [originStorySettings, setOriginStorySettings] = useState<FirestoreOriginStorySettings | null>(null);
   const [showBuilderPopup, setShowBuilderPopup] = useState(false);
 
   useEffect(() => {
@@ -396,6 +399,7 @@ export default function HomePage() {
 
     getBuilderSettings().then(setBuilderSettings).catch(console.error);
     getOfficialSettings().then(setOfficialSettings).catch(console.error);
+    getOriginStorySettings().then(setOriginStorySettings).catch(console.error);
   }, []);
 
   return (
@@ -564,6 +568,7 @@ export default function HomePage() {
       )}
 
       {/* ===== WHY TTC NETWORK EXISTS (Card-Based Storytelling) ===== */}
+      {originStorySettings?.isVisible !== false && (
       <section className="py-24 sm:py-32 px-4 relative overflow-hidden bg-white dark:bg-[#050505] transition-colors duration-500">
         <div className="max-w-6xl mx-auto relative z-10">
 
@@ -722,6 +727,7 @@ export default function HomePage() {
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-500/5 dark:bg-amber-500/5 blur-[120px] rounded-full" />
         </div>
       </section>
+      )}
 
 
 
