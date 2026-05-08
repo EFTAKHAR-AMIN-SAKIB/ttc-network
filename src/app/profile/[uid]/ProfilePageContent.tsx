@@ -591,7 +591,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     };
 
     const handleFollowToggle = useCallback(async () => {
-        if (!user?.uid || followLoading) return;
+        if (!user?.uid || !uid || followLoading) return;
         setFollowLoading(true);
         try {
             const nowFollowing = await toggleFollowUser(user.uid, uid);
@@ -648,7 +648,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             variant: "danger",
         });
 
-        if (confirmed) {
+        if (confirmed && uid) {
             setConfirmLoading(true);
             try {
                 await removeAchievement(uid, achievementId);
