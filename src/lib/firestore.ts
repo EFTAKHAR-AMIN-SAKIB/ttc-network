@@ -2535,6 +2535,8 @@ export async function addManualContributor(data: { userId: string; message?: str
     await requireAdminOrManager();
     const userDoc = await getDocById<FirestoreUser>("users", data.userId);
 
+    const activePhaseId = await getActivePhaseId();
+
     const giftData: Omit<FirestoreGift, "id"> = {
         userId: data.userId,
         collegeId: userDoc.collegeId,
@@ -2547,6 +2549,7 @@ export async function addManualContributor(data: { userId: string; message?: str
         status: "approved",
         badgeIssued: true,
         date: serverTimestamp() as Timestamp,
+        phaseId: data.phaseId || activePhaseId,
     };
 
     await addDoc(collection(getDb(), "gifts"), giftData);

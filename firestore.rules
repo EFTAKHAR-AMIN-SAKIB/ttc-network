@@ -160,7 +160,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('posts');
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
-        (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'creatorId', 'collegeId', 'createdBy'])) || 
+        (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'creatorId', 'collegeId'])) || 
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.creatorId);
@@ -171,7 +171,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('stories');
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
-        (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'authorRole', 'collegeId'])) || 
+        (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'collegeId'])) || 
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'inspireCount', 'inspiredBy', 'likes', 'likedBy'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.authorId);
@@ -182,7 +182,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isNotBanned();
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
-        (isOwner(resource.data.userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'userName', 'userRole', 'userAvatar', 'postId'])) || 
+        (isOwner(resource.data.userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'postId'])) || 
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'likes', 'likedBy'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.userId);
@@ -191,13 +191,21 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow read: if true;
       allow create: if isAdminOrManager();
-      allow update, delete: if isAdminOrManager();
+      allow update: if isAdminOrManager() || (
+        isAuthenticated() && resource.data.authorId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['postedBy'])
+      );
+      allow delete: if isAdminOrManager();
     }
 
     match /gifts/{giftId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isAdminOrManager();
+      allow update: if isAdminOrManager() || (
+        isAuthenticated() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoURL'])
+      );
+      allow delete: if isAdminOrManager();
     }
 
     // ═══════════════════════════════════════════════════
@@ -258,7 +266,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isNotBanned();
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
-        (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'authorRole', 'collegeId'])) ||
+        (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'collegeId'])) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.authorId);
