@@ -100,6 +100,7 @@ interface CollegeProfile {
         photo?: string;
         bio?: string;
         yearsOfService?: string;
+        email?: string;
     };
     teachers: number;
     students: number;
@@ -604,6 +605,7 @@ function CollegeInfoInner() {
                     photo: fs.principal?.photo || c.principal.photo || "",
                     bio: fs.principal?.bio || c.principal.bio || "",
                     yearsOfService: fs.principal?.yearsOfService || c.principal.yearsOfService || "",
+                    email: fs.principal?.email || c.principal.email || "",
                 },
                 students: fs.students || c.students,
                 teachers: fs.teachers || c.teachers,
@@ -1152,7 +1154,7 @@ function CollegeInfoInner() {
                                                                 )}
                                                                 <div className="flex items-center justify-center md:justify-start gap-3 px-4 py-2.5 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 w-full">
                                                                     <Mail size={12} className="text-gray-400 shrink-0" />
-                                                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate">principal@{selectedCollege.id.toLowerCase()}.gov.bd</span>
+                                                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate">{selectedCollege.principal?.email || `principal@${selectedCollege.id.toLowerCase()}.gov.bd`}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1190,6 +1192,7 @@ function CollegeInfoInner() {
                                                                         <input type="text" value={editForm.principal?.designation || ""} onChange={e => setEditForm({ ...editForm, principal: { ...editForm.principal, designation: e.target.value } as any })} placeholder="Designation" className="w-full px-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-xl text-sm" />
                                                                         <input type="text" value={editForm.principal?.yearsOfService || ""} onChange={e => setEditForm({ ...editForm, principal: { ...editForm.principal, yearsOfService: e.target.value } as any })} placeholder="Service Years (e.g. 8+ Years)" className="w-full px-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-xl text-sm" />
                                                                         <input type="text" value={editForm.principal?.contact || ""} onChange={e => setEditForm({ ...editForm, principal: { ...editForm.principal, contact: e.target.value } as any })} placeholder="Contact Number" className="w-full px-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-xl text-sm" />
+                                                                        <input type="email" value={editForm.principal?.email || ""} onChange={e => setEditForm({ ...editForm, principal: { ...editForm.principal, email: e.target.value } as any })} placeholder="Email Address" className="w-full px-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-xl text-sm sm:col-span-2" />
                                                                     </div>
                                                                     <textarea value={editForm.principal?.bio || ""} onChange={e => setEditForm({ ...editForm, principal: { ...editForm.principal, bio: e.target.value } as any })} placeholder="Principal's Message..." className="w-full h-32 px-4 py-3 bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-xl text-sm italic" />
                                                                     <div className="flex gap-3">

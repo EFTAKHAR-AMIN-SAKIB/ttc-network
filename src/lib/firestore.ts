@@ -60,6 +60,7 @@ export interface FirestoreCollege {
         photo?: string;
         bio?: string;
         yearsOfService?: string;
+        email?: string;
     };
     students: number;
     teachers: number;
