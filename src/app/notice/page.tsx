@@ -51,7 +51,11 @@ const collegeFilter = [
     "Bogura",
 ];
 
-const programmeFilter = ["All", "B.Ed", "B.Ed Honours"];
+const programmeFilter = [
+    { label: "All", value: "All" },
+    { label: "B.Ed Honours", value: "BEdHonours" },
+    { label: "M.Ed", value: "MEd" },
+];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatDate(ts: any) {
@@ -74,7 +78,7 @@ function PostNoticeModal({
 }) {
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
-    const [programme, setProgramme] = useState<"BEd" | "BEdHonours" | "Both">("Both");
+    const [programme, setProgramme] = useState<"BEd" | "BEdHonours" | "MEd" | "Both" | "All">("All");
     const [isUrgent, setIsUrgent] = useState(false);
     const [attachmentUrl, setAttachmentUrl] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -238,9 +242,9 @@ function PostNoticeModal({
                         <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-secondary)" }}>Programme</label>
                         <div className="flex gap-2">
                             {([
-                                { value: "BEd", label: "B.Ed" },
                                 { value: "BEdHonours", label: "B.Ed Honours" },
-                                { value: "Both", label: "Both" },
+                                { value: "MEd", label: "M.Ed" },
+                                { value: "All", label: "All Programmes" },
                             ] as const).map((p) => (
                                 <button
                                     key={p.value}
@@ -376,7 +380,7 @@ export default function NoticePage() {
     const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState("");
     const [editBody, setEditBody] = useState("");
-    const [editProgramme, setEditProgramme] = useState<"BEd" | "BEdHonours" | "Both">("Both");
+    const [editProgramme, setEditProgramme] = useState<"BEd" | "BEdHonours" | "MEd" | "Both" | "All">("All");
     const [editVisibility, setEditVisibility] = useState<"public" | "campus" | "private">("public");
     const [editIsUrgent, setEditIsUrgent] = useState(false);
     const [editIsPinned, setEditIsPinned] = useState(false);
@@ -451,7 +455,7 @@ export default function NoticePage() {
 
             if (selectedCollege !== "All" && !n.college.includes(selectedCollege))
                 return false;
-            if (selectedProgramme !== "All" && n.programme !== selectedProgramme)
+            if (selectedProgramme !== "All" && n.programme !== selectedProgramme && n.programme !== "Both" && n.programme !== "All")
                 return false;
             if (
                 searchQuery &&
@@ -570,7 +574,7 @@ export default function NoticePage() {
                             Notice Board
                         </h1>
                         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-                            Official notices for B.Ed and B.Ed Honours programmes across all colleges
+                            Official notices for B.Ed Honours and M.Ed programmes across all colleges
                         </p>
                     </div>
 
@@ -675,18 +679,18 @@ export default function NoticePage() {
                             <div className="flex gap-1.5">
                                 {programmeFilter.map((p) => (
                                     <button
-                                        key={p}
-                                        onClick={() => setSelectedProgramme(p)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedProgramme === p
+                                        key={p.value}
+                                        onClick={() => setSelectedProgramme(p.value)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedProgramme === p.value
                                             ? "bg-accent text-white"
                                             : "hover:opacity-80"
                                             }`}
-                                        style={selectedProgramme !== p ? {
+                                        style={selectedProgramme !== p.value ? {
                                             background: "var(--bg)",
                                             color: "var(--text-secondary)",
                                         } : {}}
                                     >
-                                        {p}
+                                        {p.label}
                                     </button>
                                 ))}
                             </div>
@@ -767,7 +771,7 @@ export default function NoticePage() {
                                                         </span>
                                                     )}
                                                     <span className="badge badge-primary text-[10px]">
-                                                        {notice.programme === "BEdHonours" ? "B.Ed Honours" : notice.programme === "BEd" ? "B.Ed" : "Both"}
+                                                        {notice.programme === "BEdHonours" ? "B.Ed Honours" : notice.programme === "MEd" ? "M.Ed" : notice.programme === "BEd" ? "B.Ed" : "All Programmes"}
                                                     </span>
                                                     {(notice.visibility === "campus" || notice.visibility === "private") && (
                                                         <span className="flex items-center gap-1 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10">
@@ -808,9 +812,9 @@ export default function NoticePage() {
                                                                     className="w-full px-4 py-2.5 rounded-2xl border text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
                                                                     style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
                                                                 >
-                                                                    <option value="Both">Both Programmes</option>
-                                                                    <option value="BEd">B.Ed Only</option>
+                                                                    <option value="All">All Programmes</option>
                                                                     <option value="BEdHonours">B.Ed Honours Only</option>
+                                                                    <option value="MEd">M.Ed Only</option>
                                                                 </select>
                                                             </div>
                                                             <div className="space-y-1">

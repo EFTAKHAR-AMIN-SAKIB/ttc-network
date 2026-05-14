@@ -109,6 +109,7 @@ export interface UserProfile {
     role: "student" | "teacher" | "manager" | "super_manager" | "admin";
     roleVerified: boolean;
     collegeId: string;
+    programme?: "BEdHonours" | "MEd"; // B.Ed Honours (4yr) or M.Ed (1-2yr)
     
     // Core Identity
     headline?: string;
@@ -117,6 +118,7 @@ export interface UserProfile {
     publicEmail?: string;
     phone?: string;
     whatsapp?: string;
+    facebook?: string;
     
     // Professional Details
     professionalStatus?: string; // e.g., "Student", "Employed", "Looking for work"
@@ -202,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     role: "student",
                     roleVerified: false,
                     collegeId: "",
+                    programme: "BEdHonours",
                     year: "",
                     semester: "",
                     bio: "",

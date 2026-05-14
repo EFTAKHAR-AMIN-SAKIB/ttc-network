@@ -100,7 +100,7 @@ const STORY_TIMELINE = [
     id: "identity",
     title: "TTC Exists. But No One Really Knows It.",
     icon: Landmark,
-    story: "B.Ed Honours is a real bachelor's degree. But ask anyone outside the teacher community — they'll just say 'oh, that's the teacher training place.' There's no single space to showcase what TTC truly is — its teachers, students, programmes, and achievements. TTC deserved a proper identity. It never had one.",
+    story: "B.Ed Honours is a real bachelor's degree and M.Ed is a respected master's. But ask anyone outside the teacher community — they'll just say 'oh, that's the teacher training place.' There's no single space to showcase what TTC truly is — its teachers, students, programmes, and achievements. TTC deserved a proper identity. It never had one.",
   },
   {
     id: "bridge",
@@ -442,7 +442,7 @@ export default function HomePage() {
               className="mt-3 text-[#536471] dark:text-[#71767B] text-sm max-w-lg mx-auto"
             >
               Common questions about Teachers&apos; Training College and the
-              B.Ed Honours programme.
+              B.Ed Honours &amp; M.Ed programmes.
             </motion.p>
           </motion.div>
 

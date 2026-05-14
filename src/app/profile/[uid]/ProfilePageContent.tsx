@@ -8,7 +8,7 @@ import {
     Target, Pencil, Save, X, Camera, Loader2, ImageIcon, Trash2, Search,
     Heart, Clock, Shield, Activity, GraduationCap, Building, Quote, BookOpen, BookText, User, Award,
     Sparkles, Sparkle, Mail, ExternalLink, Calendar, Copy, Check, ChevronDown, MessageSquare, ThumbsUp,
-    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff
+    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff, Facebook
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -210,6 +210,12 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
                     
                     <div className="space-y-6">
                         <div className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Programme</label>
+                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                                    {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed Honours"}
+                                </div>
+                            </div>
                             <div>
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Year / Session</label>
                                 <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.year || "N/A"}</div>
@@ -923,7 +929,24 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                                 <ExternalLink size={12} className="text-gray-300 group-hover:text-green-500 transition-colors shrink-0" />
                                                             </a>
                                                         )}
-                                                        {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && (
+                                                        {profileData?.facebook && (
+                                                            <a
+                                                                href={profileData.facebook.startsWith('http') ? profileData.facebook : `https://${profileData.facebook}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group text-left"
+                                                            >
+                                                                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                                                                    <Facebook size={16} className="text-blue-600 dark:text-blue-500" />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Facebook</div>
+                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</div>
+                                                                </div>
+                                                                <ExternalLink size={12} className="text-gray-300 group-hover:text-blue-600 transition-colors shrink-0" />
+                                                            </a>
+                                                        )}
+                                                        {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && !profileData?.facebook && (
                                                             <div className="px-4 py-6 text-center">
                                                                 <MessageCircle className="mx-auto text-gray-200 mb-2" size={28} />
                                                                 <p className="text-xs font-bold text-gray-400">No contact info available</p>

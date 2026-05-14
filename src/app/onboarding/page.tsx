@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ChevronRight, ChevronLeft, Sparkles, Check, School, GraduationCap, MapPin, Target, Sparkle } from "lucide-react";
+import { Camera, ChevronRight, ChevronLeft, Sparkles, Check, School, GraduationCap, MapPin, Target, Sparkle, BookOpen } from "lucide-react";
 import Image from "next/image";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
@@ -48,6 +48,7 @@ export default function OnboardingPage() {
     const [photoPreview, setPhotoPreview] = useState("");
     
     const [role, setRole] = useState<"student" | "teacher">("student");
+    const [programme, setProgramme] = useState<"BEdHonours" | "MEd">("BEdHonours");
     const [year, setYear] = useState("Year 1");
     const [semester, setSemester] = useState("Semester 1");
     const [status, setStatus] = useState<"govt" | "non-govt">("govt");
@@ -65,23 +66,48 @@ export default function OnboardingPage() {
             setDisplayName(profile.displayName || "");
             setPhotoPreview(profile.photoURL || "");
             setRole((profile.role as any) || "student");
+            setProgramme((profile.programme as any) || "BEdHonours");
             setCollegeId(profile.collegeId || "");
         }
     }, [profile]);
 
-    // Handle Semester Options based on Year (as requested)
+    // Year options based on programme
+    const getYears = () => {
+        if (programme === "BEdHonours") return ["Year 1", "Year 2", "Year 3", "Year 4"];
+        return ["Year 1", "Year 2"]; // M.Ed is 1-2 years
+    };
+
+    // Semester options based on programme and year
     const getSemesters = () => {
-        if (year === "Year 1") return ["Semester 1", "Semester 2"];
-        if (year === "Year 2") return ["Semester 3", "Semester 4"];
-        if (year === "Year 3") return ["Semester 5", "Semester 6"];
-        if (year === "Year 4") return ["Semester 7", "Semester 8"];
+        if (programme === "BEdHonours") {
+            // B.Ed Honours: 4 years, 8 semesters
+            if (year === "Year 1") return ["Semester 1", "Semester 2"];
+            if (year === "Year 2") return ["Semester 3", "Semester 4"];
+            if (year === "Year 3") return ["Semester 5", "Semester 6"];
+            if (year === "Year 4") return ["Semester 7", "Semester 8"];
+        } else {
+            // M.Ed: 1-2 years, 2-4 semesters
+            if (year === "Year 1") return ["Semester 1", "Semester 2"];
+            if (year === "Year 2") return ["Semester 3", "Semester 4"];
+        }
         return [];
     };
 
+    // Reset year when programme changes
+    useEffect(() => {
+        const years = getYears();
+        if (!years.includes(year)) {
+            setYear(years[0]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [programme]);
+
+    // Reset semester when year changes
     useEffect(() => {
        const available = getSemesters();
        if (!available.includes(semester)) setSemester(available[0]);
-    }, [year]);
+       // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [year, programme]);
 
     const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -106,6 +132,7 @@ export default function OnboardingPage() {
                 displayName,
                 photoURL,
                 role,
+                programme: role === 'student' ? programme : "",
                 status: role === 'teacher' ? status : "",
                 collegeId,
                 year: role === 'student' ? year : "",
@@ -121,6 +148,7 @@ export default function OnboardingPage() {
             showToast("Profile ready! Welcome to the network.", "success");
             router.push("/");
         } catch (err) {
+            console.error("[Onboarding] Save failed:", err);
             showToast("Failed to save profile", "error");
         } finally {
             setSaving(false);
@@ -167,7 +195,7 @@ export default function OnboardingPage() {
                                 </button>
                                 <input ref={fileInputRef} type="file" className="hidden" onChange={handlePhotoSelect} />
                             </div>
-                            <h2 className="text-2xl font-black mt-6">Let's start with your look</h2>
+                            <h2 className="text-2xl font-black mt-6">Let&apos;s start with your look</h2>
                             <p className="text-gray-400 font-bold italic mt-1">Classmates recognize you by your face!</p>
                         </div>
 
@@ -183,17 +211,18 @@ export default function OnboardingPage() {
                     </motion.div>
                   )}
 
-                  {/* STEP 2: ROLE */}
+                  {/* STEP 2: ROLE & PROGRAMME */}
                   {step === 2 && (
-                    <motion.div key="2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-10">
+                    <motion.div key="2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                         <div>
-                           <h2 className="text-3xl font-black">What's your role?</h2>
+                           <h2 className="text-3xl font-black">What&apos;s your role?</h2>
                            <p className="text-gray-400 font-bold mt-1">This defines your experience across the platform.</p>
                         </div>
 
+                        {/* Role Selector */}
                         <div className="grid grid-cols-2 gap-6">
                            {[
-                               { id: "student", label: "Student", desc: "Currently pursuing B.Ed", icon: <GraduationCap /> },
+                               { id: "student", label: "Student", desc: "B.Ed Honours or M.Ed", icon: <GraduationCap /> },
                                { id: "teacher", label: "Teacher", desc: "Shaping current students", icon: <School /> },
                            ].map(r => (
                                <button 
@@ -214,22 +243,57 @@ export default function OnboardingPage() {
                         </div>
 
                         {role === 'student' ? (
-                            <div className="grid grid-cols-2 gap-6 pt-6 animate-fade-in">
-                               <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Current Year</label>
-                                  <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full p-4 rounded-2xl bg-gray-50 font-bold border-2 border-transparent focus:border-primary focus:outline-none">
-                                     <option>Year 1</option><option>Year 2</option><option>Year 3</option><option>Year 4</option>
-                                  </select>
+                            <div className="space-y-6 pt-2 animate-fade-in">
+                               {/* Programme Selector */}
+                               <div className="space-y-3">
+                                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Programme</label>
+                                  <div className="grid grid-cols-2 gap-3">
+                                     {[
+                                         { id: "BEdHonours", label: "B.Ed Honours", desc: "4-year undergraduate", icon: <GraduationCap size={18} /> },
+                                         { id: "MEd", label: "M.Ed", desc: "1-2 year postgraduate", icon: <BookOpen size={18} /> },
+                                     ].map(p => (
+                                         <button
+                                           key={p.id}
+                                           onClick={() => setProgramme(p.id as any)}
+                                           className={`p-4 rounded-2xl border-2 text-left transition-all relative
+                                              ${programme === p.id 
+                                                ? "border-primary bg-primary/5 shadow-md" 
+                                                : "border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600"}
+                                           `}
+                                         >
+                                           <div className="flex items-center gap-3">
+                                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${programme === p.id ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-400"}`}>
+                                                 {p.icon}
+                                              </div>
+                                              <div>
+                                                 <div className="font-black text-sm">{p.label}</div>
+                                                 <div className="text-[10px] font-bold text-gray-400">{p.desc}</div>
+                                              </div>
+                                           </div>
+                                           {programme === p.id && <Check className="absolute top-3 right-3 text-primary w-4 h-4" />}
+                                         </button>
+                                     ))}
+                                  </div>
                                </div>
-                               <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Semester</label>
-                                  <select value={semester} onChange={(e) => setSemester(e.target.value)} className="w-full p-4 rounded-2xl bg-gray-50 font-bold border-2 border-transparent focus:border-primary focus:outline-none">
-                                     {getSemesters().map(s => <option key={s}>{s}</option>)}
-                                  </select>
+
+                               {/* Year & Semester */}
+                               <div className="grid grid-cols-2 gap-6">
+                                  <div className="space-y-2">
+                                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Current Year</label>
+                                     <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 font-bold border-2 border-transparent focus:border-primary focus:outline-none">
+                                        {getYears().map(y => <option key={y}>{y}</option>)}
+                                     </select>
+                                  </div>
+                                  <div className="space-y-2">
+                                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Semester</label>
+                                     <select value={semester} onChange={(e) => setSemester(e.target.value)} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 font-bold border-2 border-transparent focus:border-primary focus:outline-none">
+                                        {getSemesters().map(s => <option key={s}>{s}</option>)}
+                                     </select>
+                                  </div>
                                </div>
                             </div>
                         ) : (
-                            <div className="pt-6 animate-fade-in space-y-6">
+                            <div className="pt-2 animate-fade-in space-y-6">
                                <div className="space-y-2">
                                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Current Status</label>
                                   <div className="flex gap-2">

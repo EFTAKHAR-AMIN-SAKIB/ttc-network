@@ -226,7 +226,7 @@ export interface FirestoreNotice {
     title: string;
     body: string;
     postedBy: string;
-    programme: "BEd" | "BEdHonours" | "Both";
+    programme: "BEd" | "BEdHonours" | "MEd" | "Both" | "All";
     isPinned: boolean;
     isUrgent: boolean;
     attachmentUrl: string;
@@ -398,6 +398,7 @@ export interface FirestoreUser {
     college: string;
     collegeId: string;
     role: "student" | "teacher" | "manager" | "super_manager" | "admin";
+    programme?: "BEdHonours" | "MEd"; // B.Ed Honours (4yr undergrad) or M.Ed (1-2yr postgrad)
     roleVerified: boolean;
     bio: string;
     coverUrl: string;

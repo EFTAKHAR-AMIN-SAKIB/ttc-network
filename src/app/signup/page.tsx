@@ -132,6 +132,8 @@ function SignupPageInner() {
                 displayName: name,
                 username: username.toLowerCase(),
                 photoURL: "",
+                role: "student",
+                programme: "BEdHonours",
                 onboardingCompleted: false,
                 createdAt: serverTimestamp(),
             }, { merge: true });

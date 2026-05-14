@@ -47,6 +47,8 @@ export const metadata: Metadata = {
     "Teachers Training College",
     "Bangladesh",
     "B.Ed",
+    "B.Ed Honours",
+    "M.Ed",
     "Education",
     "National University",
   ],

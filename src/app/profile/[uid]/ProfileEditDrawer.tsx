@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     X, Save, User, GraduationCap, Briefcase, Award, Globe, 
     AtSign, MapPin, Target, Sparkles, Plus, Trash2, Camera,
-    Loader2, Check, Building, Info, Mail, Phone, MessageCircle
+    Loader2, Check, Building, Info, Mail, Phone, MessageCircle, Facebook
 } from "lucide-react";
 import { useAuth, type UserProfile, type WorkExperienceEntry, type EducationEntry } from "@/contexts/AuthContext";
 import { colleges } from "@/data/colleges";
@@ -238,20 +238,51 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                                         icon={Building}
                                     />
                                     {formData.role === "student" && (
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <>
                                             <FormSelect 
-                                                label="Academic Year" 
-                                                value={formData.year} 
-                                                onChange={(v: string) => updateField("year", v)}
-                                                options={["1st Year", "2nd Year", "3rd Year", "4th Year", "Graduate"]}
+                                                label="Programme" 
+                                                value={formData.programme || "BEdHonours"} 
+                                                onChange={(v: string) => {
+                                                    updateField("programme", v);
+                                                    // Reset year/semester when switching programmes
+                                                    if (v === "MEd") {
+                                                        if (!["1st Year", "2nd Year"].includes(formData.year || "")) {
+                                                            updateField("year", "1st Year");
+                                                        }
+                                                        if (!["Semester 1", "Semester 2", "Semester 3", "Semester 4"].includes(formData.semester || "")) {
+                                                            updateField("semester", "Semester 1");
+                                                        }
+                                                    }
+                                                }}
+                                                options={[
+                                                    { label: "B.Ed Honours (4-year)", value: "BEdHonours" },
+                                                    { label: "M.Ed (1-2 year)", value: "MEd" },
+                                                ]}
+                                                icon={GraduationCap}
                                             />
-                                            <FormSelect 
-                                                label="Semester" 
-                                                value={formData.semester} 
-                                                onChange={(v: string) => updateField("semester", v)}
-                                                options={["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"]}
-                                            />
-                                        </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormSelect 
+                                                    label="Academic Year" 
+                                                    value={formData.year} 
+                                                    onChange={(v: string) => updateField("year", v)}
+                                                    options={
+                                                        (formData.programme || "BEdHonours") === "MEd"
+                                                            ? ["1st Year", "2nd Year", "Graduate"]
+                                                            : ["1st Year", "2nd Year", "3rd Year", "4th Year", "Graduate"]
+                                                    }
+                                                />
+                                                <FormSelect 
+                                                    label="Semester" 
+                                                    value={formData.semester} 
+                                                    onChange={(v: string) => updateField("semester", v)}
+                                                    options={
+                                                        (formData.programme || "BEdHonours") === "MEd"
+                                                            ? ["Semester 1", "Semester 2", "Semester 3", "Semester 4"]
+                                                            : ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"]
+                                                    }
+                                                />
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                                 <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mt-4 flex items-center gap-1">
@@ -375,13 +406,22 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                                             icon={MessageCircle}
                                         />
                                     </div>
-                                    <FormInput 
-                                        label="Portfolio / Website" 
-                                        value={formData.website} 
-                                        onChange={(v: string) => updateField("website", v)} 
-                                        placeholder="https://..."
-                                        icon={Globe}
-                                    />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormInput 
+                                            label="Facebook Profile" 
+                                            value={formData.facebook} 
+                                            onChange={(v: string) => updateField("facebook", v)} 
+                                            placeholder="https://facebook.com/..."
+                                            icon={Facebook}
+                                        />
+                                        <FormInput 
+                                            label="Portfolio / Website" 
+                                            value={formData.website} 
+                                            onChange={(v: string) => updateField("website", v)} 
+                                            placeholder="https://..."
+                                            icon={Globe}
+                                        />
+                                    </div>
                                 </div>
                             </CollapsibleSection>
 
