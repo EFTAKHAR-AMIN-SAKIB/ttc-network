@@ -2459,6 +2459,26 @@ export async function seedRoadmapPhases(): Promise<void> {
             color: "purple",
             icon: "Smartphone",
             showFundraising: false
+        },
+        {
+            title: "Phase 4: Global Framework",
+            description: "Expanding TTC Network beyond local boundaries. Establishing a framework for global university connectivity and cross-campus collaboration.",
+            status: "Upcoming",
+            order: 4,
+            progress: 0,
+            color: "blue",
+            icon: "Globe",
+            showFundraising: false
+        },
+        {
+            title: "Phase 5: Earning Opportunity",
+            description: "Empowering TTCians to earn while they learn. Integrating freelance marketplaces, project bounties, and skill-based rewards directly into the ecosystem.",
+            status: "Upcoming",
+            order: 5,
+            progress: 0,
+            color: "rose",
+            icon: "Banknote",
+            showFundraising: false
         }
     ];
 

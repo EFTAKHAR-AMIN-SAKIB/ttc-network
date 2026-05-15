@@ -38,7 +38,8 @@ import {
     Pencil,
     CreditCard,
     QrCode,
-    ExternalLink
+    ExternalLink,
+    Banknote
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -439,7 +440,8 @@ const getIconComponent = (iconName: string) => {
     const icons: Record<string, any> = {
         Palette, Server, Smartphone, Globe, Users, Layers, 
         Hammer, Megaphone, Star, Wallet, Shield, Heart, Plus, Copy, Edit, Save, 
-        BookOpen, Video, Calendar, Clock, Loader2, Sparkles, AlertTriangle, FileText, Pencil
+        BookOpen, Video, Calendar, Clock, Loader2, Sparkles, AlertTriangle, FileText, Pencil,
+        Banknote
     };
     return icons[iconName] || Layers;
 };

@@ -24,6 +24,7 @@ import {
     Globe,
     Layers,
     Search,
+    Banknote,
 } from "lucide-react";
 import {
     getPendingGifts,
@@ -907,6 +908,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                                             <option value="Users">Users</option>
                                             <option value="Hammer">Hammer</option>
                                             <option value="Megaphone">Megaphone</option>
+                                            <option value="Banknote">Earning (Banknote)</option>
                                         </select>
                                     </div>
                                     <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
