@@ -220,6 +220,46 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                   </div>
                 </div>
 
+                {/* Audience / Visibility */}
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    Share With
+                  </label>
+                  <div className="flex gap-3">
+                    {[
+                      { id: "public" as const, icon: <Globe size={18} />, label: "Global", desc: "All campuses", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
+                      { id: "campus" as const, icon: <School size={18} />, label: "Campus", desc: "Your college", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setVisibility(opt.id)}
+                        className={`flex-1 relative flex items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-200 group
+                          ${visibility === opt.id
+                            ? `${opt.bg} border-current shadow-sm`
+                            : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                          }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                          visibility === opt.id ? `${opt.bg} ${opt.color}` : "bg-gray-100 dark:bg-gray-700 text-gray-400"
+                        }`}>
+                          {opt.icon}
+                        </div>
+                        <div className="text-left">
+                          <div className={`text-xs font-black uppercase tracking-widest ${visibility === opt.id ? "text-gray-900 dark:text-white" : "text-gray-500"}`}>{opt.label}</div>
+                          <div className={`text-[10px] font-bold ${visibility === opt.id ? "text-gray-500 dark:text-gray-400" : "text-gray-400 dark:text-gray-600"}`}>{opt.desc}</div>
+                        </div>
+                        {visibility === opt.id && (
+                          <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                            <CheckCircle2 size={12} className="text-white" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   <div className="flex justify-between items-end">
                     <label className="text-sm font-black text-gray-500 uppercase tracking-widest">The Narrative *</label>
@@ -270,32 +310,19 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                 </div>
 
 
-                {/* Privacy */}
-                <div className="space-y-6 pt-8 border-t border-gray-100 dark:border-gray-800">
-                  <label className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    Who can see this?
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      { id: "public", label: "Global", icon: <Globe />, desc: "Entire community" },
-                      { id: "campus", label: "Campus", icon: <School />, desc: "Only your college" },
-                    ].map((v) => (
-                      <button
-                        key={v.id}
-                        onClick={() => setVisibility(v.id as "public" | "campus")}
-                        className={`p-4 rounded-3xl text-left border-2 transition-all group
-                          ${visibility === v.id 
-                            ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20" 
-                            : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600"
-                          }
-                        `}
-                      >
-                        <div className={`mb-2 transition-colors ${visibility === v.id ? "opacity-100 text-white" : "opacity-60 text-gray-400 group-hover:text-primary"}`}>{v.icon}</div>
-                        <div className="font-black text-sm">{v.label}</div>
-                        <div className={`text-[10px] font-bold ${visibility === v.id ? "text-slate-100" : "text-gray-400"}`}>{v.desc}</div>
-                      </button>
-                    ))}
+                {/* Audience reminder */}
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${visibility === "campus" ? "bg-amber-100 dark:bg-amber-500/20 text-amber-500" : "bg-blue-100 dark:bg-blue-500/20 text-blue-500"}`}>
+                    {visibility === "campus" ? <School size={16} /> : <Globe size={16} />}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-300">
+                      Sharing {visibility === "campus" ? "with your campus" : "globally"}
+                    </div>
+                    <div className="text-[10px] font-bold text-gray-400">
+                      {visibility === "campus" ? "Only your college community will see this" : "Visible to all TTC campuses"}
+                       — <button type="button" onClick={() => setStep(1)} className="text-primary hover:underline">change</button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -336,9 +363,15 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
 
                 <div className="max-w-md space-y-6">
                    <div className="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-3xl border-2 border-emerald-100 dark:border-emerald-900/40">
-                      <div className="flex items-center gap-3 mb-2 text-emerald-800 dark:text-emerald-400">
+                      <div className="flex items-center gap-3 mb-3 text-emerald-800 dark:text-emerald-400">
                         <CheckCircle2 className="w-6 h-6" />
                         <h4 className="font-black">Ready to inspire?</h4>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-white/60 dark:bg-black/20 border border-emerald-200/50 dark:border-emerald-800/30 w-fit">
+                        {visibility === "campus" ? <School size={14} className="text-amber-500" /> : <Globe size={14} className="text-blue-500" />}
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                          {visibility === "campus" ? "Campus Only" : "Global"}
+                        </span>
                       </div>
                       <p className="text-sm text-emerald-700 dark:text-emerald-500 font-bold leading-relaxed">
                         {editStory

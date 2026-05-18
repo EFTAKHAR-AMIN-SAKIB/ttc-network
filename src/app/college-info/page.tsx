@@ -1437,7 +1437,7 @@ function CollegeInfoInner() {
                                                     <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-primary/10 flex items-center justify-center"><Trophy size={12} className="text-primary sm:w-[14px] sm:h-[14px]" /></div>
                                                     Active Clubs
                                                 </h3>
-                                                {(profile?.role === "admin" || (profile?.role === "manager" && profile.collegeId === selectedCollege.id) || profile?.clubPosition === "President") && (
+                                                {(profile?.role === "admin" || profile?.role === "super_manager" || (profile?.role === "manager" && profile.collegeId === selectedCollege.id) || profile?.clubPosition === "President") && (
                                                     <button onClick={() => setShowClubManager(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:text-primary border border-gray-100 dark:border-gray-700 transition-colors">
                                                         <Settings size={12} />
                                                         Manage
@@ -1460,7 +1460,7 @@ function CollegeInfoInner() {
                                                 <div className="text-center py-20 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border-2 border-dashed border-gray-100 dark:border-gray-800">
                                                     <Trophy size={40} className="mx-auto text-gray-300 mb-4 stroke-1" />
                                                     <p className="text-xs text-gray-500 font-black uppercase tracking-widest mb-2">No active clubs registered yet</p>
-                                                    {(profile?.role === "admin" || profile?.role === "manager") && (
+                                                    {(profile?.role === "admin" || profile?.role === "super_manager" || profile?.role === "manager") && (
                                                         <button onClick={() => setShowClubManager(true)} className="mt-4 px-6 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all active:scale-95">Initialize First Club</button>
                                                     )}
                                                 </div>

@@ -4,7 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2 } from "lucide-react";
+import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe } from "lucide-react";
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -89,6 +89,12 @@ export default function StoryCard({ story, priority, onEdit, onDelete }: StoryCa
               <Clock className="w-3 h-3 text-primary" />
               {story.readingTimeMinutes} MIN
             </div>
+            {(story.visibility === "campus" || story.visibility === "college_only") && (
+              <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2.5 py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
+                <School className="w-3 h-3" />
+                Campus
+              </div>
+            )}
 
             {onEdit && permissions.canEdit && (
               <button

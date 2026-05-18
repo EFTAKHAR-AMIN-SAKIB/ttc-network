@@ -1582,7 +1582,7 @@ export async function rejectStory(id: string, _reason: string): Promise<void> {
 
 export async function updateStory(id: string, data: Partial<FirestoreStory>): Promise<void> {
     // Allowlist: prevent mutation of sensitive fields
-    const ALLOWED_STORY_FIELDS = ['title', 'content', 'mediaUrl', 'mediaType', 'visibility', 'tags'];
+    const ALLOWED_STORY_FIELDS = ['title', 'content', 'fullStory', 'preview', 'coverMood', 'futureGoals', 'oneAdvice', 'readingTimeMinutes', 'mediaUrl', 'mediaType', 'visibility', 'tags'];
     const clean = Object.fromEntries(
         Object.entries(data).filter(([k]) => ALLOWED_STORY_FIELDS.includes(k))
     );

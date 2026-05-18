@@ -22,7 +22,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const [eventName, setEventName] = useState("");
     const [description, setDescription] = useState("");
     const [shareLink, setShareLink] = useState("");
-    const [visibility, setVisibility] = useState<"public" | "campus">("public");
+    const [visibility, setVisibility] = useState<"public" | "campus" | "private">("public");
     const [type, setType] = useState<"event" | "club">("event");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
@@ -39,8 +39,8 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (!profile?.id || !profile?.collegeId) return;
-        getMyClubs(profile.id, profile.collegeId).then(setMyClubs).catch(console.error);
+        if (!profile?.uid || !profile?.collegeId) return;
+        getMyClubs(profile.uid, profile.collegeId).then(setMyClubs).catch(console.error);
     }, [profile]);
 
     // Link preview effect
@@ -290,25 +290,47 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                             )}
                         </div>
 
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
-                            {/* Visibility Switcher */}
-                            <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
-                                <button 
-                                    type="button"
-                                    onClick={() => setVisibility("public")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visibility === "public" ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" : "text-gray-400"}`}
-                                >
-                                    <Globe size={14} /> Global
-                                </button>
-                                <button 
-                                    type="button"
-                                    onClick={() => setVisibility("campus")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visibility === "campus" ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" : "text-gray-400"}`}
-                                >
-                                    <School size={14} /> Campus
-                                </button>
+                        {/* Visibility Section */}
+                        <div className="space-y-3 bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+                                <Lock size={10} className="text-primary" /> Who can see this?
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[
+                                    { id: "public" as const, icon: <Globe size={18} />, label: "Global", desc: "Everyone", color: "text-blue-500" },
+                                    { id: "campus" as const, icon: <School size={18} />, label: "Campus", desc: "Your college", color: "text-amber-500" },
+                                    { id: "private" as const, icon: <Lock size={18} />, label: "Private", desc: "Only you", color: "text-rose-500" },
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => setVisibility(opt.id)}
+                                        className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200 group
+                                            ${visibility === opt.id
+                                                ? "bg-white dark:bg-gray-800 border-primary/30 shadow-md shadow-primary/5 scale-[1.02]"
+                                                : "border-transparent hover:bg-white/60 dark:hover:bg-gray-800/60 hover:border-gray-200 dark:hover:border-gray-700"
+                                            }`}
+                                    >
+                                        <div className={`transition-colors ${visibility === opt.id ? opt.color : "text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300"}`}>
+                                            {opt.icon}
+                                        </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${visibility === opt.id ? "text-gray-900 dark:text-white" : "text-gray-400"}`}>
+                                            {opt.label}
+                                        </span>
+                                        <span className={`text-[8px] font-bold transition-colors ${visibility === opt.id ? "text-gray-500" : "text-gray-300 dark:text-gray-600"}`}>
+                                            {opt.desc}
+                                        </span>
+                                        {visibility === opt.id && (
+                                            <motion.div layoutId="vis-indicator" className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                                                <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                            </motion.div>
+                                        )}
+                                    </button>
+                                ))}
                             </div>
+                        </div>
 
+                        <div className="flex items-center justify-end pt-2">
                             <button 
                                 type="submit"
                                 disabled={!eventName.trim() || isSubmitting}
@@ -324,10 +346,29 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                     </form>
                     
                     {profile?.role !== 'admin' && profile?.role !== 'super_manager' && profile?.role !== 'manager' && (
-                        <div className="mt-6 p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-3">
-                            <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest leading-relaxed">
-                                Note: Your post will be visible to everyone after it is reviewed by our community moderators.
+                        <div className={`mt-6 p-4 border rounded-2xl flex items-start gap-3 ${
+                            visibility === 'private' 
+                                ? 'bg-rose-500/5 border-rose-500/10' 
+                                : visibility === 'campus' 
+                                    ? 'bg-blue-500/5 border-blue-500/10' 
+                                    : 'bg-amber-500/5 border-amber-500/10'
+                        }`}>
+                            <AlertTriangle size={16} className={`shrink-0 mt-0.5 ${
+                                visibility === 'private' ? 'text-rose-500' : visibility === 'campus' ? 'text-blue-500' : 'text-amber-500'
+                            }`} />
+                            <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${
+                                visibility === 'private' 
+                                    ? 'text-rose-600 dark:text-rose-400' 
+                                    : visibility === 'campus' 
+                                        ? 'text-blue-600 dark:text-blue-400' 
+                                        : 'text-amber-600 dark:text-amber-400'
+                            }`}>
+                                {visibility === 'private' 
+                                    ? 'Note: This post will only be visible to you. No one else can see it.'
+                                    : visibility === 'campus'
+                                        ? 'Note: Your post will be visible only to your campus community after it is reviewed by moderators.'
+                                        : 'Note: Your post will be visible to everyone across all campuses after it is reviewed by our community moderators.'
+                                }
                             </p>
                         </div>
                     )}
