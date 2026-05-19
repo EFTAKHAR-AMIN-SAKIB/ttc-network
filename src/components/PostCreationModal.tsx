@@ -84,6 +84,23 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
         if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
     };
 
+    // Reset state when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setEventName("");
+            setDescription("");
+            setShareLink("");
+            setVisibility("public");
+            setType("event");
+            setSelectedClubId("");
+            setSelectedClubName("");
+            setLinkPreview(null);
+            setThumbnailFile(null);
+            setThumbnailPreview(null);
+            if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+        }
+    }, [isOpen]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!eventName.trim() || isSubmitting) return;
