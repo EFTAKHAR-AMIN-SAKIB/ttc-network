@@ -8,6 +8,7 @@ import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Penc
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import { timeAgo } from "@/components/Social/SocialUtils";
 
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 
@@ -80,14 +81,14 @@ export default function StoryCard({ story, priority, onEdit, onDelete }: StoryCa
              <div className="min-w-0">
                 <h4 className="text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
                 <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                  <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}
+                  <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && ` • ${timeAgo(story.timestamp)}`}
                 </p>
              </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700">
               <Clock className="w-3 h-3 text-primary" />
-              {story.readingTimeMinutes} MIN
+              {story.readingTimeMinutes} MIN READ
             </div>
             {(story.visibility === "campus" || story.visibility === "college_only") && (
               <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2.5 py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">

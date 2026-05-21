@@ -29,6 +29,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
 
     const currentReactionList = (post.reactedBy?.inspired || []) as string[];
     const isAlreadyFresh = currentUserId ? currentReactionList.includes(currentUserId) : false;
+    const isNoThumbnail = !post.thumbnailUrl;
 
     // Auto-expand comments if the URL points to this post
     useEffect(() => {
@@ -127,15 +128,32 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                             >
                                 <MessageSquare size={18} />
                             </button>
-                            <a 
+                            <motion.a 
                                 href={post.fileUrl || post.link} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 hover:bg-primary hover:text-white hover:shadow-lg transition-all"
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                                    isNoThumbnail 
+                                        ? "bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/95" 
+                                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-primary hover:text-white hover:shadow-lg"
+                                }`}
                                 title={post.fileUrl ? `Download: ${post.fileName || 'file'}` : "Open link"}
+                                animate={isNoThumbnail ? {
+                                    scale: [1, 1.08, 1],
+                                    boxShadow: [
+                                        "0 4px 6px -1px rgba(26, 86, 219, 0.2), 0 2px 4px -2px rgba(26, 86, 219, 0.2)",
+                                        "0 0 0 6px rgba(26, 86, 219, 0.4)",
+                                        "0 4px 6px -1px rgba(26, 86, 219, 0.2), 0 2px 4px -2px rgba(26, 86, 219, 0.2)"
+                                    ]
+                                } : {}}
+                                transition={isNoThumbnail ? {
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                } : {}}
                             >
                                 {post.fileUrl ? <Download size={18} /> : <ExternalLink size={18} />}
-                            </a>
+                            </motion.a>
                             {(currentUserId === post.authorId || isAdmin) && onEdit && (
                                 <button
                                     onClick={() => onEdit(post)}

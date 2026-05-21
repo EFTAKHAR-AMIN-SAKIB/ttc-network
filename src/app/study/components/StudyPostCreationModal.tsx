@@ -564,7 +564,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
 
                                 {/* Thumbnail Upload */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Add Media / Image (Optional)</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Add Thumbnail (Optional)</label>
                                     <input 
                                         ref={thumbnailInputRef}
                                         type="file"
@@ -593,7 +593,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                                             className="w-full flex items-center justify-center gap-3 py-5 bg-gray-50 dark:bg-black/20 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-primary/30 rounded-2xl transition-all text-gray-400 hover:text-primary"
                                         >
                                             <ImageIcon size={18} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Add Media / Image</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Add Thumbnail</span>
                                         </button>
                                     )}
                                 </div>
