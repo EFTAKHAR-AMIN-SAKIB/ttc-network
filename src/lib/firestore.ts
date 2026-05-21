@@ -314,6 +314,10 @@ export interface FirestoreStudyPost {
     privacy?: "public" | "campus" | "college_only";
     visibility?: "public" | "campus" | "college_only" | "private";
     thumbnailUrl?: string; // Optional clickable thumbnail image
+    fileUrl?: string;      // R2 upload URL
+    fileName?: string;     // R2 upload original name
+    fileSize?: number;     // R2 upload size in bytes
+    fileType?: string;     // R2 upload MIME type
     collegeId: string;
     collegeName?: string;
     authorId: string;
@@ -3345,7 +3349,7 @@ export const rejectStudyPost = async (id: string, reason: string = "") => {
 };
 
 export const deleteStudyPost = async (id: string) => {
-    // Clean up thumbnail from Cloudinary before deleting
+    // Clean up media files before deleting
     try {
         const postSnap = await getDoc(doc(getDb(), "studyPosts", id));
         if (postSnap.exists()) {
@@ -3353,9 +3357,12 @@ export const deleteStudyPost = async (id: string) => {
             if (data.thumbnailUrl) {
                 await deleteFromCloudinary(data.thumbnailUrl);
             }
+            if (data.fileUrl) {
+                await deleteFromCloudinary(data.fileUrl);
+            }
         }
     } catch (err) {
-        console.warn("[Firestore] Error cleaning up study post thumbnail:", err);
+        console.warn("[Firestore] Error cleaning up study post files:", err);
     }
     await deleteDoc(doc(getDb(), "studyPosts", id));
     await deleteAllCommentsForContent(id);

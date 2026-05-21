@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2, Download } from "lucide-react";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
@@ -70,7 +70,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                 {/* Thumbnail Display */}
                 {post.thumbnailUrl && (
                     <a 
-                        href={post.link} 
+                        href={post.fileUrl || post.link} 
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="block mb-6 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all group/thumb"
@@ -78,7 +78,11 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                         <div className="relative aspect-video">
                             <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover group-hover/thumb:scale-[1.03] transition-transform duration-500" />
                             <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center">
-                                <ExternalLink className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
+                                {post.fileUrl ? (
+                                    <Download className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
+                                ) : (
+                                    <ExternalLink className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
+                                )}
                             </div>
                         </div>
                     </a>
@@ -124,12 +128,13 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                 <MessageSquare size={18} />
                             </button>
                             <a 
-                                href={post.link} 
+                                href={post.fileUrl || post.link} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 hover:bg-primary hover:text-white hover:shadow-lg transition-all"
+                                title={post.fileUrl ? `Download: ${post.fileName || 'file'}` : "Open link"}
                             >
-                                <ExternalLink size={18} />
+                                {post.fileUrl ? <Download size={18} /> : <ExternalLink size={18} />}
                             </a>
                             {(currentUserId === post.authorId || isAdmin) && onEdit && (
                                 <button

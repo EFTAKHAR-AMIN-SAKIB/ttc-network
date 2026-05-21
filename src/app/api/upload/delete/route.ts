@@ -35,6 +35,38 @@ function getS3(): S3Client {
     return _s3;
 }
 
+const STUDY_R2 = {
+    accessKeyId: process.env.STUDY_R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.STUDY_R2_SECRET_ACCESS_KEY || "",
+    endpoint: process.env.STUDY_R2_ENDPOINT || "",
+    bucket: process.env.STUDY_R2_BUCKET_NAME || "",
+    publicUrl: process.env.STUDY_R2_PUBLIC_URL || "",
+};
+
+let _studyS3: S3Client | null = null;
+function getStudyS3(): S3Client {
+    if (_studyS3) return _studyS3;
+    
+    let endpoint = STUDY_R2.endpoint;
+    try {
+        const urlObj = new URL(endpoint);
+        endpoint = `${urlObj.protocol}//${urlObj.host}`;
+    } catch {
+        // use as is
+    }
+
+    _studyS3 = new S3Client({
+        region: "auto",
+        endpoint: endpoint,
+        credentials: {
+            accessKeyId: STUDY_R2.accessKeyId,
+            secretAccessKey: STUDY_R2.secretAccessKey,
+        },
+        forcePathStyle: true,
+    });
+    return _studyS3;
+}
+
 // ── Cloudinary (legacy) ───────────────────────────
 
 cloudinary.config({
@@ -87,12 +119,21 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: "Invalid R2 URL" }, { status: 400 });
             }
 
-            await getS3().send(new DeleteObjectCommand({
-                Bucket: R2.bucket,
-                Key: key,
-            }));
+            const isStudyFile = STUDY_R2.publicUrl && url.includes(new URL(STUDY_R2.publicUrl).hostname);
 
-            return NextResponse.json({ success: true, provider: "r2" });
+            if (isStudyFile) {
+                await getStudyS3().send(new DeleteObjectCommand({
+                    Bucket: STUDY_R2.bucket,
+                    Key: key,
+                }));
+            } else {
+                await getS3().send(new DeleteObjectCommand({
+                    Bucket: R2.bucket,
+                    Key: key,
+                }));
+            }
+
+            return NextResponse.json({ success: true, provider: "r2", isStudyFile });
         }
 
         // ─── Cloudinary URL ──────────────────────
