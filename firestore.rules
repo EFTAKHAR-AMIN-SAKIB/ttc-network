@@ -167,7 +167,7 @@ service cloud.firestore {
     }
 
     match /stories/{storyId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('stories');
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 

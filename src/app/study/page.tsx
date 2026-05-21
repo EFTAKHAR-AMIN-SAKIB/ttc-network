@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     BookOpen, Video, Plus, Search, Filter, 
@@ -27,6 +28,7 @@ import { ReactionBtn } from "@/components/Social/ReactionSystem";
 
 export default function StudyPage() {
     const { user, profile } = useAuth();
+    const router = useRouter();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +40,16 @@ export default function StudyPage() {
     const [heroSettings, setHeroSettings] = useState<StudyHeroSettings | null>(null);
     const [editingPost, setEditingPost] = useState<(FirestoreStudyPost & { id: string }) | null>(null);
     const { confirm, setIsLoading, close } = useConfirm();
+
+    const handleShareClick = () => {
+        if (!user) {
+            showToast("Please log in to share study resources.", "error");
+            router.push("/login");
+            return;
+        }
+        setEditingPost(null);
+        setIsModalOpen(true);
+    };
 
     useEffect(() => {
         const unsubPosts = subscribeStudyPosts((data) => {
@@ -129,10 +141,7 @@ export default function StudyPage() {
                 stats={stats} 
                 isVisible={heroSettings?.isVisible}
                 onSearchChange={setSearchTerm} 
-                onShareClick={() => {
-                    setEditingPost(null);
-                    setIsModalOpen(true);
-                }} 
+                onShareClick={handleShareClick} 
             />
 
             <div className="max-w-7xl mx-auto px-6">
@@ -140,7 +149,7 @@ export default function StudyPage() {
                     <div className="flex gap-10">
                         <div className="flex flex-col sm:flex-row items-center gap-4">
                             <button 
-                                onClick={() => { setEditingPost(null); setIsModalOpen(true); }}
+                                onClick={handleShareClick}
                                 className="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 group"
                             >
                                 <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
@@ -195,44 +204,93 @@ export default function StudyPage() {
 
                 {/* Main Content Area */}
                 <div className="relative">
-                    <AnimatePresence mode="wait">
-                        {activeTab === "materials" ? (
-                            <motion.div
-                                key="materials-tab"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="space-y-16"
-                            >
+                    <div className={!user ? "blur-md select-none pointer-events-none transition-all" : ""}>
+                        <AnimatePresence mode="wait">
+                            {activeTab === "materials" ? (
+                                <motion.div
+                                    key="materials-tab"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="space-y-16"
+                                >
 
-                                {/* Shared Materials Grid */}
-                                <section>
-                                    <div className="flex items-center justify-between mb-8">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                                                <LayoutGrid size={20} />
+                                    {/* Shared Materials Grid */}
+                                    <section>
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                                                    <LayoutGrid size={20} />
+                                                </div>
+                                                <h2 className="text-2xl font-black text-navy-900 dark:text-gray-100 tracking-tight">Shared Resources</h2>
                                             </div>
-                                            <h2 className="text-2xl font-black text-navy-900 dark:text-gray-100 tracking-tight">Shared Resources</h2>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort by:</span>
+                                                <select className="bg-transparent text-[10px] font-black uppercase tracking-widest text-primary outline-none cursor-pointer">
+                                                    <option>Latest</option>
+                                                    <option>Popular</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort by:</span>
-                                            <select className="bg-transparent text-[10px] font-black uppercase tracking-widest text-primary outline-none cursor-pointer">
-                                                <option>Latest</option>
-                                                <option>Popular</option>
-                                            </select>
+
+                                        {loading ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                                {[...Array(6)].map((_, i) => (
+                                                    <div key={i} className="h-80 rounded-[2.5rem] bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                                                ))}
+                                            </div>
+                                        ) : filteredMaterials.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                                {filteredMaterials.map(post => (
+                                                    <StudyNoteCard 
+                                                        key={post.id} 
+                                                        post={post} 
+                                                        currentUserId={user?.uid} 
+                                                        isAdmin={profile?.role === 'admin' || profile?.role === 'super_manager'}
+                                                        onEdit={(p) => {
+                                                            setEditingPost(p);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                        onDelete={handleDeleteStudyPost}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
+                                                <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6">
+                                                    <Search size={24} className="text-gray-300" />
+                                                </div>
+                                                <h3 className="text-xl font-bold mb-2">No materials found</h3>
+                                                <p className="text-gray-400 text-sm">Try adjusting your search or share the first resource!</p>
+                                            </div>
+                                        )}
+                                    </section>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="schedule-tab"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="space-y-12"
+                                >
+                                    <div className="flex items-center gap-4 mb-8">
+                                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                                            <Video size={20} />
                                         </div>
+                                        <h2 className="text-2xl font-black text-navy-900 dark:text-gray-100 tracking-tight">UPCOMING LIVE PREP</h2>
                                     </div>
 
                                     {loading ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                            {[...Array(6)].map((_, i) => (
-                                                <div key={i} className="h-80 rounded-[2.5rem] bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                            {[...Array(2)].map((_, i) => (
+                                                <div key={i} className="h-64 rounded-[3rem] bg-gray-100 dark:bg-gray-800 animate-pulse" />
                                             ))}
                                         </div>
-                                    ) : filteredMaterials.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                            {filteredMaterials.map(post => (
-                                                <StudyNoteCard 
+                                    ) : filteredSchedule.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                            {filteredSchedule.map(post => (
+                                                <StudyScheduleCard 
                                                     key={post.id} 
                                                     post={post} 
                                                     currentUserId={user?.uid} 
@@ -248,63 +306,53 @@ export default function StudyPage() {
                                     ) : (
                                         <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
                                             <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6">
-                                                <Search size={24} className="text-gray-300" />
+                                                <Video size={24} className="text-gray-300" />
                                             </div>
-                                            <h3 className="text-xl font-bold mb-2">No materials found</h3>
-                                            <p className="text-gray-400 text-sm">Try adjusting your search or share the first resource!</p>
+                                            <h3 className="text-xl font-bold mb-2">No live classes scheduled</h3>
+                                            <p className="text-gray-400 text-sm">Check back later or host a session yourself!</p>
                                         </div>
                                     )}
-                                </section>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="schedule-tab"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="space-y-12"
-                            >
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                                        <Video size={20} />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-navy-900 dark:text-gray-100 tracking-tight">UPCOMING LIVE PREP</h2>
-                                </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
-                                {loading ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        {[...Array(2)].map((_, i) => (
-                                            <div key={i} className="h-64 rounded-[3rem] bg-gray-100 dark:bg-gray-800 animate-pulse" />
-                                        ))}
-                                    </div>
-                                ) : filteredSchedule.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        {filteredSchedule.map(post => (
-                                            <StudyScheduleCard 
-                                                key={post.id} 
-                                                post={post} 
-                                                currentUserId={user?.uid} 
-                                                isAdmin={profile?.role === 'admin' || profile?.role === 'super_manager'}
-                                                onEdit={(p) => {
-                                                    setEditingPost(p);
-                                                    setIsModalOpen(true);
-                                                }}
-                                                onDelete={handleDeleteStudyPost}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
-                                        <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6">
-                                            <Video size={24} className="text-gray-300" />
-                                        </div>
-                                        <h3 className="text-xl font-bold mb-2">No live classes scheduled</h3>
-                                        <p className="text-gray-400 text-sm">Check back later or host a session yourself!</p>
-                                    </div>
-                                )}
+                    {!user && (
+                        <div className="absolute inset-0 z-50 flex items-start justify-center pt-16 pb-20 px-6 bg-gradient-to-b from-transparent via-[#FDF8F3]/70 to-[#FDF8F3] dark:via-[#0c0c10]/70 dark:to-[#0c0c10] backdrop-blur-[2px] pointer-events-auto">
+                            <motion.div 
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                className="max-w-md w-full bg-white/95 dark:bg-[#1a1b23]/95 backdrop-blur-md p-8 sm:p-10 rounded-[2.5rem] border border-gray-200/60 dark:border-gray-800/80 shadow-2xl text-center space-y-6"
+                            >
+                                <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                                    <Lock size={30} className="animate-pulse" />
+                                </div>
+                                <div className="space-y-3">
+                                    <h3 className="text-2xl sm:text-3xl font-black text-navy-900 dark:text-white tracking-tight leading-tight">
+                                        Join to Access Resources
+                                    </h3>
+                                    <p className="text-gray-500 dark:text-gray-400 font-bold text-sm leading-relaxed">
+                                        Log in or create a free account to unlock all B.Ed & M.Ed study materials, class schedules, and community shared notes.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                    <Link 
+                                        href="/login" 
+                                        className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center shadow-lg shadow-indigo-600/20"
+                                    >
+                                        Log In
+                                    </Link>
+                                    <Link 
+                                        href="/register" 
+                                        className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center border border-gray-200/50 dark:border-gray-700/50"
+                                    >
+                                        Register
+                                    </Link>
+                                </div>
                             </motion.div>
-                        )}
-                    </AnimatePresence>
+                        </div>
+                    )}
                 </div>
             </div>
 
