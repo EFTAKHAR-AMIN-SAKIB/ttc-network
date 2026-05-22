@@ -273,7 +273,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
 
                         {/* Thumbnail Upload */}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Thumbnail Image (Optional)</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Add Thumbnail(Optional)</label>
                             <input 
                                 ref={thumbnailInputRef}
                                 type="file"

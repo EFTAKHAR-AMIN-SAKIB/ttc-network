@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /**
@@ -90,17 +90,45 @@ export function ExpandableText({ text, limit = 160, onTagClick }: { text: string
 export function timeAgo(ts: any) {
     if (!ts) return "";
     let date: Date;
-    if (ts.toDate) {
+    if (ts && typeof ts.toDate === "function") {
         date = ts.toDate();
-    } else if (ts.seconds) {
+    } else if (ts && typeof ts.seconds === "number") {
         date = new Date(ts.seconds * 1000);
+    } else if (ts && typeof ts._seconds === "number") {
+        date = new Date(ts._seconds * 1000);
     } else {
         date = new Date(ts);
     }
+
+    if (isNaN(date.getTime())) {
+        return "";
+    }
+
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diff < 60) return "just now";
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
+    const absDiff = Math.abs(diff);
+
+    if (absDiff < 60) return "just now";
+    if (absDiff < 3600) return `${Math.floor(absDiff / 60)}m ago`;
+    if (absDiff < 86400) return `${Math.floor(absDiff / 3600)}h ago`;
+    return `${Math.floor(absDiff / 86400)}d ago`;
+}
+
+/**
+ * TimeAgo Component
+ * Prevents Next.js hydration mismatches by performing relative time calculation 
+ * exclusively on the client-side after mounting.
+ */
+export function TimeAgo({ ts, className }: { ts: any; className?: string }) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return <span className={className}>...</span>;
+    }
+
+    return <span className={className}>{timeAgo(ts)}</span>;
 }

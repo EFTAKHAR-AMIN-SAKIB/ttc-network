@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { ReactionBtn } from "./ReactionSystem";
-import { ExpandableText, timeAgo } from "./SocialUtils";
+import { ExpandableText, TimeAgo } from "./SocialUtils";
 import Link from "next/link";
 
 /**
@@ -89,7 +89,7 @@ export function CommentItem({
                                 {comment.userRole}
                             </span>
                         </div>
-                        <span className="text-[10px] text-gray-400 shrink-0">{timeAgo(comment.createdAt)}</span>
+                        <span className="text-[10px] text-gray-400 shrink-0"><TimeAgo ts={comment.createdAt} /></span>
                     </div>
                     <ExpandableText text={comment.text} limit={150} />
 
@@ -105,7 +105,13 @@ export function CommentItem({
                             />
                         </div>
                         <button 
-                            onClick={() => onReply(comment.userName, comment.parentId || comment.id)}
+                            onClick={() => {
+                                if (!user) {
+                                    showToast("Please log in or register to reply.", "info");
+                                } else {
+                                    onReply(comment.userName, comment.parentId || comment.id);
+                                }
+                            }}
                             className="text-[10px] font-black uppercase tracking-tighter text-gray-400 hover:text-primary transition-colors flex items-center gap-1"
                         >
                             <Reply size={12} /> Reply
@@ -222,58 +228,80 @@ export function CommentSystem({
 
             {/* Input Wrapper */}
             <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-800/20 rounded-3xl border border-gray-100 dark:border-gray-800">
-                <form onSubmit={handleSubmit}>
-                    <AnimatePresence>
-                        {replyTo && (
-                            <motion.div 
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                                className="flex items-center justify-between bg-white dark:bg-gray-800 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-700 mb-2"
-                            >
-                                <div className="flex items-center gap-2 text-[10px] uppercase font-black text-gray-500">
-                                    <Reply size={12} className="text-primary" /> 
-                                    <span>Replying to <span className="text-primary">{replyTo.userName}</span></span>
-                                </div>
-                                <button type="button" onClick={() => setReplyTo(null)} className="text-[10px] font-black text-gray-400 hover:text-red-500">Cancel</button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                    <div className="flex items-start gap-3">
-                        <div className="shrink-0 pt-1">
-                             <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse overflow-hidden">
-                                {user?.photoURL && <img src={user.photoURL} alt="" className="w-full h-full object-cover" />}
-                             </div>
-                        </div>
-                        <div className="flex-1 relative">
-                            <textarea
-                                ref={inputRef}
-                                value={text}
-                                onChange={(e) => setText(e.target.value)}
-                                placeholder={placeholder}
-                                className="w-full bg-transparent border-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-200"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSubmit();
-                                    }
-                                }}
-                            />
-                            <div className="flex items-center justify-between mt-2">
-                                <span className="text-[10px] font-bold text-gray-400">Shift + Enter for new line</span>
-                                <button
-                                    type="submit"
-                                    disabled={!text.trim() || isSubmitting}
-                                    className={`p-2 rounded-xl transition-all ${
-                                        text.trim() ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                                    } disabled:opacity-50`}
+                {user ? (
+                    <form onSubmit={handleSubmit}>
+                        <AnimatePresence>
+                            {replyTo && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="flex items-center justify-between bg-white dark:bg-gray-800 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-700 mb-2"
                                 >
-                                    <Send size={16} className={isSubmitting ? 'animate-pulse' : ''} />
-                                </button>
+                                    <div className="flex items-center gap-2 text-[10px] uppercase font-black text-gray-500">
+                                        <Reply size={12} className="text-primary" /> 
+                                        <span>Replying to <span className="text-primary">{replyTo.userName}</span></span>
+                                    </div>
+                                    <button type="button" onClick={() => setReplyTo(null)} className="text-[10px] font-black text-gray-400 hover:text-red-500">Cancel</button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        <div className="flex items-start gap-3">
+                            <div className="shrink-0 pt-1">
+                                 <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse overflow-hidden">
+                                    {user?.photoURL && <img src={user.photoURL} alt="" className="w-full h-full object-cover" />}
+                                 </div>
+                            </div>
+                            <div className="flex-1 relative">
+                                <textarea
+                                    ref={inputRef}
+                                    value={text}
+                                    onChange={(e) => setText(e.target.value)}
+                                    placeholder={placeholder}
+                                    className="w-full bg-transparent border-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-200"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSubmit();
+                                        }
+                                    }}
+                                />
+                                <div className="flex items-center justify-between mt-2">
+                                    <span className="text-[10px] font-bold text-gray-400">Shift + Enter for new line</span>
+                                    <button
+                                        type="submit"
+                                        disabled={!text.trim() || isSubmitting}
+                                        className={`p-2 rounded-xl transition-all ${
+                                            text.trim() ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                                        } disabled:opacity-50`}
+                                    >
+                                        <Send size={16} className={isSubmitting ? 'animate-pulse' : ''} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                    </form>
+                ) : (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 px-3">
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            Want to share your thoughts? Log in or register to join the conversation.
+                        </p>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <Link 
+                                href="/login" 
+                                className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all text-center"
+                            >
+                                Log In
+                            </Link>
+                            <Link 
+                                href="/register" 
+                                className="flex-1 sm:flex-none px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-center border border-gray-200/50 dark:border-gray-700/50"
+                            >
+                                Register
+                            </Link>
+                        </div>
                     </div>
-                </form>
+                )}
             </div>
 
             {/* Comments List */}

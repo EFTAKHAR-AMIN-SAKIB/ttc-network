@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ThumbsUp } from "lucide-react";
 import { reactToContent } from "@/lib/firestore";
 import ReactionViewerModal from "./ReactionViewerModal";
+import { useToast } from "@/contexts/ToastContext";
 
 /* ─── Reaction Types (Unified) ─── */
 // ... (rest of imports/types)
@@ -67,6 +68,7 @@ export function ReactionBtn({
     const [showPicker, setShowPicker] = useState(false);
     const [isReacting, setIsReacting] = useState(false);
     const [showViewer, setShowViewer] = useState(false);
+    const { showToast } = useToast();
 
     // Filter used to check current user's reaction
     const userReaction = useMemo(() => {
@@ -95,7 +97,11 @@ export function ReactionBtn({
     const activeReaction = REACTION_TYPES.find(r => r.type === userReaction);
 
     const handleToggleReaction = async (type: string) => {
-        if (!currentUserId || isReacting) return;
+        if (!currentUserId) {
+            showToast("Please log in or register to react.", "info");
+            return;
+        }
+        if (isReacting) return;
         setIsReacting(true);
         setShowPicker(false);
         try {

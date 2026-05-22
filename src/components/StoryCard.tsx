@@ -8,7 +8,7 @@ import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Penc
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { timeAgo } from "@/components/Social/SocialUtils";
+import { TimeAgo } from "@/components/Social/SocialUtils";
 
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 
@@ -81,7 +81,12 @@ export default function StoryCard({ story, priority, onEdit, onDelete }: StoryCa
              <div className="min-w-0">
                 <h4 className="text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
                 <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                  <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && ` • ${timeAgo(story.timestamp)}`}
+                  <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && (
+                    <>
+                      {" • "}
+                      <TimeAgo ts={story.timestamp} />
+                    </>
+                  )}
                 </p>
              </div>
           </div>

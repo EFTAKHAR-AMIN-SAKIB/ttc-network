@@ -8,7 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import PostCard from "@/components/PostCard";
 import StoryCard from "@/components/StoryCard";
-import { timeAgo } from "@/components/Social/SocialUtils";
+import { TimeAgo } from "@/components/Social/SocialUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
     getAllUsers, 
@@ -173,7 +173,7 @@ function SearchContent() {
                 <div className="flex items-center gap-2 text-xs text-gray-400 font-bold uppercase tracking-wider">
                     <span className="text-gray-600 dark:text-gray-300 truncate max-w-[200px]">{highlight(notice.college)}</span>
                     <span>•</span>
-                    <span>{timeAgo(notice.date)}</span>
+                    <span><TimeAgo ts={notice.date} /></span>
                 </div>
             </div>
         </Link>

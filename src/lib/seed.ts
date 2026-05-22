@@ -40,7 +40,7 @@ const collegeProfiles: Record<string, {
     clubs: { name: string; icon: string; members: number; advisor: string; membersList: { name: string; role: string; batch: string; }[] }[];
 }> = {
     dhaka: {
-        shortName: "TTC Dhaka",
+        shortName: "Govt. Teachers' Training College, Dhaka",
         location: "Dhaka, Bangladesh",
         principal: "Prof. Dr. Mohammad Ali",
         principalContact: "+880-2-9661373",
@@ -66,7 +66,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     feni: {
-        shortName: "TTC Feni",
+        shortName: "Govt. Teachers' Training College, Feni",
         location: "Feni, Bangladesh",
         principal: "Prof. Md. Abdul Motaleb",
         principalContact: "+880-331-63456",
@@ -89,7 +89,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     rajshahi: {
-        shortName: "TTC Rajshahi",
+        shortName: "Govt. Teachers' Training College, Rajshahi",
         location: "Rajshahi, Bangladesh",
         principal: "Prof. Dr. Abdul Karim",
         principalContact: "+880-721-750345",
@@ -110,7 +110,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     cumilla: {
-        shortName: "TTC Cumilla",
+        shortName: "Govt. Teachers' Training College, Cumilla",
         location: "Cumilla, Bangladesh",
         principal: "Prof. Md. Rafiqul Islam",
         principalContact: "+880-81-76543",
@@ -130,7 +130,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     sylhet: {
-        shortName: "TTC Sylhet",
+        shortName: "Govt. Teachers' Training College, Sylhet",
         location: "Sylhet, Bangladesh",
         principal: "Prof. Dr. Anwar Hossain",
         principalContact: "+880-821-717890",
@@ -150,7 +150,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     chattagram: {
-        shortName: "TTC Chattagram",
+        shortName: "Govt. Teachers' Training College, Chattagram",
         location: "Chattagram, Bangladesh",
         principal: "Prof. Dr. Jamal Uddin",
         principalContact: "+880-31-619876",
@@ -171,7 +171,7 @@ const collegeProfiles: Record<string, {
     },
     // Remaining 8 colleges with minimal data (user will update via admin)
     rangpur: {
-        shortName: "TTC Rangpur",
+        shortName: "Govt. Teachers' Training College, Rangpur",
         location: "Rangpur, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -187,7 +187,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     khulna: {
-        shortName: "TTC Khulna",
+        shortName: "Govt. Teachers' Training College, Khulna",
         location: "Khulna, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -203,7 +203,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     mymensingh: {
-        shortName: "Women's TTC Mymensingh",
+        shortName: "Govt. Women's Teachers' Training College, Mymensingh",
         location: "Mymensingh, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -218,8 +218,8 @@ const collegeProfiles: Record<string, {
         teachersList: [],
         clubs: [],
     },
-    "mymensingh-general": {
-        shortName: "TTC Mymensingh",
+    mymensingh_coed: {
+        shortName: "Govt. Teachers' Training College, Mymensingh",
         location: "Mymensingh, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -234,8 +234,24 @@ const collegeProfiles: Record<string, {
         teachersList: [],
         clubs: [],
     },
+    bogura: {
+        shortName: "Govt. B.Ed College, Bogura",
+        location: "Bogura, Bangladesh",
+        principal: "To be updated",
+        principalContact: "",
+        teachers: 0,
+        students: 0,
+        classrooms: 0,
+        hostel: false,
+        description: "Established in 2000.",
+        achievements: [],
+        color: "#1A5276",
+        social: { facebook: "", website: "" },
+        teachersList: [],
+        clubs: [],
+    },
     jashore: {
-        shortName: "TTC Jashore",
+        shortName: "Govt. Teachers' Training College, Jashore",
         location: "Jashore, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -251,7 +267,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     barishal: {
-        shortName: "TTC Barishal",
+        shortName: "Shaheed Abdur Rab Serniabat Teachers' Training College, Barishal",
         location: "Barishal, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -267,7 +283,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     faridpur: {
-        shortName: "TTC Faridpur",
+        shortName: "Govt. Teachers' Training College, Faridpur",
         location: "Faridpur, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -283,7 +299,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     pabna: {
-        shortName: "B.Ed College Pabna",
+        shortName: "Govt. B.Ed College, Pabna",
         location: "Pabna, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -308,7 +324,7 @@ const collegeProfiles: Record<string, {
 const faqSeedData = [
     {
         question: "টিটিসি কানেক্ট কী?",
-        answer: "TTC Network হলো বাংলাদেশের ১৪টি সরকারি টিচার্স ট্রেনিং কলেজের শিক্ষার্থী ও শিক্ষকদের জন্য একটি ইউনিফাইড ডিজিটাল প্ল্যাটফর্ম।",
+        answer: "TTC Network হলো বাংলাদেশের ১৫টি সরকারি টিচার্স ট্রেনিং কলেজের শিক্ষার্থী ও শিক্ষকদের জন্য একটি ইউনিফাইড ডিজিটাল প্ল্যাটফর্ম।",
         language: "bengali" as const,
         order: 1,
     },
@@ -320,7 +336,7 @@ const faqSeedData = [
     },
     {
         question: "কোন কোন কলেজ এখানে আছে?",
-        answer: "বাংলাদেশের সকল ১৪টি সরকারি টিটিসি — ঢাকা, ময়মনসিংহ (মহিলা), ময়মনসিংহ (সাধারণ), রাজশাহী, ফেনী, কুমিল্লা, সিলেট, চট্টগ্রাম, রংপুর, খুলনা, যশোর, বরিশাল, ফরিদপুর, এবং পাবনা।",
+        answer: "বাংলাদেশের সকল ১৫টি সরকারি টিটিসি — ঢাকা, ময়মনসিংহ (মহিলা), ময়মনসিংহ (সাধারণ), রাজশাহী, ফেনী, কুমিল্লা, সিলেট, চট্টগ্রাম, রংপুর, খুলনা, বগুড়া, যশোর, বরিশাল, ফরিদপুর, এবং পাবনা।",
         language: "bengali" as const,
         order: 3,
     },

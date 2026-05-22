@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, PenLine, Sparkles, School, Users, Trash2, Shield, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { 
     subscribeStories, deleteStory, type FirestoreStory,
     subscribeModerationCount, subscribeStoryHeroSettings, getTotalUserCount,
@@ -23,6 +23,7 @@ type Story = FirestoreStory & { id: string };
 
 function StoryPageInner() {
     const { user, profile, loading: loadingAuth } = useAuth();
+    const router = useRouter();
     const [stories, setStories] = useState<Story[]>([]);
     const [activeTab, setActiveTab] = useState("all");
     const [loading, setLoading] = useState(true);
@@ -136,7 +137,14 @@ function StoryPageInner() {
                     
                     <div className="flex flex-col sm:flex-row items-center gap-3 justify-center md:justify-start">
                         <button
-                          onClick={() => setShowSubmitModal(true)}
+                          onClick={() => {
+                            if (!user) {
+                              showToast("Please log in or register to share your story.", "info");
+                              router.push("/login?redirect=/story");
+                            } else {
+                              setShowSubmitModal(true);
+                            }
+                          }}
                           className="px-8 py-4 bg-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/20 hover:shadow-red-500/40 transition-all active:scale-95 flex items-center gap-3 animate-pulse-breathe"
                         >
                           <PenLine className="w-6 h-6" />

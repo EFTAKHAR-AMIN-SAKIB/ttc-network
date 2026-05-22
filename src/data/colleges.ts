@@ -4,7 +4,7 @@
  * Admin-editable: Add/remove colleges here and every page updates automatically.
  * When the admin panel is connected to a database, this file becomes a DB read.
  *
- * All 14 Government Teachers' Training Colleges of Bangladesh
+ * All 15 Government Teachers' Training Colleges of Bangladesh
  */
 
 export interface College {
@@ -113,14 +113,24 @@ export const colleges: College[] = [
         hasLogo: false,
     },
     {
-        id: "mymensingh-general",
+        id: "mymensingh_coed",
         name: "Govt. Teachers' Training College, Mymensingh",
         nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ময়মনসিংহ",
         logo: "",
         city: "Mymensingh",
         established: 1948,
-        slug: "mymensingh-general",
+        slug: "mymensingh-coed",
         hasLogo: false,
+    },
+    {
+        id: "bogura",
+        name: "Govt. B.Ed College, Bogura",
+        nameBn: "সরকারি বি.এড কলেজ, বগুড়া",
+        logo: "https://res.cloudinary.com/dqmqvynxo/image/upload/v1775406576/ttc-connect/logos/aoij4zt9ikuemwmvfkqd.jpg",
+        city: "Bogura",
+        established: 2000,
+        slug: "bed-bogura",
+        hasLogo: true,
     },
     {
         id: "jashore",
@@ -165,4 +175,4 @@ export const colleges: College[] = [
 
 ];
 
-export const TOTAL_TTCS = 14;
+export const TOTAL_TTCS = 15;

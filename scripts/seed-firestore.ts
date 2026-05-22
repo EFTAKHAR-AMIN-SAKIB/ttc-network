@@ -49,7 +49,7 @@ const colleges = [
     { id: "rangpur", name: "Govt. Teachers' Training College, Rangpur", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, রংপুর", city: "Rangpur", established: 1882, slug: "ttc-rangpur", logo: "", hasLogo: false },
     { id: "khulna", name: "Govt. Teachers' Training College, Khulna", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, খুলনা", city: "Khulna", established: 1970, slug: "ttc-khulna", logo: "", hasLogo: false },
     { id: "mymensingh", name: "Govt. Women's Teachers' Training College, Mymensingh", nameBn: "সরকারি মহিলা টিচার্স ট্রেনিং কলেজ, ময়মনসিংহ", city: "Mymensingh", established: 1952, slug: "ttc-mymensingh", logo: "", hasLogo: false },
-    { id: "mymensingh-general", name: "Govt. Teachers' Training College, Mymensingh", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ময়মনসিংহ", city: "Mymensingh", established: 1948, slug: "ttc-mymensingh-general", logo: "", hasLogo: false },
+    { id: "bogura", name: "Govt. B.Ed College, Bogura", nameBn: "সরকারি বি.এড কলেজ, বগুড়া", city: "Bogura", established: 2000, slug: "bed-bogura", logo: "https://res.cloudinary.com/dqmqvynxo/image/upload/v1775406576/ttc-connect/logos/aoij4zt9ikuemwmvfkqd.jpg", hasLogo: true },
     { id: "jashore", name: "Govt. Teachers' Training College, Jashore", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, যশোর", city: "Jashore", established: 1963, slug: "ttc-jashore", logo: "", hasLogo: false },
     { id: "barishal", name: "Govt. Teachers' Training College, Barishal", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, বরিশাল", city: "Barishal", established: 1999, slug: "ttc-barishal", logo: "", hasLogo: false },
     { id: "faridpur", name: "Govt. Teachers' Training College, Faridpur", nameBn: "সরকারি টিচার্স ট্রেনিং কলেজ, ফরিদপুর", city: "Faridpur", established: 2005, slug: "ttc-faridpur", logo: "", hasLogo: false },
@@ -65,7 +65,7 @@ const collegeProfiles: Record<string, {
     clubs: { name: string; icon: string; members: number; advisor: string; membersList: string[] }[];
 }> = {
     dhaka: {
-        shortName: "TTC Dhaka", location: "Dhaka, Bangladesh",
+        shortName: "Govt. Teachers' Training College, Dhaka", location: "Dhaka, Bangladesh",
         principal: "Prof. Dr. Mohammad Ali", principalContact: "+880-2-9661373",
         teachers: 45, students: 850, classrooms: 30, hostel: true,
         description: "The oldest and most prestigious TTC in Bangladesh, established on January 6, 1909.",
@@ -82,7 +82,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     feni: {
-        shortName: "TTC Feni", location: "Feni, Bangladesh",
+        shortName: "Govt. Teachers' Training College, Feni", location: "Feni, Bangladesh",
         principal: "Prof. Md. Abdul Motaleb", principalContact: "+880-331-63456",
         teachers: 30, students: 600, classrooms: 22, hostel: true,
         description: "Established in 1962, Govt. TTC Feni is one of the leading teacher training institutions in the Chattogram division.",
@@ -98,7 +98,7 @@ const collegeProfiles: Record<string, {
         ],
     },
     rajshahi: {
-        shortName: "TTC Rajshahi", location: "Rajshahi, Bangladesh",
+        shortName: "Govt. Teachers' Training College, Rajshahi", location: "Rajshahi, Bangladesh",
         principal: "Prof. Dr. Abdul Karim", principalContact: "+880-721-750345",
         teachers: 38, students: 720, classrooms: 25, hostel: true,
         description: "Established in 1955, TTC Rajshahi is one of the most well-known teacher training colleges in northern Bangladesh.",
@@ -108,7 +108,7 @@ const collegeProfiles: Record<string, {
         clubs: [{ name: "Science Club", icon: "🔬", members: 55, advisor: "Prof. Dr. Abdul Karim", membersList: [] }],
     },
     cumilla: {
-        shortName: "TTC Cumilla", location: "Cumilla, Bangladesh",
+        shortName: "Govt. Teachers' Training College, Cumilla", location: "Cumilla, Bangladesh",
         principal: "Prof. Md. Rafiqul Islam", principalContact: "+880-81-76543",
         teachers: 32, students: 580, classrooms: 20, hostel: true,
         description: "Established in 1962, TTC Cumilla is a prominent teacher training college.",
@@ -118,7 +118,7 @@ const collegeProfiles: Record<string, {
         clubs: [{ name: "Cultural Club", icon: "🎭", members: 50, advisor: "Prof. Md. Rafiqul Islam", membersList: [] }],
     },
     sylhet: {
-        shortName: "TTC Sylhet", location: "Sylhet, Bangladesh",
+        shortName: "Govt. Teachers' Training College, Sylhet", location: "Sylhet, Bangladesh",
         principal: "Prof. Dr. Anwar Hossain", principalContact: "+880-821-717890",
         teachers: 35, students: 650, classrooms: 24, hostel: true,
         description: "Established in 1946, one of the oldest teacher training colleges in Bangladesh.",
@@ -128,7 +128,7 @@ const collegeProfiles: Record<string, {
         clubs: [{ name: "Debate Club", icon: "🎙️", members: 40, advisor: "Prof. Dr. Anwar Hossain", membersList: [] }],
     },
     chattagram: {
-        shortName: "TTC Chattagram", location: "Chattagram, Bangladesh",
+        shortName: "Govt. Teachers' Training College, Chattagram", location: "Chattagram, Bangladesh",
         principal: "Prof. Dr. Jamal Uddin", principalContact: "+880-31-619876",
         teachers: 40, students: 780, classrooms: 28, hostel: true,
         description: "Established in 1958, the premier teacher training college in the port city.",
@@ -137,20 +137,20 @@ const collegeProfiles: Record<string, {
         teachersList: [{ name: "Prof. Dr. Jamal Uddin", designation: "Principal", department: "Administration", email: "principal@ttcchattagram.gov.bd", phone: "+880-31-619876" }],
         clubs: [{ name: "Sports Club", icon: "⚽", members: 90, advisor: "Prof. Dr. Jamal Uddin", membersList: [] }],
     },
-    rangpur: { shortName: "TTC Rangpur", location: "Rangpur, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1882.", achievements: [], color: "#2D7D2D", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    khulna: { shortName: "TTC Khulna", location: "Khulna, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1970.", achievements: [], color: "#1A5276", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    mymensingh: { shortName: "Women's TTC Mymensingh", location: "Mymensingh, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1952. The only dedicated women's TTC.", achievements: [], color: "#8E44AD", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    "mymensingh-general": { shortName: "TTC Mymensingh", location: "Mymensingh, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1948.", achievements: [], color: "#1A5276", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    jashore: { shortName: "TTC Jashore", location: "Jashore, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1963.", achievements: [], color: "#1B4F72", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    barishal: { shortName: "TTC Barishal", location: "Barishal, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1999.", achievements: [], color: "#0E6655", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    faridpur: { shortName: "TTC Faridpur", location: "Faridpur, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 2005.", achievements: [], color: "#1A5276", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
-    pabna: { shortName: "B.Ed College Pabna", location: "Pabna, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1998.", achievements: [], color: "#6C3483", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    rangpur: { shortName: "Govt. Teachers' Training College, Rangpur", location: "Rangpur, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1882.", achievements: [], color: "#2D7D2D", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    khulna: { shortName: "Govt. Teachers' Training College, Khulna", location: "Khulna, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1970.", achievements: [], color: "#1A5276", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    mymensingh: { shortName: "Govt. Women's Teachers' Training College, Mymensingh", location: "Mymensingh, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1952. The only dedicated women's TTC.", achievements: [], color: "#8E44AD", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    bogura: { shortName: "Govt. B.Ed College, Bogura", location: "Bogura, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 2000.", achievements: [], color: "#1A5276", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    jashore: { shortName: "Govt. Teachers' Training College, Jashore", location: "Jashore, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1963.", achievements: [], color: "#1B4F72", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    barishal: { shortName: "Shaheed Abdur Rab Serniabat Teachers' Training College, Barishal", location: "Barishal, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1999.", achievements: [], color: "#0E6655", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    faridpur: { shortName: "Govt. Teachers' Training College, Faridpur", location: "Faridpur, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 2005.", achievements: [], color: "#1A5276", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
+    pabna: { shortName: "Govt. B.Ed College, Pabna", location: "Pabna, Bangladesh", principal: "To be updated", principalContact: "", teachers: 0, students: 0, classrooms: 0, hostel: false, description: "Established in 1998.", achievements: [], color: "#6C3483", social: { facebook: "", website: "" }, teachersList: [], clubs: [] },
 };
 
 const faqSeedData = [
     { question: "টিটিসি কানেক্ট কী?", answer: "TTC Network হলো বাংলাদেশের ১৪টি সরকারি টিচার্স ট্রেনিং কলেজের শিক্ষার্থী ও শিক্ষকদের জন্য একটি ইউনিফাইড ডিজিটাল প্ল্যাটফর্ম।", language: "bengali", order: 1 },
     { question: "কারা এই প্ল্যাটফর্ম ব্যবহার করতে পারবে?", answer: "সকল সরকারি টিটিসির বর্তমান শিক্ষার্থী, শিক্ষক, ও প্রাক্তন শিক্ষার্থীরা এই প্ল্যাটফর্ম ব্যবহার করতে পারবেন।", language: "bengali", order: 2 },
-    { question: "কোন কোন কলেজ এখানে আছে?", answer: "বাংলাদেশের সকল ১৪টি সরকারি টিটিসি — ঢাকা, ময়মনসিংহ (মহিলা), ময়মনসিংহ (সাধারণ), রাজশাহী, ফেনী, কুমিল্লা, সিলেট, চট্টগ্রাম, রংপুর, খুলনা, যশোর, বরিশাল, ফরিদপুর, এবং পাবনা।", language: "bengali", order: 3 },
+    { question: "কোন কোন কলেজ এখানে আছে?", answer: "বাংলাদেশের সকল ১৪টি সরকারি টিটিসি ও বি.এড কলেজ — ঢাকা, ময়মনসিংহ (মহিলা), বগুড়া (বি.এড), রাজশাহী, ফেনী, কুমিল্লা, সিলেট, চট্টগ্রাম, রংপুর, খুলনা, যশোর, বরিশাল, ফরিদপুর, এবং পাবনা।", language: "bengali", order: 3 },
     { question: "এই প্ল্যাটফর্ম কি সরকারি?", answer: "না, এটি একটি স্টুডেন্ট-বিল্ট ইনিশিয়েটিভ — ফেনী টিটিসির শিক্ষার্থী সাকিব কর্তৃক নির্মিত ও পরিচালিত।", language: "bengali", order: 4 },
 ];
 

@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
-import { RichText, ExpandableText, timeAgo } from "@/components/Social/SocialUtils";
+import { RichText, ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
 
 interface PostCardProps {
     post: any;
@@ -218,7 +218,7 @@ export default function PostCard({
 
                     {/* Media Edit */}
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Update Media / Image</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Update Thumbnail(Optional)</label>
                         <div className="relative group/media min-h-[160px] rounded-3xl border-2 border-dashed border-gray-100 dark:border-gray-800 hover:border-primary/50 transition-all flex items-center justify-center overflow-hidden bg-gray-50/50 dark:bg-white/5">
                             {editThumbnailPreview ? (
                                 <div className="relative w-full h-full group">
@@ -321,7 +321,7 @@ export default function PostCard({
                         <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                             <span className="flex items-center gap-1"><MapPin size={8} /> {post.collegeName}</span>
                             <span>•</span>
-                            <span>{timeAgo(post.timestamp)}</span>
+                            <span><TimeAgo ts={post.timestamp} /></span>
                             {post.visibility === "campus" && (
                                 <span className="flex items-center gap-1 text-primary"><School size={8} /> Campus Only</span>
                             )}

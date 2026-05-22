@@ -324,7 +324,7 @@ export default function OnboardingPage() {
                     <motion.div key="3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-10">
                         <div>
                            <h2 className="text-3xl font-black">Choose your college</h2>
-                           <p className="text-gray-400 font-bold mt-1 text-sm">We only support the 14 Govt TTCs of Bangladesh.</p>
+                           <p className="text-gray-400 font-bold mt-1 text-sm">We only support the 15 Govt TTCs of Bangladesh.</p>
                         </div>
 
                         <div className="space-y-3 max-h-64 overflow-y-auto pr-2 no-scrollbar">

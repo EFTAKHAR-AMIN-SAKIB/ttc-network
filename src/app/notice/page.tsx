@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import ImageLightbox from "@/components/ImageLightbox";
 import {
     Pin,
     Calendar,
@@ -22,7 +23,7 @@ import {
     Shield
 } from "lucide-react";
 import { 
-    subscribeNotices, createNotice, updateNoticeStatus, getColleges, updateNotice, deleteNotice, subscribeModerationCount, type FirestoreNotice 
+    subscribeNotices, createNotice, getColleges, updateNotice, deleteNotice, subscribeModerationCount, type FirestoreNotice 
 } from "@/lib/firestore";
 import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
@@ -318,7 +319,7 @@ function PostNoticeModal({
                     <div>
                         <label className="text-xs font-bold block mb-1" style={{ color: "var(--text-secondary)" }}>
                             <ImageIcon size={12} className="inline mr-1" />
-                            Add Media / Image (optional)
+                            Add Thumbnail(Optional)
                         </label>
                         <input
                             ref={thumbnailInputRef}
@@ -343,7 +344,7 @@ function PostNoticeModal({
                                 onClick={() => thumbnailInputRef.current?.click()}
                                 className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/30 rounded-xl transition-all text-gray-400 hover:text-primary text-xs font-bold"
                             >
-                                <ImageIcon size={16} /> Click to add media / image
+                                <ImageIcon size={16} /> Click to add thumbnail
                             </button>
                         )}
                     </div>
@@ -375,6 +376,7 @@ export default function NoticePage() {
     const [showPostModal, setShowPostModal] = useState(false);
     const [showModeration, setShowModeration] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
+    const [selectedImageForLightbox, setSelectedImageForLightbox] = useState<string | null>(null);
 
     // Edit state
     const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
@@ -727,12 +729,13 @@ export default function NoticePage() {
                                         initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.05 }}
-                                        className={`relative rounded-2xl p-5 border shadow-sm card-hover ${notice.isUrgent
-                                            ? "border-l-4 border-l-red-500"
-                                            : notice.isPinned
-                                                ? "border-l-4 border-l-accent"
-                                                : ""
-                                            }`}
+                                        className={`relative rounded-2xl p-6 border shadow-md hover:shadow-xl transition-all duration-300 ${
+                                            notice.isUrgent
+                                                ? "bg-gradient-to-br from-[var(--card-bg)] to-red-500/[0.01] dark:to-red-500/[0.03] border-l-4 border-l-red-500 border-red-500/20"
+                                                : notice.isPinned
+                                                    ? "bg-gradient-to-br from-[var(--card-bg)] to-indigo-500/[0.01] dark:to-indigo-500/[0.03] border-l-4 border-l-accent border-indigo-500/20"
+                                                    : "hover:border-slate-300 dark:hover:border-slate-700"
+                                        }`}
                                         style={{
                                             background: "var(--card-bg)",
                                             borderColor: notice.isUrgent ? undefined : notice.isPinned ? undefined : "var(--card-border)",
@@ -808,7 +811,7 @@ export default function NoticePage() {
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Programme</label>
                                                                 <select 
                                                                     value={editProgramme}
-                                                                    onChange={(e) => setEditProgramme(e.target.value as any)}
+                                                                    onChange={(e) => setEditProgramme(e.target.value as "BEd" | "BEdHonours" | "MEd" | "Both" | "All")}
                                                                     className="w-full px-4 py-2.5 rounded-2xl border text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
                                                                     style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
                                                                 >
@@ -821,7 +824,7 @@ export default function NoticePage() {
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Visibility</label>
                                                                 <select 
                                                                     value={editVisibility}
-                                                                    onChange={(e) => setEditVisibility(e.target.value as any)}
+                                                                    onChange={(e) => setEditVisibility(e.target.value as "public" | "campus" | "private")}
                                                                     className="w-full px-4 py-2.5 rounded-2xl border text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
                                                                     style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
                                                                 >
@@ -863,7 +866,7 @@ export default function NoticePage() {
 
                                                         <div className="space-y-4 pt-2">
                                                             <div className="flex items-center justify-between">
-                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Media / Image</label>
+                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Thumbnail(Optional)</label>
                                                                 <button 
                                                                     onClick={() => editThumbnailInputRef.current?.click()}
                                                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
@@ -951,48 +954,82 @@ export default function NoticePage() {
                                                         <h3 className="text-base font-bold mt-2" style={{ color: "var(--text-primary)" }}>
                                                             {notice.title}
                                                         </h3>
-                                                        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                                                        <p className="text-sm mt-2.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                                                             {notice.body}
                                                         </p>
+                                                        
+                                                        {/* Image Preview Container */}
                                                         {notice.thumbnailUrl && (
-                                                            <a href={notice.attachmentUrl || "#"} target="_blank" rel="noopener noreferrer" className="block mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:opacity-90 transition-opacity bg-gray-50 dark:bg-black/20">
-                                                                <img src={notice.thumbnailUrl} alt={notice.title} className="w-full h-auto max-h-[500px] object-contain" />
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setSelectedImageForLightbox(notice.thumbnailUrl || null)}
+                                                                className="group relative block mt-4 w-full max-w-xl rounded-2xl overflow-hidden border bg-gray-50 dark:bg-black/20 transition-all duration-300 hover:shadow-md hover:scale-[1.005] cursor-zoom-in text-left"
+                                                                style={{ borderColor: "var(--card-border)" }}
+                                                            >
+                                                                <div className="h-56 sm:h-64 w-full relative flex items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-900/50">
+                                                                    <img 
+                                                                        src={notice.thumbnailUrl} 
+                                                                        alt={notice.title} 
+                                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/40 transition-all duration-300 flex flex-col items-center justify-center">
+                                                                        <div className="px-4 py-2 rounded-full bg-slate-900/85 backdrop-blur-md border border-white/10 text-white flex items-center gap-2 text-xs font-black uppercase tracking-widest shadow-lg opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                                                                            <Search size={14} className="animate-pulse" />
+                                                                            Click to zoom & read
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-black tracking-wider text-white/90 uppercase border border-white/10">
+                                                                        Notice Document
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        )}
+
+                                                        {/* PDF/Link Attachment Block */}
+                                                        {notice.attachmentUrl && (
+                                                            <a 
+                                                                href={notice.attachmentUrl} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                className="group flex items-center gap-3 mt-4 max-w-md p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-900/10 hover:bg-slate-100 dark:hover:bg-slate-900/30 transition-all border-dashed"
+                                                                style={{ borderColor: "var(--card-border)" }}
+                                                            >
+                                                                <div className="p-2.5 rounded-lg bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform">
+                                                                    <FileText size={20} />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-xs font-black uppercase tracking-widest" style={{ color: "var(--text-primary)" }}>
+                                                                        PDF Notice Attachment
+                                                                    </h4>
+                                                                    <p className="text-[10px] font-bold mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                                                                        Open document in new tab
+                                                                    </p>
+                                                                </div>
                                                             </a>
                                                         )}
                                                     </div>
                                                 )}
 
-                                                <div className="flex flex-wrap items-center gap-4 mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                                                    <span className="flex items-center gap-1">
+                                                <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 text-xs" style={{ color: "var(--text-muted)" }}>
+                                                    <span className="flex items-center gap-1.5">
                                                         <User size={12} />
                                                         {notice.authorId ? (
-                                                            <Link href={`/profile/${notice.authorId}`} className="hover:underline hover:text-primary transition-colors relative z-20">
+                                                            <Link href={`/profile/${notice.authorId}`} className="hover:underline hover:text-primary transition-colors relative z-20 font-medium">
                                                                 {notice.postedBy}
                                                             </Link>
                                                         ) : (
-                                                            notice.postedBy
+                                                            <span className="font-medium">{notice.postedBy}</span>
                                                         )}
                                                     </span>
-                                                    <span className="flex items-center gap-1">
+                                                    <span className="flex items-center gap-1.5">
                                                         <Calendar size={12} />
                                                         {formatDate(notice.date)}
                                                     </span>
                                                     {notice.approvedByName && (
-                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                            <User size={12} />
+                                                        <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-medium">
+                                                            <Shield size={12} />
                                                             Approved by {notice.approvedByName}
                                                         </span>
-                                                    )}
-                                                    {notice.attachmentUrl && (
-                                                        <a
-                                                            href={notice.attachmentUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center gap-1 text-primary hover:underline"
-                                                        >
-                                                            <FileText size={12} />
-                                                            PDF Attachment
-                                                        </a>
                                                     )}
                                                 </div>
                                             </div>
@@ -1050,6 +1087,14 @@ export default function NoticePage() {
                     profile={profile}
                 />
             )}
+
+            {/* Lightbox Modal */}
+            <ImageLightbox
+                isOpen={!!selectedImageForLightbox}
+                src={selectedImageForLightbox}
+                alt="Notice Attachment"
+                onClose={() => setSelectedImageForLightbox(null)}
+            />
         </div>
     );
 }
