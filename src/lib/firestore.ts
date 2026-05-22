@@ -434,6 +434,10 @@ export interface FirestoreUser {
     banReason?: string;
     badges?: any[];
     achievementsList?: any[];
+    bioStyle?: string;
+    bioFontSize?: string;
+    favoriteQuote?: string;
+    favoriteQuoteAuthor?: string;
     createdAt: Timestamp | null;
 }
 

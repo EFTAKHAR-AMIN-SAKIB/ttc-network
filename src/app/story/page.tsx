@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, PenLine, Sparkles, School, Users, Trash2, Shield, Plus, Loader2 } from "lucide-react";
+import { BookOpen, PenLine, Sparkles, School, Users, Shield, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { 
@@ -217,31 +217,72 @@ function StoryPageInner() {
                 />
               </div>
 
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, i) => <StorySkeleton key={i} />)}
+              <div className="relative">
+                <div className={!user ? "blur-md select-none pointer-events-none transition-all" : ""}>
+                  {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {[...Array(6)].map((_, i) => <StorySkeleton key={i} />)}
+                    </div>
+                  ) : filteredStories.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredStories.map((story) => (
+                        <StoryCard 
+                            key={story.id} 
+                            story={story} 
+                            onEdit={(s) => {
+                                setEditingStory(s);
+                                setShowSubmitModal(true);
+                            }}
+                            onDelete={handleDeleteStory}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 bg-white/50 dark:bg-gray-900/50 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800">
+                      <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-xl font-bold text-gray-600">No stories found in this category</h3>
+                      <button onClick={() => setActiveTab("all")} className="mt-4 text-primary font-bold hover:underline">View all stories</button>
+                    </div>
+                  )}
                 </div>
-              ) : filteredStories.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredStories.map((story) => (
-                    <StoryCard 
-                        key={story.id} 
-                        story={story} 
-                        onEdit={(s) => {
-                            setEditingStory(s);
-                            setShowSubmitModal(true);
-                        }}
-                        onDelete={handleDeleteStory}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-20 bg-white/50 dark:bg-gray-900/50 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800">
-                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-600">No stories found in this category</h3>
-                  <button onClick={() => setActiveTab("all")} className="mt-4 text-primary font-bold hover:underline">View all stories</button>
-                </div>
-              )}
+
+                {!user && (
+                    <div className="absolute inset-0 z-50 flex items-start justify-center pt-16 pb-20 px-6 bg-gradient-to-b from-transparent via-gray-50/70 to-gray-50 dark:via-[#0c0c10]/70 dark:to-[#0c0c10] backdrop-blur-[2px] pointer-events-auto">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className="max-w-md w-full bg-white/95 dark:bg-[#1a1b23]/95 backdrop-blur-md p-8 sm:p-10 rounded-[2.5rem] border border-gray-200/60 dark:border-gray-800/80 shadow-2xl text-center space-y-6"
+                        >
+                            <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                                <Lock size={30} className="animate-pulse" />
+                            </div>
+                            <div className="space-y-3">
+                                <h3 className="text-2xl sm:text-3xl font-black text-navy-900 dark:text-white tracking-tight leading-tight">
+                                    Join to Read Stories
+                                </h3>
+                                <p className="text-gray-500 dark:text-gray-400 font-bold text-sm leading-relaxed">
+                                    Log in or create a free account to read community-driven narratives, share your own journey, and connect with other Bangladeshi educators.
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                <Link 
+                                    href="/login" 
+                                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center shadow-lg shadow-indigo-600/20"
+                                >
+                                    Log In
+                                </Link>
+                                <Link 
+                                    href="/signup" 
+                                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center border border-gray-200/50 dark:border-gray-700/50"
+                                >
+                                    Register
+                                </Link>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+              </div>
             </div>
 
             <StoryShareModal 

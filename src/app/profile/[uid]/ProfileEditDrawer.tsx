@@ -224,6 +224,47 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                                             className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-[#0f1117] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
                                         />
                                     </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormSelect
+                                            label="Bio Font Style"
+                                            value={formData.bioStyle || "serif"}
+                                            onChange={(v: string) => updateField("bioStyle", v)}
+                                            options={[
+                                                { label: "Classic Serif / শেরিফ", value: "serif" },
+                                                { label: "Modern Sans / সান্স", value: "sans" },
+                                                { label: "Handwritten Journal / হস্তাক্ষর", value: "writer" },
+                                                { label: "Glassmorphism Cyber / নিয়ন গ্লো", value: "glow" },
+                                                { label: "Minimalist Card / মিনিমাল কার্ড", value: "minimal" }
+                                            ]}
+                                        />
+                                        <FormSelect
+                                            label="Bio Font Size"
+                                            value={formData.bioFontSize || "xl"}
+                                            onChange={(v: string) => updateField("bioFontSize", v)}
+                                            options={[
+                                                { label: "Small / ছোট", value: "sm" },
+                                                { label: "Regular / সাধারণ", value: "base" },
+                                                { label: "Medium / মাঝারি", value: "lg" },
+                                                { label: "Large / বড়", value: "xl" },
+                                                { label: "Extra Large / বিশাল", value: "2xl" }
+                                            ]}
+                                        />
+                                    </div>
+                                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-gray-800">
+                                        <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Favorite Quote & Attribution</h4>
+                                        <FormInput 
+                                            label="Favorite Quote" 
+                                            value={formData.favoriteQuote} 
+                                            onChange={(v: string) => updateField("favoriteQuote", v)} 
+                                            placeholder="e.g. Education is the most powerful weapon..."
+                                        />
+                                        <FormInput 
+                                            label="Quote Author / Source" 
+                                            value={formData.favoriteQuoteAuthor} 
+                                            onChange={(v: string) => updateField("favoriteQuoteAuthor", v)} 
+                                            placeholder="e.g. Nelson Mandela"
+                                        />
+                                    </div>
                                 </div>
                             </CollapsibleSection>
 

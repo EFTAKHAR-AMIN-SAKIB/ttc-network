@@ -160,6 +160,10 @@ export interface UserProfile {
     badges?: Badge[];
     achievementsList?: Achievement[];
     positions?: PositionEntry[];
+    bioStyle?: string;
+    bioFontSize?: string;
+    favoriteQuote?: string;
+    favoriteQuoteAuthor?: string;
 }
 
 interface AuthContextType {
