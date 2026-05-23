@@ -29,6 +29,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const [linkPreview, setLinkPreview] = useState<any>(null);
     const [isFetchingLink, setIsFetchingLink] = useState(false);
 
+    const [attachClub, setAttachClub] = useState(false);
     const [selectedClubId, setSelectedClubId] = useState("");
     const [selectedClubName, setSelectedClubName] = useState("");
     const [myClubs, setMyClubs] = useState<(FirestoreClub & {id: string})[]>([]);
@@ -94,6 +95,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
             setType("event");
             setSelectedClubId("");
             setSelectedClubName("");
+            setAttachClub(false);
             setLinkPreview(null);
             setThumbnailFile(null);
             setThumbnailPreview(null);
@@ -114,6 +116,11 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                 thumbnailUrl = resultUrl;
             }
 
+            const hasClub = type === "club" || (type === "event" && attachClub);
+            const clubMeta = hasClub && selectedClubId 
+                ? { clubId: selectedClubId, clubName: selectedClubName } 
+                : {};
+
             await createPost({
                 type,
                 eventName: eventName.trim(),
@@ -123,7 +130,7 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                 ...(linkPreview ? { linkPreview } : {}),
                 collegeId: profile?.collegeId,
                 ...(thumbnailUrl ? { thumbnailUrl } : {}),
-                ...(type === "club" ? { clubName: selectedClubName } : {})
+                ...clubMeta
             } as any);
             
             // Reset and close
@@ -172,28 +179,52 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                         <div className="space-y-4 bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Post Category</label>
                             <div className="flex gap-2">
-                                <button type="button" onClick={() => { setType("event"); setSelectedClubId(""); setSelectedClubName(""); }} className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all border ${type === 'event' ? 'bg-white dark:bg-gray-800 text-primary border-primary/20 shadow-sm' : 'border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Global Update</button>
-                                <button type="button" onClick={() => setType("club")} className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all border ${type === 'club' ? 'bg-white dark:bg-gray-800 text-primary border-primary/20 shadow-sm' : 'border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Club Update</button>
+                                <button type="button" onClick={() => { setType("event"); setSelectedClubId(""); setSelectedClubName(""); setAttachClub(false); }} className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all border ${type === 'event' ? 'bg-white dark:bg-gray-800 text-primary border-primary/20 shadow-sm' : 'border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Global Update</button>
+                                <button type="button" onClick={() => { setType("club"); setAttachClub(false); }} className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all border ${type === 'club' ? 'bg-white dark:bg-gray-800 text-primary border-primary/20 shadow-sm' : 'border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Club Update</button>
                             </div>
 
+                            {type === 'event' && myClubs.length > 0 && (
+                                <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 dark:border-gray-850/30">
+                                    <span className="text-xs font-bold text-gray-750 dark:text-gray-300">Arrange by a Club?</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const newAttach = !attachClub;
+                                            setAttachClub(newAttach);
+                                            if (!newAttach) {
+                                                setSelectedClubId("");
+                                                setSelectedClubName("");
+                                            }
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                            attachClub
+                                                ? "bg-primary text-white border-primary shadow-sm"
+                                                : "bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                                        }`}
+                                    >
+                                        {attachClub ? "Yes, Attached" : "No, Individual"}
+                                    </button>
+                                </div>
+                            )}
+
                             <AnimatePresence>
-                                {type === 'club' && (
+                                {(type === 'club' || (type === 'event' && attachClub)) && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="pt-2 overflow-hidden">
                                         <select 
-                                            required={type === 'club'}
+                                            required
                                             value={selectedClubId}
                                             onChange={(e) => {
                                                 setSelectedClubId(e.target.value);
                                                 setSelectedClubName(e.target.options[e.target.selectedIndex].text);
                                             }}
-                                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all"
+                                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all dark:text-white"
                                         >
                                             <option value="" disabled>Select your club...</option>
                                             {myClubs.map(club => (
                                                 <option key={club.id} value={club.id}>{club.name}</option>
                                             ))}
                                         </select>
-                                        {myClubs.length === 0 && (
+                                        {myClubs.length === 0 && type === 'club' && (
                                             <p className="mt-2 text-[10px] text-red-500 font-bold uppercase tracking-widest">You have not joined any clubs.</p>
                                         )}
                                     </motion.div>

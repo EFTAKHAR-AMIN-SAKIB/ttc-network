@@ -153,6 +153,7 @@ export interface FirestorePost {
     collegeLogo: string;
     eventName: string; // Used as 'Update Title' for clubs
     clubName?: string;
+    clubId?: string; // Reference to the associated club
     description?: string;
     shareLink: string;
     commentsCount?: number;
@@ -546,6 +547,9 @@ export interface FirestoreNotification {
     targetUrl?: string; // Optional deep link URL
     read: boolean;
     createdAt: Timestamp | null;
+    senderId?: string;       // ID of the user initiating the action
+    senderName?: string;     // Display name of the user
+    senderPhotoURL?: string; // Profile picture of the user
 }
 
 export interface PendingEdit {
@@ -2084,6 +2088,11 @@ export async function markNotificationRead(id: string): Promise<void> {
     await updateDoc(doc(getDb(), "notifications", id), { read: true });
 }
 
+export async function deleteNotification(notifId: string): Promise<void> {
+    const validId = validateId(notifId, "Notification ID");
+    await deleteDoc(doc(getDb(), "notifications", validId));
+}
+
 export async function markAllNotificationsRead(uid: string): Promise<void> {
     const db = getDb();
     try {
@@ -2843,7 +2852,10 @@ async function handleMentions(text: string, targetUrl: string, profile: any, rel
                 message: `${profile.displayName} mentioned you: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
                 relatedId,
                 relatedType,
-                targetUrl
+                targetUrl,
+                senderId: profile.id,
+                senderName: profile.displayName,
+                senderPhotoURL: profile.photoURL || "",
             }).catch(e => console.warn(`Mention notification to ${username} failed`, e));
         }
     }
@@ -2903,6 +2915,9 @@ export async function addComment(
                     relatedId: contentId,
                     relatedType: contentType,
                     targetUrl,
+                    senderId: profile.id,
+                    senderName: profile.displayName,
+                    senderPhotoURL: profile.photoURL || "",
                 }).catch(e => console.warn("Failed to send comment notification", e));
             }
 
@@ -2926,6 +2941,9 @@ export async function addComment(
                             relatedId: contentId,
                             relatedType: contentType,
                             targetUrl,
+                            senderId: profile.id,
+                            senderName: profile.displayName,
+                            senderPhotoURL: profile.photoURL || "",
                         }).catch(e => console.warn("Failed to send reply notification", e));
                     }
                 }
@@ -3200,14 +3218,19 @@ export async function toggleFollowUser(currentUserId: string, targetUserId: stri
         await targetBatch.commit();
 
         const currentUserDoc = await getDoc(currentUserRef);
-        const currentUserName = currentUserDoc.exists() ? currentUserDoc.data().displayName : "Someone";
+        const currentUserData = currentUserDoc.exists() ? currentUserDoc.data() : null;
+        const currentUserName = currentUserData ? currentUserData.displayName : "Someone";
+        const currentUserPhotoURL = currentUserData ? currentUserData.photoURL : "";
         
         await createNotification(targetUserId, {
             type: "follow",
             message: `${currentUserName} started following you.`,
             relatedId: currentUserId,
             relatedType: "user",
-            targetUrl: `/profile/${currentUserId}`
+            targetUrl: `/profile/${currentUserId}`,
+            senderId: currentUserId,
+            senderName: currentUserName,
+            senderPhotoURL: currentUserPhotoURL || ""
         }).catch(e => console.error("Notification failed", e));
     }
 
@@ -3509,7 +3532,10 @@ export async function reactToContent(contentId: string, reaction: string, conten
                 message: `${user.displayName || "Someone"} reacted to your ${contentType}`,
                 relatedId: contentId,
                 relatedType: contentType,
-                targetUrl
+                targetUrl,
+                senderId: user.uid,
+                senderName: user.displayName || "Someone",
+                senderPhotoURL: user.photoURL || ""
             }).catch(e => console.error("Notification failed", e));
         }
 

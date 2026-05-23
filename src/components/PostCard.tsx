@@ -3,15 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-    Clock, ExternalLink, Globe, Lock, School, MapPin, 
-    MoreHorizontal, Edit2, Trash2, Heart, MessageCircle, 
+    Clock, ExternalLink, School, MapPin, 
+    MoreHorizontal, Edit2, Trash2, MessageCircle, 
     Share2, Bookmark, CheckCircle2, XCircle, Loader2,
     ImageIcon
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
-import { RichText, ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
+import { ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
 
 interface PostCardProps {
     post: any;
@@ -310,13 +310,21 @@ export default function PostCard({
                         )}
                     </Link>
                     <div>
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                             <Link href={`/profile/${post.creatorId}`} className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight hover:text-primary transition-colors">
                                 {post.createdBy?.name}
                             </Link>
                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${roleColors[post.createdBy?.role] || 'bg-gray-100 text-gray-500'}`}>
                                 {roleLabels[post.createdBy?.role] || post.createdBy?.role}
                             </span>
+                            {post.clubName && post.clubId && (
+                                <Link 
+                                    href={`/college-info?college=${post.collegeId}&clubId=${post.clubId}`}
+                                    className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors inline-flex items-center gap-1"
+                                >
+                                    🏆 {post.clubName}
+                                </Link>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                             <span className="flex items-center gap-1"><MapPin size={8} /> {post.collegeName}</span>

@@ -731,6 +731,18 @@ function CollegeInfoInner() {
         }
     }, [collegeParam, mergedColleges, selectedCollege?.id]);
 
+    // Auto-select club if clubId parameter is present in URL
+    const clubParam = searchParams.get("clubId");
+    useEffect(() => {
+        if (clubParam && clubs.length > 0) {
+            const foundClub = clubs.find(c => c.id === clubParam);
+            if (foundClub) {
+                setActiveTab("clubs");
+                setSelectedClub(foundClub);
+            }
+        }
+    }, [clubParam, clubs]);
+
     // Auth permissions
     const permissions = profile ? canEditCollege(profile, selectedCollege.id) : { allowed: false, needsReview: false };
 

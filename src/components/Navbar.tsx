@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell, Globe, BookText, MessageSquare, CheckCircle, Award, Heart } from "lucide-react";
+import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
-import { subscribeNotifications, markNotificationRead, markAllNotificationsRead, type FirestoreNotification } from "@/lib/firestore";
+import { subscribeNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, type FirestoreNotification } from "@/lib/firestore";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 
@@ -108,20 +108,25 @@ export default function Navbar() {
         }
     };
 
-    const formatTime = (ts: any) => {
-        if (!ts?.seconds) return "";
-        const d = new Date(ts.seconds * 1000);
-        const now = new Date();
-        const diffMs = now.getTime() - d.getTime();
-        const diffMin = Math.floor(diffMs / 60000);
-        if (diffMin < 1) return "Just now";
-        if (diffMin < 60) return `${diffMin}m ago`;
-        const diffHr = Math.floor(diffMin / 60);
-        if (diffHr < 24) return `${diffHr}h ago`;
-        const diffDay = Math.floor(diffHr / 24);
-        if (diffDay < 7) return `${diffDay}d ago`;
-        return d.toLocaleDateString();
+    const handleMarkSingleRead = async (notifId: string) => {
+        setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+        try {
+            await markNotificationRead(notifId);
+        } catch (err) {
+            console.error("Failed to mark notification as read:", err);
+        }
     };
+
+    const handleDeleteNotif = async (notifId: string) => {
+        setNotifications(prev => prev.filter(n => n.id !== notifId));
+        try {
+            await deleteNotification(notifId);
+        } catch (err) {
+            console.error("Failed to delete notification:", err);
+        }
+    };
+
+
 
     const isAdminOrManager = profile?.role === "admin" || profile?.role === "manager" || profile?.role === "super_manager";
     const panelName = profile?.role === "admin" ? "Admin Panel" : "Management Section";
@@ -136,9 +141,6 @@ export default function Navbar() {
     const photoURL = profile?.photoURL || user?.photoURL || "";
 
     const { siteName, logoUrl } = useSiteSettings();
-    const nameWords = siteName.split(" ");
-    const firstWord = nameWords[0] || "TTC";
-    const restWords = nameWords.slice(1).join(" ") || "Network";
 
     return (
         <nav className="sticky top-0 z-50 bg-white/80 dark:bg-[#0f1117]/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
@@ -214,6 +216,8 @@ export default function Navbar() {
                                     unreadCount={unreadCount}
                                     onMarkRead={handleNotifClick}
                                     onMarkAllRead={handleMarkAllRead}
+                                    onMarkSingleRead={handleMarkSingleRead}
+                                    onDelete={handleDeleteNotif}
                                 />
                             </div>
                         )}
