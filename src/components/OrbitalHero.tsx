@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import { Sparkles, Users } from "lucide-react";
 import { colleges } from "@/data/colleges";
 import { subscribeColleges, type FirestoreCollege } from "@/lib/firestore";
+
 
 /* ═══════════════════════════════════════════════════════════
    ORBITAL CONFIGURATION
@@ -393,71 +395,178 @@ export default function OrbitalHero() {
             {/* Subtle center glow */}
             <div
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hero-glow"
-                style={{ width: "70%", height: "50%", borderRadius: "50%", filter: "blur(80px)" }}
+                style={{ width: "75%", height: "55%", borderRadius: "50%", filter: "blur(80px)" }}
             />
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4">
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col items-center justify-center">
 
-                    {/* ══ DESKTOP: Full orbital system ══ */}
+                    {/* ══ DESKTOP: Split two-column layout ══ */}
                     {!isMobile && (
-                        <div
-                            ref={containerRef}
-                            className="relative w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[560px] md:h-[560px] lg:w-[660px] lg:h-[660px]"
-                        >
-                            {/* Pulsing glow behind emblem */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center w-full max-w-7xl">
+                            {/* Left Column: Rich Copy & CTAs */}
+                            <div className="lg:col-span-5 flex flex-col items-start text-left space-y-6">
+                                {/* Tagline Category */}
                                 <motion.div
-                                    className="absolute rounded-full"
-                                    style={{
-                                        width: 180, height: 180,
-                                        background: "radial-gradient(circle, var(--glow-inner) 0%, transparent 60%)",
-                                    }}
-                                    animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-                                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                                />
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20"
+                                >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                                    <span className="text-[10px] sm:text-xs font-black text-primary tracking-widest uppercase font-english">
+                                        The Unified Digital Hub
+                                    </span>
+                                </motion.div>
+
+                                {/* Main Headline */}
+                                <motion.h1
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2, duration: 0.6 }}
+                                    className="text-4xl sm:text-5xl lg:text-[54px] font-black text-gray-900 dark:text-white leading-[1.1] tracking-tight font-sora"
+                                >
+                                    Connecting <br />
+                                    <span className="bg-gradient-to-r from-primary via-accent to-red-500 bg-clip-text text-transparent drop-shadow-sm">
+                                        All 14 Campuses
+                                    </span> <br />
+                                    Under One Roof
+                                </motion.h1>
+
+                                {/* Subtitle Description */}
+                                <motion.p
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4, duration: 0.6 }}
+                                    className="text-base sm:text-lg text-gray-600 dark:text-gray-400 font-medium leading-relaxed font-bengali"
+                                >
+                                    সরকারি টিচার্স ট্রেনিং কলেজের শিক্ষার্থী, শিক্ষক ও প্রাক্তন শিক্ষার্থীদের একমাত্র মিলনমেলা। নোটিশ বোর্ড, স্টাডি মেটেরিয়ালস ও ক্যাম্পাস স্টোরি এক্সপ্লোর করুন এক ক্লিকে।
+                                </motion.p>
+
+                                {/* Glowing CTAs */}
                                 <motion.div
-                                    className="absolute rounded-full"
-                                    style={{
-                                        width: 360, height: 360,
-                                        background: "radial-gradient(circle, var(--glow-outer) 0%, transparent 70%)",
-                                    }}
-                                    animate={{ scale: [1, 1.08, 1], opacity: [0.5, 0.8, 0.5] }}
-                                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                                />
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.6, duration: 0.6 }}
+                                    className="flex flex-wrap items-center gap-3 w-full"
+                                >
+                                    <Link
+                                        href="/news-feed"
+                                        className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-primary to-accent hover:from-primary-dark hover:to-accent text-white font-extrabold rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transform hover:-translate-y-0.5 transition-all duration-300 text-sm active:scale-95 btn-glow-hover"
+                                    >
+                                        <Sparkles size={16} />
+                                        <span>Explore News Feed</span>
+                                    </Link>
+                                    <Link
+                                        href="/notice"
+                                        className="flex items-center justify-center gap-2 px-5 py-3.5 bg-white dark:bg-[#16181C] hover:bg-gray-50 dark:hover:bg-[#1E2028] text-gray-800 dark:text-white font-extrabold rounded-2xl border border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 transform hover:-translate-y-0.5 transition-all duration-300 text-sm active:scale-95"
+                                    >
+                                        <span>Notice Board</span>
+                                    </Link>
+                                    <Link
+                                        href="/study"
+                                        className="flex items-center justify-center gap-2 px-5 py-3.5 bg-gray-50 dark:bg-[#101216] hover:bg-gray-100 dark:hover:bg-[#16181C] text-gray-600 dark:text-gray-300 font-bold rounded-2xl text-xs border border-gray-200/50 dark:border-white/5 transition-all duration-300"
+                                    >
+                                        <span>Study Portal</span>
+                                    </Link>
+                                </motion.div>
+
+                                {/* Mini Info / Badges */}
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.8 }}
+                                    className="flex items-center gap-6 pt-4 border-t border-gray-100 dark:border-white/5 w-full"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 font-english uppercase tracking-wider">
+                                            {mergedColleges.length} Colleges Connected
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Users size={12} className="text-primary" />
+                                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 font-english uppercase tracking-wider">
+                                            Active Community
+                                        </span>
+                                    </div>
+                                </motion.div>
                             </div>
 
-                            {/* Orbit ring guides */}
-                            <OrbitalRings />
+                            {/* Right Column: Orbital Animation System */}
+                            <div className="lg:col-span-7 flex items-center justify-center relative">
+                                <div
+                                    ref={containerRef}
+                                    className="relative w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] md:w-[500px] md:h-[500px] lg:w-[600px] lg:h-[600px] flex-shrink-0"
+                                >
+                                    {/* Pulsing glow behind emblem */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <motion.div
+                                            className="absolute rounded-full"
+                                            style={{
+                                                width: 160, height: 160,
+                                                background: "radial-gradient(circle, var(--glow-inner) 0%, transparent 60%)",
+                                            }}
+                                            animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+                                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                        />
+                                        <motion.div
+                                            className="absolute rounded-full"
+                                            style={{
+                                                width: 320, height: 320,
+                                                background: "radial-gradient(circle, var(--glow-outer) 0%, transparent 70%)",
+                                            }}
+                                            animate={{ scale: [1, 1.08, 1], opacity: [0.5, 0.8, 0.5] }}
+                                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                                        />
+                                    </div>
 
-                            {/* Particles */}
-                            <div className="absolute inset-0 pointer-events-none">
-                                {particles.map((p, i) => <CosmicParticle key={i} {...p} />)}
+                                    {/* Orbit ring guides */}
+                                    <OrbitalRings />
+
+                                    {/* Particles */}
+                                    <div className="absolute inset-0 pointer-events-none">
+                                        {particles.map((p, i) => <CosmicParticle key={i} {...p} />)}
+                                    </div>
+
+                                    {/* Center emblem (z-index 12 — between back and front logos) */}
+                                    <div className="absolute inset-0 flex items-center justify-center z-[12]">
+                                        <TTCEmblem isMobile={false} />
+                                    </div>
+
+                                    {/* Orbiting logos */}
+                                    {mergedColleges.map((college, i) => (
+                                        <OrbitingLogo
+                                            key={college.id}
+                                            college={college}
+                                            index={i}
+                                            total={mergedColleges.length}
+                                            containerSize={containerSize}
+                                            fadeDelay={0.8 + i * 0.06}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-
-                            {/* Center emblem (z-index 12 — between back and front logos) */}
-                            <div className="absolute inset-0 flex items-center justify-center z-[12]">
-                                <TTCEmblem isMobile={false} />
-                            </div>
-
-                            {/* Orbiting logos */}
-                            {mergedColleges.map((college, i) => (
-                                <OrbitingLogo
-                                    key={college.id}
-                                    college={college}
-                                    index={i}
-                                    total={mergedColleges.length}
-                                    containerSize={containerSize}
-                                    fadeDelay={0.8 + i * 0.06}
-                                />
-                            ))}
                         </div>
                     )}
 
                     {/* ══ MOBILE: Emblem + scroll strip ══ */}
                     {isMobile && (
-                        <div className="flex flex-col items-center w-full">
-                            <div className="relative flex items-center justify-center">
+                        <div className="flex flex-col items-center w-full px-2 text-center space-y-6">
+                            {/* Badge */}
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20"
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                                <span className="text-[10px] font-black text-primary tracking-widest uppercase font-english">
+                                    The Unified Digital Hub
+                                </span>
+                            </motion.div>
+
+                            {/* Center Emblem */}
+                            <div className="relative flex items-center justify-center py-4">
                                 <motion.div
                                     className="absolute rounded-full"
                                     style={{
@@ -469,35 +578,78 @@ export default function OrbitalHero() {
                                 />
                                 <TTCEmblem isMobile={true} />
                             </div>
+
+                            {/* Headline */}
+                            <motion.h1
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-3xl font-black text-gray-900 dark:text-white leading-[1.15] tracking-tight font-sora"
+                            >
+                                Connecting <br />
+                                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                                    All 14 Campuses
+                                </span>
+                            </motion.h1>
+
+                            {/* Subtitle */}
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.4 }}
+                                className="text-sm text-gray-600 dark:text-gray-400 font-medium leading-relaxed font-bengali max-w-sm mx-auto"
+                            >
+                                সরকারি টিচার্স ট্রেনিং কলেজের নোটিশ বোর্ড, স্টাডি মেটেরিয়ালস ও ক্যাম্পাস স্টোরি এক্সপ্লোর করুন এক ক্লিকে।
+                            </motion.p>
+
+                            {/* Mobile CTAs */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.5 }}
+                                className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full max-w-xs mx-auto"
+                            >
+                                <Link
+                                    href="/news-feed"
+                                    className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-primary to-accent text-white font-extrabold rounded-xl shadow-md text-sm"
+                                >
+                                    <Sparkles size={14} />
+                                    <span>Explore Feed</span>
+                                </Link>
+                                <div className="flex gap-2 justify-center w-full">
+                                    <Link
+                                        href="/notice"
+                                        className="flex-1 flex items-center justify-center px-4 py-2.5 bg-white dark:bg-[#16181C] text-gray-800 dark:text-white font-bold rounded-xl border border-gray-200 dark:border-white/10 text-xs"
+                                    >
+                                        Notice Board
+                                    </Link>
+                                    <Link
+                                        href="/study"
+                                        className="flex-1 flex items-center justify-center px-4 py-2.5 bg-white dark:bg-[#16181C] text-gray-800 dark:text-white font-bold rounded-xl border border-gray-200 dark:border-white/10 text-xs"
+                                    >
+                                        Study Portal
+                                    </Link>
+                                </div>
+                            </motion.div>
+
+                            {/* Scrolling strip */}
                             <MobileLogoStrip collegesList={mergedColleges} />
+
+                            {/* Badge count */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.6 }}
+                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full badge-pill text-[10px] font-bold text-gray-500 dark:text-gray-400"
+                            >
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span>{mergedColleges.length} Colleges Connected</span>
+                            </motion.div>
                         </div>
                     )}
-
-                    {/* Tagline */}
-                    <motion.p
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.2, duration: 0.7 }}
-                        className="text-center text-sm sm:text-base mt-5 md:mt-7 font-english italic"
-                        style={{ color: "var(--text-muted)" }}
-                    >
-                        &ldquo;One Platform. All Colleges. Every Story.&rdquo;
-                    </motion.p>
-
-                    {/* College badge */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 1.5, duration: 0.5 }}
-                        className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full badge-pill"
-                    >
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>
-                            {mergedColleges.length} Colleges Connected
-                        </span>
-                    </motion.div>
                 </div>
             </div>
         </section>
     );
 }
+
