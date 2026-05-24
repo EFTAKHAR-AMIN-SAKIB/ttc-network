@@ -26,6 +26,7 @@ const notifIcons: Record<string, ComponentType<{ size?: number | string; classNa
     badge_received: Award,
     mention: MessageSquare,
     reply: MessageSquare,
+    new_post: Bell,
 };
 
 const notifColors: Record<string, string> = {
@@ -46,6 +47,7 @@ const notifColors: Record<string, string> = {
     badge_received: "text-amber-500 bg-amber-50 dark:bg-amber-500/10",
     mention: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
     reply: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
+    new_post: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
 };
 
 interface NotificationCenterProps {

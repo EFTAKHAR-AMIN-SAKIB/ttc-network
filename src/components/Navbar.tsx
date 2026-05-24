@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell } from "lucide-react";
+import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell, Users } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
-import { subscribeNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, type FirestoreNotification } from "@/lib/firestore";
+import { subscribeNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, type FirestoreNotification } from "@/lib/firestore";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 
@@ -38,6 +38,8 @@ export default function Navbar() {
     const [mounted, setMounted] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
+    const [pendingVerificationsCount, setPendingVerificationsCount] = useState(0);
+
 
     // Mounted check for hydration
     useEffect(() => {
@@ -68,6 +70,22 @@ export default function Navbar() {
         });
         return () => unsub();
     }, [user?.uid]);
+
+    // Subscribe to college users for verification count (for managers)
+    useEffect(() => {
+        const isManager = profile?.role === "manager" || profile?.role === "super_manager" || profile?.role === "admin";
+        if (!user?.uid || !isManager || !profile?.collegeId) {
+            setPendingVerificationsCount(0);
+            return;
+        }
+
+        const unsub = subscribeUsersByCollege(profile.collegeId, (users) => {
+            const unverified = users.filter(u => u.id !== profile.uid && !u.roleVerified);
+            setPendingVerificationsCount(unverified.length);
+        });
+
+        return () => unsub();
+    }, [user?.uid, profile?.role, profile?.collegeId]);
 
     const handleLogout = async () => {
         setDropdownOpen(false);
@@ -184,6 +202,30 @@ export default function Navbar() {
                         >
                             <Search size={18} className="text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors" />
                         </button>
+
+                        {/* Connections & Verifications Panel Link */}
+                        {user && (
+                            <Link
+                                href="/network"
+                                className={`p-2 md:p-2.5 rounded-lg md:rounded-xl transition-all duration-300 group relative ${
+                                    pathname === "/network"
+                                        ? "bg-primary/10 dark:bg-primary/20 text-primary" 
+                                        : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-primary"
+                                }`}
+                                aria-label="Network & Verification"
+                            >
+                                <Users size={18} className={`transition-colors ${pathname === "/network" ? "text-primary" : "text-gray-600 dark:text-gray-400 group-hover:text-primary"}`} />
+                                {pendingVerificationsCount > 0 && (
+                                    <motion.span 
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        className="absolute -top-0.5 -right-0.5 w-4 h-4 md:w-5 md:h-5 bg-blue-500 text-white text-[8px] md:text-[10px] font-black rounded-full flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-[#0f1117]"
+                                    >
+                                        {pendingVerificationsCount > 9 ? "9+" : pendingVerificationsCount}
+                                    </motion.span>
+                                )}
+                            </Link>
+                        )}
 
                         {/* Notification Bell */}
                         {user && (

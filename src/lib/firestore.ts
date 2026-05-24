@@ -405,6 +405,7 @@ export interface FirestoreUser {
     role: "student" | "teacher" | "manager" | "super_manager" | "admin";
     programme?: "BEdHonours" | "MEd"; // B.Ed Honours (4yr undergrad) or M.Ed (1-2yr postgrad)
     roleVerified: boolean;
+    dismissedBy?: string[];
     bio: string;
     coverUrl: string;
     photoURL: string;
@@ -1115,6 +1116,16 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
 
     const docRef = await addDoc(collection(getDb(), "posts"), fullPost);
 
+    if (isAutoApproved) {
+        await notifyFollowersOfPost(
+            profile.id!,
+            profile.displayName,
+            profile.photoURL || "",
+            docRef.id,
+            post.eventName || ""
+        );
+    }
+
     // Handle Mentions in post description
     await handleMentions(post.description || "", `/news-feed?commentPostId=${docRef.id}`, profile, docRef.id, "post");
 }
@@ -1225,6 +1236,14 @@ export async function approvePost(id: string): Promise<void> {
         relatedType: "post",
         targetUrl: `/news-feed#post-${id}`
     });
+
+    await notifyFollowersOfPost(
+        post.creatorId,
+        post.createdBy.name,
+        post.createdBy.avatar || "",
+        id,
+        post.eventName || ""
+    );
 }
 
 export async function rejectPost(id: string, reason?: string): Promise<void> {
@@ -3640,4 +3659,169 @@ export async function revokeBadge(userId: string, badgeId: string): Promise<void
         throw new Error("Badge not found on user profile.");
     }
 }
+
+// ═══════════════════════════════════════════════════
+//  CONNECTION / RECOMMENDATION & COLLEGE USER SYSTEM
+// ═══════════════════════════════════════════════════
+
+/**
+ * Fetch recommended users to follow ("People You May Know").
+ * Prioritizes users from the same college, then falls back to others.
+ * Excludes self and users already followed.
+ */
+export async function getFriendRecommendations(
+    currentUserId: string,
+    collegeId: string,
+    limitCount: number = 5
+): Promise<(FirestoreUser & { id: string })[]> {
+    if (!currentUserId) return [];
+    
+    const db = getDb();
+    
+    // 1. Get UIDs of users already followed
+    const followingSnap = await getDocs(collection(db, "users", currentUserId, "following"));
+    const followedIds = new Set(followingSnap.docs.map(d => d.id));
+    followedIds.add(currentUserId); // exclude self
+    
+    let recommendations: (FirestoreUser & { id: string })[] = [];
+    
+    // 2. Query users from the same college
+    if (collegeId) {
+        const qCollege = query(
+            collection(db, "users"),
+            where("collegeId", "==", collegeId),
+            limit(limitCount * 2)
+        );
+        const snapCollege = await getDocs(qCollege);
+        const collegeUsers = snapCollege.docs
+            .map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }))
+            .filter(u => !followedIds.has(u.id));
+            
+        recommendations = [...collegeUsers];
+    }
+    
+    // 3. Fallback: If not enough, fetch general users
+    if (recommendations.length < limitCount) {
+        const qGeneral = query(
+            collection(db, "users"),
+            limit(limitCount * 4)
+        );
+        const snapGeneral = await getDocs(qGeneral);
+        const generalUsers = snapGeneral.docs
+            .map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }))
+            .filter(u => !followedIds.has(u.id) && !recommendations.some(r => r.id === u.id));
+            
+        recommendations = [...recommendations, ...generalUsers];
+    }
+    
+    return recommendations.slice(0, limitCount);
+}
+
+/**
+ * Real-time subscription to all users of a specific college.
+ * Sorted in memory by createdAt descending.
+ */
+export function subscribeUsersByCollege(
+    collegeId: string,
+    callback: (users: (FirestoreUser & { id: string })[]) => void
+) {
+    const db = getDb();
+    const q = query(
+        collection(db, "users"),
+        where("collegeId", "==", collegeId)
+    );
+    
+    return onSnapshot(q, (snap) => {
+        const users = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }));
+        // Sort in memory by createdAt descending
+        users.sort((a, b) => {
+            const tA = (a as any).createdAt?.seconds || 0;
+            const tB = (b as any).createdAt?.seconds || 0;
+            return tB - tA;
+        });
+        callback(users);
+    }, (error) => {
+        console.error("[Firestore] subscribeUsersByCollege failed:", error);
+    });
+}
+
+/**
+ * Dismiss a user verification from the manager's list.
+ * Adds the manager's UID to the user's `dismissedBy` array.
+ */
+export async function dismissUserVerification(userId: string): Promise<void> {
+    const managerProfile = await requireAdminOrManager();
+    const userRef = doc(getDb(), "users", userId);
+    await updateDoc(userRef, {
+        dismissedBy: arrayUnion(managerProfile.id)
+    });
+}
+
+/**
+ * Fetch all profiles of users who are following `userId`.
+ */
+export async function getFollowersList(userId: string): Promise<(FirestoreUser & { id: string })[]> {
+    if (!userId) return [];
+    const db = getDb();
+    const snap = await getDocs(collection(db, "users", userId, "followers"));
+    const followerIds = snap.docs.map(doc => doc.id);
+    return getProfilesByIds(followerIds);
+}
+
+/**
+ * Fetch all profiles of users whom `userId` is following.
+ */
+export async function getFollowingList(userId: string): Promise<(FirestoreUser & { id: string })[]> {
+    if (!userId) return [];
+    const db = getDb();
+    const snap = await getDocs(collection(db, "users", userId, "following"));
+    const followingIds = snap.docs.map(doc => doc.id);
+    return getProfilesByIds(followingIds);
+}
+
+/**
+ * Notify all followers of a user when they publish a new post.
+ */
+export async function notifyFollowersOfPost(
+    creatorId: string,
+    creatorName: string,
+    creatorPhotoURL: string,
+    postId: string,
+    postTitle: string
+): Promise<void> {
+    const db = getDb();
+    try {
+        const followersSnap = await getDocs(collection(db, "users", creatorId, "followers"));
+        const followerIds = followersSnap.docs.map(d => d.id);
+        
+        if (followerIds.length === 0) return;
+        
+        const BATCH_LIMIT = 499;
+        for (let i = 0; i < followerIds.length; i += BATCH_LIMIT) {
+            const chunk = followerIds.slice(i, i + BATCH_LIMIT);
+            const batch = writeBatch(db);
+            
+            chunk.forEach(followerId => {
+                const notifRef = doc(collection(db, "notifications"));
+                batch.set(notifRef, {
+                    recipientId: followerId,
+                    type: "new_post",
+                    message: `${creatorName} published a new post: "${postTitle || 'Update'}".`,
+                    relatedId: postId,
+                    relatedType: "post",
+                    targetUrl: `/news-feed?post=${postId}`,
+                    senderId: creatorId,
+                    senderName: creatorName,
+                    senderPhotoURL: creatorPhotoURL || "",
+                    read: false,
+                    createdAt: serverTimestamp()
+                });
+            });
+            await batch.commit();
+        }
+    } catch (err) {
+        console.error("[Firestore] notifyFollowersOfPost failed:", err);
+    }
+}
+
 
