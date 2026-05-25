@@ -12,6 +12,7 @@ import {
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { 
     updateUserRole, 
     dismissUserVerification,
@@ -28,6 +29,7 @@ import { colleges } from "@/data/colleges";
 export default function NetworkPage() {
     const { profile, user, loading: loadingAuth } = useAuth();
     const { showToast } = useToast();
+    const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
     const router = useRouter();
 
     const isManager = profile?.role === "manager" || profile?.role === "super_manager" || profile?.role === "admin";
@@ -145,10 +147,16 @@ export default function NetworkPage() {
 
     // Action: Dismiss/Delete user from authentication list
     const handleDismiss = async (userId: string, displayName: string) => {
-        const confirmed = window.confirm(`Hide ${displayName} from your verification queue? (This will not delete their account entirely).`);
+        const confirmed = await confirm({
+            title: "Hide User?",
+            message: `Hide ${displayName} from your verification queue? (This will not delete their account entirely).`,
+            confirmText: "Hide User",
+            variant: "warning"
+        });
         if (!confirmed) return;
 
         setProcessingVerify(prev => ({ ...prev, [userId]: true }));
+        setConfirmLoading(true);
         try {
             await dismissUserVerification(userId);
             showToast(`Removed ${displayName} from your verification queue.`, "success");
@@ -156,6 +164,8 @@ export default function NetworkPage() {
             showToast(err.message || "Failed to ignore user.", "error");
         } finally {
             setProcessingVerify(prev => ({ ...prev, [userId]: false }));
+            setConfirmLoading(false);
+            closeConfirm();
         }
     };
 

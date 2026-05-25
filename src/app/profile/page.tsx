@@ -5,21 +5,25 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * /profile → redirects to /profile/[uid] for the logged-in user,
+ * /profile → redirects to /profile/[username] for the logged-in user,
  * or to /login if not authenticated.
  */
 export default function ProfileRedirect() {
-    const { user, loading } = useAuth();
+    const { user, profile, loading } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
         if (loading) return;
         if (user) {
-            router.replace(`/profile/${user.uid}`);
+            if (profile?.username) {
+                router.replace(`/profile/${profile.username}`);
+            } else {
+                router.replace(`/profile/${user.uid}`);
+            }
         } else {
             router.replace("/login?redirect=/profile");
         }
-    }, [user, loading, router]);
+    }, [user, profile, loading, router]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-bg dark:bg-[#0f1117]">

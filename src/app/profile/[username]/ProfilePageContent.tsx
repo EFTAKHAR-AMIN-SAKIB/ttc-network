@@ -439,7 +439,8 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
 
 export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {}) {
     const params = useParams();
-    const urlUid = uidOverride || (params.uid as string);
+    const router = useRouter();
+    const urlUid = uidOverride || (params.username as string) || (params.uid as string);
     const [uid, setUid] = useState<string | null>(null);
 
     useEffect(() => {
@@ -448,9 +449,14 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             const db = getDb();
             const docSnap = await getDoc(doc(db, "users", urlUid));
             if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data?.username) {
+                    router.replace(`/profile/${data.username}`);
+                    return;
+                }
                 setUid(urlUid);
             } else {
-                const q = query(collection(db, "users"), where("username", "==", urlUid), limit(1));
+                const q = query(collection(db, "users"), where("username", "==", urlUid.toLowerCase()), limit(1));
                 const qSnap = await getDocs(q);
                 if (!qSnap.empty) {
                     setUid(qSnap.docs[0].id);
@@ -460,8 +466,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             }
         };
         resolve();
-    }, [urlUid]);
-    const router = useRouter();
+    }, [urlUid, router]);
     const { user, profile: currentUserProfile } = useAuth();
     const { showToast } = useToast();
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
@@ -548,6 +553,11 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 setProfileData(data as UserProfile);
                 setFollowersCount(data.followersCount || 0);
                 setFollowingCount(data.followingCount || 0);
+
+                // Auto-update URL if the username changes on own profile
+                if (user?.uid === uid && data.username && data.username !== urlUid) {
+                    router.replace(`/profile/${data.username}`);
+                }
             }
             setLoading(false);
         });

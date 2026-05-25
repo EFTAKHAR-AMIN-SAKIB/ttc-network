@@ -10,7 +10,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
-import { subscribeNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, type FirestoreNotification } from "@/lib/firestore";
+import { subscribeNotifications, subscribeUnreadNotificationsCount, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, type FirestoreNotification } from "@/lib/firestore";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 
@@ -39,6 +39,7 @@ export default function Navbar() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
     const [pendingVerificationsCount, setPendingVerificationsCount] = useState(0);
+    const [unreadCount, setUnreadCount] = useState(0);
 
 
     // Mounted check for hydration
@@ -46,7 +47,6 @@ export default function Navbar() {
         setMounted(true);
     }, []);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -71,21 +71,37 @@ export default function Navbar() {
         return () => unsub();
     }, [user?.uid]);
 
+    // Subscribe to unread notifications count
+    useEffect(() => {
+        if (!user?.uid) {
+            setUnreadCount(0);
+            return;
+        }
+        const unsub = subscribeUnreadNotificationsCount(user.uid, (count) => {
+            setUnreadCount(count);
+        });
+        return () => unsub();
+    }, [user?.uid]);
+
     // Subscribe to college users for verification count (for managers)
     useEffect(() => {
         const isManager = profile?.role === "manager" || profile?.role === "super_manager" || profile?.role === "admin";
-        if (!user?.uid || !isManager || !profile?.collegeId) {
+        if (!user?.uid || !isManager || !profile?.collegeId || !profile?.uid) {
             setPendingVerificationsCount(0);
             return;
         }
 
         const unsub = subscribeUsersByCollege(profile.collegeId, (users) => {
-            const unverified = users.filter(u => u.id !== profile.uid && !u.roleVerified);
+            const unverified = users.filter(u => 
+                u.id !== profile.uid && 
+                !u.roleVerified && 
+                !(u.dismissedBy || []).includes(profile.uid)
+            );
             setPendingVerificationsCount(unverified.length);
         });
 
         return () => unsub();
-    }, [user?.uid, profile?.role, profile?.collegeId]);
+    }, [user?.uid, profile?.role, profile?.collegeId, profile?.uid]);
 
     const handleLogout = async () => {
         setDropdownOpen(false);
@@ -351,7 +367,7 @@ export default function Navbar() {
                                             {/* Menu Items */}
                                             <div className="py-1">
                                                 <Link
-                                                    href={`/profile/${user.uid}`}
+                                                    href={`/profile/${profile?.username || user.uid}`}
                                                     onClick={() => setDropdownOpen(false)}
                                                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                                 >

@@ -1898,11 +1898,28 @@ export async function updateNoticeStatus(id: string, status: "approved" | "rejec
 
 export async function updateNotice(id: string, data: Partial<FirestoreNotice>): Promise<void> {
     // Allowlist: prevent mutation of sensitive fields
-    const ALLOWED_NOTICE_FIELDS = ['title', 'content', 'category', 'attachmentUrl', 'visibility', 'isPinned', 'isUrgent'];
+    const ALLOWED_NOTICE_FIELDS = [
+        'title', 'body', 'programme', 'attachmentUrl', 'visibility', 
+        'isPinned', 'isUrgent', 'thumbnailUrl', 'collegeId'
+    ];
     const clean = Object.fromEntries(
         Object.entries(data).filter(([k]) => ALLOWED_NOTICE_FIELDS.includes(k))
-    );
+    ) as any;
     if (Object.keys(clean).length === 0) return;
+    
+    // If collegeId is being updated, also update the denormalized college name and color
+    if (clean.collegeId) {
+        try {
+            const college = await getDocById<any>("colleges", clean.collegeId);
+            if (college) {
+                clean.college = college.shortName || college.name;
+                clean.collegeColor = college.color || "#6366f1";
+            }
+        } catch (err) {
+            console.warn("[Firestore] Failed to update college info for notice:", err);
+        }
+    }
+
     await updateDoc(doc(getDb(), "notices", id), { ...clean, date: serverTimestamp() });
 }
 
@@ -2100,6 +2117,17 @@ export function subscribeNotifications(uid: string, callback: (data: (FirestoreN
     const q = query(collection(getDb(), "notifications"), where("recipientId", "==", uid), orderBy("createdAt", "desc"), limit(20));
     return safeSubscribe(q, (snap: import("firebase/firestore").QuerySnapshot) => {
         callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreNotification) })));
+    });
+}
+
+export function subscribeUnreadNotificationsCount(uid: string, callback: (count: number) => void) {
+    const q = query(
+        collection(getDb(), "notifications"),
+        where("recipientId", "==", uid),
+        where("read", "==", false)
+    );
+    return safeSubscribe(q, (snap: import("firebase/firestore").QuerySnapshot) => {
+        callback(snap.size);
     });
 }
 
