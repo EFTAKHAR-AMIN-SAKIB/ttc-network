@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Globe, Mail, Facebook, Twitter, Linkedin, ShieldCheck } from "lucide-react";
 import type { FirestoreOfficialSettings } from "@/lib/firestore";
+import Link from "next/link";
 
 interface OfficialContactCardProps {
     settings: FirestoreOfficialSettings;
@@ -73,12 +74,21 @@ export default function OfficialContactCard({ settings }: OfficialContactCardPro
                     </a>
 
                     {/* Trust Line */}
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-4">
                         <ShieldCheck size={12} className="text-emerald-500" />
                         <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                             {settings.trustLine}
                         </span>
                     </div>
+
+                    {/* Privacy Policy Link */}
+                    <Link 
+                        href="/privacy" 
+                        className="text-xs font-bold text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-emerald-400 transition-colors flex items-center gap-1 select-none cursor-pointer"
+                    >
+                        <ShieldCheck size={12} className="text-gray-400 dark:text-gray-500" />
+                        Privacy Policy
+                    </Link>
                 </div>
             </div>
         </motion.div>

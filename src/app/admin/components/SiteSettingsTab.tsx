@@ -14,6 +14,7 @@ import {
     Loader2,
     Sparkles,
     RefreshCw,
+    BookText,
 } from "lucide-react";
 import Image from "next/image";
 import { updateSiteSettings, getSiteSettingsDoc } from "@/lib/firestore";
@@ -22,10 +23,79 @@ import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/storage";
 /* ═══════════════════════════════════════════════════
    DEFAULTS
    ═══════════════════════════════════════════════════ */
+const DEFAULT_PRIVACY = `# Privacy Policy for TTC Network
+
+**Last Updated: May 26, 2026**
+
+Welcome to **TTC Network**, a unified, community-driven web platform serving all Government Teachers' Training Colleges (TTCs) of Bangladesh. Your privacy and the security of your personal data are extremely important to us. This Privacy Policy explains how we collect, use, share, and protect your information when you use our platform.
+
+---
+
+## 1. Information We Collect
+
+We collect information to provide a secure, collaborative, and verifying academic network for students, faculty, and administrators.
+
+### A. Account & Profile Information
+* **Registration details**: Full name, custom username, email address, password (securely authenticated by Google Firebase Authentication), and college selection (with College ID).
+* **Profile Customization**: Academic program (e.g. B.Ed Honours or M.Ed), current year/semester, bios, goals, achievements, and social links (Facebook, LinkedIn, GitHub, X/Twitter, or personal website).
+* **Uploaded Images**: Profile pictures and profile header covers, hosted and optimized via Cloudinary.
+
+### B. User-Generated Content & Social Interaction
+* **Posts & Stories**: Text, pictures, and other media shared with the community.
+* **Study Resources**: Shared notes, syllabus PDFs, test prep, and class materials uploaded and securely stored on AWS S3 storage.
+* **Interactions**: Comments, replies, and reactions (Love, Fire, Insightful, Clap, Wow) on other users' posts.
+
+### C. Financial & Supporter Information
+* **Voluntary Donations**: When you support TTC Network to help keep the student-run platform alive, contribution amounts are registered to issue custom Supporter Badges. Raw payment card details are never stored or processed on our servers; they are managed securely by approved local payment gateways.
+
+---
+
+## 2. How We Use Your Information
+
+We process and utilize your information to maintain a safe, high-quality network:
+* **Academic Verification**: Confirming roles (Student vs. Teacher vs. Manager) to ensure notice board and course resource integrity.
+* **Dynamic Feeds & Search**: Populating search filters by college, program, and role.
+* **Notification Alerts**: Pushing alerts (for post approvals, comments, and mentions) to your profile.
+* **Ecosystem Safety**: Enforcing community guidelines through manager moderation tools (suspending or banning guidelines violators).
+
+---
+
+## 3. Data Storage & Third-Party Service Providers
+
+To provide state-of-the-art web performance, we partner with industry-leading secure infrastructure providers:
+* **Google Firebase**: Used as our primary database (Cloud Firestore) and authentication platform. All access is controlled strictly via server-side security rules.
+* **AWS S3**: Houses shared study resources and documents in encrypted storage.
+* **Cloudinary**: Delivers optimized CDN delivery for profile images, covers, and post images.
+
+**We do NOT sell, lease, or distribute your personal data to third-party advertisers or commercial entities.**
+
+---
+
+## 4. Your Rights & Data Controls
+
+You retain full control over your academic digital footprint:
+* **Edit Profile**: You can update your bio, social handles, achievements, and photos at any time.
+* **Content Deletion**: You can edit or delete your posts, comments, stories, and shared study documents directly. Deleting a document removes the file from our storage servers immediately.
+* **Account Deletion**: You may request complete account closure, which deletes your user document and anonymizes all public interactions.
+
+---
+
+## 5. Security & Protection
+
+We enforce rigorous security protocols, including Firestore role validation, HTTPS transit encryption, secure token authentication, and regular server configuration checks to protect your data from unauthorized access or alteration.
+
+---
+
+## 6. Contact Us
+
+If you have any questions, feedback, or requests regarding this Privacy Policy, please contact our support team at:
+* **Email**: ttcnetwork.xyz@gmail.com`;
+
 const DEFAULTS = {
     siteName: "TTC Network",
     siteTagline: "One Platform. All Colleges. Every Story.",
     logoUrl: "/logos/ttc network.png",
+    privacyPolicy: DEFAULT_PRIVACY,
 };
 
 /* ═══════════════════════════════════════════════════
@@ -40,6 +110,7 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
     const [logoUrl, setLogoUrl] = useState(DEFAULTS.logoUrl);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState("");
+    const [privacyPolicy, setPrivacyPolicy] = useState("");
 
     // UI state
     const [loading, setLoading] = useState(true);
@@ -50,7 +121,7 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
     const [hasChanges, setHasChanges] = useState(false);
 
     // Original state for comparison
-    const [original, setOriginal] = useState({ siteName: "", siteTagline: "", logoUrl: "" });
+    const [original, setOriginal] = useState({ siteName: "", siteTagline: "", logoUrl: "", privacyPolicy: "" });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,10 +138,12 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
                 setSiteName(data.siteName || DEFAULTS.siteName);
                 setSiteTagline(data.siteTagline || DEFAULTS.siteTagline);
                 setLogoUrl(data.logoUrl || DEFAULTS.logoUrl);
+                setPrivacyPolicy(data.privacyPolicy || DEFAULTS.privacyPolicy);
                 setOriginal({
                     siteName: data.siteName || DEFAULTS.siteName,
                     siteTagline: data.siteTagline || DEFAULTS.siteTagline,
                     logoUrl: data.logoUrl || DEFAULTS.logoUrl,
+                    privacyPolicy: data.privacyPolicy || DEFAULTS.privacyPolicy,
                 });
             } else {
                 setOriginal({ ...DEFAULTS });
@@ -88,9 +161,10 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
             siteName !== original.siteName ||
             siteTagline !== original.siteTagline ||
             logoUrl !== original.logoUrl ||
+            privacyPolicy !== original.privacyPolicy ||
             logoFile !== null;
         setHasChanges(changed);
-    }, [siteName, siteTagline, logoUrl, logoFile, original]);
+    }, [siteName, siteTagline, logoUrl, privacyPolicy, logoFile, original]);
 
     // ═══ Logo file selection ═══
     const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +228,7 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
                 siteName: siteName.trim(),
                 siteTagline: siteTagline.trim(),
                 logoUrl: finalLogoUrl,
+                privacyPolicy: privacyPolicy.trim(),
             });
 
             // Update local state
@@ -164,6 +239,7 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
                 siteName: siteName.trim(),
                 siteTagline: siteTagline.trim(),
                 logoUrl: finalLogoUrl,
+                privacyPolicy: privacyPolicy.trim(),
             });
 
             setSaved(true);
@@ -182,6 +258,7 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
         setSiteName(DEFAULTS.siteName);
         setSiteTagline(DEFAULTS.siteTagline);
         setLogoUrl(DEFAULTS.logoUrl);
+        setPrivacyPolicy(DEFAULTS.privacyPolicy);
         setLogoFile(null);
         setLogoPreview("");
     };
@@ -344,6 +421,27 @@ export default function SiteSettingsTab({ profile }: { profile: UserProfile }) {
                         />
                         <p className="text-[11px] text-gray-400 mt-1.5">
                             Appears in the browser tab title after the site name. {siteTagline.length}/100
+                        </p>
+                    </div>
+
+                    {/* ─── Divider ─── */}
+                    <div className="h-[1px] bg-gray-100 dark:bg-gray-800" />
+
+                    {/* ─── Privacy Policy ─── */}
+                    <div>
+                        <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white mb-3">
+                            <BookText size={16} className="text-emerald-500" />
+                            Privacy Policy Document (Markdown Supported)
+                        </label>
+                        <textarea
+                            value={privacyPolicy}
+                            onChange={(e) => setPrivacyPolicy(e.target.value)}
+                            rows={12}
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0C0C10] border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all resize-y"
+                            placeholder="Type your privacy policy here in markdown..."
+                        />
+                        <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                            Use standard markdown formatting: <code># Heading 1</code>, <code>## Heading 2</code>, <code>### Heading 3</code>, <code>**bold**</code>, and <code>- bullets</code> to structure the content beautifully.
                         </p>
                     </div>
                 </div>

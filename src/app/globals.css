@@ -1040,3 +1040,121 @@ body {
 .new-posts-pill:active {
   transform: scale(0.95);
 }
+
+/* ═══════════════════════════════════════════════════
+   PRIVACY POLICY — Formal Legal Document Styles
+   ═══════════════════════════════════════════════════ */
+
+/* Document Card — White paper-like background */
+.privacy-document-card {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 20px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+:is(.dark) .privacy-document-card {
+  background: #16181c;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Document Body — the text container */
+.privacy-document-body {
+  padding: 40px 48px 48px;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .privacy-document-body {
+    padding: 24px 20px 32px;
+  }
+}
+
+/* H1 — Document Title (centered, bold, large serif) */
+.privacy-heading-1 {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #111;
+  text-align: center;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+:is(.dark) .privacy-heading-1 {
+  color: #f0f0f0;
+}
+
+/* H2 — Major Sections (left-aligned, border-bottom, numbered-feel) */
+.privacy-heading-2 {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 36px 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid #e5e7eb;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+:is(.dark) .privacy-heading-2 {
+  color: #e0e0e0;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* H3 — Subsections (indented slightly, colored) */
+.privacy-heading-3 {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 24px 0 8px;
+  padding-left: 4px;
+  line-height: 1.4;
+}
+
+:is(.dark) .privacy-heading-3 {
+  color: #a5b4c3;
+}
+
+/* Paragraphs — Justified, proper line-height, serif-leaning */
+.privacy-paragraph {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 0.938rem;
+  line-height: 1.85;
+  color: #374151;
+  margin: 6px 0;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+:is(.dark) .privacy-paragraph {
+  color: #9ca3af;
+}
+
+/* List Items — Clean bullet points with proper indent */
+.privacy-list-item {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 0.938rem;
+  line-height: 1.85;
+  color: #374151;
+  margin: 4px 0 4px 28px;
+  list-style-type: disc;
+  padding-left: 4px;
+}
+
+:is(.dark) .privacy-list-item {
+  color: #9ca3af;
+}
+
+.privacy-list-item::marker {
+  color: var(--primary, #c0392b);
+}
+
+:is(.dark) .privacy-list-item::marker {
+  color: #34d399;
+}

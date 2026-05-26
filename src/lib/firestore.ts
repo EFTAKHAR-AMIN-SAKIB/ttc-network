@@ -2849,6 +2849,7 @@ export interface SiteSettingsDoc {
     siteName: string;
     siteTagline: string;
     logoUrl: string;
+    privacyPolicy?: string;
     updatedAt?: ReturnType<typeof serverTimestamp>;
 }
 

@@ -21,7 +21,7 @@ import {
     HelpCircle,
     Plus,
     Trash2,
-    Database,
+    /* Database — removed: was only used by Seed Data button */
     X,
     Loader2,
     Pencil,
@@ -29,7 +29,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { getColleges, updateCollege, uploadFile, subscribeClubs, getAdminPendingCounts, type FirestoreCollege, type FirestoreClub, type FacultyEntry, type AdminPendingCounts } from "@/lib/firestore";
-import { seedDatabaseAction, createClubAction, deleteClubAction, updateClubAction } from "@/lib/actions";
+// import { seedDatabaseAction } from "@/lib/actions"; // Seed function preserved in lib/actions.ts — UI removed for production safety
+import { createClubAction, deleteClubAction, updateClubAction } from "@/lib/actions";
 import PostsTab from "./components/PostsTab";
 import StoriesTab from "./components/StoriesTab";
 import StudyTab from "./components/StudyTab";
@@ -570,8 +571,9 @@ export default function AdminPage() {
     const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
     const [activeSection, setActiveSection] = useState<TabId>("management");
     const [loadingColleges, setLoadingColleges] = useState(true);
-    const [seeding, setSeeding] = useState(false);
-    const [showSeedModal, setShowSeedModal] = useState(false);
+    // Seed Data state removed for production safety — function preserved in lib/actions.ts
+    // const [seeding, setSeeding] = useState(false);
+    // const [showSeedModal, setShowSeedModal] = useState(false);
     const [pendingCounts, setPendingCounts] = useState<AdminPendingCounts>({ posts: 0, stories: 0, notices: 0, studyPosts: 0, gifts: 0 });
 
     const loadColleges = async () => {
@@ -608,23 +610,28 @@ export default function AdminPage() {
         setTimeout(() => setMessage(null), 4000);
     };
 
-    const handleConfirmSeed = async () => {
-        if (!profile?.uid) return showMessage("❌ Sign in required", "error");
-        setSeeding(true);
-        try {
-            const result = await seedDatabaseAction(profile.uid);
-            showMessage("✅ Database seeding started via secure link!", "success");
-            loadColleges();
-            setShowSeedModal(false);
-        } catch (err: any) {
-            showMessage(`❌ ${err.message || "Seed failed"}`, "error");
-        }
-        setSeeding(false);
-    };
-
-    const handleSeedData = () => {
-        setShowSeedModal(true);
-    };
+    /* ─── Seed Data handlers removed for production safety ───
+     * The seedDatabaseAction() function is still available in lib/actions.ts
+     * if you ever need to re-seed a development/staging environment.
+     * To re-enable, uncomment the state variables above, the import,
+     * the handlers below, and the button + modal in the JSX.
+     *
+     * const handleConfirmSeed = async () => {
+     *     if (!profile?.uid) return showMessage("❌ Sign in required", "error");
+     *     setSeeding(true);
+     *     try {
+     *         const result = await seedDatabaseAction(profile.uid);
+     *         showMessage("✅ Database seeding started!", "success");
+     *         loadColleges();
+     *         setShowSeedModal(false);
+     *     } catch (err: any) {
+     *         showMessage(`❌ ${err.message || "Seed failed"}`, "error");
+     *     }
+     *     setSeeding(false);
+     * };
+     *
+     * const handleSeedData = () => setShowSeedModal(true);
+     * ─── End of commented-out seed handlers ─── */
 
     if (!profile) {
         return (
@@ -663,10 +670,7 @@ export default function AdminPage() {
                                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-0.5">Manage all TTC Network data</p>
                             </div>
                         </div>
-                        <button onClick={handleSeedData} disabled={seeding}
-                            className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-bold hover:bg-amber-100 transition-colors border border-amber-200 dark:border-amber-800 disabled:opacity-50">
-                            <Database size={14} /> {seeding ? "Seeding..." : "Seed Data"}
-                        </button>
+                        {/* Seed Data button removed for production safety */}
                     </div>
                 </div>
             </div>
@@ -779,88 +783,10 @@ export default function AdminPage() {
                 {activeSection === "settings" && <SiteSettingsTab profile={profile as any} />}
             </div>
 
-            {/* Seed Data Modal */}
-            <AnimatePresence>
-                {showSeedModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700"
-                        >
-                            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-amber-50/50 dark:bg-amber-900/10">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                                        <Database size={20} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Initialize Database</h3>
-                                        <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest">Seed Master Data</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => !seeding && setShowSeedModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <div className="p-6 space-y-5">
-                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/50 rounded-2xl">
-                                    <p className="text-sm text-amber-800 dark:text-amber-300 font-medium leading-relaxed">
-                                        This action will populate your database with the core platform template. Matching institutional records will be updated to ensure consistency.
-                                    </p>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Components to be seeded</h4>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {[
-                                            { icon: Building2, label: "14 Colleges Profiles", desc: "Names, Principals, & Campus Stats" },
-                                            { icon: HelpCircle, label: "Homepage Sections", desc: "Manage Q&A, Admission Guide, Builder" },
-                                            { icon: GraduationCap, label: "Vision Roadmap", desc: "Public Milestone Phases" }
-                                        ].map((item, i) => (
-                                            <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                                                <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-primary shadow-sm mt-0.5">
-                                                    <item.icon size={14} />
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs font-bold text-gray-900 dark:text-white">{item.label}</p>
-                                                    <p className="text-[10px] text-gray-500">{item.desc}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 pt-2">
-                                    <button 
-                                        disabled={seeding}
-                                        onClick={() => setShowSeedModal(false)}
-                                        className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-[0.98] disabled:opacity-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button 
-                                        disabled={seeding}
-                                        onClick={handleConfirmSeed}
-                                        style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}
-                                        className="flex-[1.5] flex items-center justify-center gap-2 px-4 py-3 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all active:scale-[0.98] disabled:opacity-50"
-                                    >
-                                        {seeding ? (
-                                            <>
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Initialising...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Database size={14} />
-                                                Initialize Now
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            {/* Seed Data Modal — removed for production safety.
+             * The modal and all seed UI code is commented out.
+             * To re-enable during development, see the commented-out
+             * handlers and state variables above. */}
         </div>
     );
 }
