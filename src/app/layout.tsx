@@ -52,6 +52,10 @@ export const metadata: Metadata = {
     "Education",
     "National University",
   ],
+  icons: {
+    icon: "/logos/ttc network.png",
+    apple: "/logos/ttc network.png",
+  },
 };
 
 export default function RootLayout({
