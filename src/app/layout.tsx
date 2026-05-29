@@ -53,8 +53,13 @@ export const metadata: Metadata = {
     "National University",
   ],
   icons: {
-    icon: "/logos/ttc network.png",
-    apple: "/logos/ttc network.png",
+    icon: [
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icon-192.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 
