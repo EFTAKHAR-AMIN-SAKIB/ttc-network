@@ -8,7 +8,7 @@ import {
     Target, Pencil, Save, X, Camera, Loader2, ImageIcon, Trash2, Search,
     Heart, Clock, Shield, Activity, GraduationCap, Building, Quote, BookOpen, BookText, User, Award,
     Sparkles, Sparkle, Mail, ExternalLink, Calendar, Copy, Check, ChevronDown, MessageSquare, ThumbsUp,
-    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff, Facebook
+    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff, Facebook, Bookmark
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -31,7 +31,9 @@ import {
     addAchievement,
     removeAchievement,
     deleteComment,
-    syncUserProfileUpdates
+    syncUserProfileUpdates,
+    getSavedPostsFull,
+    toggleSavePost
 } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
@@ -490,6 +492,10 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const bannerInputRef = useRef<HTMLInputElement>(null);
     const photoInputRef = useRef<HTMLInputElement>(null);
 
+    // Saved/Bookmark states
+    const [savedPosts, setSavedPosts] = useState<any[]>([]);
+    const [loadingSaved, setLoadingSaved] = useState(false);
+
     const filteredFeed = useMemo(() => {
         if (!feedSearchTerm.trim()) return userFeed;
         const q = feedSearchTerm.toLowerCase();
@@ -593,6 +599,41 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             checkIsFollowing(user.uid, uid).then(setIsFollowing);
         }
     }, [user?.uid, uid]);
+
+    // Load saved posts when activeTab is "saved"
+    useEffect(() => {
+        if (activeTab === "saved" && isOwnProfile && uid) {
+            setLoadingSaved(true);
+            getSavedPostsFull(uid)
+                .then((data) => {
+                    setSavedPosts(data);
+                })
+                .catch((err) => {
+                    console.error("Failed to load saved posts:", err);
+                    showToast("Failed to load saved posts.", "error");
+                })
+                .finally(() => {
+                    setLoadingSaved(false);
+                });
+        }
+    }, [activeTab, isOwnProfile, uid]);
+
+    const handleSavePost = async (postId: string) => {
+        if (!uid) return;
+        try {
+            const isSaved = await toggleSavePost(uid, postId);
+            if (isSaved) {
+                showToast("Post bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+                // Instantly remove from local UI list for crisp response
+                setSavedPosts(prev => prev.filter(p => p.id !== postId));
+            }
+        } catch (err) {
+            console.error("Error bookmarking post:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
 
     // Close contact popover when clicking outside
     useEffect(() => {
@@ -1141,12 +1182,13 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 <div className="lg:col-span-6 space-y-12 min-h-[600px]">
                     
                     {/* Sticky Tabs Navigation */}
-                    <div ref={tabsRef} className="sticky top-0 z-40 bg-[#FAFAF8]/80 dark:bg-[#0c0c10]/80 backdrop-blur-xl -mx-4 px-4 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-b border-slate-100 dark:border-gray-800">
+                    <div ref={tabsRef} className="sticky top-16 z-40 bg-[#FAFAF8] dark:bg-[#0c0c10] -mx-4 px-4 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-b border-slate-100 dark:border-gray-800 shadow-sm">
                         <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar pb-1">
                             {[
                                 { id: "about", label: "About", icon: Info },
                                 { id: "activity", label: "Activity", icon: Activity },
                                 { id: "skills", label: "Credentials", icon: Award },
+                                ...(isOwnProfile ? [{ id: "saved", label: "Saved", icon: Bookmark }] : [])
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -1429,6 +1471,62 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             </div>
                                         )}
                                     </section>
+                                </motion.div>
+                            )}
+                            {activeTab === "saved" && isOwnProfile && (
+                                <motion.div 
+                                    key="saved-tab"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 20 }}
+                                    className="space-y-6"
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-black text-navy-900 dark:text-white uppercase tracking-tighter">Your Saved Bookmarks</h3>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Only you can see this section</p>
+                                        </div>
+                                        <div className="px-3 py-1.5 rounded-2xl bg-primary/10 text-primary border border-primary/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                            <Shield size={12} /> Private Tab
+                                        </div>
+                                    </div>
+
+                                    {loadingSaved ? (
+                                        <div className="flex justify-center py-20">
+                                            <Loader2 className="animate-spin text-primary" size={32} />
+                                        </div>
+                                    ) : savedPosts.length > 0 ? (
+                                        <div className="grid gap-6">
+                                            {savedPosts.map((post) => (
+                                                <div 
+                                                    key={post.id} 
+                                                    onClick={(e) => { 
+                                                        const target = e.target as HTMLElement; 
+                                                        if (target.closest('button') || target.closest('a')) return; 
+                                                        router.push(`/news-feed?post=${post.id}`); 
+                                                    }} 
+                                                    className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative"
+                                                >
+                                                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                                    <PostCard 
+                                                        post={post} 
+                                                        profile={currentUserProfile} 
+                                                        hideManageOptions={true} 
+                                                        isSaved={true}
+                                                        onSave={handleSavePost}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                            <Bookmark className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                            <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No Saved Posts Yet</h4>
+                                            <p className="text-xs text-gray-400 mt-2 max-w-[240px] leading-relaxed">
+                                                Posts you save/bookmark will appear here so you can easily reference them later.
+                                            </p>
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>

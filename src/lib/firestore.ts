@@ -3853,4 +3853,68 @@ export async function notifyFollowersOfPost(
     }
 }
 
+/**
+ * Toggles the save status of a post for a specific user.
+ * Returns true if saved, false if unsaved.
+ */
+export async function toggleSavePost(userId: string, postId: string): Promise<boolean> {
+    if (!userId || !postId) throw new Error("User ID and Post ID are required.");
+    const db = getDb();
+    const saveRef = doc(db, "users", userId, "savedPosts", postId);
+    const docSnap = await getDoc(saveRef);
+    if (docSnap.exists()) {
+        await deleteDoc(saveRef);
+        return false;
+    } else {
+        await setDoc(saveRef, {
+            postId,
+            savedAt: serverTimestamp()
+        });
+        return true;
+    }
+}
+
+/**
+ * Subscribes in real-time to the post IDs saved by a specific user.
+ */
+export function subscribeSavedPosts(userId: string, callback: (savedIds: string[]) => void) {
+    if (!userId) return () => {};
+    const db = getDb();
+    const q = query(collection(db, "users", userId, "savedPosts"), orderBy("savedAt", "desc"));
+    return safeSubscribe(q, (snap: any) => {
+        callback(snap.docs.map((d: any) => d.id));
+    });
+}
+
+/**
+ * Fetches the full post details for all posts saved by a specific user.
+ */
+export async function getSavedPostsFull(userId: string): Promise<(FirestorePost & { id: string })[]> {
+    if (!userId) return [];
+    const db = getDb();
+    const savedSnap = await getDocs(
+        query(collection(db, "users", userId, "savedPosts"), orderBy("savedAt", "desc"))
+    );
+    const postIds = savedSnap.docs.map(doc => doc.id);
+    if (postIds.length === 0) return [];
+
+    const posts: (FirestorePost & { id: string })[] = [];
+    const BATCH_SIZE = 30;
+    for (let i = 0; i < postIds.length; i += BATCH_SIZE) {
+        const batchIds = postIds.slice(i, i + BATCH_SIZE);
+        const q = query(collection(db, "posts"), where("__name__", "in", batchIds));
+        const postsSnap = await getDocs(q);
+        postsSnap.docs.forEach(d => {
+            posts.push({ id: d.id, ...(d.data() as FirestorePost) });
+        });
+    }
+
+    // Sort to match the order of saved posts
+    const postMap = new Map(posts.map(p => [p.id, p]));
+    return postIds
+        .map(id => postMap.get(id))
+        .filter((p): p is FirestorePost & { id: string } => !!p);
+}
+
+
 

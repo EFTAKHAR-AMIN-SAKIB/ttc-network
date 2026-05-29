@@ -177,7 +177,7 @@ export default function Navbar() {
     const { siteName, logoUrl } = useSiteSettings();
 
     return (
-        <nav className="sticky top-0 z-50 bg-white/80 dark:bg-[#0f1117]/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+        <nav className="sticky top-0 z-50 bg-white dark:bg-[#0f1117] border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     <HumanLogo logoUrl={logoUrl} siteName={siteName} />

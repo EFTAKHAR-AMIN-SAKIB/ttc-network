@@ -12,6 +12,7 @@ import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import { ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
+import ShareModal from "@/components/ShareModal";
 
 interface PostCardProps {
     post: any;
@@ -24,6 +25,9 @@ interface PostCardProps {
     isSaving?: boolean;
     autoFocus?: boolean;
     onTagClick?: (tag: string) => void;
+    // Bookmark/Save feature
+    isSaved?: boolean;
+    onSave?: (id: string) => void;
     // ... other edit states
     editEventName?: string;
     setEditEventName?: (v: string) => void;
@@ -118,6 +122,7 @@ function LinkPreviewCard({ post }: { post: any }) {
 export default function PostCard({
     post, profile, onEdit, onDelete, onApprove, onReject,
     editingId, isSaving, autoFocus, onTagClick,
+    isSaved, onSave,
     editEventName, setEditEventName,
     editDescription, setEditDescription,
     editShareLink, setEditShareLink,
@@ -130,6 +135,7 @@ export default function PostCard({
 }: PostCardProps) {
     const [showComments, setShowComments] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
+    const [isShareOpen, setIsShareOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     const isOwner = profile?.uid === post.creatorId;
@@ -295,7 +301,7 @@ export default function PostCard({
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 rounded-full group-hover:bg-primary/10 transition-colors" />
             
             {/* Top Bar: Author & Meta */}
-            <div className="flex items-start justify-between mb-6 relative z-50">
+            <div className="flex items-start justify-between mb-6 relative z-20">
                 <div className="flex items-center gap-4">
                     <Link href={`/profile/${post.creatorId}`} className="relative cursor-pointer group/author transition-transform active:scale-95">
                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-xl font-black text-gray-400 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm shadow-black/5 group-hover/author:border-primary/50 transition-colors">
@@ -452,20 +458,35 @@ export default function PostCard({
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4">
-                    <button className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10">
-                        <Bookmark size={18} />
+                    <button 
+                        onClick={() => onSave?.(post.id)}
+                        className={`p-2 rounded-xl transition-all border hover:scale-105 active:scale-95 duration-200 ${
+                            isSaved 
+                                ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                                : "bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                        }`}
+                        title={isSaved ? "Remove Bookmark" : "Bookmark Post"}
+                    >
+                        <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
                     </button>
-                    <button className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10">
+                    <button 
+                        onClick={() => setIsShareOpen(true)}
+                        className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
+                        title="Share Post"
+                    >
                         <Share2 size={18} />
                     </button>
-                    <a 
-                        href={post.shareLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                    >
-                        <ExternalLink size={18} />
-                    </a>
+                    {post.shareLink && (
+                        <a 
+                            href={post.shareLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 duration-200"
+                            title="Visit External Link"
+                        >
+                            <ExternalLink size={18} />
+                        </a>
+                    )}
                 </div>
             </div>
 
@@ -485,6 +506,17 @@ export default function PostCard({
                             />
                         </div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Premium Share Modal */}
+            <AnimatePresence>
+                {isShareOpen && (
+                    <ShareModal 
+                        isOpen={isShareOpen} 
+                        onClose={() => setIsShareOpen(false)} 
+                        post={post} 
+                    />
                 )}
             </AnimatePresence>
         </motion.div>

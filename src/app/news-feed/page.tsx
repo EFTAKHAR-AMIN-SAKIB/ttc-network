@@ -10,6 +10,7 @@ import { colleges } from "@/data/colleges";
 import { LocationFilterButton } from "@/components/LocationIcons";
 import { 
     subscribePosts, subscribeModerationCount, deletePost, updatePost,
+    toggleSavePost, subscribeSavedPosts,
     type FirestorePost 
 } from "@/lib/firestore";
 import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
@@ -38,6 +39,7 @@ function NewsFeedInner() {
     const [isSharing, setIsSharing] = useState(false);
     const [showModeration, setShowModeration] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
+    const [savedPostIds, setSavedPostIds] = useState<string[]>([]);
 
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [editEventName, setEditEventName] = useState("");
@@ -71,9 +73,19 @@ function NewsFeedInner() {
             (count) => setPendingCount(count)
         );
 
+        let unsubSaved = () => {};
+        if (profile?.uid) {
+            unsubSaved = subscribeSavedPosts(profile.uid, (ids) => {
+                setSavedPostIds(ids);
+            });
+        } else {
+            setSavedPostIds([]);
+        }
+
         return () => {
             unsubPosts();
             unsubCount();
+            unsubSaved();
         };
     }, [profile]);
 
@@ -109,6 +121,24 @@ function NewsFeedInner() {
             showToast("Failed to delete post.", "error");
         } finally {
             close();
+        }
+    };
+
+    const handleSavePost = async (postId: string) => {
+        if (!profile?.uid) {
+            showToast("Please log in to bookmark posts.", "error");
+            return;
+        }
+        try {
+            const isSaved = await toggleSavePost(profile.uid, postId);
+            if (isSaved) {
+                showToast("Post bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+            }
+        } catch (err) {
+            console.error("Error bookmarking post:", err);
+            showToast("Failed to toggle bookmark.", "error");
         }
     };
 
@@ -308,7 +338,7 @@ function NewsFeedInner() {
             </header>
 
             {/* Navigation & Filters */}
-            <div className="sticky top-0 z-40 bg-white/80 dark:bg-[#1a1b23]/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
+            <div className="sticky top-16 z-40 bg-white dark:bg-[#1a1b23] border-b border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="max-w-2xl mx-auto px-4 py-3">
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 location-filter-strip snap-x no-scrollbar">
                         {filterOptions.map((opt) => (
@@ -384,6 +414,8 @@ function NewsFeedInner() {
                                 onDelete={handleDeletePost}
                                 onApprove={() => {}}
                                 onReject={() => {}}
+                                isSaved={savedPostIds.includes(post.id)}
+                                onSave={handleSavePost}
                                 editingId={editingPostId}
                                 isSaving={isSaving}
                                 autoFocus={targetPostId === post.id}

@@ -84,6 +84,9 @@ service cloud.firestore {
         allow read: if true;
         allow create, delete: if isOwner(userId);
       }
+      match /savedPosts/{postId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ═══════════════════════════════════════════════════
