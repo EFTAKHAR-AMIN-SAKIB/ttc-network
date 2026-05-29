@@ -541,7 +541,9 @@ export interface FirestoreNotification {
     | "follow"
     | "badge_received"
     | "mention"
-    | "reply";
+    | "reply"
+    | "club_post_request"
+    | "club_post_approved";
     message: string;
     relatedId: string;
     relatedType: string;
@@ -943,6 +945,56 @@ export async function rejectClubMember(clubId: string, userId: string): Promise<
     });
 }
 
+export async function approveClubPostShare(clubId: string, postId: string): Promise<void> {
+    const validClubId = validateId(clubId, "Club ID");
+    const validPostId = validateId(postId, "Post ID");
+    const access = await canManageClub(validClubId);
+    if (!access.allowed) throw new Error("Unauthorized to approve posts for this club.");
+
+    const db = getDb();
+    const requestRef = doc(db, "clubs", validClubId, "requests", validPostId);
+    const requestSnap = await getDoc(requestRef);
+    if (!requestSnap.exists()) throw new Error("Request not found");
+
+    const request = requestSnap.data();
+
+    // Batch: approve post to show in club feed, delete request
+    const batch = writeBatch(db);
+    batch.update(doc(db, "posts", validPostId), { showInClubFeed: true });
+    batch.delete(requestRef);
+    await batch.commit();
+
+    await createNotification(request.userId, {
+        type: "club_post_approved",
+        message: `Your post "${request.postEventName}" has been approved to show on the club feed.`,
+        relatedId: validPostId,
+        relatedType: "post",
+    });
+}
+
+export async function rejectClubPostShare(clubId: string, postId: string): Promise<void> {
+    const validClubId = validateId(clubId, "Club ID");
+    const validPostId = validateId(postId, "Post ID");
+    const access = await canManageClub(validClubId);
+    if (!access.allowed) throw new Error("Unauthorized to manage requests for this club.");
+
+    const db = getDb();
+    const requestRef = doc(db, "clubs", validClubId, "requests", validPostId);
+    const requestSnap = await getDoc(requestRef);
+    if (!requestSnap.exists()) throw new Error("Request not found");
+
+    const request = requestSnap.data();
+
+    await deleteDoc(requestRef);
+
+    await createNotification(request.userId, {
+        type: "post_rejected" as any,
+        message: `Your request to share the post "${request.postEventName}" on the club feed was declined.`,
+        relatedId: validPostId,
+        relatedType: "post",
+    });
+}
+
 export function subscribeClubMembers(clubId: string, callback: (members: (ClubMember & { id: string })[]) => void) {
     if (!clubId) return () => {};
     const q = query(collection(getDb(), "clubs", clubId, "members"), orderBy("joinedAt", "desc"));
@@ -1116,6 +1168,53 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
 
     const docRef = await addDoc(collection(getDb(), "posts"), fullPost);
 
+    // If a global update includes a club (arranged by a club), create a post sharing request
+    if (post.type === "event" && (post as any).clubId) {
+        const clubId = (post as any).clubId;
+        const clubName = (post as any).clubName;
+        
+        const requestDocRef = doc(getDb(), "clubs", clubId, "requests", docRef.id);
+        await setDoc(requestDocRef, {
+            userId: profile.id!,
+            displayName: profile.displayName,
+            photoURL: profile.photoURL || "",
+            message: `Wants to share post: "${post.eventName}" on the club feed`,
+            status: "pending",
+            type: "post_share",
+            postId: docRef.id,
+            postEventName: post.eventName,
+            createdAt: serverTimestamp(),
+        });
+
+        // Notify club President and campus Managers
+        try {
+            // Find Presidents
+            const membersSnap = await getDocs(
+                query(collection(getDb(), "clubs", clubId, "members"), where("role", "==", "President"))
+            );
+            const presidents = membersSnap.docs.map(d => d.id);
+
+            // Find Managers in the same college
+            const managersSnap = await getDocs(
+                query(collection(getDb(), "users"), where("collegeId", "==", targetCollegeId), where("role", "==", "manager"))
+            );
+            const managers = managersSnap.docs.map(d => d.id);
+
+            const recipients = Array.from(new Set([...presidents, ...managers]));
+            for (const recipientId of recipients) {
+                await createNotification(recipientId, {
+                    type: "club_post_request" as any,
+                    message: `${profile.displayName} requested to share the post "${post.eventName}" on "${clubName}"'s feed.`,
+                    relatedId: clubId,
+                    relatedType: "club",
+                    targetUrl: `/college-info?college=${targetCollegeId}&clubId=${clubId}&tab=requests`,
+                });
+            }
+        } catch (err) {
+            console.error("[Firestore] Failed to notify club leaders:", err);
+        }
+    }
+
     if (isAutoApproved) {
         await notifyFollowersOfPost(
             profile.id!,
@@ -1198,20 +1297,23 @@ export function subscribeClubPosts(
     clubName: string,
     callback: (data: (FirestorePost & { id: string })[]) => void
 ) {
-    const db = getDb();
     const q = query(
-        collection(db, "posts"),
-        where("type", "==", "club"),
+        collection(getDb(), "posts"),
         where("clubName", "==", clubName),
-        where("status", "==", "approved"),
-        orderBy("timestamp", "desc"),
-        limit(50)
+        where("status", "==", "approved")
     );
 
     return safeSubscribe(q, (snap: import("firebase/firestore").QuerySnapshot) => {
         const posts = snap.docs
             .map((d: import("firebase/firestore").QueryDocumentSnapshot) => ({ id: d.id, ...(d.data() as FirestorePost) }))
-            .filter((p: FirestorePost) => !p.isAuthorShadowBanned);
+            .filter((p: FirestorePost) => !p.isAuthorShadowBanned)
+            .filter((p: FirestorePost) => p.type === "club" || (p as any).showInClubFeed === true)
+            .sort((a, b) => {
+                const tA = a.timestamp?.seconds || 0;
+                const tB = b.timestamp?.seconds || 0;
+                return tB - tA;
+            })
+            .slice(0, 50);
         callback(posts);
     });
 }

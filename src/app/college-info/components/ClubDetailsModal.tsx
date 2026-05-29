@@ -14,7 +14,7 @@ import {
     FirestoreClub, ClubMember, ClubRequest, ClubActivity, FirestorePost,
     subscribeClubMembers, subscribeClubRequests, subscribeClubActivities, subscribeClubPosts,
     requestJoinClub, approveClubMember, rejectClubMember, removeClubMember,
-    addClubActivity, canManageClub, updateClub
+    addClubActivity, canManageClub, updateClub, approveClubPostShare, rejectClubPostShare
 } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -167,6 +167,48 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
             try {
                 await rejectClubMember(club.id!, req.userId);
                 showToast("info", "Request Declined", `${req.displayName}'s join request has been declined.`);
+            } catch (err: any) {
+                showToast("error", "Action Failed", err.message);
+            } finally {
+                setConfirmLoading(false);
+                closeConfirm();
+            }
+        }
+    };
+
+    const handleApprovePostShareClick = async (req: any) => {
+        const confirmed = await confirm({
+            title: `Approve Post Share?`,
+            message: `This will display "${req.postEventName}" created by ${req.displayName} directly on your club's feed.`,
+            variant: "success"
+        });
+
+        if (confirmed) {
+            setConfirmLoading(true);
+            try {
+                await approveClubPostShare(club.id!, req.postId);
+                showToast("success", "Post Share Approved! ✅", `"${req.postEventName}" has been added to your club's feed.`);
+            } catch (err: any) {
+                showToast("error", "Action Failed", err.message);
+            } finally {
+                setConfirmLoading(false);
+                closeConfirm();
+            }
+        }
+    };
+
+    const handleRejectPostShareClick = async (req: any) => {
+        const confirmed = await confirm({
+            title: `Decline Post Share?`,
+            message: `This will decline ${req.displayName}'s request to display "${req.postEventName}" on your club's feed.`,
+            variant: "danger"
+        });
+
+        if (confirmed) {
+            setConfirmLoading(true);
+            try {
+                await rejectClubPostShare(club.id!, req.postId);
+                showToast("info", "Post Share Declined", `Request for "${req.postEventName}" has been declined.`);
             } catch (err: any) {
                 showToast("error", "Action Failed", err.message);
             } finally {
@@ -518,47 +560,107 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                             <Users size={40} className="mx-auto text-gray-300 mb-4" />
                                             <p className="text-gray-500 dark:text-gray-400 font-bold">No pending requests at the moment.</p>
                                         </div>
-                                    ) : requests.map((req) => (
-                                        <motion.div
-                                            key={req.userId}
-                                            initial={{ opacity: 0, y: 12 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, x: -20 }}
-                                            className="p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all"
-                                        >
-                                            <Link
-                                                href={`/profile/${req.userId}`}
-                                                target="_blank"
-                                                className="flex items-center gap-5 group cursor-pointer"
-                                            >
-                                                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white shadow-sm relative ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
-                                                    {req.photoURL ? <Image src={req.photoURL} alt={req.displayName} fill className="object-cover" /> : <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center font-black text-xl">{req.displayName[0]}</div>}
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="text-xl font-black text-gray-900 dark:text-white leading-tight group-hover:text-primary transition-colors">{req.displayName}</p>
-                                                        <ExternalLink size={14} className="text-gray-300 group-hover:text-primary transition-colors" />
+                                    ) : requests.map((req) => {
+                                        const isPostShare = (req as any).type === "post_share";
+                                        
+                                        if (isPostShare) {
+                                            return (
+                                                <motion.div
+                                                    key={(req as any).postId}
+                                                    initial={{ opacity: 0, y: 12 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, x: -20 }}
+                                                    className="p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all"
+                                                >
+                                                    <div className="flex items-start gap-5 min-w-0 flex-1">
+                                                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 text-3xl font-bold animate-pulse">
+                                                            📢
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 bg-amber-500/10 text-amber-500 rounded-md">
+                                                                    Post Share Request
+                                                                </span>
+                                                                <span className="text-[10px] font-bold text-gray-400">
+                                                                    by {req.displayName}
+                                                                </span>
+                                                            </div>
+                                                            <h4 className="text-xl font-black text-gray-900 dark:text-white leading-tight mt-1.5 truncate">
+                                                                {(req as any).postEventName}
+                                                            </h4>
+                                                            <p className="text-sm text-gray-500 mt-1 italic">
+                                                                &ldquo;Wants to share this post on the club feed&rdquo;
+                                                            </p>
+                                                            <a 
+                                                                href={`/news-feed?post=${(req as any).postId}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1.5 mt-2.5 bg-primary/5 px-3 py-1.5 rounded-full w-fit hover:bg-primary/10 transition-colors"
+                                                            >
+                                                                Preview Post <ExternalLink size={10} />
+                                                            </a>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-sm text-gray-500 mt-1">&ldquo;{req.message}&rdquo;</p>
-                                                    <p className="text-[10px] font-bold text-primary/60 mt-1.5 uppercase tracking-widest">Click to view profile →</p>
+                                                    <div className="flex gap-3 shrink-0">
+                                                        <button 
+                                                            onClick={() => handleApprovePostShareClick(req as any)} 
+                                                            className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                                                        >
+                                                            <Check size={18} /> Approve Feed
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleRejectPostShareClick(req as any)} 
+                                                            className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800"
+                                                        >
+                                                            <X size={18} /> Decline
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        }
+
+                                        return (
+                                            <motion.div
+                                                key={req.userId}
+                                                initial={{ opacity: 0, y: 12 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all"
+                                            >
+                                                <Link
+                                                    href={`/profile/${req.userId}`}
+                                                    target="_blank"
+                                                    className="flex items-center gap-5 group cursor-pointer"
+                                                >
+                                                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white shadow-sm relative ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                                                        {req.photoURL ? <Image src={req.photoURL} alt={req.displayName} fill className="object-cover" /> : <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center font-black text-xl">{req.displayName[0]}</div>}
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-xl font-black text-gray-900 dark:text-white leading-tight group-hover:text-primary transition-colors">{req.displayName}</p>
+                                                            <ExternalLink size={14} className="text-gray-300 group-hover:text-primary transition-colors" />
+                                                        </div>
+                                                        <p className="text-sm text-gray-500 mt-1">&ldquo;{req.message}&rdquo;</p>
+                                                        <p className="text-[10px] font-bold text-primary/60 mt-1.5 uppercase tracking-widest">Click to view profile →</p>
+                                                    </div>
+                                                </Link>
+                                                <div className="flex gap-3">
+                                                    <button 
+                                                        onClick={() => handleApproveClick(req)} 
+                                                        className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                                                    >
+                                                        <Check size={18} /> Approve
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleRejectClick(req)} 
+                                                        className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800"
+                                                    >
+                                                        <X size={18} /> Reject
+                                                    </button>
                                                 </div>
-                                            </Link>
-                                            <div className="flex gap-3">
-                                                <button 
-                                                    onClick={() => handleApproveClick(req)} 
-                                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
-                                                >
-                                                    <Check size={18} /> Approve
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleRejectClick(req)} 
-                                                    className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800"
-                                                >
-                                                    <X size={18} /> Reject
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    ))}
+                                            </motion.div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
