@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2 } from "lucide-react";
-import { getDocById, type FirestoreStory, reactToStory, subscribeStories } from "@/lib/firestore";
+import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark } from "lucide-react";
+import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import StoryCard from "@/components/StoryCard";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
+import ShareModal from "@/components/ShareModal";
 
 export default function StoryDetailPage() {
     const params = useParams();
@@ -23,6 +24,8 @@ export default function StoryDetailPage() {
     const [moreStories, setMoreStories] = useState<(FirestoreStory & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
+    const [isShareOpen, setIsShareOpen] = useState(false);
 
     useEffect(() => {
         const fetchStory = async () => {
@@ -47,6 +50,36 @@ export default function StoryDetailPage() {
         if (id) fetchStory();
     }, [id]);
 
+    useEffect(() => {
+        let unsubSaved = () => {};
+        if (profile?.uid) {
+            unsubSaved = subscribeSavedStories(profile.uid, (ids) => {
+                setSavedStoryIds(ids);
+            });
+        } else {
+            setSavedStoryIds([]);
+        }
+        return () => unsubSaved();
+    }, [profile]);
+
+    const handleSaveStory = async () => {
+        if (!profile?.uid) {
+            showToast("Please log in to bookmark stories.", "error");
+            return;
+        }
+        try {
+            const isSaved = await toggleSaveStory(profile.uid, id);
+            if (isSaved) {
+                showToast("Story bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+            }
+        } catch (err) {
+            console.error("Error bookmarking story:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
             <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
@@ -65,18 +98,26 @@ export default function StoryDetailPage() {
     return (
         <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pt-24 pb-20">
             <div className="max-w-4xl mx-auto px-6">
-                {/* Header / Breadcrumb */}
                 <div className="flex items-center justify-between mb-12">
                     <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-navy-900 dark:hover:text-gray-200 transition-colors font-black uppercase tracking-widest text-[10px]">
                         <ArrowLeft size={16} /> Back to Stories
                     </button>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2.5">
                         <button 
-                            onClick={() => {
-                                navigator.clipboard.writeText(window.location.href);
-                                showToast("Link copied to clipboard", "success");
-                            }}
+                            onClick={handleSaveStory}
+                            className={`p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border hover:scale-110 active:scale-95 transition-all duration-200 ${
+                                savedStoryIds.includes(id) 
+                                    ? "text-primary border-primary/20 bg-primary/5" 
+                                    : "text-gray-400 hover:text-primary border-gray-100 dark:border-gray-700"
+                            }`}
+                            title={savedStoryIds.includes(id) ? "Remove Bookmark" : "Bookmark Story"}
+                        >
+                            <Bookmark size={18} className={savedStoryIds.includes(id) ? "fill-primary" : ""} />
+                        </button>
+                        <button 
+                            onClick={() => setIsShareOpen(true)}
                             className="p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-primary"
+                            title="Share Story"
                         >
                             <Share2 size={18} />
                         </button>
@@ -237,6 +278,24 @@ export default function StoryDetailPage() {
                     </div>
                 )}
             </div>
+            
+            {/* Generic Share Modal */}
+            <AnimatePresence>
+                {isShareOpen && story && (
+                    <ShareModal 
+                        isOpen={isShareOpen} 
+                        onClose={() => setIsShareOpen(false)} 
+                        type="story"
+                        post={{
+                            id: story.id,
+                            title: story.title,
+                            fullStory: story.fullStory,
+                            authorName: story.name,
+                            college: story.college
+                        }} 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

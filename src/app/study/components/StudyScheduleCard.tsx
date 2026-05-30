@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Video, Calendar, Clock, User, Link as LinkIcon, AlertCircle, Pencil, Globe, Lock, Trash2, MessageCircle } from "lucide-react";
+import { Video, Calendar, Clock, User, Link as LinkIcon, AlertCircle, Pencil, Globe, Lock, Trash2, MessageCircle, Bookmark, Share2 } from "lucide-react";
 import Link from "next/link";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
@@ -15,6 +15,11 @@ interface StudyScheduleCardProps {
     isAdmin?: boolean;
     onEdit?: (post: FirestoreStudyPost & { id: string }) => void;
     onDelete?: (id: string) => void;
+    isSaved?: boolean;
+    onSave?: (id: string) => void;
+    onShare?: (post: any) => void;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const safeDate = (val: any): Date => {
@@ -28,10 +33,12 @@ const safeDate = (val: any): Date => {
     return isNaN(d.getTime()) ? new Date() : d;
 };
 
-export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit, onDelete }: StudyScheduleCardProps) {
+export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit, onDelete, isSaved, onSave, onShare, canEdit, canDelete }: StudyScheduleCardProps) {
     const [status, setStatus] = useState<"upcoming" | "live" | "ended">("upcoming");
     const [timeLeft, setTimeLeft] = useState("");
     const [showComments, setShowComments] = useState(false);
+    const showEdit = canEdit !== undefined ? canEdit : (currentUserId === post.authorId || isAdmin);
+    const showDelete = canDelete !== undefined ? canDelete : (currentUserId === post.authorId || isAdmin);
 
     useEffect(() => {
         if (!post.startTime) return;
@@ -86,7 +93,6 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
             }`}
         >
             <div className="p-10">
-                {/* Status Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className={`px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm ${
                         status === 'live' ? 'bg-primary text-white animate-pulse' : 
@@ -96,12 +102,43 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                         {status === 'live' ? <div className="w-2 h-2 rounded-full bg-white" /> : <Clock size={14} />}
                         {timeLeft}
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                        {(post.privacy === 'campus' || post.privacy === 'college_only' || post.visibility === 'campus' || post.visibility === 'college_only') ? 
-                            <div className="w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-900/10 flex items-center justify-center text-amber-600"><Lock size={12} strokeWidth={3} /></div> : 
-                            <div className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600"><Globe size={12} strokeWidth={3} /></div>
-                        }
-                        {post.collegeName?.split(',')[0]} Community
+                    <div className="flex items-center gap-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+                            {(post.privacy === 'campus' || post.privacy === 'college_only' || post.visibility === 'campus' || post.visibility === 'college_only') ? 
+                                <div className="w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-900/10 flex items-center justify-center text-amber-600"><Lock size={12} strokeWidth={3} /></div> : 
+                                <div className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center text-blue-600"><Globe size={12} strokeWidth={3} /></div>
+                            }
+                            {post.collegeName?.split(',')[0]} Community
+                        </div>
+                        
+                        {(showEdit || showDelete) && (
+                            <div className="flex items-center gap-1.5 border-l border-gray-100 dark:border-gray-800 pl-3">
+                                {showEdit && onEdit && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEdit(post);
+                                        }}
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-primary/10 dark:bg-gray-800/50 text-gray-400 hover:text-primary transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800"
+                                        title="Edit"
+                                    >
+                                        <Pencil size={12} />
+                                    </button>
+                                )}
+                                {showDelete && onDelete && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDelete(post.id);
+                                        }}
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800/50 text-gray-400 hover:text-red-500 transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800"
+                                        title="Delete"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -176,6 +213,28 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {onSave && (
+                            <button 
+                                onClick={() => onSave(post.id)}
+                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                    isSaved 
+                                        ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent hover:border-primary/10"
+                                }`}
+                                title={isSaved ? "Remove Bookmark" : "Bookmark Session"}
+                            >
+                                <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
+                            </button>
+                        )}
+                        {onShare && (
+                            <button 
+                                onClick={() => onShare(post)}
+                                className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent hover:border-primary/10 flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary hover:scale-105 active:scale-95 transition-all duration-200"
+                                title="Share Session"
+                            >
+                                <Share2 size={18} />
+                            </button>
+                        )}
                         {status === 'ended' ? (
                             <div className="flex items-center gap-2 text-gray-400 font-bold text-sm">
                                 <AlertCircle size={16} /> Session Completed
@@ -200,25 +259,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                             </div>
                         )}
 
-                        {(currentUserId === post.authorId || isAdmin) && onEdit && (
-                            <button
-                                onClick={() => onEdit(post)}
-                                className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 hover:bg-primary hover:text-white transition-all shadow-sm"
-                                title="Edit"
-                            >
-                                <Pencil size={18} />
-                            </button>
-                        )}
 
-                        {(currentUserId === post.authorId || isAdmin) && onDelete && (
-                            <button
-                                onClick={() => onDelete(post.id)}
-                                className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                                title="Delete"
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        )}
                     </div>
                 </div>
 

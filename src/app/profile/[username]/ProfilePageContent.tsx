@@ -33,13 +33,20 @@ import {
     deleteComment,
     syncUserProfileUpdates,
     getSavedPostsFull,
-    toggleSavePost
+    toggleSavePost,
+    toggleSaveStory,
+    getSavedStoriesFull,
+    toggleSaveNotice,
+    getSavedNoticesFull,
+    toggleSaveStudyPost,
+    getSavedStudyPostsFull
 } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import StoryCard from "@/components/StoryCard";
 import PostCard from "@/components/PostCard";
 import StudyNoteCard from "@/app/study/components/StudyNoteCard";
+import StudyScheduleCard from "@/app/study/components/StudyScheduleCard";
 import ImageLightbox from "@/components/ImageLightbox";
 
 // ═══════════════════════════════════════════════════
@@ -495,6 +502,10 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     // Saved/Bookmark states
     const [savedPosts, setSavedPosts] = useState<any[]>([]);
     const [loadingSaved, setLoadingSaved] = useState(false);
+    const [savedSubTab, setSavedSubTab] = useState<"posts" | "stories" | "notices" | "study">("posts");
+    const [savedStories, setSavedStories] = useState<any[]>([]);
+    const [savedNotices, setSavedNotices] = useState<any[]>([]);
+    const [savedStudyPosts, setSavedStudyPosts] = useState<any[]>([]);
 
     const filteredFeed = useMemo(() => {
         if (!feedSearchTerm.trim()) return userFeed;
@@ -600,23 +611,35 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         }
     }, [user?.uid, uid]);
 
-    // Load saved posts when activeTab is "saved"
+    // Load saved posts/stories/notices/study posts when activeTab is "saved"
     useEffect(() => {
         if (activeTab === "saved" && isOwnProfile && uid) {
             setLoadingSaved(true);
-            getSavedPostsFull(uid)
-                .then((data) => {
-                    setSavedPosts(data);
-                })
-                .catch((err) => {
-                    console.error("Failed to load saved posts:", err);
-                    showToast("Failed to load saved posts.", "error");
-                })
-                .finally(() => {
+            const loadData = async () => {
+                try {
+                    if (savedSubTab === "posts") {
+                        const data = await getSavedPostsFull(uid);
+                        setSavedPosts(data);
+                    } else if (savedSubTab === "stories") {
+                        const data = await getSavedStoriesFull(uid);
+                        setSavedStories(data);
+                    } else if (savedSubTab === "notices") {
+                        const data = await getSavedNoticesFull(uid);
+                        setSavedNotices(data);
+                    } else if (savedSubTab === "study") {
+                        const data = await getSavedStudyPostsFull(uid);
+                        setSavedStudyPosts(data);
+                    }
+                } catch (err) {
+                    console.error(`Failed to load saved ${savedSubTab}:`, err);
+                    showToast(`Failed to load saved items.`, "error");
+                } finally {
                     setLoadingSaved(false);
-                });
+                }
+            };
+            loadData();
         }
-    }, [activeTab, isOwnProfile, uid]);
+    }, [activeTab, savedSubTab, isOwnProfile, uid]);
 
     const handleSavePost = async (postId: string) => {
         if (!uid) return;
@@ -631,6 +654,54 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             }
         } catch (err) {
             console.error("Error bookmarking post:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
+
+    const handleSaveStory = async (storyId: string) => {
+        if (!uid) return;
+        try {
+            const isSaved = await toggleSaveStory(uid, storyId);
+            if (isSaved) {
+                showToast("Story bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+                setSavedStories(prev => prev.filter(s => s.id !== storyId));
+            }
+        } catch (err) {
+            console.error("Error toggling story bookmark:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
+
+    const handleSaveNotice = async (noticeId: string) => {
+        if (!uid) return;
+        try {
+            const isSaved = await toggleSaveNotice(uid, noticeId);
+            if (isSaved) {
+                showToast("Notice bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+                setSavedNotices(prev => prev.filter(n => n.id !== noticeId));
+            }
+        } catch (err) {
+            console.error("Error toggling notice bookmark:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
+
+    const handleSaveStudyPost = async (postId: string) => {
+        if (!uid) return;
+        try {
+            const isSaved = await toggleSaveStudyPost(uid, postId);
+            if (isSaved) {
+                showToast("Resource bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+                setSavedStudyPosts(prev => prev.filter(sp => sp.id !== postId));
+            }
+        } catch (err) {
+            console.error("Error toggling study bookmark:", err);
             showToast("Failed to toggle bookmark.", "error");
         }
     };
@@ -1479,53 +1550,192 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 20 }}
-                                    className="space-y-6"
+                                    className="space-y-8"
                                 >
-                                    <div className="flex items-center justify-between mb-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                         <div>
-                                            <h3 className="text-lg font-black text-navy-900 dark:text-white uppercase tracking-tighter">Your Saved Bookmarks</h3>
+                                            <h3 className="text-xl font-black text-navy-900 dark:text-white uppercase tracking-tighter">Your Saved Bookmarks</h3>
                                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Only you can see this section</p>
                                         </div>
-                                        <div className="px-3 py-1.5 rounded-2xl bg-primary/10 text-primary border border-primary/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                        <div className="self-start px-3 py-1.5 rounded-2xl bg-primary/10 text-primary border border-primary/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                                             <Shield size={12} /> Private Tab
                                         </div>
+                                    </div>
+
+                                    {/* Sub-tab selection strip */}
+                                    <div className="flex gap-2 overflow-x-auto pb-2 border-b border-gray-100 dark:border-gray-800 scrollbar-none">
+                                        {[
+                                            { id: "posts", label: "Posts" },
+                                            { id: "stories", label: "Stories" },
+                                            { id: "notices", label: "Notices" },
+                                            { id: "study", label: "Study Prep" }
+                                        ].map((subTab) => (
+                                            <button
+                                                key={subTab.id}
+                                                onClick={() => setSavedSubTab(subTab.id as any)}
+                                                className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                                                    savedSubTab === subTab.id
+                                                        ? "bg-primary text-white shadow-lg shadow-primary/25"
+                                                        : "text-gray-400 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-gray-650"
+                                                }`}
+                                            >
+                                                {subTab.label}
+                                            </button>
+                                        ))}
                                     </div>
 
                                     {loadingSaved ? (
                                         <div className="flex justify-center py-20">
                                             <Loader2 className="animate-spin text-primary" size={32} />
                                         </div>
-                                    ) : savedPosts.length > 0 ? (
-                                        <div className="grid gap-6">
-                                            {savedPosts.map((post) => (
-                                                <div 
-                                                    key={post.id} 
-                                                    onClick={(e) => { 
-                                                        const target = e.target as HTMLElement; 
-                                                        if (target.closest('button') || target.closest('a')) return; 
-                                                        router.push(`/news-feed?post=${post.id}`); 
-                                                    }} 
-                                                    className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative"
-                                                >
-                                                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
-                                                    <PostCard 
-                                                        post={post} 
-                                                        profile={currentUserProfile} 
-                                                        hideManageOptions={true} 
+                                    ) : savedSubTab === "posts" ? (
+                                        savedPosts.length > 0 ? (
+                                            <div className="grid gap-6">
+                                                {savedPosts.map((post) => (
+                                                    <div 
+                                                        key={post.id} 
+                                                        onClick={(e) => { 
+                                                            const target = e.target as HTMLElement; 
+                                                            if (target.closest('button') || target.closest('a')) return; 
+                                                            router.push(`/news-feed?post=${post.id}`); 
+                                                        }} 
+                                                        className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative"
+                                                    >
+                                                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                                        <PostCard 
+                                                            post={post} 
+                                                            profile={currentUserProfile} 
+                                                            hideManageOptions={true} 
+                                                            isSaved={true}
+                                                            onSave={handleSavePost}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                                <Bookmark className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                                <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No Saved Posts Yet</h4>
+                                                <p className="text-xs text-gray-400 mt-2 max-w-[240px] leading-relaxed">
+                                                    Posts you save/bookmark will appear here so you can easily reference them later.
+                                                </p>
+                                            </div>
+                                        )
+                                    ) : savedSubTab === "stories" ? (
+                                        savedStories.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                {savedStories.map((story) => (
+                                                    <StoryCard 
+                                                        key={story.id} 
+                                                        story={story} 
                                                         isSaved={true}
-                                                        onSave={handleSavePost}
+                                                        onSave={handleSaveStory}
                                                     />
-                                                </div>
-                                            ))}
-                                        </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                                <Bookmark className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                                <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No Saved Stories Yet</h4>
+                                                <p className="text-xs text-gray-400 mt-2 max-w-[240px] leading-relaxed">
+                                                    Stories you save/bookmark will appear here so you can easily reference them later.
+                                                </p>
+                                            </div>
+                                        )
+                                    ) : savedSubTab === "notices" ? (
+                                        savedNotices.length > 0 ? (
+                                            <div className="grid gap-6">
+                                                {savedNotices.map((notice) => {
+                                                    const formattedDate = notice.date ? (notice.date.toDate ? notice.date.toDate().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : new Date(notice.date).toLocaleDateString()) : "";
+                                                    return (
+                                                        <div 
+                                                            key={notice.id}
+                                                            onClick={(e) => {
+                                                                const target = e.target as HTMLElement;
+                                                                if (target.closest('button') || target.closest('a')) return;
+                                                                router.push(`/notice?notice=${notice.id}`);
+                                                            }}
+                                                            className="cursor-pointer group/notice relative rounded-[2.5rem] p-8 bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-4">
+                                                                <div>
+                                                                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                                                                        <span className="px-3 py-1 bg-red-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                                                                            {notice.college?.split(", ").pop()}
+                                                                        </span>
+                                                                        {notice.isUrgent && (
+                                                                            <span className="px-3 py-1 bg-red-100 text-red-600 dark:bg-red-950/20 dark:text-red-400 rounded-lg text-[10px] font-black uppercase tracking-wider animate-pulse">
+                                                                                Urgent
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-black uppercase tracking-wider">
+                                                                            {notice.programme === "BEdHonours" ? "B.Ed Honours" : notice.programme === "MEd" ? "M.Ed" : "All"}
+                                                                        </span>
+                                                                    </div>
+                                                                    <h4 className="text-lg font-black text-navy-900 dark:text-white leading-snug group-hover/notice:text-primary transition-colors">
+                                                                        {notice.title}
+                                                                    </h4>
+                                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">
+                                                                        Posted by {notice.postedBy} • {formattedDate}
+                                                                    </p>
+                                                                </div>
+
+                                                                <button 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleSaveNotice(notice.id);
+                                                                    }}
+                                                                    className="p-3 rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm shrink-0 self-start"
+                                                                    title="Remove Bookmark"
+                                                                >
+                                                                    <Bookmark size={16} className="fill-primary" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                                <Bookmark className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                                <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No Saved Notices Yet</h4>
+                                                <p className="text-xs text-gray-400 mt-2 max-w-[240px] leading-relaxed">
+                                                    Notices you save/bookmark will appear here so you can easily reference them later.
+                                                </p>
+                                            </div>
+                                        )
                                     ) : (
-                                        <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
-                                            <Bookmark className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
-                                            <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No Saved Posts Yet</h4>
-                                            <p className="text-xs text-gray-400 mt-2 max-w-[240px] leading-relaxed">
-                                                Posts you save/bookmark will appear here so you can easily reference them later.
-                                            </p>
-                                        </div>
+                                        savedStudyPosts.length > 0 ? (
+                                            <div className="grid gap-8">
+                                                {savedStudyPosts.map((post) => (
+                                                    <div key={post.id} className="relative group/study">
+                                                        {post.type === "schedule" ? (
+                                                            <StudyScheduleCard 
+                                                                post={post}
+                                                                currentUserId={uid}
+                                                                isSaved={true}
+                                                                onSave={handleSaveStudyPost}
+                                                            />
+                                                        ) : (
+                                                            <StudyNoteCard 
+                                                                post={post}
+                                                                currentUserId={uid}
+                                                                isSaved={true}
+                                                                onSave={handleSaveStudyPost}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 border-4 border-dashed border-slate-100 dark:border-gray-800 rounded-[3.5rem] flex flex-col items-center justify-center text-center">
+                                                <Bookmark className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
+                                                <h4 className="text-base sm:text-xl font-black text-gray-300 uppercase tracking-widest">No Saved Study Prep Yet</h4>
+                                                <p className="text-xs text-gray-400 mt-2 max-w-[240px] leading-relaxed">
+                                                    Study materials and class schedules you save/bookmark will appear here so you can easily reference them later.
+                                                </p>
+                                            </div>
+                                        )
                                     )}
                                 </motion.div>
                             )}

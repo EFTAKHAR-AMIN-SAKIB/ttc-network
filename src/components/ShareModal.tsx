@@ -8,14 +8,22 @@ import { useToast } from "@/contexts/ToastContext";
 interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
+    type?: "post" | "story" | "notice" | "study";
     post: {
         id: string;
-        eventName: string;
+        eventName?: string;
+        title?: string;
         description?: string;
-        collegeName: string;
+        body?: string;
+        content?: string;
+        fullStory?: string;
+        collegeName?: string;
+        college?: string;
         collegeLogo?: string;
         thumbnailUrl?: string;
         shareLink?: string;
+        authorName?: string;
+        name?: string;
         linkPreview?: {
             title?: string;
             description?: string;
@@ -25,7 +33,7 @@ interface ShareModalProps {
     };
 }
 
-export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
+export default function ShareModal({ isOpen, onClose, type = "post", post }: ShareModalProps) {
     const { showToast } = useToast();
     const [copied, setCopied] = useState(false);
     const [copiedText, setCopiedText] = useState(false);
@@ -33,22 +41,45 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            setPostUrl(`${window.location.origin}/news-feed?post=${post.id}`);
+            let path = "/news-feed";
+            if (type === "story") {
+                path = `/story/${post.id}`;
+            } else if (type === "notice") {
+                path = `/notice?notice=${post.id}`;
+            } else if (type === "study") {
+                path = `/study?study=${post.id}`;
+            } else {
+                path = `/news-feed?post=${post.id}`;
+            }
+            setPostUrl(`${window.location.origin}${path}`);
         }
-    }, [post.id]);
+    }, [post.id, type]);
 
     if (!isOpen) return null;
 
-    // Auto-generated post text for sharing
-    const cleanDescription = post.description
-        ? post.description.replace(/[#*`_~[\]()]/g, "") // Clean markdown syntax
+    // Retrieve clean text content
+    const rawDescription = post.description || post.body || post.content || post.fullStory || "";
+    const cleanDescription = rawDescription
+        ? rawDescription.replace(/[#*`_~[\]()]/g, "") // Clean markdown syntax
         : "";
     const descriptionSnippet = cleanDescription.length > 185
         ? `${cleanDescription.slice(0, 185)}...`
         : cleanDescription;
 
+    const itemTitle = post.title || post.eventName || "TTC Update";
+    const itemCollege = post.collegeName || post.college || "Global Community";
+
     // Rich structured post templates tailored strictly to post type and details
-    const shareText = `🎓 TTC Network Update 🎓\n\n📢 Event: ${post.eventName}\n\n"${descriptionSnippet}"\n\n🏫 Campus: ${post.collegeName}\n\nJoin the discussion and connect with teachers & students across Bangladesh! 🇧🇩\n\n#TTCNetwork #TeachersTrainingCollege #Bangladesh #TTC`;
+    let shareText = "";
+    if (type === "story") {
+        shareText = `📚 Inspiring TTC Journey 📚\n\n✨ Title: ${itemTitle}\n\n"${descriptionSnippet}"\n\n✍️ Author: ${post.authorName || post.name || "Educator"}\n🏫 College: ${itemCollege}\n\nRead the full story on TTC Network! 🇧🇩\n\n#TTCNetwork #TTCJourney #Inspiration #TeachersBangladesh`;
+    } else if (type === "notice") {
+        shareText = `📢 TTC Network Official Notice 📢\n\n📋 Notice: ${itemTitle}\n\n"${descriptionSnippet}"\n\n🏫 College: ${itemCollege}\n\nStay updated with your campus announcements! 🇧🇩\n\n#TTCNetwork #TTCNotice #NoticeBoard #Bangladesh`;
+    } else if (type === "study") {
+        shareText = `📖 Study Prep Material Shared 📖\n\n🎯 Topic: ${itemTitle}\n\n"${descriptionSnippet}"\n\n✍️ Shared by: ${post.authorName || post.name || "Educator"}\n🏫 College: ${itemCollege}\n\nAccess notes and schedules on TTC Network! 🇧🇩\n\n#TTCNetwork #TTCStudy #ResourceLibrary #Education`;
+    } else {
+        shareText = `🎓 TTC Network Update 🎓\n\n📢 Event: ${itemTitle}\n\n"${descriptionSnippet}"\n\n🏫 Campus: ${itemCollege}\n\nJoin the discussion and connect with teachers & students across Bangladesh! 🇧🇩\n\n#TTCNetwork #TeachersTrainingCollege #Bangladesh #TTC`;
+    }
 
     const encodedUrl = encodeURIComponent(postUrl);
     const encodedText = encodeURIComponent(shareText);
@@ -112,7 +143,7 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
         try {
             await navigator.clipboard.writeText(shareText);
             setCopiedText(true);
-            showToast("Post text copied to clipboard!", "success");
+            showToast("Share text copied to clipboard!", "success");
             setTimeout(() => setCopiedText(false), 2000);
         } catch (err) {
             showToast("Failed to copy text", "error");
@@ -132,6 +163,15 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
         }
         window.open(shareUrl, "_blank", "noopener,noreferrer");
     };
+
+    const modalTitle = type === "story" ? "Share Story" : 
+                       type === "notice" ? "Share Notice" : 
+                       type === "study" ? "Share Resource" : "Share Post";
+
+    const modalDesc = type === "story" ? "Spread the word about this inspiring story" : 
+                      type === "notice" ? "Spread the word about this campus notice" : 
+                      type === "study" ? "Spread the word about this study resource" : 
+                      "Spread the word about your college update";
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -155,9 +195,9 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
-                            Share Post
+                            {modalTitle}
                         </h2>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Spread the word about your college update</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{modalDesc}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -177,18 +217,18 @@ export default function ShareModal({ isOpen, onClose, post }: ShareModalProps) {
                         />
                     ) : (
                         <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 text-xl font-bold">
-                            🎓
+                            {type === "story" ? "📚" : type === "notice" ? "📢" : type === "study" ? "📖" : "🎓"}
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
                         <span className="text-[8px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full inline-block mb-1 truncate max-w-full">
-                            {post.collegeName}
+                            {itemCollege}
                         </span>
                         <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate leading-snug">
-                            {post.eventName}
+                            {itemTitle}
                         </h3>
                         <p className="text-xs text-gray-400 dark:text-gray-500 truncate leading-relaxed">
-                            {cleanDescription || "TTC Network campus event update"}
+                            {cleanDescription || `TTC Network ${type} update`}
                         </p>
                     </div>
                 </div>

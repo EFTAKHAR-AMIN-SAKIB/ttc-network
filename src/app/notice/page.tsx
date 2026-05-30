@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import ImageLightbox from "@/components/ImageLightbox";
 import {
     Pin,
@@ -20,11 +21,15 @@ import {
     Globe,
     School,
     ImageIcon,
-    Shield
+    Shield,
+    Bookmark,
+    Share2
 } from "lucide-react";
 import { 
-    subscribeNotices, createNotice, getColleges, updateNotice, deleteNotice, subscribeModerationCount, type FirestoreNotice 
+    subscribeNotices, createNotice, getColleges, updateNotice, deleteNotice, subscribeModerationCount, type FirestoreNotice,
+    toggleSaveNotice, subscribeSavedNotices
 } from "@/lib/firestore";
+import ShareModal from "@/components/ShareModal";
 import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -377,6 +382,12 @@ export default function NoticePage() {
     const [showModeration, setShowModeration] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const [selectedImageForLightbox, setSelectedImageForLightbox] = useState<string | null>(null);
+    const [savedNoticeIds, setSavedNoticeIds] = useState<string[]>([]);
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    const [shareNotice, setShareNotice] = useState<any | null>(null);
+    const [targetNoticeId, setTargetNoticeId] = useState<string | null>(null);
+    const hasScrolledRef = useRef<string | null>(null);
+    const searchParams = useSearchParams();
 
     // Edit state
     const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
@@ -418,6 +429,15 @@ export default function NoticePage() {
             setLoading(false);
         });
 
+        let unsubSaved = () => {};
+        if (profile?.uid) {
+            unsubSaved = subscribeSavedNotices(profile.uid, (ids) => {
+                setSavedNoticeIds(ids);
+            });
+        } else {
+            setSavedNoticeIds([]);
+        }
+
         const unsubCount = subscribeModerationCount(
             "notices",
             profile?.collegeId,
@@ -433,9 +453,51 @@ export default function NoticePage() {
 
         return () => {
             unsubNotices();
+            unsubSaved();
             unsubCount();
         };
     }, [profile]);
+
+    // Scroll to & highlight notice deep link
+    useEffect(() => {
+        const noticeParam = searchParams.get('notice');
+        if (noticeParam && notices.length > 0) {
+            setTargetNoticeId(noticeParam);
+            const noticeExists = notices.some(n => n.id === noticeParam);
+            if (noticeExists && hasScrolledRef.current !== noticeParam) {
+                hasScrolledRef.current = noticeParam;
+                setTimeout(() => {
+                    const el = document.getElementById(`notice-${noticeParam}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 400);
+            }
+        }
+    }, [searchParams, notices]);
+
+    const handleSaveNotice = async (noticeId: string) => {
+        if (!profile?.uid) {
+            showToast("Please log in to bookmark notices.", "error");
+            return;
+        }
+        try {
+            const isSaved = await toggleSaveNotice(profile.uid, noticeId);
+            if (isSaved) {
+                showToast("Notice bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+            }
+        } catch (err) {
+            console.error("Error bookmarking notice:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
+
+    const handleShareNotice = (notice: any) => {
+        setShareNotice(notice);
+        setIsShareOpen(true);
+    };
 
     const filteredNotices = notices
         .filter((n) => {
@@ -726,19 +788,22 @@ export default function NoticePage() {
                                 return (
                                     <motion.div
                                         key={notice.id}
+                                        id={`notice-${notice.id}`}
                                         initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.05 }}
                                         className={`relative rounded-2xl p-6 border shadow-md hover:shadow-xl transition-all duration-300 ${
-                                            notice.isUrgent
-                                                ? "bg-gradient-to-br from-[var(--card-bg)] to-red-500/[0.01] dark:to-red-500/[0.03] border-l-4 border-l-red-500 border-red-500/20"
-                                                : notice.isPinned
-                                                    ? "bg-gradient-to-br from-[var(--card-bg)] to-indigo-500/[0.01] dark:to-indigo-500/[0.03] border-l-4 border-l-accent border-indigo-500/20"
-                                                    : "hover:border-slate-300 dark:hover:border-slate-700"
+                                            targetNoticeId === notice.id
+                                                ? "ring-2 ring-primary border-primary/50"
+                                                : notice.isUrgent
+                                                    ? "bg-gradient-to-br from-[var(--card-bg)] to-red-500/[0.01] dark:to-red-500/[0.03] border-l-4 border-l-red-500 border-red-500/20"
+                                                    : notice.isPinned
+                                                        ? "bg-gradient-to-br from-[var(--card-bg)] to-indigo-500/[0.01] dark:to-indigo-500/[0.03] border-l-4 border-l-accent border-indigo-500/20"
+                                                        : "hover:border-slate-300 dark:hover:border-slate-700"
                                         }`}
                                         style={{
                                             background: "var(--card-bg)",
-                                            borderColor: notice.isUrgent ? undefined : notice.isPinned ? undefined : "var(--card-border)",
+                                            borderColor: targetNoticeId === notice.id ? undefined : notice.isUrgent ? undefined : notice.isPinned ? undefined : "var(--card-border)",
                                         }}
                                     >
                                         <div className="flex items-start gap-3">
@@ -1010,27 +1075,50 @@ export default function NoticePage() {
                                                     </div>
                                                 )}
 
-                                                <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 text-xs" style={{ color: "var(--text-muted)" }}>
-                                                    <span className="flex items-center gap-1.5">
-                                                        <User size={12} />
-                                                        {notice.authorId ? (
-                                                            <Link href={`/profile/${notice.authorId}`} className="hover:underline hover:text-primary transition-colors relative z-20 font-medium">
-                                                                {notice.postedBy}
-                                                            </Link>
-                                                        ) : (
-                                                            <span className="font-medium">{notice.postedBy}</span>
-                                                        )}
-                                                    </span>
-                                                    <span className="flex items-center gap-1.5">
-                                                        <Calendar size={12} />
-                                                        {formatDate(notice.date)}
-                                                    </span>
-                                                    {notice.approvedByName && (
-                                                        <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-medium">
-                                                            <Shield size={12} />
-                                                            Approved by {notice.approvedByName}
+                                                <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 text-xs" style={{ color: "var(--text-muted)" }}>
+                                                    <div className="flex flex-wrap items-center gap-4">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <User size={12} />
+                                                            {notice.authorId ? (
+                                                                <Link href={`/profile/${notice.authorId}`} className="hover:underline hover:text-primary transition-colors relative z-20 font-medium">
+                                                                    {notice.postedBy}
+                                                                </Link>
+                                                            ) : (
+                                                                <span className="font-medium">{notice.postedBy}</span>
+                                                            )}
                                                         </span>
-                                                    )}
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Calendar size={12} />
+                                                            {formatDate(notice.date)}
+                                                        </span>
+                                                        {notice.approvedByName && (
+                                                            <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-medium">
+                                                                <Shield size={12} />
+                                                                Approved by {notice.approvedByName}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 relative z-20">
+                                                        <button
+                                                            onClick={() => handleSaveNotice(notice.id)}
+                                                            className={`p-1.5 rounded-lg border transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                                                savedNoticeIds.includes(notice.id)
+                                                                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                                                                    : "bg-slate-50 dark:bg-slate-900/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                                                            }`}
+                                                            title={savedNoticeIds.includes(notice.id) ? "Remove Bookmark" : "Bookmark Notice"}
+                                                        >
+                                                            <Bookmark size={14} className={savedNoticeIds.includes(notice.id) ? "fill-primary" : ""} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleShareNotice(notice)}
+                                                            className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/50 text-gray-400 hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 transition-all duration-200"
+                                                            title="Share Notice"
+                                                        >
+                                                            <Share2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1087,6 +1175,27 @@ export default function NoticePage() {
                     profile={profile}
                 />
             )}
+
+            {/* Generic Share Modal */}
+            <AnimatePresence>
+                {isShareOpen && shareNotice && (
+                    <ShareModal 
+                        isOpen={isShareOpen} 
+                        onClose={() => {
+                            setIsShareOpen(false);
+                            setShareNotice(null);
+                        }} 
+                        type="notice"
+                        post={{
+                            id: shareNotice.id,
+                            title: shareNotice.title,
+                            body: shareNotice.body,
+                            collegeName: shareNotice.college,
+                            thumbnailUrl: shareNotice.thumbnailUrl
+                        }} 
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Lightbox Modal */}
             <ImageLightbox

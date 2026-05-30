@@ -4018,5 +4018,199 @@ export async function getSavedPostsFull(userId: string): Promise<(FirestorePost 
         .filter((p): p is FirestorePost & { id: string } => !!p);
 }
 
+// ═══════════════════════════════════════════════════
+//  SAVED STORIES, NOTICES, AND STUDY POSTS
+// ═══════════════════════════════════════════════════
+
+/**
+ * Toggles the save status of a story for a specific user.
+ * Returns true if saved, false if unsaved.
+ */
+export async function toggleSaveStory(userId: string, storyId: string): Promise<boolean> {
+    if (!userId || !storyId) throw new Error("User ID and Story ID are required.");
+    const db = getDb();
+    const saveRef = doc(db, "users", userId, "savedStories", storyId);
+    const docSnap = await getDoc(saveRef);
+    if (docSnap.exists()) {
+        await deleteDoc(saveRef);
+        return false;
+    } else {
+        await setDoc(saveRef, {
+            storyId,
+            savedAt: serverTimestamp()
+        });
+        return true;
+    }
+}
+
+/**
+ * Subscribes in real-time to the story IDs saved by a specific user.
+ */
+export function subscribeSavedStories(userId: string, callback: (savedIds: string[]) => void) {
+    if (!userId) return () => {};
+    const db = getDb();
+    const q = query(collection(db, "users", userId, "savedStories"), orderBy("savedAt", "desc"));
+    return safeSubscribe(q, (snap: any) => {
+        callback(snap.docs.map((d: any) => d.id));
+    });
+}
+
+/**
+ * Fetches the full story details for all stories saved by a specific user.
+ */
+export async function getSavedStoriesFull(userId: string): Promise<(FirestoreStory & { id: string })[]> {
+    if (!userId) return [];
+    const db = getDb();
+    const savedSnap = await getDocs(
+        query(collection(db, "users", userId, "savedStories"), orderBy("savedAt", "desc"))
+    );
+    const storyIds = savedSnap.docs.map(doc => doc.id);
+    if (storyIds.length === 0) return [];
+
+    const stories: (FirestoreStory & { id: string })[] = [];
+    const BATCH_SIZE = 30;
+    for (let i = 0; i < storyIds.length; i += BATCH_SIZE) {
+        const batchIds = storyIds.slice(i, i + BATCH_SIZE);
+        const q = query(collection(db, "stories"), where("__name__", "in", batchIds));
+        const storiesSnap = await getDocs(q);
+        storiesSnap.docs.forEach(d => {
+            stories.push({ id: d.id, ...(d.data() as FirestoreStory) });
+        });
+    }
+
+    // Sort to match the order of saved stories
+    const storyMap = new Map(stories.map(s => [s.id, s]));
+    return storyIds
+        .map(id => storyMap.get(id))
+        .filter((s): s is FirestoreStory & { id: string } => !!s);
+}
+
+/**
+ * Toggles the save status of a notice for a specific user.
+ * Returns true if saved, false if unsaved.
+ */
+export async function toggleSaveNotice(userId: string, noticeId: string): Promise<boolean> {
+    if (!userId || !noticeId) throw new Error("User ID and Notice ID are required.");
+    const db = getDb();
+    const saveRef = doc(db, "users", userId, "savedNotices", noticeId);
+    const docSnap = await getDoc(saveRef);
+    if (docSnap.exists()) {
+        await deleteDoc(saveRef);
+        return false;
+    } else {
+        await setDoc(saveRef, {
+            noticeId,
+            savedAt: serverTimestamp()
+        });
+        return true;
+    }
+}
+
+/**
+ * Subscribes in real-time to the notice IDs saved by a specific user.
+ */
+export function subscribeSavedNotices(userId: string, callback: (savedIds: string[]) => void) {
+    if (!userId) return () => {};
+    const db = getDb();
+    const q = query(collection(db, "users", userId, "savedNotices"), orderBy("savedAt", "desc"));
+    return safeSubscribe(q, (snap: any) => {
+        callback(snap.docs.map((d: any) => d.id));
+    });
+}
+
+/**
+ * Fetches the full notice details for all notices saved by a specific user.
+ */
+export async function getSavedNoticesFull(userId: string): Promise<(FirestoreNotice & { id: string })[]> {
+    if (!userId) return [];
+    const db = getDb();
+    const savedSnap = await getDocs(
+        query(collection(db, "users", userId, "savedNotices"), orderBy("savedAt", "desc"))
+    );
+    const noticeIds = savedSnap.docs.map(doc => doc.id);
+    if (noticeIds.length === 0) return [];
+
+    const notices: (FirestoreNotice & { id: string })[] = [];
+    const BATCH_SIZE = 30;
+    for (let i = 0; i < noticeIds.length; i += BATCH_SIZE) {
+        const batchIds = noticeIds.slice(i, i + BATCH_SIZE);
+        const q = query(collection(db, "notices"), where("__name__", "in", batchIds));
+        const noticesSnap = await getDocs(q);
+        noticesSnap.docs.forEach(d => {
+            notices.push({ id: d.id, ...(d.data() as FirestoreNotice) });
+        });
+    }
+
+    // Sort to match the order of saved notices
+    const noticeMap = new Map(notices.map(n => [n.id, n]));
+    return noticeIds
+        .map(id => noticeMap.get(id))
+        .filter((n): n is FirestoreNotice & { id: string } => !!n);
+}
+
+/**
+ * Toggles the save status of a study post for a specific user.
+ * Returns true if saved, false if unsaved.
+ */
+export async function toggleSaveStudyPost(userId: string, studyPostId: string): Promise<boolean> {
+    if (!userId || !studyPostId) throw new Error("User ID and Study Post ID are required.");
+    const db = getDb();
+    const saveRef = doc(db, "users", userId, "savedStudyPosts", studyPostId);
+    const docSnap = await getDoc(saveRef);
+    if (docSnap.exists()) {
+        await deleteDoc(saveRef);
+        return false;
+    } else {
+        await setDoc(saveRef, {
+            studyPostId,
+            savedAt: serverTimestamp()
+        });
+        return true;
+    }
+}
+
+/**
+ * Subscribes in real-time to the study post IDs saved by a specific user.
+ */
+export function subscribeSavedStudyPosts(userId: string, callback: (savedIds: string[]) => void) {
+    if (!userId) return () => {};
+    const db = getDb();
+    const q = query(collection(db, "users", userId, "savedStudyPosts"), orderBy("savedAt", "desc"));
+    return safeSubscribe(q, (snap: any) => {
+        callback(snap.docs.map((d: any) => d.id));
+    });
+}
+
+/**
+ * Fetches the full study post details for all study posts saved by a specific user.
+ */
+export async function getSavedStudyPostsFull(userId: string): Promise<(FirestoreStudyPost & { id: string })[]> {
+    if (!userId) return [];
+    const db = getDb();
+    const savedSnap = await getDocs(
+        query(collection(db, "users", userId, "savedStudyPosts"), orderBy("savedAt", "desc"))
+    );
+    const studyPostIds = savedSnap.docs.map(doc => doc.id);
+    if (studyPostIds.length === 0) return [];
+
+    const studyPosts: (FirestoreStudyPost & { id: string })[] = [];
+    const BATCH_SIZE = 30;
+    for (let i = 0; i < studyPostIds.length; i += BATCH_SIZE) {
+        const batchIds = studyPostIds.slice(i, i + BATCH_SIZE);
+        const q = query(collection(db, "studyPosts"), where("__name__", "in", batchIds));
+        const studyPostsSnap = await getDocs(q);
+        studyPostsSnap.docs.forEach(d => {
+            studyPosts.push({ id: d.id, ...(d.data() as FirestoreStudyPost) });
+        });
+    }
+
+    // Sort to match the order of saved study posts
+    const studyPostMap = new Map(studyPosts.map(sp => [sp.id, sp]));
+    return studyPostIds
+        .map(id => studyPostMap.get(id))
+        .filter((sp): sp is FirestoreStudyPost & { id: string } => !!sp);
+}
+
+
 
 

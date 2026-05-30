@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2, Download } from "lucide-react";
+import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2, Download, Bookmark, Share2 } from "lucide-react";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
@@ -14,10 +14,17 @@ interface StudyNoteCardProps {
     isAdmin?: boolean;
     onEdit?: (post: FirestoreStudyPost & { id: string }) => void;
     onDelete?: (id: string) => void;
+    isSaved?: boolean;
+    onSave?: (id: string) => void;
+    onShare?: (post: any) => void;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
-export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, onDelete }: StudyNoteCardProps) {
+export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, onDelete, isSaved, onSave, onShare, canEdit, canDelete }: StudyNoteCardProps) {
     const [showComments, setShowComments] = useState(false);
+    const showEdit = canEdit !== undefined ? canEdit : (currentUserId === post.authorId || isAdmin);
+    const showDelete = canDelete !== undefined ? canDelete : (currentUserId === post.authorId || isAdmin);
     const typeIcons = {
         doc: { icon: BookOpen, color: "text-blue-500 bg-blue-50 dark:bg-blue-900/20", label: "Document" },
         video: { icon: Video, color: "text-red-500 bg-red-50 dark:bg-red-900/20", label: "Video" },
@@ -49,14 +56,44 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
             className={`group relative bg-white dark:bg-[#1a1b23] rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-xl shadow-navy-900/5 hover:shadow-2xl transition-all duration-500 ${showComments ? 'ring-2 ring-primary/20 scale-[1.01]' : 'hover:-translate-y-2'}`}
         >
             <div className="p-8">
-                {/* Header Info */}
                 <div className="flex items-center justify-between mb-6">
                     <div className={`px-4 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${color}`}>
                         <Icon size={14} /> {label}
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        <Clock size={14} className="text-primary" /> 
-                        {post.createdAt ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true }) : "recently"}
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            <Clock size={14} className="text-primary" /> 
+                            {post.createdAt ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true }) : "recently"}
+                        </div>
+                        
+                        {(showEdit || showDelete) && (
+                            <div className="flex items-center gap-1.5 border-l border-gray-100 dark:border-gray-800 pl-3">
+                                {showEdit && onEdit && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEdit(post);
+                                        }}
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-primary/10 dark:bg-gray-800/50 text-gray-400 hover:text-primary transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800"
+                                        title="Edit Post"
+                                    >
+                                        <Pencil size={12} />
+                                    </button>
+                                )}
+                                {showDelete && onDelete && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDelete(post.id);
+                                        }}
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800/50 text-gray-400 hover:text-red-500 transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800"
+                                        title="Delete Post"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -121,6 +158,28 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {onSave && (
+                                <button 
+                                    onClick={() => onSave(post.id)}
+                                    className={`p-2.5 rounded-xl border transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                        isSaved 
+                                            ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                                            : "text-gray-400 hover:bg-gray-100 border-transparent hover:border-primary/10"
+                                    }`}
+                                    title={isSaved ? "Remove Bookmark" : "Bookmark Material"}
+                                >
+                                    <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
+                                </button>
+                            )}
+                            {onShare && (
+                                <button 
+                                    onClick={() => onShare(post)}
+                                    className="p-2.5 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-primary border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 transition-all duration-200"
+                                    title="Share Material"
+                                >
+                                    <Share2 size={18} />
+                                </button>
+                            )}
                             <button 
                                 onClick={() => setShowComments(!showComments)}
                                 className={`p-2.5 rounded-xl transition-all ${showComments ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-400 hover:bg-gray-100'}`}
@@ -154,24 +213,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                             >
                                 {post.fileUrl ? <Download size={18} /> : <ExternalLink size={18} />}
                             </motion.a>
-                            {(currentUserId === post.authorId || isAdmin) && onEdit && (
-                                <button
-                                    onClick={() => onEdit(post)}
-                                    className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 hover:bg-primary hover:text-white hover:shadow-lg transition-all"
-                                    title="Edit Post"
-                                >
-                                    <Pencil size={18} />
-                                </button>
-                            )}
-                            {(currentUserId === post.authorId || isAdmin) && onDelete && (
-                                <button
-                                    onClick={() => onDelete(post.id)}
-                                    className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white hover:shadow-lg transition-all"
-                                    title="Delete Post"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            )}
+
                         </div>
                     </div>
 

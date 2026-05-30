@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     BookOpen, Video, Plus, Search, Filter, 
@@ -16,19 +16,22 @@ import StudyPostCreationModal from "./components/StudyPostCreationModal";
 import { 
     subscribeStudyPosts, getStudyHeroSettings, 
     deleteStudyPost, subscribeModerationCount,
+    toggleSaveStudyPost, subscribeSavedStudyPosts,
     type FirestoreStudyPost, type StudyHeroSettings 
 } from "@/lib/firestore";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import { canEditStudyPost } from "@/lib/permissions";
-import { Save, Trash2, Pencil, CheckCircle2 } from "lucide-react";
+import { Save, Trash2, Pencil, CheckCircle2, Bookmark, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
+import ShareModal from "@/components/ShareModal";
 
 export default function StudyPage() {
     const { user, profile } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
@@ -40,6 +43,13 @@ export default function StudyPage() {
     const [heroSettings, setHeroSettings] = useState<StudyHeroSettings | null>(null);
     const [editingPost, setEditingPost] = useState<(FirestoreStudyPost & { id: string }) | null>(null);
     const { confirm, setIsLoading, close } = useConfirm();
+
+    // Save and share state
+    const [savedStudyPostIds, setSavedStudyPostIds] = useState<string[]>([]);
+    const [sharingPost, setSharingPost] = useState<(FirestoreStudyPost & { id: string }) | null>(null);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [targetStudyPostId, setTargetStudyPostId] = useState<string | null>(null);
+    const hasScrolledRef = useRef<string | null>(null);
 
     const handleShareClick = () => {
         if (!user) {
@@ -79,6 +89,65 @@ export default function StudyPage() {
             unsubCount();
         };
     }, [profile]);
+
+    useEffect(() => {
+        if (!user?.uid) {
+            setSavedStudyPostIds([]);
+            return;
+        }
+        const unsubSaved = subscribeSavedStudyPosts(user.uid, (ids) => {
+            setSavedStudyPostIds(ids);
+        });
+        return () => unsubSaved();
+    }, [user?.uid]);
+
+    // Scroll to & highlight study deep link
+    useEffect(() => {
+        const studyParam = searchParams.get('study');
+        if (studyParam && posts.length > 0) {
+            setTargetStudyPostId(studyParam);
+            const postExists = posts.find(p => p.id === studyParam);
+            if (postExists && hasScrolledRef.current !== studyParam) {
+                // Ensure correct tab is activated depending on post type
+                if (postExists.type === "schedule") {
+                    setActiveTab("schedule");
+                } else {
+                    setActiveTab("materials");
+                }
+                hasScrolledRef.current = studyParam;
+                setTimeout(() => {
+                    const el = document.getElementById(`study-${studyParam}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 400);
+            }
+        }
+    }, [searchParams, posts]);
+
+    const handleSaveStudyPost = async (id: string) => {
+        if (!user?.uid) {
+            showToast("Please log in to save resources.", "error");
+            router.push("/login");
+            return;
+        }
+        try {
+            const isSaved = await toggleSaveStudyPost(user.uid, id);
+            if (isSaved) {
+                showToast("Resource bookmarked successfully", "success");
+            } else {
+                showToast("Resource removed from bookmarks", "success");
+            }
+        } catch (err) {
+            console.error("Error toggling save:", err);
+            showToast("Failed to save resource", "error");
+        }
+    };
+
+    const handleShareStudyPost = (post: any) => {
+        setSharingPost(post);
+        setIsShareModalOpen(true);
+    };
 
 
     const filteredPosts = posts.filter(p => {
@@ -241,19 +310,40 @@ export default function StudyPage() {
                                             </div>
                                         ) : filteredMaterials.length > 0 ? (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                                {filteredMaterials.map(post => (
-                                                    <StudyNoteCard 
-                                                        key={post.id} 
-                                                        post={post} 
-                                                        currentUserId={user?.uid} 
-                                                        isAdmin={profile?.role === 'admin' || profile?.role === 'super_manager'}
-                                                        onEdit={(p) => {
-                                                            setEditingPost(p);
-                                                            setIsModalOpen(true);
-                                                        }}
-                                                        onDelete={handleDeleteStudyPost}
-                                                    />
-                                                ))}
+                                                {filteredMaterials.map(post => {
+                                                    const isAuthor = user?.uid === post.authorId;
+                                                    const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
+                                                    const isManagerSameCollege = profile?.role === 'manager' && profile?.collegeId === post.collegeId;
+                                                    const canEdit = isAuthor || isAdmin;
+                                                    const canDelete = isAuthor || isAdmin || isManagerSameCollege;
+                                                    return (
+                                                        <div 
+                                                            key={post.id} 
+                                                            id={`study-${post.id}`}
+                                                            className={`rounded-[2.5rem] transition-all duration-500 ${
+                                                                targetStudyPostId === post.id 
+                                                                    ? "ring-4 ring-primary ring-offset-4 dark:ring-offset-[#0c0c10]" 
+                                                                    : ""
+                                                            }`}
+                                                        >
+                                                            <StudyNoteCard 
+                                                                post={post} 
+                                                                currentUserId={user?.uid} 
+                                                                isAdmin={isAdmin}
+                                                                isSaved={savedStudyPostIds.includes(post.id)}
+                                                                onSave={handleSaveStudyPost}
+                                                                onShare={handleShareStudyPost}
+                                                                onEdit={(p) => {
+                                                                    setEditingPost(p);
+                                                                    setIsModalOpen(true);
+                                                                }}
+                                                                onDelete={handleDeleteStudyPost}
+                                                                canEdit={canEdit}
+                                                                canDelete={canDelete}
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
                                             <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
@@ -280,7 +370,7 @@ export default function StudyPage() {
                                         </div>
                                         <h2 className="text-2xl font-black text-navy-900 dark:text-gray-100 tracking-tight">UPCOMING LIVE PREP</h2>
                                     </div>
-
+ 
                                     {loading ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                             {[...Array(2)].map((_, i) => (
@@ -289,19 +379,40 @@ export default function StudyPage() {
                                         </div>
                                     ) : filteredSchedule.length > 0 ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                            {filteredSchedule.map(post => (
-                                                <StudyScheduleCard 
-                                                    key={post.id} 
-                                                    post={post} 
-                                                    currentUserId={user?.uid} 
-                                                    isAdmin={profile?.role === 'admin' || profile?.role === 'super_manager'}
-                                                    onEdit={(p) => {
-                                                        setEditingPost(p);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    onDelete={handleDeleteStudyPost}
-                                                />
-                                            ))}
+                                            {filteredSchedule.map(post => {
+                                                const isAuthor = user?.uid === post.authorId;
+                                                const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
+                                                const isManagerSameCollege = profile?.role === 'manager' && profile?.collegeId === post.collegeId;
+                                                const canEdit = isAuthor || isAdmin;
+                                                const canDelete = isAuthor || isAdmin || isManagerSameCollege;
+                                                return (
+                                                    <div 
+                                                        key={post.id} 
+                                                        id={`study-${post.id}`}
+                                                        className={`rounded-[3rem] transition-all duration-500 ${
+                                                            targetStudyPostId === post.id 
+                                                                ? "ring-4 ring-primary ring-offset-4 dark:ring-offset-[#0c0c10]" 
+                                                                : ""
+                                                        }`}
+                                                    >
+                                                        <StudyScheduleCard 
+                                                            post={post} 
+                                                            currentUserId={user?.uid} 
+                                                            isAdmin={isAdmin}
+                                                            isSaved={savedStudyPostIds.includes(post.id)}
+                                                            onSave={handleSaveStudyPost}
+                                                            onShare={handleShareStudyPost}
+                                                            onEdit={(p) => {
+                                                                setEditingPost(p);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            onDelete={handleDeleteStudyPost}
+                                                            canEdit={canEdit}
+                                                            canDelete={canDelete}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
@@ -381,6 +492,27 @@ export default function StudyPage() {
                 profile={profile}
                 type="studyPosts"
             />
+
+            {/* Generic Share Modal */}
+            <AnimatePresence>
+                {isShareModalOpen && sharingPost && (
+                    <ShareModal 
+                        isOpen={isShareModalOpen} 
+                        onClose={() => {
+                            setIsShareModalOpen(false);
+                            setSharingPost(null);
+                        }} 
+                        type="study"
+                        post={{
+                            id: sharingPost.id,
+                            title: sharingPost.title,
+                            content: sharingPost.content,
+                            collegeName: sharingPost.collegeName || "TTC Community",
+                            thumbnailUrl: sharingPost.thumbnailUrl
+                        }} 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

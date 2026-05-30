@@ -4,7 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe } from "lucide-react";
+import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2 } from "lucide-react";
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -17,9 +17,12 @@ interface StoryCardProps {
   priority?: boolean;
   onEdit?: (story: any) => void;
   onDelete?: (id: string) => void;
+  isSaved?: boolean;
+  onSave?: (id: string) => void;
+  onShare?: (story: any) => void;
 }
 
-export default function StoryCard({ story, priority, onEdit, onDelete }: StoryCardProps) {
+export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, onSave, onShare }: StoryCardProps) {
   const { user, profile } = useAuth();
   const permissions = React.useMemo(() => {
     // We need canEditStory from permissions.ts, but let's just use the logic inlined if we don't want to import it everywhere,
@@ -151,10 +154,42 @@ export default function StoryCard({ story, priority, onEdit, onDelete }: StoryCa
             />
           </div>
           
-          <div className="flex items-center gap-2 group/btn">
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
-            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
-              <BookOpen className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            {onSave && (
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSave(story.id);
+                }}
+                className={`p-2 rounded-xl border hover:scale-105 active:scale-95 duration-200 ${
+                  isSaved 
+                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                    : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                }`}
+                title={isSaved ? "Remove Bookmark" : "Bookmark Story"}
+              >
+                <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
+              </button>
+            )}
+            {onShare && (
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onShare(story);
+                }}
+                className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
+                title="Share Story"
+              >
+                <Share2 size={16} />
+              </button>
+            )}
+            <div className="flex items-center gap-2 group/btn ml-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
+              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
+                <BookOpen className="w-5 h-5" />
+              </div>
             </div>
           </div>
         </div>

@@ -8,7 +8,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { 
     subscribeStories, deleteStory, type FirestoreStory,
     subscribeModerationCount, subscribeStoryHeroSettings, getTotalUserCount,
-    type StoryHeroSettings 
+    type StoryHeroSettings,
+    toggleSaveStory, subscribeSavedStories
 } from "@/lib/firestore";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +19,7 @@ import { useToast } from "@/contexts/ToastContext";
 import StoryFilter from "@/components/StoryFilter";
 import StorySkeleton from "@/components/StorySkeleton";
 import StoryShareModal from "@/components/StoryShareModal";
+import ShareModal from "@/components/ShareModal";
 
 type Story = FirestoreStory & { id: string };
 
@@ -31,6 +33,9 @@ function StoryPageInner() {
     const [pendingCount, setPendingCount] = useState(0);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [editingStory, setEditingStory] = useState<Story | null>(null);
+    const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    const [shareStory, setShareStory] = useState<any | null>(null);
     const { confirm, setIsLoading, close } = useConfirm();
     const { showToast } = useToast();
     
@@ -45,6 +50,15 @@ function StoryPageInner() {
             setStories(data as Story[]);
             setLoading(false);
         }, isAdmin);
+
+        let unsubSaved = () => {};
+        if (profile?.uid) {
+            unsubSaved = subscribeSavedStories(profile.uid, (ids) => {
+                setSavedStoryIds(ids);
+            });
+        } else {
+            setSavedStoryIds([]);
+        }
 
         const unsubCount = subscribeModerationCount(
             "stories",
@@ -63,6 +77,7 @@ function StoryPageInner() {
 
         return () => {
             unsubStories();
+            unsubSaved();
             unsubCount();
             unsubHero();
         };
@@ -93,6 +108,29 @@ function StoryPageInner() {
         if (activeTab === "my-college") return s.collegeId === profile?.collegeId;
         return s.authorRole === activeTab;
     });
+
+    const handleSaveStory = async (storyId: string) => {
+        if (!profile?.uid) {
+            showToast("Please log in to bookmark stories.", "error");
+            return;
+        }
+        try {
+            const isSaved = await toggleSaveStory(profile.uid, storyId);
+            if (isSaved) {
+                showToast("Story bookmarked!", "success");
+            } else {
+                showToast("Bookmark removed.", "info");
+            }
+        } catch (err) {
+            console.error("Error bookmarking story:", err);
+            showToast("Failed to toggle bookmark.", "error");
+        }
+    };
+
+    const handleShareStory = (story: any) => {
+        setShareStory(story);
+        setIsShareOpen(true);
+    };
 
     const handleDeleteStory = async (id: string) => {
         const confirmed = await confirm({
@@ -234,6 +272,9 @@ function StoryPageInner() {
                                 setShowSubmitModal(true);
                             }}
                             onDelete={handleDeleteStory}
+                            isSaved={savedStoryIds.includes(story.id)}
+                            onSave={handleSaveStory}
+                            onShare={handleShareStory}
                         />
                       ))}
                     </div>
@@ -302,6 +343,27 @@ function StoryPageInner() {
                 profile={profile}
                 type="stories"
             />
+
+            {/* Generic Share Modal */}
+            <AnimatePresence>
+                {isShareOpen && shareStory && (
+                    <ShareModal 
+                        isOpen={isShareOpen} 
+                        onClose={() => {
+                            setIsShareOpen(false);
+                            setShareStory(null);
+                        }} 
+                        type="story"
+                        post={{
+                            id: shareStory.id,
+                            title: shareStory.title,
+                            fullStory: shareStory.fullStory,
+                            authorName: shareStory.name,
+                            college: shareStory.college
+                        }} 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }
