@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,7 +28,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import ShareModal from "@/components/ShareModal";
 
-export default function StudyPage() {
+function StudyPageContent() {
     const { user, profile } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -514,5 +514,17 @@ export default function StudyPage() {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+export default function StudyPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
+            </div>
+        }>
+            <StudyPageContent />
+        </Suspense>
     );
 }

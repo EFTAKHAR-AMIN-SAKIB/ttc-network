@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -371,7 +371,7 @@ function PostNoticeModal({
 /* ═══════════════════════════════════════════════════
    NOTICE PAGE
    ═══════════════════════════════════════════════════ */
-export default function NoticePage() {
+function NoticePageContent() {
     const { profile } = useAuth();
     const [selectedCollege, setSelectedCollege] = useState("All");
     const [selectedProgramme, setSelectedProgramme] = useState("All");
@@ -1205,5 +1205,17 @@ export default function NoticePage() {
                 onClose={() => setSelectedImageForLightbox(null)}
             />
         </div>
+    );
+}
+
+export default function NoticePage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
+            </div>
+        }>
+            <NoticePageContent />
+        </Suspense>
     );
 }
