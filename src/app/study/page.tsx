@@ -289,7 +289,7 @@ function StudyPageContent() {
 
                                     {/* Shared Materials Grid */}
                                     <section>
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                                        <div className="flex items-center justify-between mb-8">
                                             <div className="flex items-center gap-4">
                                                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
                                                     <LayoutGrid size={20} />
@@ -297,41 +297,20 @@ function StudyPageContent() {
                                                 <h2 className="text-2xl font-black text-navy-900 dark:text-gray-100 tracking-tight">Shared Resources</h2>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort by:</span>
-                                                <select className="bg-transparent text-[10px] font-black uppercase tracking-widest text-primary outline-none cursor-pointer">
-                                                    <option>Latest</option>
-                                                    <option>Popular</option>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category:</span>
+                                                <select 
+                                                    value={activeCategory}
+                                                    onChange={(e) => setActiveCategory(e.target.value as any)}
+                                                    className="bg-transparent text-[10px] font-black uppercase tracking-widest text-primary outline-none cursor-pointer font-sans"
+                                                >
+                                                    <option value="all" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📖 All ({filteredPosts.filter(p => p.type === 'material').length})</option>
+                                                    <option value="notes" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📝 Notes ({filteredPosts.filter(p => p.type === 'material' && (p.category || 'notes') === 'notes').length})</option>
+                                                    <option value="suggestion" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">💡 Suggestions ({filteredPosts.filter(p => p.type === 'material' && p.category === 'suggestion').length})</option>
+                                                    <option value="books" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📚 Books ({filteredPosts.filter(p => p.type === 'material' && p.category === 'books').length})</option>
+                                                    <option value="question" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">❓ Questions ({filteredPosts.filter(p => p.type === 'material' && p.category === 'question').length})</option>
+                                                    <option value="other" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📁 Other ({filteredPosts.filter(p => p.type === 'material' && p.category === 'other').length})</option>
                                                 </select>
                                             </div>
-                                        </div>
-
-                                        {/* Category Filter Pills */}
-                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-6 mb-8 border-b border-gray-100 dark:border-gray-800/50" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                                            {[
-                                                { id: 'all', label: '📖 All Resources', count: filteredPosts.filter(p => p.type === 'material').length },
-                                                { id: 'notes', label: '📝 Lecture Notes', count: filteredPosts.filter(p => p.type === 'material' && (p.category || 'notes') === 'notes').length },
-                                                { id: 'suggestion', label: '💡 Suggestions', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'suggestion').length },
-                                                { id: 'books', label: '📚 Textbooks', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'books').length },
-                                                { id: 'question', label: '❓ Question Papers', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'question').length },
-                                                { id: 'other', label: '📁 Others', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'other').length }
-                                            ].map((cat) => (
-                                                <button
-                                                    key={cat.id}
-                                                    onClick={() => setActiveCategory(cat.id as any)}
-                                                    className={`shrink-0 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider border-2 transition-all duration-300 flex items-center gap-2.5 ${
-                                                        activeCategory === cat.id
-                                                            ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
-                                                            : 'bg-white dark:bg-[#1a1b23] border-gray-100 dark:border-gray-800 text-gray-500 hover:border-primary/20 hover:text-primary hover:scale-[1.01]'
-                                                    }`}
-                                                >
-                                                    <span>{cat.label}</span>
-                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full transition-colors ${
-                                                        activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                                                    }`}>
-                                                        {cat.count}
-                                                    </span>
-                                                </button>
-                                            ))}
                                         </div>
 
                                         {loading ? (
