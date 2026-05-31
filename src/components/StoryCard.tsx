@@ -66,76 +66,83 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
         'bg-emerald-500'
       }`} />
 
-      <Link href={`/story/${story.id}`} className="block p-6 sm:p-7">
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-4">
-             <div className="relative">
-                <div className="w-12 h-12 rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105 group-hover:rotate-2">
-                  {story.authorPhoto ? (
-                    <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-black text-gray-400">{story.name?.[0]}</span>
-                  )}
-                </div>
-                {story.coverMood && (
-                   <span className="absolute -bottom-1 -right-1 text-base filter drop-shadow-sm">{story.coverMood.split(" ").pop()}</span>
-                )}
-             </div>
-             <div className="min-w-0">
-                <h4 className="text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
-                <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                  <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && (
-                    <>
-                      {" • "}
-                      <TimeAgo ts={story.timestamp} />
-                    </>
-                  )}
-                </p>
-             </div>
+      <Link href={`/story/${story.id}`} className="block p-5 sm:p-7">
+        <div className="mb-4 sm:mb-5">
+          {/* Top: Author + Actions */}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+               <div className="relative shrink-0">
+                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105 group-hover:rotate-2">
+                   {story.authorPhoto ? (
+                     <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
+                   ) : (
+                     <span className="text-base sm:text-lg font-black text-gray-400">{story.name?.[0]}</span>
+                   )}
+                 </div>
+                 {story.coverMood && (
+                    <span className="absolute -bottom-1 -right-1 text-sm sm:text-base filter drop-shadow-sm">{story.coverMood.split(" ").pop()}</span>
+                 )}
+               </div>
+               <div className="min-w-0">
+                 <h4 className="text-sm sm:text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
+                 <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 truncate">
+                   <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && (
+                     <>
+                       {" • "}
+                       <TimeAgo ts={story.timestamp} />
+                     </>
+                   )}
+                 </p>
+               </div>
+            </div>
+
+            {/* Edit/Delete — always visible at top-right */}
+            <div className="flex items-center gap-1 shrink-0">
+              {onEdit && permissions.canEdit && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit(story);
+                  }}
+                  className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-primary rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
+                  title="Edit Story"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+              {onDelete && permissions.canDelete && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete(story.id);
+                  }}
+                  className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-red-500 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
+                  title="Delete Story"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700">
+
+          {/* Badges row — below author on mobile */}
+          <div className="flex items-center gap-1.5 flex-wrap pl-[52px] sm:pl-[64px]">
+            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-gray-100 dark:border-gray-700">
               <Clock className="w-3 h-3 text-primary" />
-              {story.readingTimeMinutes} MIN READ
+              {story.readingTimeMinutes} MIN
             </div>
             {(story.visibility === "campus" || story.visibility === "college_only") && (
-              <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2.5 py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
+              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
                 <School className="w-3 h-3" />
                 Campus
               </div>
             )}
-
-            {onEdit && permissions.canEdit && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onEdit(story);
-                }}
-                className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-primary rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
-                title="Edit Story"
-              >
-                <Pencil size={12} />
-              </button>
-            )}
-
-            {onDelete && permissions.canDelete && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onDelete(story.id);
-                }}
-                className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-red-500 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
-                title="Delete Story"
-              >
-                <Trash2 size={12} />
-              </button>
-            )}
           </div>
         </div>
 
-        <h3 className="text-xl font-black mb-3 line-clamp-2 leading-tight dark:text-gray-100 group-hover:text-primary transition-colors tracking-tight">
+        <h3 className="text-lg sm:text-xl font-black mb-2 sm:mb-3 line-clamp-2 leading-tight dark:text-gray-100 group-hover:text-primary transition-colors tracking-tight">
           {story.title}
         </h3>
         
@@ -143,7 +150,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
           {story.preview}
         </p>
 
-        <div className="flex items-center justify-between pt-5 border-t border-gray-50 dark:border-gray-800">
+        <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-50 dark:border-gray-800">
           <div onClick={(e) => e.preventDefault()}>
             <ReactionBtn 
               contentId={story.id} 

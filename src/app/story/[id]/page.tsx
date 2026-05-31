@@ -96,16 +96,16 @@ export default function StoryDetailPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pt-24 pb-20">
-            <div className="max-w-4xl mx-auto px-6">
-                <div className="flex items-center justify-between mb-12">
+        <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pt-20 sm:pt-24 pb-12 sm:pb-20">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6">
+                <div className="flex items-center justify-between mb-6 sm:mb-12">
                     <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-navy-900 dark:hover:text-gray-200 transition-colors font-black uppercase tracking-widest text-[10px]">
                         <ArrowLeft size={16} /> Back to Stories
                     </button>
                     <div className="flex items-center gap-2.5">
                         <button 
                             onClick={handleSaveStory}
-                            className={`p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border hover:scale-110 active:scale-95 transition-all duration-200 ${
+                            className={`p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border hover:scale-110 active:scale-95 transition-all duration-200 ${
                                 savedStoryIds.includes(id) 
                                     ? "text-primary border-primary/20 bg-primary/5" 
                                     : "text-gray-400 hover:text-primary border-gray-100 dark:border-gray-700"
@@ -116,7 +116,7 @@ export default function StoryDetailPage() {
                         </button>
                         <button 
                             onClick={() => setIsShareOpen(true)}
-                            className="p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-primary"
+                            className="p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-primary"
                             title="Share Story"
                         >
                             <Share2 size={18} />
@@ -124,69 +124,69 @@ export default function StoryDetailPage() {
                     </div>
                 </div>
 
-                <article className="bg-white dark:bg-gray-900 rounded-[3rem] shadow-2xl shadow-navy-900/5 overflow-hidden border border-gray-100 dark:border-gray-800">
+                <article className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] shadow-2xl shadow-navy-900/5 overflow-hidden border border-gray-100 dark:border-gray-800">
                     {/* Hero Header */}
-                    <header className="p-8 sm:p-14 border-b border-gray-50 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-800/20">
-                        <div className="flex items-center gap-4 mb-8">
-                            <span className="px-5 py-2 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.2em]">
+                    <header className="p-5 sm:p-14 border-b border-gray-50 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-800/20">
+                        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 flex-wrap">
+                            <span className="px-4 py-1.5 sm:px-5 sm:py-2 rounded-full bg-primary/10 text-primary text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]">
                                 {story.authorRole} Journey
                             </span>
-                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            <span className="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">
                                 <Clock size={14} className="text-primary" /> {story.readingTimeMinutes} MIN READ
                             </span>
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-navy-900 dark:text-gray-100 leading-[1.1] mb-10 font-bengali tracking-tight">
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-navy-900 dark:text-gray-100 leading-[1.15] sm:leading-[1.1] mb-6 sm:mb-10 font-bengali tracking-tight">
                             {story.title}
                         </h1>
 
-                        <div className="flex items-center gap-5">
+                        <div className="flex items-center gap-4 sm:gap-5">
                             <Link href={`/profile/${story.authorId}`} className="relative group">
-                                <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-2 border-primary/20 rotate-3 transition-all duration-500 group-hover:rotate-0 group-hover:scale-105 shadow-lg">
+                                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-[1.2rem] sm:rounded-[2rem] overflow-hidden border-2 border-primary/20 rotate-3 transition-all duration-500 group-hover:rotate-0 group-hover:scale-105 shadow-lg">
                                     {story.authorPhoto ? (
                                         <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-2xl font-black text-gray-400">
+                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xl sm:text-2xl font-black text-gray-400">
                                             {story.name?.[0]}
                                         </div>
                                     )}
                                 </div>
-                                <div className="absolute -bottom-2 -right-2 p-2 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800">
-                                    <GraduationCap className="w-5 h-5 text-primary" />
+                                <div className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800">
+                                    <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                                 </div>
                             </Link>
-                            <div>
-                                <Link href={`/profile/${story.authorId}`} className="text-2xl font-black hover:text-primary transition-colors block tracking-tight">
+                            <div className="min-w-0">
+                                <Link href={`/profile/${story.authorId}`} className="text-lg sm:text-2xl font-black hover:text-primary transition-colors block tracking-tight truncate">
                                     {story.name}
                                 </Link>
-                                <p className="text-base font-bold text-gray-500">{story.college}</p>
+                                <p className="text-xs sm:text-base font-bold text-gray-500 truncate">{story.college}</p>
                             </div>
                         </div>
                     </header>
 
                     {/* Content Section */}
-                    <div className="p-8 sm:p-14">
-                        <div className="prose prose-xl dark:prose-invert max-w-none">
-                            <h2 className="text-3xl font-black mb-10 flex items-center gap-4 tracking-tight">
-                                <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-                                    <Footprints className="w-7 h-7" />
+                    <div className="p-5 sm:p-14">
+                        <div className="prose prose-base sm:prose-xl dark:prose-invert max-w-none">
+                            <h2 className="text-xl sm:text-3xl font-black mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 tracking-tight">
+                                <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
+                                    <Footprints className="w-5 h-5 sm:w-7 sm:h-7" />
                                 </div>
                                 Their Journey
                             </h2>
-                            <div className="text-gray-800 dark:text-gray-200 font-bengali leading-[1.8] text-2xl whitespace-pre-wrap mb-20">
+                            <div className="text-gray-800 dark:text-gray-200 font-bengali leading-[1.8] text-lg sm:text-2xl whitespace-pre-wrap mb-10 sm:mb-20">
                                 {story.fullStory}
                             </div>
 
                             {story.futureGoals && (
-                                <div className="relative group mb-12">
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                                    <div className="relative bg-white dark:bg-emerald-950/10 p-10 rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/40">
-                                        <h3 className="text-emerald-900 dark:text-emerald-400 text-2xl font-black mb-6 flex items-center gap-4 tracking-tight">
-                                            <div className="p-3 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
-                                                <Sparkles className="w-6 h-6" />
+                                <div className="relative group mb-8 sm:mb-12">
+                                    <div className="absolute -inset-0.5 sm:-inset-1 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-[1.5rem] sm:rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+                                    <div className="relative bg-white dark:bg-emerald-950/10 p-5 sm:p-10 rounded-[1.5rem] sm:rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/40">
+                                        <h3 className="text-emerald-900 dark:text-emerald-400 text-lg sm:text-2xl font-black mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4 tracking-tight">
+                                            <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
+                                                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
                                             </div>
                                             Future Goals
                                         </h3>
-                                        <p className="text-emerald-800 dark:text-emerald-300 font-bengali text-xl leading-relaxed">
+                                        <p className="text-emerald-800 dark:text-emerald-300 font-bengali text-base sm:text-xl leading-relaxed">
                                             {story.futureGoals}
                                         </p>
                                     </div>
@@ -194,16 +194,16 @@ export default function StoryDetailPage() {
                             )}
 
                             {story.oneAdvice && (
-                                <div className="relative group mb-12">
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                                    <div className="relative bg-white dark:bg-amber-950/10 p-10 rounded-[2.5rem] border border-amber-100 dark:border-amber-900/40">
-                                        <h3 className="text-amber-900 dark:text-amber-400 text-2xl font-black mb-6 flex items-center gap-4 tracking-tight">
-                                            <div className="p-3 rounded-2xl bg-amber-100 dark:bg-amber-900/30">
-                                                <MessageSquare className="w-6 h-6" />
+                                <div className="relative group mb-8 sm:mb-12">
+                                    <div className="absolute -inset-0.5 sm:-inset-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-[1.5rem] sm:rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+                                    <div className="relative bg-white dark:bg-amber-950/10 p-5 sm:p-10 rounded-[1.5rem] sm:rounded-[2.5rem] border border-amber-100 dark:border-amber-900/40">
+                                        <h3 className="text-amber-900 dark:text-amber-400 text-lg sm:text-2xl font-black mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4 tracking-tight">
+                                            <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-amber-100 dark:bg-amber-900/30">
+                                                <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
                                             </div>
                                             One Piece of Advice
                                         </h3>
-                                        <p className="text-amber-800 dark:text-amber-300 font-bengali text-xl leading-relaxed italic">
+                                        <p className="text-amber-800 dark:text-amber-300 font-bengali text-base sm:text-xl leading-relaxed italic">
                                             &ldquo;{story.oneAdvice}&rdquo;
                                         </p>
                                     </div>
@@ -212,8 +212,8 @@ export default function StoryDetailPage() {
                         </div>
 
                         {/* Reactions Footer */}
-                        <div className="mt-20 pt-12 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-10">
-                            <div className="scale-125 origin-left">
+                        <div className="mt-10 sm:mt-20 pt-8 sm:pt-12 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-10">
+                            <div className="scale-100 sm:scale-125 origin-center sm:origin-left">
                                 <ReactionBtn 
                                     contentId={story.id} 
                                     contentType="story" 
@@ -223,15 +223,15 @@ export default function StoryDetailPage() {
                                 />
                             </div>
 
-                            <div className="flex flex-col items-center md:items-end">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Engage with this journey</p>
-                                <div className="flex items-center gap-4">
+                            <div className="flex flex-col items-center sm:items-end">
+                                <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 sm:mb-4">Engage with this journey</p>
+                                <div className="flex items-center gap-3 sm:gap-4">
                                     <div className="flex -space-x-3">
                                         {[...Array(4)].map((_, i) => (
-                                            <div key={i} className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm" />
+                                            <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm" />
                                         ))}
                                     </div>
-                                    <span className="text-xs font-black text-navy-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-xl">
+                                    <span className="text-[10px] sm:text-xs font-black text-navy-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg sm:rounded-xl">
                                         {Object.values(story.reactions || {}).reduce((a, b) => a + (b as number), 0)}+ Reactions
                                     </span>
                                 </div>
@@ -241,16 +241,16 @@ export default function StoryDetailPage() {
                 </article>
 
                 {/* Comments Section */}
-                <div id="comments" className="mt-16 sm:mt-24">
-                    <div className="flex items-center gap-4 mb-10 px-4">
-                        <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-                            <MessageSquare className="w-6 h-6" />
+                <div id="comments" className="mt-12 sm:mt-24">
+                    <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-2 sm:px-4">
+                        <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
+                            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
                         </div>
-                        <h2 className="text-3xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
+                        <h2 className="text-xl sm:text-3xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
                             Comments
                         </h2>
                     </div>
-                    <div className="bg-white dark:bg-gray-900 rounded-[3rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-2xl shadow-navy-900/5">
+                    <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-2xl shadow-navy-900/5">
                         <CommentSystem 
                             contentId={story.id} 
                             contentType="story" 
@@ -260,17 +260,17 @@ export default function StoryDetailPage() {
 
                 {/* More from College Carousel */}
                 {moreStories.length > 0 && (
-                    <div className="mt-24 sm:mt-32">
-                        <div className="flex items-center justify-between mb-10 px-4">
-                            <h2 className="text-3xl font-black text-navy-900 dark:text-gray-100 flex items-center gap-4 tracking-tight">
-                                <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-                                    <School className="w-6 h-6" />
+                    <div className="mt-16 sm:mt-32">
+                        <div className="flex items-center justify-between mb-6 sm:mb-10 px-2 sm:px-4">
+                            <h2 className="text-xl sm:text-3xl font-black text-navy-900 dark:text-gray-100 flex items-center gap-3 sm:gap-4 tracking-tight">
+                                <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
+                                    <School className="w-5 h-5 sm:w-6 sm:h-6" />
                                 </div>
                                 More from {story.college.split(',')[0]}
                             </h2>
-                            <Link href="/story" className="text-sm font-black text-primary hover:underline uppercase tracking-widest">View all</Link>
+                            <Link href="/story" className="text-xs sm:text-sm font-black text-primary hover:underline uppercase tracking-widest">View all</Link>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 px-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 px-0 sm:px-4">
                             {moreStories.map(s => (
                                 <StoryCard key={s.id} story={s} />
                             ))}

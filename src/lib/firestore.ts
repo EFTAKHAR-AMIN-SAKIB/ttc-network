@@ -298,6 +298,9 @@ export interface SupportSettings {
     goal?: number;
     supporters?: string | number;
     currencySymbol?: string;
+    cardEnabled?: boolean;    // Toggle Card/Stripe payment tab on/off
+    bkashEnabled?: boolean;   // Toggle bKash payment tab on/off
+    cryptoEnabled?: boolean;  // Toggle Crypto payment tab on/off
 }
 
 export interface FirestoreStudyPost {

@@ -88,11 +88,11 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className={`group relative bg-white dark:bg-[#1a1b23] rounded-[3rem] overflow-hidden border-2 transition-all duration-500 shadow-xl shadow-navy-900/5 ${
+            className={`group relative bg-white dark:bg-[#1a1b23] rounded-[1.5rem] sm:rounded-[3rem] overflow-hidden border-2 transition-all duration-500 shadow-xl shadow-navy-900/5 ${
                 status === 'live' ? 'border-primary shadow-primary/20 scale-[1.02]' : 'border-gray-100 dark:border-gray-800'
             }`}
         >
-            <div className="p-10">
+            <div className="p-5 sm:p-10">
                 <div className="flex items-center justify-between mb-8">
                     <div className={`px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm ${
                         status === 'live' ? 'bg-primary text-white animate-pulse' : 
@@ -143,29 +143,29 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                 </div>
 
                 {/* Main Info */}
-                <div className="flex flex-col md:flex-row gap-8 mb-10">
+                <div className="flex flex-col md:flex-row gap-6 md:gap-8 mb-8 md:mb-10">
                     <div className="flex-1">
-                        <h3 className="text-2xl md:text-3xl font-black text-navy-900 dark:text-white mb-6 leading-tight tracking-tight">
+                        <h3 className="text-xl md:text-3xl font-black text-navy-900 dark:text-white mb-4 md:mb-6 leading-tight tracking-tight">
                             {post.title}
                         </h3>
                         
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="flex items-center gap-3 text-gray-500">
-                                <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-primary">
-                                    <Calendar size={18} />
+                        <div className="grid grid-cols-2 gap-4 md:gap-6">
+                            <div className="flex items-center gap-2.5 sm:gap-3 text-gray-500">
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-primary">
+                                    <Calendar size={16} />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Date</p>
-                                    <p className="text-sm font-bold">{format(startDate, "EEE, MMM do")}</p>
+                                    <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Date</p>
+                                    <p className="text-xs sm:text-sm font-bold">{format(startDate, "EEE, MMM do")}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 text-gray-500">
-                                <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-primary">
-                                    <Clock size={18} />
+                            <div className="flex items-center gap-2.5 sm:gap-3 text-gray-500">
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-primary">
+                                    <Clock size={16} />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Time</p>
-                                    <p className="text-sm font-bold">{format(startDate, "hh:mm a")}</p>
+                                    <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Time</p>
+                                    <p className="text-xs sm:text-sm font-bold">{format(startDate, "hh:mm a")}</p>
                                 </div>
                             </div>
                         </div>
@@ -173,26 +173,28 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
 
                     <Link
                         href={`/profile/${post.authorId}`}
-                        className="shrink-0 flex flex-col items-center justify-center p-6 bg-gray-50/50 dark:bg-gray-800/20 rounded-[2rem] border border-gray-100 dark:border-gray-800 min-w-[140px] cursor-pointer hover:bg-primary/5 hover:border-primary/20 hover:shadow-xl hover:scale-[1.03] transition-all duration-300 group/host"
+                        className="shrink-0 flex flex-row md:flex-col items-center md:justify-center p-3.5 sm:p-5 bg-gray-50/50 dark:bg-gray-800/20 rounded-[1.5rem] sm:rounded-[2rem] border border-gray-100 dark:border-gray-800 min-w-0 md:min-w-[140px] cursor-pointer hover:bg-primary/5 hover:border-primary/20 hover:shadow-xl hover:scale-[1.03] transition-all duration-300 group/host gap-3 md:gap-0"
                     >
-                        <div className="w-16 h-16 rounded-[1.5rem] bg-white dark:bg-gray-900 shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden mb-3 group-hover/host:ring-2 group-hover/host:ring-primary/30 transition-all">
+                        <div className="w-10 h-10 sm:w-12 md:w-16 md:h-16 rounded-[1rem] md:rounded-[1.5rem] bg-white dark:bg-gray-900 shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden mb-0 md:mb-3 shrink-0 group-hover/host:ring-2 group-hover/host:ring-primary/30 transition-all">
                             {post.authorPhoto ? (
                                 <img src={post.authorPhoto} className="w-full h-full object-cover" alt="" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-xl font-black text-gray-300">
+                                <div className="w-full h-full flex items-center justify-center text-lg md:text-xl font-black text-gray-300">
                                     {post.authorName?.[0]}
                                 </div>
                             )}
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Host</p>
-                        <p className="text-xs font-black text-center truncate w-full group-hover/host:text-primary transition-colors">{post.authorName}</p>
+                        <div className="min-w-0 text-left md:text-center flex-1">
+                            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5 md:mb-1">Host</p>
+                            <p className="text-xs font-black truncate w-full group-hover/host:text-primary transition-colors">{post.authorName}</p>
+                        </div>
                     </Link>
                 </div>
 
                 {/* Footer bar */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-gray-50 dark:border-gray-800">
-                    <div className="flex items-center gap-6">
-                        <div className="scale-110 origin-left">
+                <div className="flex items-center justify-between flex-wrap gap-4 pt-6 border-t border-gray-50 dark:border-gray-800">
+                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+                        <div className="scale-100 sm:scale-110 origin-center sm:origin-left">
                             <ReactionBtn 
                                 contentId={post.id} 
                                 contentType="study" 
@@ -212,54 +214,55 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {onSave && (
-                            <button 
-                                onClick={() => onSave(post.id)}
-                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ${
-                                    isSaved 
-                                        ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent hover:border-primary/10"
-                                }`}
-                                title={isSaved ? "Remove Bookmark" : "Bookmark Session"}
-                            >
-                                <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
-                            </button>
-                        )}
-                        {onShare && (
-                            <button 
-                                onClick={() => onShare(post)}
-                                className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent hover:border-primary/10 flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary hover:scale-105 active:scale-95 transition-all duration-200"
-                                title="Share Session"
-                            >
-                                <Share2 size={18} />
-                            </button>
-                        )}
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
+                        <div className="flex items-center gap-2">
+                            {onSave && (
+                                <button 
+                                    onClick={() => onSave(post.id)}
+                                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                        isSaved 
+                                            ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                                            : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent hover:border-primary/10"
+                                    }`}
+                                    title={isSaved ? "Remove Bookmark" : "Bookmark Session"}
+                                >
+                                    <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
+                                </button>
+                            )}
+                            {onShare && (
+                                <button 
+                                    onClick={() => onShare(post)}
+                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent hover:border-primary/10 flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary hover:scale-105 active:scale-95 transition-all duration-200"
+                                    title="Share Session"
+                                >
+                                    <Share2 size={18} />
+                                </button>
+                            )}
+                        </div>
+                        
                         {status === 'ended' ? (
-                            <div className="flex items-center gap-2 text-gray-400 font-bold text-sm">
-                                <AlertCircle size={16} /> Session Completed
+                            <div className="flex items-center gap-2 text-gray-400 font-bold text-xs sm:text-sm">
+                                <AlertCircle size={16} /> Ended
                             </div>
                         ) : post.link ? (
                             <a 
                                 href={post.link} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className={`flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-[0.15em] transition-all ${
+                                className={`flex items-center gap-2.5 px-4 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.15em] transition-all ${
                                     status === 'live' 
                                         ? 'bg-primary text-white shadow-xl shadow-primary/30 hover:shadow-2xl hover:scale-105 active:scale-95'
                                         : 'bg-navy-900 dark:bg-gray-700 text-white hover:bg-navy-800 dark:hover:bg-gray-600'
                                 }`}
                             >
-                                <Video size={18} />
-                                {status === 'live' ? 'Join Now' : 'View Link'}
+                                <Video size={16} />
+                                {status === 'live' ? 'Join' : 'Link'}
                             </a>
                         ) : (
-                            <div className="flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-[0.15em] bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700">
-                                <Clock size={18} /> Link TBA
+                            <div className="flex items-center gap-2.5 px-4 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.15em] bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700">
+                                <Clock size={16} /> TBA
                             </div>
                         )}
-
-
                     </div>
                 </div>
 

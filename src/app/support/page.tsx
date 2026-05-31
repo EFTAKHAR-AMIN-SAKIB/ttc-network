@@ -830,8 +830,7 @@ function HowToSend() {
 /* ═══════════════════════════════════════════════════
    PAYMENT CARD COMPONENT
    ═══════════════════════════════════════════════════ */
-function PaymentCard({ giftAmount, setGiftAmount, onGiftSubmit, config }: { giftAmount: string, setGiftAmount: (val: string) => void, onGiftSubmit: () => void, config: typeof CONFIG }) {
-    const [activeTab, setActiveTab] = useState<"card" | "bkash" | "crypto">("card");
+function PaymentCard({ giftAmount, setGiftAmount, onGiftSubmit, config, cardEnabled = true, bkashEnabled = true, cryptoEnabled = true }: { giftAmount: string, setGiftAmount: (val: string) => void, onGiftSubmit: () => void, config: typeof CONFIG, cardEnabled?: boolean, bkashEnabled?: boolean, cryptoEnabled?: boolean }) {
     const [copied, setCopied] = useState(false);
 
     const copyToClipboard = (text: string) => {
@@ -840,11 +839,26 @@ function PaymentCard({ giftAmount, setGiftAmount, onGiftSubmit, config }: { gift
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const tabs = [
-        { id: "card", label: "Card", icon: CreditCard },
-        { id: "bkash", label: "bKash", icon: Smartphone },
-        { id: "crypto", label: "Crypto", icon: Wallet }
+    const allTabs = [
+        { id: "card", label: "Card", icon: CreditCard, enabled: cardEnabled },
+        { id: "bkash", label: "bKash", icon: Smartphone, enabled: bkashEnabled },
+        { id: "crypto", label: "Crypto", icon: Wallet, enabled: cryptoEnabled }
     ];
+    const tabs = allTabs.filter(t => t.enabled);
+    const [activeTab, setActiveTab] = useState<"card" | "bkash" | "crypto">((tabs[0]?.id as any) || "card");
+
+    // If no tabs are enabled, show a paused message
+    if (tabs.length === 0) {
+        return (
+            <div className="w-full max-w-[480px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/20 dark:border-white/10 shadow-2xl overflow-hidden p-10 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto mb-4">
+                    <Heart size={28} className="text-amber-500" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Donations Paused</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">All payment methods are currently unavailable. Please check back later.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-[480px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/20 dark:border-white/10 shadow-2xl overflow-hidden group">
@@ -1064,6 +1078,10 @@ export default function SupportPage() {
         currencySymbol: settings.currencySymbol || CONFIG.currencySymbol,
     };
 
+    const cardEnabled = settings.cardEnabled ?? true;
+    const bkashEnabled = settings.bkashEnabled ?? true;
+    const cryptoEnabled = settings.cryptoEnabled ?? true;
+
     const handleSaveSettings = async () => {
         setIsSaving(true);
         try {
@@ -1170,6 +1188,34 @@ export default function SupportPage() {
                                         onChange={e => setTempSettings(prev => ({ ...prev, currencySymbol: e.target.value }))}
                                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
                                     />
+                                </div>
+                            </div>
+                            {/* ─── Payment Method Toggles ─── */}
+                            <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-white/5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Methods</label>
+                                <div className="space-y-2.5 mt-2">
+                                    {[
+                                        { key: "cardEnabled" as const, label: "Card (Stripe)", icon: CreditCard, color: "text-blue-500" },
+                                        { key: "bkashEnabled" as const, label: "bKash", icon: Smartphone, color: "text-pink-500" },
+                                        { key: "cryptoEnabled" as const, label: "Crypto", icon: Wallet, color: "text-purple-500" },
+                                    ].map(method => {
+                                        const isOn = (tempSettings[method.key] ?? (settings as any)[method.key]) ?? true;
+                                        return (
+                                            <div key={method.key} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5">
+                                                <div className="flex items-center gap-2.5">
+                                                    <method.icon size={14} className={method.color} />
+                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{method.label}</span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTempSettings(prev => ({ ...prev, [method.key]: !isOn }))}
+                                                    className={`relative w-11 h-6 rounded-full transition-all duration-300 ${isOn ? "bg-emerald-500 shadow-sm shadow-emerald-500/30" : "bg-gray-300 dark:bg-gray-700"}`}
+                                                >
+                                                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${isOn ? "translate-x-5" : "translate-x-0"}`} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                             <button 
@@ -1343,6 +1389,9 @@ export default function SupportPage() {
                                 setGiftAmount={setGiftAmount} 
                                 onGiftSubmit={() => setShowGiftForm(true)} 
                                 config={activeConfig}
+                                cardEnabled={cardEnabled}
+                                bkashEnabled={bkashEnabled}
+                                cryptoEnabled={cryptoEnabled}
                             />
                         </motion.div>
                     </div>

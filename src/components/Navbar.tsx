@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell, Users } from "lucide-react";
+import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell, Users, Home, Rss, BookOpen, School, Megaphone, BookText, Heart } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,13 +15,13 @@ import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 
 const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/news-feed", label: "News Feed" },
-    { href: "/story", label: "Story" },
-    { href: "/college-info", label: "College Info" },
-    { href: "/notice", label: "Notice" },
-    { href: "/study", label: "Study" },
-    { href: "/support", label: "Support 💛" },
+    { href: "/", label: "Home", icon: Home },
+    { href: "/news-feed", label: "News Feed", icon: Rss },
+    { href: "/story", label: "Story", icon: BookOpen },
+    { href: "/college-info", label: "College Info", icon: School },
+    { href: "/notice", label: "Notice", icon: Megaphone },
+    { href: "/study", label: "Study", icon: BookText },
+    { href: "/support", label: "Support", icon: Heart },
 ];
 
 
@@ -183,19 +183,27 @@ export default function Navbar() {
                     <HumanLogo logoUrl={logoUrl} siteName={siteName} />
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center gap-1">
+                    <div className="hidden md:flex items-center gap-0.5 lg:gap-1">
                         {navLinks.map((link) => {
                             const isActive = pathname === link.href;
+                            const NavIcon = link.icon;
                             return (
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className={`px-3 py-2 rounded-xl text-sm font-bold transition-all relative ${isActive
-                                        ? "text-primary dark:text-[#1D9BF0] bg-primary/5 dark:bg-[#1D9BF0]/10"
-                                        : "text-gray-900 dark:text-[#71767B] hover:text-primary dark:hover:text-[#1D9BF0] hover:bg-gray-50 dark:hover:bg-white/5"
+                                    className={`group/nav relative flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3.5 py-2 rounded-xl text-[13px] lg:text-sm font-bold transition-all duration-300 ${isActive
+                                        ? "text-primary dark:text-[#1D9BF0] bg-primary/[0.07] dark:bg-[#1D9BF0]/10"
+                                        : "text-gray-600 dark:text-[#71767B] hover:text-primary dark:hover:text-[#1D9BF0] hover:bg-gray-50 dark:hover:bg-white/5"
                                         }`}
                                 >
-                                    {link.label}
+                                    <NavIcon
+                                        size={16}
+                                        className={`shrink-0 transition-all duration-300 ${isActive
+                                            ? "text-primary dark:text-[#1D9BF0] stroke-[2.5]"
+                                            : "text-gray-400 dark:text-gray-500 group-hover/nav:text-primary dark:group-hover/nav:text-[#1D9BF0] group-hover/nav:scale-110 stroke-2"
+                                        }`}
+                                    />
+                                    <span className="hidden lg:inline">{link.label}</span>
                                     {isActive && (
                                         <motion.div
                                             layoutId="activeNav"

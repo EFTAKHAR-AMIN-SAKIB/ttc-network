@@ -156,24 +156,24 @@ function StoryPageInner() {
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-[#0c0c10]">
             {/* ═══════════ HERO ═══════════ */}
-            <div className="relative overflow-hidden pt-12 pb-20 warm-textured-hero border-b-4 border-primary">
-              <div className="max-w-7xl mx-auto px-6 relative z-10">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-12">
+            <div className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-20 warm-textured-hero border-b-4 border-primary">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-8 md:gap-12">
                   <div className="flex-1 text-center md:text-left">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-bold mb-6 animate-fade-in">
-                       <Sparkles className="w-4 h-4" />
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs sm:text-sm font-bold mb-4 sm:mb-6 animate-fade-in">
+                       <Sparkles className="w-3.5 h-3.5" />
                        Community Driven Narratives
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-gray-100 mb-6 leading-tight">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-gray-100 mb-4 sm:mb-6 leading-tight">
                       One Platform. <br/>
                       All Colleges. <br/>
                       <span className="text-primary italic animate-variable-underline">Every Story.</span>
                     </h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-xl leading-relaxed">
+                    <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 max-w-xl leading-relaxed font-medium">
                       Every TTC journey is a footprint of resilience. Share your struggles, victories, and lessons with the largest community of Bangladeshi educators.
                     </p>
                     
-                    <div className="flex flex-col sm:flex-row items-center gap-3 justify-center md:justify-start">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-center md:justify-start">
                         <button
                           onClick={() => {
                             if (!user) {
@@ -183,15 +183,15 @@ function StoryPageInner() {
                               setShowSubmitModal(true);
                             }
                           }}
-                          className="px-8 py-4 bg-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-red-500/20 hover:shadow-red-500/40 transition-all active:scale-95 flex items-center gap-3 animate-pulse-breathe"
+                          className="px-6 py-3.5 sm:px-8 sm:py-4 bg-primary text-white rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-red-500/20 hover:shadow-red-500/40 transition-all active:scale-95 flex items-center justify-center gap-3 animate-pulse-breathe w-full sm:w-auto"
                         >
-                          <PenLine className="w-6 h-6" />
+                          <PenLine className="w-5 h-5 sm:w-6 sm:h-6" />
                           Share My Journey
                         </button>
                         {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
                             <button 
                                 onClick={() => setShowModeration(true)}
-                                className="relative flex items-center justify-center gap-2 px-6 py-4 rounded-full border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm"
+                                className="relative flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-2xl border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm w-full sm:w-auto"
                             >
                                 <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                 <span className="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Review Queue</span>
@@ -213,28 +213,28 @@ function StoryPageInner() {
                   </div>
 
                     {heroData?.isVisible !== false && (
-                         <div className="flex-1 grid grid-cols-2 gap-4">
+                         <div className="flex-1 grid grid-cols-2 gap-3 sm:gap-4">
                             {[
-                              { label: "Colleges", value: heroData?.collegesCount || "14", icon: <School className="w-5 h-5 text-amber-500" /> },
-                              { label: "Community", value: heroData?.autoCountCommunity ? `${liveUserCount}+` : (heroData?.communityCount || "1.2k+"), icon: <Users className="w-5 h-5 text-emerald-500" /> },
-                              { label: "Stories", value: stories.length || (heroData?.storiesFallback || "85+"), icon: <BookOpen className="w-5 h-5 text-blue-500" /> },
-                              { label: "Impact", value: heroData?.impactLevel || "High", icon: <Sparkles className="w-5 h-5 text-purple-500" /> },
+                              { label: "Colleges", value: heroData?.collegesCount || "14", icon: <School className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> },
+                              { label: "Community", value: heroData?.autoCountCommunity ? `${liveUserCount}+` : (heroData?.communityCount || "1.2k+"), icon: <Users className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" /> },
+                              { label: "Stories", value: stories.length || (heroData?.storiesFallback || "85+"), icon: <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" /> },
+                              { label: "Impact", value: heroData?.impactLevel || "High", icon: <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" /> },
                             ].map((stat, i) => (
-                              <div key={i} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-6 rounded-3xl border-2 border-white dark:border-gray-700 shadow-sm animate-slide-in-up" 
+                              <div key={i} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-2 border-white dark:border-gray-700 shadow-sm animate-slide-in-up" 
                                    style={{ animationDelay: `${i * 0.1}s` }}>
                                 {!heroData ? (
                                     <div className="space-y-2 animate-pulse">
-                                        <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700" />
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gray-100 dark:bg-gray-700" />
                                         <div className="h-6 bg-gray-100 dark:bg-gray-700 rounded w-1/2" />
                                         <div className="h-3 bg-gray-50 dark:bg-gray-800 rounded w-1/3" />
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-4">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-3 sm:mb-4">
                                           {stat.icon}
                                         </div>
-                                        <div className="text-2xl font-black text-slate-900 dark:text-gray-100">{stat.value}</div>
-                                        <div className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{stat.label}</div>
+                                        <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-gray-100">{stat.value}</div>
+                                        <div className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{stat.label}</div>
                                     </>
                                 )}
                               </div>
@@ -246,7 +246,7 @@ function StoryPageInner() {
             </div>
 
             {/* ═══════════ FEED ═══════════ */}
-            <div className="max-w-7xl mx-auto px-6 -mt-10 pb-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-6 sm:-mt-10 pb-12 sm:pb-20">
               <div className="sticky top-4 z-40 mb-10">
                 <StoryFilter 
                   activeTab={activeTab} 

@@ -16,32 +16,32 @@ interface StudyHeroProps {
 
 export default function StudyHero({ stats, isVisible, onSearchChange, onShareClick }: StudyHeroProps) {
     return (
-        <div className="relative pt-12 pb-20 overflow-hidden">
+        <div className="relative pt-8 pb-12 sm:pt-12 sm:pb-20 overflow-hidden">
             {/* Background elements */}
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -z-10 animate-pulse" />
             <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/5 rounded-full blur-[80px] -z-10" />
 
-            <div className="max-w-7xl mx-auto px-6 text-center">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-6 border border-primary/20">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-primary/10 text-primary text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-4 sm:mb-6 border border-primary/20">
                         <Sparkles size={14} /> Shared Knowledge Library
                     </div>
-                    <h1 className="text-5xl md:text-7xl font-black text-navy-900 dark:text-white leading-[1.05] mb-8 tracking-tight">
+                    <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-navy-900 dark:text-white leading-[1.1] sm:leading-[1.05] mb-6 sm:mb-8 tracking-tight">
                         Power Up Your <br />
                         <span className="text-primary italic">Learning</span> Journey.
                     </h1>
-                    <p className="max-w-2xl mx-auto text-lg md:text-xl text-gray-500 font-bold mb-12 leading-relaxed">
+                    <p className="max-w-2xl mx-auto text-sm sm:text-lg md:text-xl text-gray-500 font-bold mb-8 sm:mb-12 leading-relaxed">
                         Access shared materials, attend live prep classes, and collaborate with TTC students across Bangladesh.
                     </p>
                 </motion.div>
 
                 {/* Stats Grid */}
                 {isVisible !== false && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto mb-16">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto mb-10 sm:mb-16">
                         {[
                             { icon: BookText, label: "Materials Shared", value: stats.materials, color: "text-blue-500 bg-blue-50 dark:bg-blue-900/20" },
                         { icon: Video, label: "Schedules Posted", value: stats.liveSessions, color: "text-amber-500 bg-amber-50 dark:bg-amber-900/20" },
@@ -52,13 +52,13 @@ export default function StudyHero({ stats, isVisible, onSearchChange, onShareCli
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 * (i + 1) }}
-                            className="bg-white dark:bg-[#1a1b23] p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-navy-900/5 flex flex-col items-center group hover:scale-105 transition-transform"
+                            className="bg-white dark:bg-[#1a1b23] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-navy-900/5 flex flex-col items-center group hover:scale-105 transition-transform"
                         >
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${stat.color} group-hover:rotate-6 transition-transform shadow-sm`}>
-                                <stat.icon size={28} />
+                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 ${stat.color} group-hover:rotate-6 transition-transform shadow-sm`}>
+                                <stat.icon className="w-6 h-6 sm:w-7 sm:h-7" />
                             </div>
-                            <div className="text-3xl font-black text-navy-900 dark:text-white mb-1">{stat.value}+</div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400">{stat.label}</div>
+                            <div className="text-2xl sm:text-3xl font-black text-navy-900 dark:text-white mb-0.5 sm:mb-1">{stat.value}+</div>
+                            <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-gray-400">{stat.label}</div>
                         </motion.div>
                         ))}
                     </div>

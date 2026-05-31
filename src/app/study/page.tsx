@@ -213,62 +213,63 @@ function StudyPageContent() {
                 onShareClick={handleShareClick} 
             />
 
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="flex items-center justify-between mb-12 border-b border-gray-200 dark:border-gray-800">
-                    <div className="flex gap-10">
-                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                            <button 
-                                onClick={handleShareClick}
-                                className="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 group"
-                            >
-                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
-                                <span>Share Resource</span>
-                            </button>
-                            {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
-                                <button 
-                                    onClick={() => setShowModeration(true)}
-                                    className="relative flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm"
-                                >
-                                    <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Review Queue</span>
-                                    <AnimatePresence>
-                                        {pendingCount > 0 && (
-                                            <motion.span 
-                                                initial={{ scale: 0 }}
-                                                animate={{ scale: 1 }}
-                                                exit={{ scale: 0 }}
-                                                className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-[#FDF8F3] dark:border-[#0c0c10] shadow-lg"
-                                            >
-                                                {pendingCount}
-                                            </motion.span>
-                                        )}
-                                    </AnimatePresence>
-                                </button>
-                            )}
-                        </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                {/* Action Buttons Row */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+                    <button 
+                        onClick={handleShareClick}
+                        className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 group"
+                    >
+                        <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+                        <span>Share Resource</span>
+                    </button>
+                    {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
                         <button 
-                            onClick={() => setActiveTab("materials")}
-                            className={`pb-4 text-sm font-black uppercase tracking-widest relative transition-colors ${activeTab === 'materials' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
+                            onClick={() => setShowModeration(true)}
+                            className="relative flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm"
                         >
-                            <span className="flex items-center gap-2">
-                                <BookOpen size={18} /> Resource Library
-                            </span>
-                            {activeTab === 'materials' && (
-                                <motion.div layoutId="activeTabStudy" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-                            )}
+                            <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Review Queue</span>
+                            <AnimatePresence>
+                                {pendingCount > 0 && (
+                                    <motion.span 
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        exit={{ scale: 0 }}
+                                        className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-[#FDF8F3] dark:border-[#0c0c10] shadow-lg"
+                                    >
+                                        {pendingCount}
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
                         </button>
-                        <button 
-                            onClick={() => setActiveTab("schedule")}
-                            className={`pb-4 text-sm font-black uppercase tracking-widest relative transition-colors ${activeTab === 'schedule' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <span className="flex items-center gap-2">
-                                <Video size={18} /> Live Prep Classes
-                            </span>
-                            {activeTab === 'schedule' && (
-                                <motion.div layoutId="activeTabStudy" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-                            )}
-                        </button>
-                    </div>
+                    )}
+                </div>
+
+                {/* Tab Switcher — horizontally scrollable on mobile */}
+                <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar pb-0 mb-8 border-b border-gray-200 dark:border-gray-800" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <button 
+                        onClick={() => setActiveTab("materials")}
+                        className={`shrink-0 pb-3 sm:pb-4 text-xs sm:text-sm font-black uppercase tracking-widest relative transition-colors ${activeTab === 'materials' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <span className="flex items-center gap-2">
+                            <BookOpen size={16} className="sm:w-[18px] sm:h-[18px]" /> Resource Library
+                        </span>
+                        {activeTab === 'materials' && (
+                            <motion.div layoutId="activeTabStudy" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+                        )}
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab("schedule")}
+                        className={`shrink-0 pb-3 sm:pb-4 text-xs sm:text-sm font-black uppercase tracking-widest relative transition-colors ${activeTab === 'schedule' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <span className="flex items-center gap-2">
+                            <Video size={16} className="sm:w-[18px] sm:h-[18px]" /> Live Prep Classes
+                        </span>
+                        {activeTab === 'schedule' && (
+                            <motion.div layoutId="activeTabStudy" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+                        )}
+                    </button>
                 </div>
 
                 {/* Main Content Area */}
@@ -309,7 +310,7 @@ function StudyPageContent() {
                                                 ))}
                                             </div>
                                         ) : filteredMaterials.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
                                                 {filteredMaterials.map(post => {
                                                     const isAuthor = user?.uid === post.authorId;
                                                     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
@@ -346,7 +347,7 @@ function StudyPageContent() {
                                                 })}
                                             </div>
                                         ) : (
-                                            <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
+                                            <div className="bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-[3rem] p-10 sm:p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
                                                 <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6">
                                                     <Search size={24} className="text-gray-300" />
                                                 </div>
@@ -378,7 +379,7 @@ function StudyPageContent() {
                                             ))}
                                         </div>
                                     ) : filteredSchedule.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10">
                                             {filteredSchedule.map(post => {
                                                 const isAuthor = user?.uid === post.authorId;
                                                 const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
@@ -415,7 +416,7 @@ function StudyPageContent() {
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="bg-white dark:bg-[#1a1b23] rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
+                                        <div className="bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-[3rem] p-10 sm:p-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800">
                                             <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6">
                                                 <Video size={24} className="text-gray-300" />
                                             </div>

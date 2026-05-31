@@ -53,9 +53,9 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className={`group relative bg-white dark:bg-[#1a1b23] rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-xl shadow-navy-900/5 hover:shadow-2xl transition-all duration-500 ${showComments ? 'ring-2 ring-primary/20 scale-[1.01]' : 'hover:-translate-y-2'}`}
+            className={`group relative bg-white dark:bg-[#1a1b23] rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-xl shadow-navy-900/5 hover:shadow-2xl transition-all duration-500 ${showComments ? 'ring-2 ring-primary/20 scale-[1.01]' : 'hover:-translate-y-2'}`}
         >
-            <div className="p-8">
+            <div className="p-5 sm:p-8">
                 <div className="flex items-center justify-between mb-6">
                     <div className={`px-4 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${color}`}>
                         <Icon size={14} /> {label}
@@ -146,8 +146,8 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
 
                 {/* Main Actions Layer */}
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-50 dark:border-gray-800">
-                        <div onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between flex-wrap gap-3 pt-5 border-t border-gray-50 dark:border-gray-800">
+                        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                             <ReactionBtn 
                                 contentId={post.id} 
                                 contentType="study" 
@@ -157,7 +157,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                             />
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             {onSave && (
                                 <button 
                                     onClick={() => onSave(post.id)}
