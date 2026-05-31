@@ -29,6 +29,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
     const [description, setDescription] = useState("");
     const [link, setLink] = useState("");
     const [materialType, setMaterialType] = useState<"doc" | "video" | "link">("doc");
+    const [category, setCategory] = useState<"notes" | "suggestion" | "books" | "question" | "other">("notes");
     const [startTime, setStartTime] = useState("");
     const [privacy, setPrivacy] = useState<"public" | "campus">("public");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,6 +58,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                 setDescription(editPost.content);
                 setLink(editPost.link || "");
                 setMaterialType((editPost.materialType as any) || "doc");
+                setCategory((editPost.category as any) || "notes");
                 
                 // Format startTime for the datetime-local input (yyyy-MM-ddThh:mm)
                 let dateValue = "";
@@ -93,6 +95,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                 setLink("");
                 setStartTime("");
                 setMaterialType("doc");
+                setCategory("notes");
                 setPrivacy("public");
                 setLinkPreview(null);
                 removeThumbnail();
@@ -251,7 +254,10 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                 fileType,
             };
 
-            if (tab === "material") postData.materialType = materialType;
+            if (tab === "material") {
+                postData.materialType = materialType;
+                postData.category = category;
+            }
             if (tab === "schedule") postData.startTime = startTime;
 
             if (editPost) {
@@ -377,22 +383,46 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
 
                                 {/* Specific Fields per Tab */}
                                 {tab === 'material' ? (
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {[
-                                            { id: 'doc', icon: BookOpen, label: 'Document' },
-                                            { id: 'video', icon: Video, label: 'Video' },
-                                            { id: 'link', icon: LinkIcon, label: 'Web Link' }
-                                        ].map((type) => (
-                                            <button
-                                                key={type.id}
-                                                type="button"
-                                                onClick={() => setMaterialType(type.id as any)}
-                                                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${materialType === type.id ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-gray-50 dark:bg-black/20 border-transparent text-gray-400 hover:bg-gray-100'}`}
-                                            >
-                                                <type.icon size={20} />
-                                                <span className="text-[9px] font-black uppercase tracking-widest">{type.label}</span>
-                                            </button>
-                                        ))}
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {[
+                                                { id: 'doc', icon: BookOpen, label: 'Document' },
+                                                { id: 'video', icon: Video, label: 'Video' },
+                                                { id: 'link', icon: LinkIcon, label: 'Web Link' }
+                                            ].map((type) => (
+                                                <button
+                                                    key={type.id}
+                                                    type="button"
+                                                    onClick={() => setMaterialType(type.id as any)}
+                                                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${materialType === type.id ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-gray-50 dark:bg-black/20 border-transparent text-gray-400 hover:bg-gray-100'}`}
+                                                >
+                                                    <type.icon size={20} />
+                                                    <span className="text-[9px] font-black uppercase tracking-widest">{type.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Category</label>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                {[
+                                                    { id: 'notes', label: '📝 Notes' },
+                                                    { id: 'suggestion', label: '💡 Suggestion' },
+                                                    { id: 'books', label: '📚 Books' },
+                                                    { id: 'question', label: '❓ Questions' },
+                                                    { id: 'other', label: '📁 Other' }
+                                                ].map((cat) => (
+                                                    <button
+                                                        key={cat.id}
+                                                        type="button"
+                                                        onClick={() => setCategory(cat.id as any)}
+                                                        className={`py-3.5 px-4 rounded-2xl border-2 text-xs font-black uppercase tracking-wider text-center transition-all duration-200 ${category === cat.id ? 'bg-primary/5 border-primary/20 text-primary scale-[1.02]' : 'bg-gray-50 dark:bg-black/20 border-transparent text-gray-400 hover:bg-gray-100'}`}
+                                                    >
+                                                        {cat.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">

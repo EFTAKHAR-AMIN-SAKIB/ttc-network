@@ -312,6 +312,7 @@ export interface FirestoreStudyPost {
     link?: string;
     resourceLink?: string;
     materialType?: "doc" | "video" | "link";
+    category?: "notes" | "suggestion" | "books" | "question" | "other";
     tags?: string[];
     yearRelevance?: string;
     semesterRelevance?: string;

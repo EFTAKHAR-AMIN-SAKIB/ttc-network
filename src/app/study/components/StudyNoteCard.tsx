@@ -58,8 +58,25 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
         >
             <div className="p-5 sm:p-8">
                 <div className="flex items-center justify-between mb-6">
-                    <div className={`px-4 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${color}`}>
-                        <Icon size={14} /> {label}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className={`px-4 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${color}`}>
+                            <Icon size={14} /> {label}
+                        </div>
+                        {post.category && (
+                            <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                                post.category === 'notes' ? 'text-purple-500 bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-900/30' :
+                                post.category === 'suggestion' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30' :
+                                post.category === 'books' ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-900/30' :
+                                post.category === 'question' ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-900/30' :
+                                'text-gray-500 bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'
+                            }`}>
+                                {post.category === 'notes' && '📝 Notes'}
+                                {post.category === 'suggestion' && '💡 Suggestion'}
+                                {post.category === 'books' && '📚 Books'}
+                                {post.category === 'question' && '❓ Questions'}
+                                {post.category === 'other' && '📁 Other'}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">

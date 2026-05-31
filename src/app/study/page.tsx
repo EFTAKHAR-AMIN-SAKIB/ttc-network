@@ -35,6 +35,7 @@ function StudyPageContent() {
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
+    const [activeCategory, setActiveCategory] = useState<"all" | "notes" | "suggestion" | "books" | "question" | "other">("all");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [posts, setPosts] = useState<(FirestoreStudyPost & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
@@ -163,6 +164,7 @@ function StudyPageContent() {
 
     const filteredMaterials = filteredPosts.filter(p => 
         p.type === 'material' && 
+        (activeCategory === 'all' || (p.category || 'notes') === activeCategory) &&
         (p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
          p.content?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -287,7 +289,7 @@ function StudyPageContent() {
 
                                     {/* Shared Materials Grid */}
                                     <section>
-                                        <div className="flex items-center justify-between mb-8">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                                             <div className="flex items-center gap-4">
                                                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
                                                     <LayoutGrid size={20} />
@@ -301,6 +303,35 @@ function StudyPageContent() {
                                                     <option>Popular</option>
                                                 </select>
                                             </div>
+                                        </div>
+
+                                        {/* Category Filter Pills */}
+                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-6 mb-8 border-b border-gray-100 dark:border-gray-800/50" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                            {[
+                                                { id: 'all', label: '📖 All Resources', count: filteredPosts.filter(p => p.type === 'material').length },
+                                                { id: 'notes', label: '📝 Lecture Notes', count: filteredPosts.filter(p => p.type === 'material' && (p.category || 'notes') === 'notes').length },
+                                                { id: 'suggestion', label: '💡 Suggestions', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'suggestion').length },
+                                                { id: 'books', label: '📚 Textbooks', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'books').length },
+                                                { id: 'question', label: '❓ Question Papers', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'question').length },
+                                                { id: 'other', label: '📁 Others', count: filteredPosts.filter(p => p.type === 'material' && p.category === 'other').length }
+                                            ].map((cat) => (
+                                                <button
+                                                    key={cat.id}
+                                                    onClick={() => setActiveCategory(cat.id as any)}
+                                                    className={`shrink-0 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider border-2 transition-all duration-300 flex items-center gap-2.5 ${
+                                                        activeCategory === cat.id
+                                                            ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
+                                                            : 'bg-white dark:bg-[#1a1b23] border-gray-100 dark:border-gray-800 text-gray-500 hover:border-primary/20 hover:text-primary hover:scale-[1.01]'
+                                                    }`}
+                                                >
+                                                    <span>{cat.label}</span>
+                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full transition-colors ${
+                                                        activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                                                    }`}>
+                                                        {cat.count}
+                                                    </span>
+                                                </button>
+                                            ))}
                                         </div>
 
                                         {loading ? (
