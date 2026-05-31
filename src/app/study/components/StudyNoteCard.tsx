@@ -7,6 +7,7 @@ import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 interface StudyNoteCardProps {
     post: FirestoreStudyPost & { id: string };
@@ -127,8 +128,11 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                 )}
 
                 {/* Author */}
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center overflow-hidden rotate-3 group-hover:rotate-0 transition-transform">
+                <Link 
+                    href={`/profile/${post.authorId}`}
+                    className="inline-flex items-center gap-3 mb-8 group/author cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all duration-300"
+                >
+                    <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center overflow-hidden rotate-3 group-hover:rotate-0 group-hover/author:ring-2 group-hover/author:ring-primary/30 transition-all duration-300">
                         {post.authorPhoto ? (
                             <img src={post.authorPhoto} alt={post.authorName} className="w-full h-full object-cover" />
                         ) : (
@@ -136,13 +140,13 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                         )}
                     </div>
                     <div className="min-w-0">
-                        <p className="text-xs font-black text-navy-900 dark:text-gray-100 truncate">{post.authorName}</p>
+                        <p className="text-xs font-black text-navy-900 dark:text-gray-100 truncate group-hover/author:text-primary transition-colors">{post.authorName}</p>
                         <p className="text-[10px] font-bold text-gray-400 truncate flex items-center gap-1">
                             {(post.privacy === 'campus' || post.privacy === 'college_only' || post.visibility === 'campus' || post.visibility === 'college_only') ? <Lock size={10} className="text-amber-500" /> : <Globe size={10} className="text-blue-500" />}
                             {post.collegeName?.split(',')[0]}
                         </p>
                     </div>
-                </div>
+                </Link>
 
                 {/* Main Actions Layer */}
                 <div className="space-y-4">
