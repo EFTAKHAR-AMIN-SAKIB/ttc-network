@@ -43,6 +43,7 @@ import {
 } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
+import { ProfileCompletionCard, ProfileCompletionBar } from "./ProfileCompletionCard";
 import StoryCard from "@/components/StoryCard";
 import PostCard from "@/components/PostCard";
 import StudyNoteCard from "@/app/study/components/StudyNoteCard";
@@ -1170,11 +1171,30 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
             </div>
 
+            {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
+            {isOwnProfile && profileData && (
+                <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6">
+                    <ProfileCompletionBar
+                        profile={profileData}
+                        onEditProfile={() => setEditDrawerOpen(true)}
+                    />
+                </div>
+            )}
+
             {/* 2. STATS STRIP & TABS */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-12 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-12 items-start">
                 
                 {/* LEFT SIDEBAR (L-SIDEBAR) — 3 cols */}
                 <div className="lg:col-span-3 space-y-8">
+                    {/* Profile Completion Card — Desktop Only */}
+                    {isOwnProfile && profileData && (
+                        <div className="hidden lg:block">
+                            <ProfileCompletionCard
+                                profile={profileData}
+                                onEditProfile={() => setEditDrawerOpen(true)}
+                            />
+                        </div>
+                    )}
                     {/* Positions & Roles Card */}
                     <div className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-8 shadow-sm">
                         <div className="text-[10px] font-black uppercase text-gray-400 tracking-[0.25em] mb-4">Positions & Roles</div>
