@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     Users, ShieldCheck, ShieldAlert, Check, X, Trash2,
     UserPlus, UserCheck, ChevronDown, ChevronUp, Loader2,
-    Globe, Mail, BookOpen, ExternalLink, Shield, Compass, Heart, ArrowRight
+    Globe, Mail, BookOpen, ExternalLink, Shield, Compass, Heart, ArrowRight,
+    Search
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +23,7 @@ import {
     checkIsFollowing,
     getFollowersList,
     getFollowingList,
+    getAllUsers,
     type FirestoreUser 
 } from "@/lib/firestore";
 import { colleges } from "@/data/colleges";
@@ -53,10 +55,22 @@ export default function NetworkPage() {
     const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
     const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
+    // Search States
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<(FirestoreUser & { id: string })[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchingLoader, setSearchingLoader] = useState(false);
+
     // Initial Tab Setup
     useEffect(() => {
         if (!loadingAuth && profile) {
-            setActiveTab(isManager ? "auth" : "discover");
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get("tab");
+            if (tabParam === "discover" || tabParam === "my-network" || tabParam === "auth") {
+                setActiveTab(tabParam as any);
+            } else {
+                setActiveTab(isManager ? "auth" : "discover");
+            }
         }
     }, [loadingAuth, isManager, profile]);
 
@@ -197,6 +211,45 @@ export default function NetworkPage() {
             showToast(err.message || "Failed to follow user.", "error");
         } finally {
             setProcessingFollow(prev => ({ ...prev, [targetUserId]: false }));
+        }
+    };
+
+    // Action: Search Users
+    const handleSearch = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const queryStr = searchQuery.trim().toLowerCase();
+        if (!queryStr) {
+            setIsSearching(false);
+            setSearchResults([]);
+            return;
+        }
+        setSearchingLoader(true);
+        setIsSearching(true);
+        try {
+            const allUsers = await getAllUsers();
+            // Filter out current user and match displayName or username
+            const filtered = allUsers.filter(u => 
+                u.id !== profile?.uid &&
+                (u.displayName?.toLowerCase().includes(queryStr) || 
+                 u.username?.toLowerCase().includes(queryStr))
+            );
+            
+            // Build follow states for search results in followingStates
+            const states = { ...followingStates };
+            await Promise.all(
+                filtered.map(async (u) => {
+                    if (states[u.id] === undefined && profile?.uid) {
+                        states[u.id] = await checkIsFollowing(profile.uid, u.id);
+                    }
+                })
+            );
+            setFollowingStates(states);
+            setSearchResults(filtered);
+        } catch (err) {
+            console.error("Search failed:", err);
+            showToast("Failed to search users.", "error");
+        } finally {
+            setSearchingLoader(false);
         }
     };
 
@@ -562,7 +615,152 @@ export default function NetworkPage() {
                                         </p>
                                     </div>
 
-                                    {recommendations.length === 0 ? (
+                                    {/* Search Bar */}
+                                    <div className="mb-8">
+                                        <form onSubmit={handleSearch} className="flex gap-3">
+                                            <div className="relative flex-grow">
+                                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                                    <Search size={18} />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    placeholder="Search people by name or username..."
+                                                    className="w-full pl-11 pr-10 py-3.5 bg-gray-50 dark:bg-[#161620] border-2 border-gray-100 dark:border-gray-800 focus:border-primary dark:focus:border-primary rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-0 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                                />
+                                                {searchQuery && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSearchQuery("");
+                                                            setIsSearching(false);
+                                                            setSearchResults([]);
+                                                        }}
+                                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={searchingLoader}
+                                                className="px-6 py-3.5 bg-primary hover:bg-primary-dark text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-md shadow-primary/10 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shrink-0"
+                                            >
+                                                {searchingLoader ? (
+                                                    <Loader2 className="animate-spin" size={14} />
+                                                ) : (
+                                                    <Search size={14} className="stroke-[3]" />
+                                                )}
+                                                Search
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {isSearching ? (
+                                        searchingLoader ? (
+                                            <div className="py-20 text-center select-none">
+                                                <Loader2 className="animate-spin text-primary mx-auto mb-4" size={32} />
+                                                <span className="text-sm font-black uppercase tracking-widest text-gray-400">Searching Network...</span>
+                                            </div>
+                                        ) : searchResults.length === 0 ? (
+                                            <div className="py-20 text-center select-none">
+                                                <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800/40 rounded-[35%] flex items-center justify-center mx-auto mb-6 text-gray-300 dark:text-gray-700">
+                                                    <Search size={36} />
+                                                </div>
+                                                <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                    No results found
+                                                </h3>
+                                                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-2">
+                                                    We couldn't find anyone matching "{searchQuery}". Try another query.
+                                                </p>
+                                                <button
+                                                    onClick={() => {
+                                                        setSearchQuery("");
+                                                        setIsSearching(false);
+                                                        setSearchResults([]);
+                                                    }}
+                                                    className="mt-6 px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-black uppercase tracking-widest rounded-xl transition-all hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                >
+                                                    Back to Suggestions
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {searchResults.map((item) => {
+                                                    const isFollowing = !!followingStates[item.id];
+                                                    const isWorking = !!processingFollow[item.id];
+                                                    return (
+                                                        <div 
+                                                            key={item.id}
+                                                            className="flex items-center gap-4 p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all duration-300"
+                                                        >
+                                                            {/* Avatar */}
+                                                            <Link href={`/profile/${item.id}`} className="shrink-0 relative group">
+                                                                {item.photoURL ? (
+                                                                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100">
+                                                                        <Image 
+                                                                            src={item.photoURL} 
+                                                                            alt={item.displayName} 
+                                                                            width={48} 
+                                                                            height={48} 
+                                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-350"
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
+                                                                        {getInitials(item.displayName)}
+                                                                    </div>
+                                                                )}
+                                                                {item.roleVerified && (
+                                                                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center" title="Verified Member">
+                                                                        <Check className="text-white w-3 h-3 stroke-[3]" />
+                                                                    </span>
+                                                                )}
+                                                            </Link>
+
+                                                            {/* Details */}
+                                                            <div className="flex-1 min-w-0">
+                                                                <Link 
+                                                                    href={`/profile/${item.id}`}
+                                                                    className="text-base font-extrabold text-gray-900 dark:text-white truncate block hover:text-primary transition-colors"
+                                                                >
+                                                                    {item.displayName}
+                                                                </Link>
+                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                                                    <span>TTC {getCollegeCity(item.collegeId)}</span>
+                                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                                                                    <span className="capitalize">{item.role}</span>
+                                                                </p>
+                                                            </div>
+
+                                                            {/* Follow action button */}
+                                                            <div className="shrink-0">
+                                                                {isFollowing ? (
+                                                                    <button
+                                                                        onClick={() => handleFollowToggle(item.id, item.displayName)}
+                                                                        disabled={isWorking}
+                                                                        className="px-4 py-2 border border-gray-250 dark:border-gray-700 text-gray-550 dark:text-gray-450 hover:text-red-500 hover:border-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                                                    >
+                                                                        Following
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => handleFollowToggle(item.id, item.displayName)}
+                                                                        disabled={isWorking}
+                                                                        className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-primary/10 flex items-center gap-1"
+                                                                    >
+                                                                        <UserPlus size={12} className="stroke-[2.5]" /> Follow
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )
+                                    ) : recommendations.length === 0 ? (
                                         <div className="py-20 text-center select-none">
                                             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800/40 rounded-[35%] flex items-center justify-center mx-auto mb-6 text-gray-300 dark:text-gray-700">
                                                 <Compass size={36} />
