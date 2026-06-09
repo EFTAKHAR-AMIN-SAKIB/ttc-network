@@ -169,8 +169,8 @@ export interface FirestorePost {
     reviewedBy?: string;
     reviewedAt?: Timestamp | null;
     rejectReason?: string;
-    reactions: { love: number; fire: number; insightful: number; clap: number; wow: number };
-    reactedBy?: { love: string[]; fire: string[]; insightful: string[]; clap: string[]; wow: string[] };
+    reactions: { love: number; relatable: number; respect: number; cry: number; angry: number; [key: string]: number };
+    reactedBy?: { love: string[]; relatable: string[]; respect: string[]; cry: string[]; angry: string[]; [key: string]: string[] };
     timestamp: Timestamp | null;
     visibility?: "public" | "campus" | "private"; // "campus" = same college only
     thumbnailUrl?: string; // Optional clickable thumbnail image
@@ -195,18 +195,20 @@ export interface FirestoreStory {
     coverMood: string; // "Proud 🎓", "Struggling 💪", etc.
     readingTimeMinutes: number;
     reactions: { 
-        inspired: number; 
+        love: number; 
         relatable: number; 
-        insightful: number; 
         respect: number; 
-        powerful: number;
+        cry: number; 
+        angry: number;
+        [key: string]: number;
     };
     reactedBy: { 
-        inspired: string[]; 
+        love: string[]; 
         relatable: string[]; 
-        insightful: string[]; 
         respect: string[]; 
-        powerful: string[];
+        cry: string[]; 
+        angry: string[];
+        [key: string]: string[];
     };
     inspireCount?: number; // Legacy
     inspiredBy?: string[]; // Legacy
@@ -343,18 +345,20 @@ export interface FirestoreStudyPost {
         domain?: string;
     };
     reactions: { 
-        inspired: number; 
+        love: number; 
         relatable: number; 
-        insightful: number; 
         respect: number; 
-        powerful: number;
+        cry: number; 
+        angry: number;
+        [key: string]: number;
     };
     reactedBy: { 
-        inspired: string[]; 
+        love: string[]; 
         relatable: string[]; 
-        insightful: string[]; 
         respect: string[]; 
-        powerful: string[];
+        cry: string[]; 
+        angry: string[];
+        [key: string]: string[];
     };
     commentsCount?: number;
     scheduleDetails?: {
@@ -381,17 +385,19 @@ export interface FirestoreComment {
     updatedAt?: Timestamp;
     reactions?: {
         love: number;
-        fire: number;
-        insightful: number;
-        clap: number;
-        wow: number;
+        relatable: number;
+        respect: number;
+        cry: number;
+        angry: number;
+        [key: string]: number;
     };
     reactedBy?: {
         love: string[];
-        fire: string[];
-        insightful: string[];
-        clap: string[];
-        wow: string[];
+        relatable: string[];
+        respect: string[];
+        cry: string[];
+        angry: string[];
+        [key: string]: string[];
     };
     parentId: string | null;
     replyToId?: string; // For nested replies
@@ -1161,8 +1167,8 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
         },
         creatorId: profile.id!,
         status: isAutoApproved ? "approved" : "pending",
-        reactions: { love: 0, fire: 0, insightful: 0, clap: 0, wow: 0 },
-        reactedBy: { love: [], fire: [], insightful: [], clap: [], wow: [] },
+        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
+        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
         timestamp: serverTimestamp() as Timestamp,
         isAuthorShadowBanned: profile.isShadowBanned || false,
         tags,
@@ -1621,8 +1627,8 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
         authorRole: (['student', 'teacher', 'graduate'].includes(profile.role || '') ? profile.role : 'student') as "student" | "teacher" | "graduate",
         role: profile.role || 'student', // Legacy
         status: "pending",
-        reactions: { inspired: 0, relatable: 0, insightful: 0, respect: 0, powerful: 0 },
-        reactedBy: { inspired: [], relatable: [], insightful: [], respect: [], powerful: [] },
+        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
+        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
         readingTimeMinutes: Math.max(1, Math.ceil((story.fullStory?.length || 0) / 1500)), 
         timestamp: serverTimestamp() as Timestamp,
         visibility: story.visibility || "public",
@@ -1912,7 +1918,7 @@ export async function getUserFeedContent(uid: string, isOwner: boolean = false) 
     };
 }
 
-export async function reactToStory(id: string, reaction: "inspired" | "relatable" | "insightful" | "respect" | "powerful" | "relate" | "love" | "fire" | "wow" | "clap"): Promise<{ added: boolean }> {
+export async function reactToStory(id: string, reaction: "love" | "relatable" | "respect" | "cry" | "angry" | "inspired" | "insightful" | "powerful" | "relate" | "fire" | "wow" | "clap"): Promise<{ added: boolean }> {
     const auth = getAuthInstance();
     const user = auth.currentUser;
     if (!user) throw new Error("Auth required");
@@ -1922,7 +1928,7 @@ export async function reactToStory(id: string, reaction: "inspired" | "relatable
     if (!storySnap.exists()) throw new Error("Story not found");
 
     const data = storySnap.data() as FirestoreStory;
-    const reactedBy = data.reactedBy || { inspired: [], relatable: [], insightful: [], respect: [], powerful: [] };
+    const reactedBy = data.reactedBy || { love: [], relatable: [], respect: [], cry: [], angry: [] };
     const alreadyReacted = ((reactedBy as Record<string, string[]>)[reaction] || []).includes(user.uid);
 
     if (alreadyReacted) {
@@ -1946,7 +1952,7 @@ export async function reactToStory(id: string, reaction: "inspired" | "relatable
 
 /** Legacy wrapper */
 export async function inspireStory(id: string) {
-    return reactToStory(id, "inspired");
+    return reactToStory(id, "love");
 }
 
 
@@ -3038,8 +3044,8 @@ export async function addComment(
         text,
         parentId: parentId || null,
         createdAt: serverTimestamp() as Timestamp,
-        reactions: { love: 0, fire: 0, insightful: 0, clap: 0, wow: 0 },
-        reactedBy: { love: [], fire: [], insightful: [], clap: [], wow: [] }
+        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
+        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] }
     };
 
     const db = getDb();
@@ -3204,7 +3210,7 @@ export function subscribeComments(postId: string, callback: (comments: (Firestor
     });
 }
 
-export async function reactToComment(commentId: string, reaction: "love" | "fire" | "insightful" | "clap" | "wow"): Promise<{ added: boolean }> {
+export async function reactToComment(commentId: string, reaction: "love" | "relatable" | "respect" | "cry" | "angry" | "fire" | "insightful" | "clap" | "wow"): Promise<{ added: boolean }> {
     const auth = getAuthInstance();
     const user = auth.currentUser;
     if (!user) throw new Error("Auth required");
@@ -3216,7 +3222,7 @@ export async function reactToComment(commentId: string, reaction: "love" | "fire
     const data = commentSnap.data() as FirestoreComment & { reactedBy?: Record<string, unknown>; likedBy?: string[] };
     
     // Support for both legacy and new structures
-    const reactedBy = data.reactedBy || { love: [], fire: [], insightful: [], clap: [], wow: [] };
+    const reactedBy = data.reactedBy || { love: [], relatable: [], respect: [], cry: [], angry: [] };
     
     // Backward compatibility for 'like' -> 'love'
     if (data.likedBy && !reactedBy.love) {
@@ -3479,8 +3485,8 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
         // Sync visibility with privacy for backward compatibility
         visibility: post.privacy || "public",
         status: "pending",
-        reactions: { inspired: 0, relatable: 0, insightful: 0, respect: 0, powerful: 0 },
-        reactedBy: { inspired: [], relatable: [], insightful: [], respect: [], powerful: [] },
+        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
+        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
         createdAt: serverTimestamp(),
     };
 
@@ -3600,14 +3606,24 @@ export async function reactToContent(contentId: string, reaction: string, conten
     }
 
     // Support Fresh Reaction mapping + Legacy compatibility
+    // For new reaction types, check if the user already has a legacy key that maps to this type
     const freshKey = reaction;
-    const legacyKey = reaction === 'inspired' ? 'love' : 
-                      reaction === 'powerful' ? 'fire' : 
-                      reaction === 'respect' ? 'clap' : 
-                      reaction === 'relatable' ? (contentType === 'story' ? 'relate' : 'wow') : '';
+    const legacyKeysForReaction: string[] = 
+        reaction === 'love' ? ['inspired'] :
+        reaction === 'angry' ? ['fire', 'powerful'] :
+        reaction === 'respect' ? ['clap', 'insightful'] :
+        reaction === 'relatable' ? ['wow', 'relate'] :
+        [];
 
-    const legacyReactionList = legacyKey ? ((reactedBy[legacyKey] || []) as string[]) : [];
-    const isAlreadyLegacy = legacyKey ? legacyReactionList.includes(user.uid) : false;
+    // Check if user already reacted via a legacy key
+    let legacyKeyUsed = '';
+    for (const lk of legacyKeysForReaction) {
+        if ((reactedBy[lk] || []).includes(user.uid)) {
+            legacyKeyUsed = lk;
+            break;
+        }
+    }
+    const isAlreadyLegacy = !!legacyKeyUsed;
 
     // Properly initialize isAlreadyFresh
     const currentReactionList = (reactedBy[freshKey] || []) as string[];
@@ -3615,7 +3631,7 @@ export async function reactToContent(contentId: string, reaction: string, conten
 
     if (isAlreadyFresh || isAlreadyLegacy) {
         // UN-REACT
-        const actualKey = isAlreadyFresh ? freshKey : (legacyKey as string);
+        const actualKey = isAlreadyFresh ? freshKey : legacyKeyUsed;
         const updates: Record<string, any> = {
             [`reactions.${actualKey}`]: increment(-1),
             [`reactedBy.${actualKey}`]: arrayRemove(user.uid),
@@ -3648,7 +3664,7 @@ export async function reactToContent(contentId: string, reaction: string, conten
         });
 
         // Sync legacy 'likes' for news-feed
-        if (freshKey === 'inspired') {
+        if (freshKey === 'love') {
              if (data["likes"] !== undefined) {
                  updates["likes"] = increment(1);
                  updates["likedBy"] = arrayUnion(user.uid);

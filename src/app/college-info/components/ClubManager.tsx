@@ -80,6 +80,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
     const [showUserSearch, setShowUserSearch] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [loadingClub, setLoadingClub] = useState(false);
+    const [showMobileSidebar, setShowMobileSidebar] = useState(false);
     const [showAddMember, setShowAddMember] = useState(false);
     const [addMemberSearch, setAddMemberSearch] = useState("");
     const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
@@ -382,11 +383,11 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
     );
 
     const renderCreateForm = () => (
-        <div className="max-w-3xl mx-auto space-y-8 p-6 sm:p-10 overflow-y-auto">
+        <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8 p-4 sm:p-6 md:p-10 overflow-y-auto">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white">Create New Club</h3>
-                    <p className="text-sm text-gray-500 font-medium mt-1">Fill in the details to launch a new organization</p>
+                    <h3 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white">Create New Club</h3>
+                    <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">Fill in the details to launch a new organization</p>
                 </div>
                 <button onClick={() => { setIsCreating(false); setNewClub(emptyForm); setFormErrors({}); }} className="p-3 text-gray-400 hover:text-gray-600 bg-gray-50 dark:bg-white/5 rounded-2xl">
                     <X size={20} />
@@ -635,33 +636,33 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
         switch (activeTab) {
             case "dashboard":
                 return (
-                    <div className="p-10 space-y-10">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="p-8 bg-primary/5 border border-primary/10 rounded-[2.5rem] relative overflow-hidden group">
-                                <Users className="absolute -right-4 -bottom-4 w-24 h-24 text-primary/10 group-hover:scale-110 transition-transform" />
-                                <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">Total Roster</p>
-                                <h4 className="text-4xl font-black text-gray-900 dark:text-white">{members.length}</h4>
+                    <div className="p-4 sm:p-6 md:p-10 space-y-6 sm:space-y-10">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                            <div className="p-5 sm:p-8 bg-primary/5 border border-primary/10 rounded-2xl sm:rounded-[2.5rem] relative overflow-hidden group">
+                                <Users className="absolute -right-4 -bottom-4 w-16 h-16 sm:w-24 sm:h-24 text-primary/10 group-hover:scale-110 transition-transform" />
+                                <p className="text-[10px] sm:text-xs font-black text-primary uppercase tracking-widest mb-1">Total Roster</p>
+                                <h4 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white">{members.length}</h4>
                                 <p className="text-[10px] text-gray-400 font-medium mt-1">Active members in club</p>
                             </div>
-                            <div className="p-8 bg-amber-500/5 border border-amber-500/10 rounded-[2.5rem] relative overflow-hidden group">
-                                <Inbox className="absolute -right-4 -bottom-4 w-24 h-24 text-amber-500/10 group-hover:scale-110 transition-transform" />
-                                <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">Pending Sync</p>
-                                <h4 className="text-4xl font-black text-gray-900 dark:text-white">{requests.length}</h4>
+                            <div className="p-5 sm:p-8 bg-amber-500/5 border border-amber-500/10 rounded-2xl sm:rounded-[2.5rem] relative overflow-hidden group">
+                                <Inbox className="absolute -right-4 -bottom-4 w-16 h-16 sm:w-24 sm:h-24 text-amber-500/10 group-hover:scale-110 transition-transform" />
+                                <p className="text-[10px] sm:text-xs font-black text-amber-600 uppercase tracking-widest mb-1">Pending Sync</p>
+                                <h4 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white">{requests.length}</h4>
                                 <p className="text-[10px] text-gray-400 font-medium mt-1">Applicants awaiting review</p>
                             </div>
-                            <div className="p-8 bg-emerald-500/5 border border-emerald-500/10 rounded-[2.5rem] relative overflow-hidden group">
-                                <Activity className="absolute -right-4 -bottom-4 w-24 h-24 text-emerald-500/10 group-hover:scale-110 transition-transform" />
-                                <p className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-1">Recent Flow</p>
-                                <h4 className="text-4xl font-black text-gray-900 dark:text-white">{activities.length}</h4>
+                            <div className="p-5 sm:p-8 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl sm:rounded-[2.5rem] relative overflow-hidden group">
+                                <Activity className="absolute -right-4 -bottom-4 w-16 h-16 sm:w-24 sm:h-24 text-emerald-500/10 group-hover:scale-110 transition-transform" />
+                                <p className="text-[10px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest mb-1">Recent Flow</p>
+                                <h4 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white">{activities.length}</h4>
                                 <p className="text-[10px] text-gray-400 font-medium mt-1">Logged activities this term</p>
                             </div>
                         </div>
 
-                        <div className="space-y-6">
-                            <h5 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-3">
-                                <ShieldCheck className="text-primary" size={20} /> Management Insights
+                        <div className="space-y-4 sm:space-y-6">
+                            <h5 className="text-base sm:text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 sm:gap-3">
+                                <ShieldCheck className="text-primary" size={18} /> Management Insights
                             </h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                 <div className="p-6 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-gray-800">
                                     <h6 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Latest Inbound</h6>
                                     {requests.length > 0 ? (
@@ -693,9 +694,9 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                 );
             case "inbound":
                 return (
-                    <div className="p-10 space-y-8">
+                    <div className="p-4 sm:p-6 md:p-10 space-y-6 sm:space-y-8">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white">Inbound Requests</h3>
+                            <h3 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white">Inbound Requests</h3>
                             <div className="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-2xl text-[10px] font-black uppercase tracking-widest">{requests.length} Pending</div>
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -747,9 +748,9 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                     : [];
 
                 return (
-                    <div className="p-10 space-y-8">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white">Club Roster</h3>
+                    <div className="p-4 sm:p-6 md:p-10 space-y-6 sm:space-y-8">
+                        <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white">Club Roster</h3>
                             <button 
                                 onClick={() => showAddMember ? setShowAddMember(false) : handleOpenAddMember()}
                                 className={`flex items-center gap-2 px-6 py-3 text-xs font-black rounded-2xl shadow-lg transition-all ${
@@ -836,7 +837,7 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                             )}
                         </AnimatePresence>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                             {members.map(member => (
                                 <div key={member.id} className="p-6 bg-white dark:bg-[#1A1A24] rounded-3xl border border-gray-100 dark:border-gray-800 group hover:border-primary transition-all">
                                     <div className="flex items-center justify-between mb-6">
@@ -877,36 +878,39 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
             }
             case "settings":
                 return (
-                    <div className="p-10 max-w-3xl mx-auto space-y-10">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white">Club Settings</h3>
-                            <button onClick={handleSaveSettings} disabled={loading} className="px-8 py-3 bg-primary text-white font-black rounded-2xl flex items-center gap-2 shadow-xl shadow-primary/20">
+                    <div className="p-4 sm:p-6 md:p-10 max-w-3xl mx-auto space-y-6 sm:space-y-10">
+                        <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white">Club Settings</h3>
+                            <button onClick={handleSaveSettings} disabled={loading} className="px-5 sm:px-8 py-2.5 sm:py-3 bg-primary text-white font-black rounded-2xl flex items-center gap-2 shadow-xl shadow-primary/20 text-sm sm:text-base">
                                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save
                             </button>
                         </div>
                         
-                        <div className="flex flex-col md:flex-row gap-8 items-start">
-                            <div className="relative group">
-                                <div className="w-32 h-32 rounded-[2.5rem] bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-4xl border-4 border-white dark:border-[#161620] shadow-xl overflow-hidden relative">
-                                    {selectedClub!.logo ? <Image src={selectedClub!.logo} alt="" fill className="object-cover" /> : selectedClub!.icon || "🎯"}
-                                </div>
-                                <label className="absolute -right-2 -bottom-2 p-3 bg-primary text-white rounded-2xl shadow-lg group-hover:scale-110 transition-transform cursor-pointer">
-                                    <Camera size={18} />
-                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "logo")} disabled={loading} />
-                                </label>
-                            </div>
-                            <div className="relative group flex-1 self-stretch border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[2.5rem] flex items-center justify-center overflow-hidden min-h-[128px]">
-                                {selectedClub!.bannerUrl ? (
-                                    <Image src={selectedClub!.bannerUrl} alt="Banner" fill className="object-cover opacity-60" />
-                                ) : (
-                                    <p className="text-gray-400 font-bold text-xs">No Cover Banner</p>
-                                )}
-                                <label className="absolute inset-0 bg-transparent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm cursor-pointer z-10">
-                                    <div className="flex items-center gap-2 bg-white text-gray-900 px-4 py-2 rounded-xl text-xs font-bold shadow-xl">
-                                        <Camera size={14} /> Upload Banner
+                        <div className="flex flex-col gap-6 sm:gap-8 items-start">
+                            {/* Logo + Banner row */}
+                            <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-center sm:items-start w-full">
+                                <div className="relative group shrink-0">
+                                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl sm:rounded-[2.5rem] bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-3xl sm:text-4xl border-4 border-white dark:border-[#161620] shadow-xl overflow-hidden relative">
+                                        {selectedClub!.logo ? <Image src={selectedClub!.logo} alt="" fill className="object-cover" /> : selectedClub!.icon || "🎯"}
                                     </div>
-                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "bannerUrl")} disabled={loading} />
-                                </label>
+                                    <label className="absolute -right-2 -bottom-2 p-2.5 sm:p-3 bg-primary text-white rounded-xl sm:rounded-2xl shadow-lg group-hover:scale-110 transition-transform cursor-pointer">
+                                        <Camera size={16} />
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "logo")} disabled={loading} />
+                                    </label>
+                                </div>
+                                <div className="relative group flex-1 w-full self-stretch border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl sm:rounded-[2.5rem] flex items-center justify-center overflow-hidden min-h-[100px] sm:min-h-[128px]">
+                                    {selectedClub!.bannerUrl ? (
+                                        <Image src={selectedClub!.bannerUrl} alt="Banner" fill className="object-cover opacity-60" />
+                                    ) : (
+                                        <p className="text-gray-400 font-bold text-xs">No Cover Banner</p>
+                                    )}
+                                    <label className="absolute inset-0 bg-transparent flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm cursor-pointer z-10">
+                                        <div className="flex items-center gap-2 bg-white text-gray-900 px-4 py-2 rounded-xl text-xs font-bold shadow-xl">
+                                            <Camera size={14} /> Upload Banner
+                                        </div>
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "bannerUrl")} disabled={loading} />
+                                    </label>
+                                </div>
                             </div>
                             <div className="flex-1 space-y-6 w-full">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -946,11 +950,11 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
 
                         <div className="pt-8 border-t border-gray-100 dark:border-gray-800">
                              <h4 className="text-xs font-black text-red-500 uppercase tracking-widest mb-4">Danger Zone</h4>
-                             <div className="flex gap-4">
-                                 <button onClick={() => handleToggleActive(selectedClub!.id, selectedClub!.isActive !== false)} className="px-8 py-3 bg-amber-500/10 text-amber-600 dark:text-amber-500 font-bold rounded-2xl hover:bg-amber-500 hover:text-white transition-all">
+                             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                 <button onClick={() => handleToggleActive(selectedClub!.id, selectedClub!.isActive !== false)} className="px-6 sm:px-8 py-3 bg-amber-500/10 text-amber-600 dark:text-amber-500 font-bold rounded-2xl hover:bg-amber-500 hover:text-white transition-all text-sm">
                                      {selectedClub!.isActive !== false ? "Pause Club" : "Activate Club"}
                                  </button>
-                                 <button onClick={() => handleDelete(selectedClub!.id)} className="px-8 py-3 bg-red-500/10 text-red-500 font-bold rounded-2xl hover:bg-red-500 hover:text-white transition-all">
+                                 <button onClick={() => handleDelete(selectedClub!.id)} className="px-6 sm:px-8 py-3 bg-red-500/10 text-red-500 font-bold rounded-2xl hover:bg-red-500 hover:text-white transition-all text-sm">
                                      Disband Club
                                  </button>
                              </div>
@@ -959,9 +963,9 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                 );
             case "feed":
                 return (
-                    <div className="p-10 space-y-8">
+                    <div className="p-4 sm:p-6 md:p-10 space-y-6 sm:space-y-8">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white">Activity Feed</h3>
+                            <h3 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white">Activity Feed</h3>
                             <button className="flex items-center gap-2 px-6 py-3 bg-primary text-white text-xs font-black rounded-2xl shadow-lg shadow-primary/20">
                                 <Plus size={16} /> Post Update
                             </button>
@@ -989,30 +993,50 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
             <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }} 
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-[#161620] w-full max-w-7xl h-[90vh] rounded-[3rem] overflow-hidden shadow-2xl flex"
+                className="bg-white dark:bg-[#161620] w-full max-w-7xl h-full sm:h-[90vh] rounded-none sm:rounded-[3rem] overflow-hidden shadow-2xl flex flex-col sm:flex-row"
             >
-                {/* Sidebar (Only for Admins/Managers or if no club selected) */}
+                {/* Mobile Header Bar — only visible on mobile when sidebar is hidden */}
+                {(isSuperAdmin || isCollegeManager || !selectedClub) && (
+                    <div className="sm:hidden flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-black/10 shrink-0">
+                        <button onClick={() => setShowMobileSidebar(!showMobileSidebar)} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#0C0C10] border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-black text-gray-700 dark:text-gray-300">
+                            <LayoutGrid size={14} />
+                            {selectedClub ? selectedClub.name : 'All Clubs'}
+                            <ChevronRight size={12} className={`transition-transform ${showMobileSidebar ? 'rotate-90' : ''}`} />
+                        </button>
+                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-100 dark:bg-white/5 rounded-xl">
+                            <X size={18} />
+                        </button>
+                    </div>
+                )}
+
+                {/* Sidebar — desktop: always visible panel, mobile: dropdown overlay */}
                 <AnimatePresence>
                     {(isSuperAdmin || isCollegeManager || !selectedClub) && (
                         <motion.div 
                             initial={{ width: 0, opacity: 0 }}
                             animate={{ width: 320, opacity: 1 }}
                             exit={{ width: 0, opacity: 0 }}
-                            className="bg-gray-50 dark:bg-black/10 border-r border-gray-50 dark:border-gray-800 flex flex-col"
+                            className={`bg-gray-50 dark:bg-black/10 border-r border-gray-50 dark:border-gray-800 flex-col
+                                ${showMobileSidebar ? 'flex absolute inset-0 z-50 w-full sm:relative sm:w-auto' : 'hidden sm:flex'}`}
                         >
-                            <div className="p-8 border-b border-gray-100 dark:border-gray-800">
-                                <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Organization Board</h2>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Connected Entities</p>
+                            <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white tracking-tight">Organization Board</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Connected Entities</p>
+                                </div>
+                                <button onClick={() => setShowMobileSidebar(false)} className="sm:hidden p-2 text-gray-400 hover:text-gray-600 bg-gray-100 dark:bg-white/5 rounded-xl">
+                                    <X size={18} />
+                                </button>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 custom-scrollbar">
                                 {(isSuperAdmin || isCollegeManager) && (
                                     <button 
-                                        onClick={() => { setIsCreating(true); setSelectedClub(null); }}
-                                        className="w-full p-4 mb-4 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+                                        onClick={() => { setIsCreating(true); setSelectedClub(null); setShowMobileSidebar(false); }}
+                                        className="w-full p-3.5 sm:p-4 mb-3 sm:mb-4 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform text-sm"
                                     >
                                         <Plus size={18} /> New Club
                                     </button>
@@ -1020,8 +1044,8 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                                 {clubs.map(c => (
                                     <div 
                                         key={c.id} 
-                                        onClick={() => { setSelectedClub(c); setIsCreating(false); }}
-                                        className={`group p-4 rounded-3xl cursor-pointer transition-all flex items-center justify-between ${selectedClub?.id === c.id ? 'bg-white dark:bg-[#0C0C10] shadow-xl border border-primary/20' : 'hover:bg-white/50 dark:hover:bg-white/5 border border-transparent'}`}
+                                        onClick={() => { setSelectedClub(c); setIsCreating(false); setShowMobileSidebar(false); }}
+                                        className={`group p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl cursor-pointer transition-all flex items-center justify-between ${selectedClub?.id === c.id ? 'bg-white dark:bg-[#0C0C10] shadow-xl border border-primary/20' : 'hover:bg-white/50 dark:hover:bg-white/5 border border-transparent'}`}
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-lg overflow-hidden relative shrink-0">
@@ -1036,8 +1060,8 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                                     </div>
                                 ))}
                             </div>
-                            <div className="p-8 border-t border-gray-100 dark:border-gray-800">
-                                <button onClick={onClose} className="w-full py-4 bg-gray-100 dark:bg-white/5 text-gray-500 font-black rounded-3xl hover:bg-gray-200 transition-all">Close Board</button>
+                            <div className="p-5 sm:p-8 border-t border-gray-100 dark:border-gray-800">
+                                <button onClick={onClose} className="w-full py-3.5 sm:py-4 bg-gray-100 dark:bg-white/5 text-gray-500 font-black rounded-2xl sm:rounded-3xl hover:bg-gray-200 transition-all text-sm">Close Board</button>
                             </div>
                         </motion.div>
                     )}
@@ -1048,17 +1072,17 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                     {selectedClub ? (
                         <>
                             {/* Header */}
-                            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/30 dark:bg-white/5 relative overflow-hidden">
-                                <div className="flex items-center gap-6 relative z-10">
-                                    <div className="w-20 h-20 rounded-full bg-white dark:bg-black/40 flex items-center justify-center text-4xl shadow-2xl border border-gray-100 dark:border-gray-800 relative overflow-hidden shrink-0">
+                            <div className="p-4 sm:p-6 md:p-10 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/30 dark:bg-white/5 relative overflow-hidden">
+                                <div className="flex items-center gap-3 sm:gap-6 relative z-10 min-w-0">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-white dark:bg-black/40 flex items-center justify-center text-2xl sm:text-3xl md:text-4xl shadow-2xl border border-gray-100 dark:border-gray-800 relative overflow-hidden shrink-0">
                                         {selectedClub!.logo ? <Image src={selectedClub!.logo} alt="" fill className="object-cover" /> : selectedClub!.icon || "🎯"}
                                     </div>
-                                    <div>
-                                        <div className="flex items-center gap-3">
-                                            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{selectedClub.name}</h1>
-                                            <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">Active</span>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                                            <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight truncate">{selectedClub.name}</h1>
+                                            <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-primary/10 text-primary text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-full shrink-0">Active</span>
                                         </div>
-                                        <p className="text-gray-500 font-medium flex items-center gap-2 mt-1"><Users size={14} /> {members.length} Members • {selectedClub.category} Organization</p>
+                                        <p className="text-xs sm:text-sm text-gray-500 font-medium flex items-center gap-1.5 sm:gap-2 mt-1"><Users size={12} className="shrink-0" /> {members.length} Members • {selectedClub.category} Organization</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-2 z-10">
@@ -1080,37 +1104,37 @@ export default function ClubManager({ collegeId, onClose }: ClubManagerProps) {
                             </div>
 
                             {/* Nav Tabs */}
-                            <div className="px-10 py-4 border-b border-gray-50 dark:border-gray-800 flex items-center gap-8 bg-white/50 dark:bg-black/5 backdrop-blur-md">
+                            <div className="px-3 sm:px-6 md:px-10 py-3 sm:py-4 border-b border-gray-50 dark:border-gray-800 flex items-center gap-4 sm:gap-6 md:gap-8 bg-white/50 dark:bg-black/5 backdrop-blur-md overflow-x-auto scrollbar-hide">
                                 {(() => {
                                     const isPresidentOfSelected = members?.some((m) => (m.userId === profile?.uid || m.userId === (profile as any)?.id) && m.role === "President");
                                     const canManageSelected = isSuperAdmin || isCollegeManager || selectedClub?.createdBy === profile?.uid || isPresidentOfSelected;
 
                                     return (
                                         <>
-                                            <button onClick={() => setActiveTab("dashboard")} className={`text-xs font-black uppercase tracking-widest relative py-2 transition-all ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+                                            <button onClick={() => setActiveTab("dashboard")} className={`text-[10px] sm:text-xs font-black uppercase tracking-widest relative py-2 transition-all whitespace-nowrap ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
                                                 Overview
                                                 {activeTab === 'dashboard' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                                             </button>
                                             
                                             {canManageSelected && (
-                                                <button onClick={() => setActiveTab("inbound")} className={`text-xs font-black uppercase tracking-widest relative py-2 transition-all flex items-center gap-2 ${activeTab === 'inbound' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+                                                <button onClick={() => setActiveTab("inbound")} className={`text-[10px] sm:text-xs font-black uppercase tracking-widest relative py-2 transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'inbound' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
                                                     Inbound
                                                     {requests.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
                                                     {activeTab === 'inbound' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                                                 </button>
                                             )}
                                             
-                                            <button onClick={() => setActiveTab("roster")} className={`text-xs font-black uppercase tracking-widest relative py-2 transition-all ${activeTab === 'roster' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+                                            <button onClick={() => setActiveTab("roster")} className={`text-[10px] sm:text-xs font-black uppercase tracking-widest relative py-2 transition-all whitespace-nowrap ${activeTab === 'roster' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
                                                 Roster
                                                 {activeTab === 'roster' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                                             </button>
-                                            <button onClick={() => setActiveTab("feed")} className={`text-xs font-black uppercase tracking-widest relative py-2 transition-all ${activeTab === 'feed' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+                                            <button onClick={() => setActiveTab("feed")} className={`text-[10px] sm:text-xs font-black uppercase tracking-widest relative py-2 transition-all whitespace-nowrap ${activeTab === 'feed' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
                                                 Feed
                                                 {activeTab === 'feed' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                                             </button>
                                             
                                             {canManageSelected && (
-                                                <button onClick={() => setActiveTab("settings")} className={`text-xs font-black uppercase tracking-widest relative py-2 transition-all ${activeTab === 'settings' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
+                                                <button onClick={() => setActiveTab("settings")} className={`text-[10px] sm:text-xs font-black uppercase tracking-widest relative py-2 transition-all whitespace-nowrap ${activeTab === 'settings' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}>
                                                     Settings
                                                     {activeTab === 'settings' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
                                                 </button>

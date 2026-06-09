@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, User, Heart, Zap, Lightbulb, Clapperboard, Smile, ChevronRight } from "lucide-react";
+import { X, User, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { getProfilesByIds, type FirestoreUser } from "@/lib/firestore";
@@ -12,16 +12,20 @@ interface ReactionViewerModalProps {
     reactedBy: { [key: string]: string[] } | undefined;
 }
 
-const REACTION_CONFIG: Record<string, { icon: any, label: string, color: string }> = {
-    love: { icon: Heart, label: "Inspired", color: "text-red-500" },
-    inspired: { icon: Heart, label: "Inspired", color: "text-red-500" },
-    fire: { icon: Zap, label: "Powerful", color: "text-orange-500" },
-    powerful: { icon: Zap, label: "Powerful", color: "text-orange-500" },
-    insightful: { icon: Lightbulb, label: "Insightful", color: "text-yellow-500" },
-    clap: { icon: Clapperboard, label: "Respect", color: "text-blue-500" },
-    respect: { icon: Clapperboard, label: "Respect", color: "text-blue-500" },
-    wow: { icon: Smile, label: "Relatable", color: "text-purple-500" },
-    relatable: { icon: Smile, label: "Relatable", color: "text-purple-500" },
+// Emoji-based config for all reaction types (new + legacy)
+const REACTION_CONFIG: Record<string, { emoji: string, label: string, color: string }> = {
+    love: { emoji: "❤️", label: "Love", color: "text-red-500" },
+    relatable: { emoji: "🤝", label: "Relatable", color: "text-purple-500" },
+    respect: { emoji: "🫡", label: "Respect", color: "text-blue-500" },
+    cry: { emoji: "😢", label: "Cry", color: "text-cyan-500" },
+    angry: { emoji: "😡", label: "Angry", color: "text-orange-500" },
+    // Legacy backward-compat
+    inspired: { emoji: "❤️", label: "Love", color: "text-red-500" },
+    fire: { emoji: "😡", label: "Angry", color: "text-orange-500" },
+    powerful: { emoji: "😡", label: "Angry", color: "text-orange-500" },
+    insightful: { emoji: "🫡", label: "Respect", color: "text-blue-500" },
+    clap: { emoji: "🫡", label: "Respect", color: "text-blue-500" },
+    wow: { emoji: "🤝", label: "Relatable", color: "text-purple-500" },
 };
 
 export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: ReactionViewerModalProps) {
@@ -93,7 +97,6 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                     {availableReactions.map(key => {
                         const config = REACTION_CONFIG[key];
                         if (!config) return null;
-                        const Icon = config.icon;
                         const count = reactedBy?.[key]?.length || 0;
                         return (
                             <button
@@ -103,7 +106,7 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                                     ${activeTab === key ? "bg-slate-900 dark:bg-primary text-white" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"}
                                 `}
                             >
-                                <Icon size={14} className={activeTab === key ? "text-white" : config.color} />
+                                <span className="text-sm">{config.emoji}</span>
                                 {count}
                             </button>
                         );
@@ -141,7 +144,6 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                                 }
 
                                 const config = userReaction ? REACTION_CONFIG[userReaction] : null;
-                                const ReactionIcon = config?.icon;
 
                                 return (
                                     <Link 
@@ -159,9 +161,9 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                                                         <User size={18} className="text-navy-400" />
                                                     </div>
                                                 )}
-                                                {ReactionIcon && (
+                                                {config && (
                                                     <div className="absolute -right-1 -bottom-1 bg-white dark:bg-gray-800 p-0.5 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
-                                                        <ReactionIcon size={12} className={config.color} />
+                                                        <span className="text-[10px] leading-none">{config.emoji}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -177,7 +179,7 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                         </div>
                     ) : (
                         <div className="text-center py-16">
-                            < Smile className="w-12 h-12 text-gray-200 dark:text-gray-800 mx-auto mb-3" />
+                            <span className="text-5xl block mx-auto mb-3">🫥</span>
                             <p className="text-sm font-bold text-gray-400">No reactors to show here</p>
                         </div>
                     )}

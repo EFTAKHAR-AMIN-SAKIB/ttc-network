@@ -53,12 +53,12 @@ export default function ClubCard({ club, onClick }: ClubCardProps) {
                     </div>
                 </div>
 
-                <div className="space-y-1">
-                    <h3 className="text-lg font-extrabold text-gray-900 dark:text-white group-hover:text-primary transition-colors line-clamp-1">
+                <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-lg font-extrabold text-gray-900 dark:text-white group-hover:text-primary transition-colors truncate">
                         {club.name}
                     </h3>
                     {club.tagline && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 font-medium">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate font-medium mt-1">
                             &quot;{club.tagline}&quot;
                         </p>
                     )}

@@ -231,22 +231,22 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                     initial={{ scale: 0.95, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.95, y: 20 }}
-                    className="bg-white dark:bg-[#161620] w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col relative"
+                    className="bg-white dark:bg-[#161620] w-full h-full sm:h-auto sm:max-w-4xl sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col relative"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header Banner */}
-                    <div className={`h-48 relative shrink-0 ${!club.bannerUrl ? "bg-gradient-to-br from-primary to-accent" : ""}`}>
+                    <div className={`h-32 sm:h-48 relative shrink-0 ${!club.bannerUrl ? "bg-gradient-to-br from-primary to-accent" : ""}`}>
                         {club.bannerUrl && (
                             <Image src={club.bannerUrl} alt="Club Banner" fill className="object-cover" />
                         )}
                         {club.bannerUrl && <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />}
 
-                        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full text-white transition-all z-10 border border-white/10">
+                        <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full text-white transition-all z-10 border border-white/10">
                             <X size={20} />
                         </button>
                         
-                        <div className="absolute -bottom-16 left-12 w-32 h-32 rounded-full bg-white dark:bg-[#161620] p-2 shadow-2xl z-20 border border-gray-100 dark:border-gray-800">
-                            <div className="w-full h-full rounded-full bg-gray-50 dark:bg-[#0C0C10] flex items-center justify-center text-5xl overflow-hidden relative">
+                        <div className="absolute -bottom-10 left-4 sm:-bottom-16 sm:left-12 w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-white dark:bg-[#161620] p-1.5 sm:p-2 shadow-2xl z-20 border border-gray-100 dark:border-gray-800">
+                            <div className="w-full h-full rounded-full bg-gray-50 dark:bg-[#0C0C10] flex items-center justify-center text-3xl sm:text-5xl overflow-hidden relative">
                                 {club.logo ? (
                                     <Image src={club.logo} alt="Logo" fill className="object-cover" />
                                 ) : (
@@ -256,52 +256,52 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                         </div>
                     </div>
 
-                    <div className="pt-20 px-12 pb-12 overflow-y-auto custom-scrollbar flex-1">
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                    <div className="pt-14 sm:pt-20 px-4 sm:px-12 pb-6 sm:pb-12 overflow-y-auto custom-scrollbar flex-1">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 mb-6 sm:mb-10">
                             <div>
-                                <h2 className="text-4xl font-black text-gray-900 dark:text-white items-center gap-4 flex flex-wrap">
+                                <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white items-center gap-3 sm:gap-4 flex flex-wrap">
                                     {club.name}
                                     <span className="text-xs font-bold uppercase tracking-widest px-3 py-1 bg-primary/10 text-primary rounded-full">
                                         {club.category || "General"}
                                     </span>
                                 </h2>
-                                <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg font-medium italic">
+                                <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm sm:text-lg font-medium italic">
                                     {club.tagline || "Enriching the college experience through collaboration."}
                                 </p>
                             </div>
                             
-                            <div className="flex gap-3">
+                            <div className="flex flex-wrap gap-2 sm:gap-3">
                                 {!isMember && !hasPendingRequest && (
                                     <button 
                                         onClick={handleJoinClick}
                                         disabled={loading}
-                                        className="flex items-center gap-2 px-8 py-3 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:grayscale"
+                                        className="flex-1 sm:flex-none justify-center items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:grayscale"
                                     >
                                         {loading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
                                         Join Club
                                     </button>
                                 )}
                                 {hasPendingRequest && (
-                                    <div className="px-8 py-3 bg-amber-500/10 text-amber-500 font-extrabold rounded-2xl border border-amber-500/20 flex items-center gap-2">
+                                    <div className="flex-1 sm:flex-none justify-center px-6 sm:px-8 py-2.5 sm:py-3 bg-amber-500/10 text-amber-500 text-sm sm:text-base font-extrabold rounded-xl sm:rounded-2xl border border-amber-500/20 flex items-center gap-2">
                                         <Clock size={18} />
                                         Pending Approval
                                     </div>
                                 )}
                                 {isMember && (
-                                    <div className="px-8 py-3 bg-emerald-500/10 text-emerald-500 font-extrabold rounded-2xl border border-emerald-500/20 flex items-center gap-2">
+                                    <div className="flex-1 sm:flex-none justify-center px-6 sm:px-8 py-2.5 sm:py-3 bg-emerald-500/10 text-emerald-500 text-sm sm:text-base font-extrabold rounded-xl sm:rounded-2xl border border-emerald-500/20 flex items-center gap-2">
                                         <Check size={18} />
                                         Joined
                                     </div>
                                 )}
                                 
-                                <button className="p-3 bg-gray-50 dark:bg-[#0C0C10] border border-gray-100 dark:border-gray-800 rounded-2xl text-gray-400 hover:text-primary transition-colors">
+                                <button className="p-2.5 sm:p-3 bg-gray-50 dark:bg-[#0C0C10] border border-gray-100 dark:border-gray-800 rounded-xl sm:rounded-2xl text-gray-400 hover:text-primary transition-colors">
                                     <Share2 size={20} />
                                 </button>
                             </div>
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-8 border-b border-gray-50 dark:border-gray-800 mb-8 sticky top-0 bg-white dark:bg-[#161620] z-30 pb-0 overflow-x-auto scrollbar-hide">
+                        <div className="flex gap-6 sm:gap-8 border-b border-gray-50 dark:border-gray-800 mb-6 sm:mb-8 sticky top-0 bg-white dark:bg-[#161620] z-30 pb-0 overflow-x-auto scrollbar-hide">
                             {[
                                 { id: "feed", label: "Feed", icon: Rss },
                                 { id: "about", label: "About", icon: Globe },
@@ -312,7 +312,7 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                 <button 
                                     key={t.id}
                                     onClick={() => setTab(t.id as any)}
-                                    className={`flex items-center gap-2 pb-4 text-sm font-bold transition-all relative ${tab === t.id ? "text-primary" : "text-gray-400 hover:text-gray-600"}`}
+                                    className={`flex items-center gap-1.5 sm:gap-2 pb-3 sm:pb-4 text-xs sm:text-sm font-bold transition-all relative whitespace-nowrap ${tab === t.id ? "text-primary" : "text-gray-400 hover:text-gray-600"}`}
                                 >
                                     <t.icon size={16} />
                                     {t.label}
@@ -329,15 +329,15 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                         {/* Content */}
                         <div className="min-h-[300px]">
                             {tab === "feed" && (
-                                <div className="space-y-6 max-w-2xl mx-auto">
+                                <div className="space-y-4 sm:space-y-6 max-w-2xl mx-auto">
                                     {feedPosts.length === 0 ? (
-                                        <div className="text-center py-20 bg-gray-50 dark:bg-[#161620]/30 rounded-[2rem] border border-dashed border-gray-100 dark:border-gray-800">
+                                        <div className="text-center py-10 sm:py-20 bg-gray-50 dark:bg-[#161620]/30 rounded-2xl sm:rounded-[2rem] border border-dashed border-gray-100 dark:border-gray-800">
                                             <Rss size={40} className="mx-auto text-gray-300 mb-4" />
                                             <p className="text-gray-500 dark:text-gray-400 font-bold">No updates yet from {club.name}.</p>
                                         </div>
                                     ) : (
                                         feedPosts.map((post) => (
-                                            <div key={post.id} className="bg-gray-50 dark:bg-[#0C0C10] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all">
+                                            <div key={post.id} className="bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all">
                                                 <div className="flex items-center gap-4 mb-4">
                                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-white dark:bg-gray-800 shrink-0 border border-gray-200 dark:border-gray-700 flex items-center justify-center font-bold text-gray-400">
                                                         {post.createdBy.avatar && post.createdBy.avatar.length > 2 ? (
@@ -378,13 +378,13 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                         </a>
                                                     )}
                                                 </div>
-                                                <div className="mt-5 pt-4 border-t border-gray-200/50 dark:border-gray-800 flex items-center justify-between">
-                                                    <div className="flex items-center gap-6 text-xs font-bold text-gray-500">
-                                                        <span className="flex items-center gap-2"><Heart size={16} className={Object.values(post.reactions || {}).reduce((a: any, b: any) => a + Number(b), 0) > 0 ? "fill-red-500 text-red-500" : "text-gray-400"} /> {Object.values(post.reactions || {}).reduce((a: any, b: any) => a + Number(b), 0)} Reactions</span>
-                                                        <span className="flex items-center gap-2"><MessageCircle size={16} className="text-gray-400" /> {post.commentsCount || 0} Comments</span>
+                                                <div className="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-200/50 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+                                                    <div className="flex items-center gap-4 sm:gap-6 text-[10px] sm:text-xs font-bold text-gray-500">
+                                                        <span className="flex items-center gap-1.5 sm:gap-2"><Heart size={14} className={`sm:w-4 sm:h-4 ${Object.values(post.reactions || {}).reduce((a: any, b: any) => a + Number(b), 0) > 0 ? "fill-red-500 text-red-500" : "text-gray-400"}`} /> {Object.values(post.reactions || {}).reduce((a: any, b: any) => a + Number(b), 0)} Reactions</span>
+                                                        <span className="flex items-center gap-1.5 sm:gap-2"><MessageCircle size={14} className="sm:w-4 sm:h-4 text-gray-400" /> {post.commentsCount || 0} Comments</span>
                                                     </div>
-                                                    <a href={`/news-feed?post=${post.id}`} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1.5 bg-primary/5 px-3.5 py-2 rounded-full hover:bg-primary/10 transition-colors">
-                                                        View Post <ExternalLink size={12} />
+                                                    <a href={`/news-feed?post=${post.id}`} target="_blank" rel="noopener noreferrer" className="self-start sm:self-auto text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1.5 bg-primary/5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full hover:bg-primary/10 transition-colors">
+                                                        View Post <ExternalLink size={10} className="sm:w-3 sm:h-3" />
                                                     </a>
                                                 </div>
                                             </div>
@@ -394,24 +394,24 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                             )}
 
                             {tab === "about" && (
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                                    <div className="lg:col-span-2 space-y-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-12">
+                                    <div className="lg:col-span-2 space-y-6 sm:space-y-8">
                                         <div>
                                             <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Description</h4>
-                                            <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-lg">
+                                            <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm sm:text-lg">
                                                 {club.description || "No description provided."}
                                             </p>
                                         </div>
                                         
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                            <div className="p-6 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800/50">
+                                            <div className="p-4 sm:p-6 bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800/50">
                                                 <div className="flex items-center gap-4 mb-3">
                                                     <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center"><Clock size={20} /></div>
                                                     <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Schedule</span>
                                                 </div>
                                                 <p className="text-gray-900 dark:text-white font-bold">{club.schedule || "To be announced"}</p>
                                             </div>
-                                            <div className="p-6 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800/50">
+                                            <div className="p-4 sm:p-6 bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800/50">
                                                 <div className="flex items-center gap-4 mb-3">
                                                     <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center"><MapPin size={20} /></div>
                                                     <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Location</span>
@@ -420,7 +420,7 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-4">
+                                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                                             {club.socialLinks?.facebook && (
                                                 <a href={club.socialLinks.facebook} target="_blank" className="flex items-center gap-3 px-5 py-3 bg-[#1877F2]/10 text-[#1877F2] rounded-2xl text-sm font-bold hover:bg-[#1877F2]/20 transition-colors">
                                                     <Globe size={18} /> Facebook Page
@@ -434,25 +434,25 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                         </div>
                                     </div>
 
-                                    <div className="space-y-8">
-                                        <div className="p-8 bg-black/5 dark:bg-white/5 rounded-3xl relative overflow-hidden backdrop-blur-sm border border-black/5 dark:border-white/5">
+                                    <div className="space-y-6 sm:space-y-8">
+                                        <div className="p-6 sm:p-8 bg-black/5 dark:bg-white/5 rounded-2xl sm:rounded-3xl relative overflow-hidden backdrop-blur-sm border border-black/5 dark:border-white/5">
                                             <h4 className="text-xs font-black text-primary uppercase tracking-widest mb-6">Advisor In-Charge</h4>
                                             <div className="flex items-center gap-5">
                                                 <div className="w-20 h-20 rounded-3xl overflow-hidden bg-white dark:bg-[#161620] relative">
                                                     <UserCheck size={40} className="absolute inset-0 m-auto text-primary/20" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-xl font-black text-gray-900 dark:text-white leading-tight">{club.advisorName || "Staff Member"}</p>
-                                                    <p className="text-sm text-gray-500 font-medium mt-1 uppercase tracking-wide">College Faculty</p>
+                                                    <p className="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight">{club.advisorName || "Staff Member"}</p>
+                                                    <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1 uppercase tracking-wide">College Faculty</p>
                                                 </div>
                                             </div>
                                             <div className="mt-8 flex gap-3">
-                                                <div className="flex-1 p-3 bg-white/50 dark:bg-black/20 rounded-2xl text-center">
-                                                    <p className="text-lg font-black text-gray-900 dark:text-white">{club.membersCount}</p>
+                                                <div className="flex-1 p-2 sm:p-3 bg-white/50 dark:bg-black/20 rounded-xl sm:rounded-2xl text-center">
+                                                    <p className="text-base sm:text-lg font-black text-gray-900 dark:text-white">{club.membersCount}</p>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase">Members</p>
                                                 </div>
-                                                <div className="flex-1 p-3 bg-white/50 dark:bg-black/20 rounded-2xl text-center">
-                                                    <p className="text-lg font-black text-gray-900 dark:text-white">{new Date().getFullYear() - parseInt(club.foundedDate || "2024")}</p>
+                                                <div className="flex-1 p-2 sm:p-3 bg-white/50 dark:bg-black/20 rounded-xl sm:rounded-2xl text-center">
+                                                    <p className="text-base sm:text-lg font-black text-gray-900 dark:text-white">{new Date().getFullYear() - parseInt(club.foundedDate || "2024")}</p>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase">Years Active</p>
                                                 </div>
                                             </div>
@@ -462,16 +462,16 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                             )}
 
                             {tab === "members" && (
-                                <div className="space-y-10">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="space-y-6 sm:space-y-10">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                                         {members.sort((a,b) => a.role === "President" ? -1 : 1).map((member, i) => (
                                             <Link
                                                 key={i}
                                                 href={`/profile/${member.userId}`}
                                                 target="_blank"
-                                                className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800/50 hover:shadow-xl hover:border-primary/30 transition-all group cursor-pointer"
+                                                className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800/50 hover:shadow-xl hover:border-primary/30 transition-all group cursor-pointer"
                                             >
-                                                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white dark:bg-[#161620] shadow-sm relative ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+                                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl overflow-hidden bg-white dark:bg-[#161620] shadow-sm relative ring-2 ring-transparent group-hover:ring-primary/20 transition-all shrink-0">
                                                     {member.photoURL ? (
                                                         <Image src={member.photoURL} alt={member.displayName} fill className="object-cover" />
                                                     ) : (
@@ -520,18 +520,18 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                             )}
 
                             {tab === "activities" && (
-                                <div className="space-y-10">
+                                <div className="space-y-6 sm:space-y-10">
                                     {adminAccess.allowed && (
-                                        <button className="w-full py-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-3xl flex items-center justify-center gap-3 text-gray-400 hover:border-primary hover:text-primary transition-all font-bold group">
+                                        <button className="w-full py-3 sm:py-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl flex items-center justify-center gap-2 sm:gap-3 text-gray-400 hover:border-primary hover:text-primary transition-all font-bold text-sm sm:text-base group">
                                             <PlusIcon className="group-hover:rotate-90 transition-transform" size={20} /> Add Event or Achievement
                                         </button>
                                     )}
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                                         {activities.map((activity) => (
-                                            <div key={activity.id} className="relative group/act bg-gray-50 dark:bg-[#0C0C10] rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800">
+                                            <div key={activity.id} className="relative group/act bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800">
                                                 {activity.photoUrl && (
-                                                    <div className="h-48 relative overflow-hidden">
+                                                    <div className="h-40 sm:h-48 relative overflow-hidden">
                                                         <Image src={activity.photoUrl} alt={activity.title} fill className="object-cover group-hover/act:scale-110 transition-transform duration-500" />
                                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                                                         <div className="absolute top-4 left-4 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-[10px] font-black uppercase tracking-widest border border-white/20">
@@ -539,13 +539,13 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                         </div>
                                                     </div>
                                                 )}
-                                                <div className="p-6">
+                                                <div className="p-4 sm:p-6">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <p className="text-[10px] font-black text-primary uppercase tracking-widest">{activity.date}</p>
                                                         {activity.type === "achievement" && <Star size={14} className="text-amber-500 fill-amber-500" />}
                                                     </div>
-                                                    <h5 className="text-xl font-bold text-gray-900 dark:text-white mb-2 leading-tight">{activity.title}</h5>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{activity.description}</p>
+                                                    <h5 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1.5 sm:mb-2 leading-tight">{activity.title}</h5>
+                                                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{activity.description}</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -570,10 +570,10 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                     initial={{ opacity: 0, y: 12 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, x: -20 }}
-                                                    className="p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all"
+                                                    className="p-5 sm:p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6 hover:shadow-xl transition-all"
                                                 >
-                                                    <div className="flex items-start gap-5 min-w-0 flex-1">
-                                                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 text-3xl font-bold animate-pulse">
+                                                    <div className="flex items-start gap-4 sm:gap-5 min-w-0 flex-1">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 text-2xl sm:text-3xl font-bold animate-pulse">
                                                             📢
                                                         </div>
                                                         <div className="min-w-0 flex-1">
@@ -585,10 +585,10 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                                     by {req.displayName}
                                                                 </span>
                                                             </div>
-                                                            <h4 className="text-xl font-black text-gray-900 dark:text-white leading-tight mt-1.5 truncate">
+                                                            <h4 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight mt-1.5 truncate">
                                                                 {(req as any).postEventName}
                                                             </h4>
-                                                            <p className="text-sm text-gray-500 mt-1 italic">
+                                                            <p className="text-xs sm:text-sm text-gray-500 mt-1 italic">
                                                                 &ldquo;Wants to share this post on the club feed&rdquo;
                                                             </p>
                                                             <a 
@@ -601,16 +601,16 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                             </a>
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-3 shrink-0">
+                                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 shrink-0">
                                                         <button 
                                                             onClick={() => handleApprovePostShareClick(req as any)} 
-                                                            className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                                                            className="flex items-center justify-center gap-2 px-6 py-2.5 sm:py-3 bg-emerald-500 text-white text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 w-full sm:w-auto"
                                                         >
-                                                            <Check size={18} /> Approve Feed
+                                                            <Check size={18} /> Approve
                                                         </button>
                                                         <button 
                                                             onClick={() => handleRejectPostShareClick(req as any)} 
-                                                            className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800"
+                                                            className="flex items-center justify-center gap-2 px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800 w-full sm:w-auto"
                                                         >
                                                             <X size={18} /> Decline
                                                         </button>
@@ -625,37 +625,37 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                 initial={{ opacity: 0, y: 12 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, x: -20 }}
-                                                className="p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all"
+                                                className="p-5 sm:p-8 bg-gray-50 dark:bg-[#0C0C10] rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6 hover:shadow-xl transition-all"
                                             >
                                                 <Link
                                                     href={`/profile/${req.userId}`}
                                                     target="_blank"
-                                                    className="flex items-center gap-5 group cursor-pointer"
+                                                    className="flex items-center gap-4 sm:gap-5 group cursor-pointer"
                                                 >
-                                                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white shadow-sm relative ring-2 ring-transparent group-hover:ring-primary/30 transition-all">
+                                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-sm relative ring-2 ring-transparent group-hover:ring-primary/30 transition-all shrink-0">
                                                         {req.photoURL ? <Image src={req.photoURL} alt={req.displayName} fill className="object-cover" /> : <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center font-black text-xl">{req.displayName[0]}</div>}
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <p className="text-xl font-black text-gray-900 dark:text-white leading-tight group-hover:text-primary transition-colors">{req.displayName}</p>
+                                                            <p className="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight group-hover:text-primary transition-colors">{req.displayName}</p>
                                                             <ExternalLink size={14} className="text-gray-300 group-hover:text-primary transition-colors" />
                                                         </div>
                                                         <p className="text-sm text-gray-500 mt-1">&ldquo;{req.message}&rdquo;</p>
                                                         <p className="text-[10px] font-bold text-primary/60 mt-1.5 uppercase tracking-widest">Click to view profile →</p>
                                                     </div>
                                                 </Link>
-                                                <div className="flex gap-3">
+                                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 shrink-0">
                                                     <button 
                                                         onClick={() => handleApproveClick(req)} 
-                                                        className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                                                        className="flex items-center justify-center gap-2 px-6 py-2.5 sm:py-3 bg-emerald-500 text-white text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 w-full sm:w-auto"
                                                     >
                                                         <Check size={18} /> Approve
                                                     </button>
                                                     <button 
                                                         onClick={() => handleRejectClick(req)} 
-                                                        className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800"
+                                                        className="flex items-center justify-center gap-2 px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-[#161620] text-gray-700 dark:text-gray-300 text-sm sm:text-base font-bold rounded-xl sm:rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-800 transition-all active:scale-95 border border-gray-100 dark:border-gray-800 w-full sm:w-auto"
                                                     >
-                                                        <X size={18} /> Reject
+                                                        <X size={18} /> Decline
                                                     </button>
                                                 </div>
                                             </motion.div>

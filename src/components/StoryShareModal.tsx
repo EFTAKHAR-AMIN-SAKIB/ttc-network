@@ -354,7 +354,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                         college: (profile as { college?: string })?.college || "Your College",
                         coverMood: mood,
                         readingTimeMinutes: Math.max(1, Math.ceil(content.length / 1500)),
-                        reactions: { inspired: 0, relatable: 0, insightful: 0, respect: 0, powerful: 0 }
+                        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 }
                      }} />
                    </div>
                 </div>

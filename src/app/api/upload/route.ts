@@ -105,9 +105,23 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData();
         const file = formData.get("file") as File | null;
         const rawFolder = (formData.get("folder") as string) || "uploads";
-        const folder = rawFolder.replace(/[^a-zA-Z0-9_-]/g, ""); // Prevent path traversal
+        // Sanitize each segment individually — preserves "/" folder structure
+        // while blocking ".." traversal and special chars
+        const folder = rawFolder
+            .replace(/\.\./g, "")
+            .split("/")
+            .map(seg => seg.replace(/[^a-zA-Z0-9_-]/g, ""))
+            .filter(Boolean)
+            .join("/") || "uploads";
         const rawPublicId = formData.get("publicId") as string | null;
-        const publicId = rawPublicId ? rawPublicId.replace(/[^a-zA-Z0-9_-]/g, "") : null;
+        const publicId = rawPublicId
+            ? rawPublicId
+                .replace(/\.\./g, "")
+                .split("/")
+                .map(s => s.replace(/[^a-zA-Z0-9_-]/g, ""))
+                .filter(Boolean)
+                .join("/")
+            : null;
 
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
