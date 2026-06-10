@@ -666,12 +666,39 @@ function CollegeInfoInner() {
     const [selectedGalleryImage, setSelectedGalleryImage] = useState<import("@/lib/firestore").GalleryEntry | null>(null);
 
     const [selectedCollege, setSelectedCollege] = useState<CollegeProfile>(() => {
+        // 1. URL param always takes highest priority (deep links, notifications, etc.)
         if (collegeParam) {
             const found = collegesData.find((c) => c.id === collegeParam);
             if (found) return found;
         }
+
+        // 2. Personalized default: after 3+ visits, show user's own college
+        if (typeof window !== "undefined") {
+            try {
+                const visitCount = parseInt(localStorage.getItem("ttc_college_info_visit_count") || "0", 10);
+                if (visitCount >= 3 && profile?.collegeId) {
+                    const userCollege = collegesData.find((c) => c.id === profile.collegeId);
+                    if (userCollege) return userCollege;
+                }
+            } catch {
+                // localStorage unavailable (SSR/private mode) — fall through to default
+            }
+        }
+
+        // 3. Fallback: default college (TTC Dhaka)
         return collegesData[0];
     });
+
+    // Track visit count for personalized default behavior
+    useEffect(() => {
+        try {
+            const key = "ttc_college_info_visit_count";
+            const current = parseInt(localStorage.getItem(key) || "0", 10);
+            localStorage.setItem(key, String(current + 1));
+        } catch {
+            // localStorage unavailable — silently ignore
+        }
+    }, []); // Runs once per page visit
 
     const [isMobileSelectorOpen, setIsMobileSelectorOpen] = useState(false);
 
@@ -730,6 +757,25 @@ function CollegeInfoInner() {
             if (currentSelected) setSelectedCollege(currentSelected);
         }
     }, [collegeParam, mergedColleges, selectedCollege?.id]);
+
+    // Personalized default: when profile loads async (after mount), auto-select user's college
+    const hasAppliedPersonalizedDefault = useRef(false);
+    useEffect(() => {
+        // Skip if: URL param is present, already applied, or profile not loaded yet
+        if (collegeParam || hasAppliedPersonalizedDefault.current || !profile?.collegeId) return;
+        try {
+            const visitCount = parseInt(localStorage.getItem("ttc_college_info_visit_count") || "0", 10);
+            if (visitCount >= 3) {
+                const userCollege = mergedColleges.find((c) => c.id === profile.collegeId);
+                if (userCollege) {
+                    setSelectedCollege(userCollege);
+                    hasAppliedPersonalizedDefault.current = true;
+                }
+            }
+        } catch {
+            // localStorage unavailable
+        }
+    }, [profile?.collegeId, collegeParam, mergedColleges]);
 
     // Auto-select club if clubId parameter is present in URL
     const clubParam = searchParams.get("clubId");
