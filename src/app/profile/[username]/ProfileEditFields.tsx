@@ -1,28 +1,74 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Plus, X, Trash2, Calendar } from "lucide-react";
 
 export function CollapsibleSection({ 
     title, 
     icon: Icon, 
     children, 
-    defaultOpen = false 
+    defaultOpen = false,
+    sectionId,
+    forceOpen,
+    highlighted,
 }: { 
     title: string; 
     icon: any; 
     children: React.ReactNode; 
     defaultOpen?: boolean;
+    sectionId?: string;
+    forceOpen?: boolean;
+    highlighted?: boolean;
 }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
+    const [showHighlight, setShowHighlight] = useState(false);
+    const sectionRef = useRef<HTMLDivElement>(null);
+
+    // Auto-expand when forceOpen changes to true
+    useEffect(() => {
+        if (forceOpen) {
+            setIsOpen(true);
+        }
+    }, [forceOpen]);
+
+    // Highlight + scroll when highlighted becomes true
+    useEffect(() => {
+        if (highlighted) {
+            setShowHighlight(true);
+            // Wait for section to expand and render, then scroll into view
+            const scrollTimer = setTimeout(() => {
+                sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 150);
+            // Remove highlight after 2.5 seconds
+            const fadeTimer = setTimeout(() => {
+                setShowHighlight(false);
+            }, 2500);
+            return () => {
+                clearTimeout(scrollTimer);
+                clearTimeout(fadeTimer);
+            };
+        }
+    }, [highlighted]);
 
     return (
-        <div className="border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-[#1a1b23] shadow-sm mb-4">
+        <div 
+            ref={sectionRef}
+            data-section-id={sectionId}
+            className={`border rounded-2xl overflow-hidden bg-white dark:bg-[#1a1b23] shadow-sm mb-4 transition-all duration-500 ${
+                showHighlight 
+                    ? "border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10" 
+                    : "border-gray-200 dark:border-gray-800"
+            }`}
+        >
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
             >
                 <div className="flex items-center gap-2">
-                    <div className="p-2 bg-primary/10 dark:bg-primary/20 text-primary rounded-xl">
+                    <div className={`p-2 rounded-xl transition-colors duration-500 ${
+                        showHighlight 
+                            ? "bg-primary/20 dark:bg-primary/30" 
+                            : "bg-primary/10 dark:bg-primary/20"
+                    } text-primary`}>
                         <Icon size={18} />
                     </div>
                     <span className="font-bold text-gray-900 dark:text-white">{title}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     X, Save, User, GraduationCap, Briefcase, Award, Globe, 
@@ -24,9 +24,29 @@ interface ProfileEditDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     profile: UserProfile;
+    focusField?: string | null;
+    onFocusFieldHandled?: () => void;
 }
 
-export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawerProps) {
+// Maps field keys from ProfileCompletionCard to drawer section IDs
+const FIELD_TO_SECTION: Record<string, string> = {
+    displayName: "basic-identity",
+    username: "basic-identity",
+    bio: "basic-identity",
+    favoriteQuote: "basic-identity",
+    collegeId: "academic-context",
+    academicYear: "academic-context",
+    industry: "professional-details",
+    publicEmail: "contact-connectivity",
+    phone: "contact-connectivity",
+    facebook: "contact-connectivity",
+    website: "contact-connectivity",
+    skills: "skills",
+    positions: "positions-roles",
+    goals: "narrative-ambition",
+};
+
+export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocusFieldHandled }: ProfileEditDrawerProps) {
     const { refreshProfile } = useAuth();
     const { showToast } = useToast();
     const [saving, setSaving] = useState(false);
@@ -35,6 +55,22 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
     // Username availability state
     const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
     const usernameTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Determine which section to focus based on focusField
+    const focusSectionId = useMemo(() => {
+        if (!focusField) return null;
+        return FIELD_TO_SECTION[focusField] || null;
+    }, [focusField]);
+
+    // Clear focusField after it has been handled (once drawer is open and animation plays)
+    useEffect(() => {
+        if (isOpen && focusField && onFocusFieldHandled) {
+            const timer = setTimeout(() => {
+                onFocusFieldHandled();
+            }, 3000); // Clear after highlight animation finishes
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, focusField, onFocusFieldHandled]);
 
     // Sync formData when profile changes (e.g., initial load)
     useEffect(() => {
@@ -152,7 +188,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                         <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
                             
                             {/* 1. Basic Identity */}
-                            <CollapsibleSection title="Basic Identity" icon={User} defaultOpen>
+                            <CollapsibleSection title="Basic Identity" icon={User} defaultOpen sectionId="basic-identity" forceOpen={focusSectionId === "basic-identity"} highlighted={focusSectionId === "basic-identity"}>
                                 <div className="space-y-4">
                                     <FormInput 
                                         label="Display Name" 
@@ -269,7 +305,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                             </CollapsibleSection>
 
                             {/* 2. Academic Context */}
-                            <CollapsibleSection title="Academic Context" icon={GraduationCap}>
+                            <CollapsibleSection title="Academic Context" icon={GraduationCap} sectionId="academic-context" forceOpen={focusSectionId === "academic-context"} highlighted={focusSectionId === "academic-context"}>
                                 <div className="space-y-4">
                                     <FormSelect 
                                         label="College" 
@@ -332,7 +368,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                             </CollapsibleSection>
 
                             {/* 3. Professional Details */}
-                            <CollapsibleSection title="Professional Details" icon={Briefcase}>
+                            <CollapsibleSection title="Professional Details" icon={Briefcase} sectionId="professional-details" forceOpen={focusSectionId === "professional-details"} highlighted={focusSectionId === "professional-details"}>
                                 <div className="space-y-4">
                                     <FormInput 
                                         label="Professional Status" 
@@ -382,7 +418,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                             />
 
                             {/* 4. Narrative Sections */}
-                            <CollapsibleSection title="Narrative & Ambition" icon={Target}>
+                            <CollapsibleSection title="Narrative & Ambition" icon={Target} sectionId="narrative-ambition" forceOpen={focusSectionId === "narrative-ambition"} highlighted={focusSectionId === "narrative-ambition"}>
                                 <div className="space-y-4">
                                     <div className="space-y-1">
                                         <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block">Future Ambitions</label>
@@ -440,7 +476,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile }: ProfileEditDrawe
                             />
 
                             {/* 6. Contact & Socials */}
-                            <CollapsibleSection title="Contact & Connectivity" icon={Globe}>
+                            <CollapsibleSection title="Contact & Connectivity" icon={Globe} sectionId="contact-connectivity" forceOpen={focusSectionId === "contact-connectivity"} highlighted={focusSectionId === "contact-connectivity"}>
                                 <div className="space-y-4">
                                     <FormInput 
                                         label="Public Contact Email" 

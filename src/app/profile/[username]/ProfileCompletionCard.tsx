@@ -314,7 +314,7 @@ function SparkleParticles() {
 //  MISSING FIELD ITEM
 // ═══════════════════════════════════════════════════
 
-function MissingFieldItem({ field, onEdit }: { field: FieldDef; onEdit: () => void }) {
+function MissingFieldItem({ field, onEdit }: { field: FieldDef; onEdit: (fieldKey?: string) => void }) {
     const Icon = field.icon;
     const categoryColors: Record<string, string> = {
         essential: "bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-400",
@@ -325,7 +325,7 @@ function MissingFieldItem({ field, onEdit }: { field: FieldDef; onEdit: () => vo
 
     return (
         <motion.button
-            onClick={onEdit}
+            onClick={() => onEdit(field.key)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/80 dark:hover:bg-gray-800/50 transition-all group text-left"
             whileHover={{ x: 4 }}
             whileTap={{ scale: 0.98 }}
@@ -357,7 +357,7 @@ export function ProfileCompletionCard({
     onEditProfile 
 }: { 
     profile: UserProfile; 
-    onEditProfile: () => void;
+    onEditProfile: (fieldKey?: string) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const completion = useMemo(() => calculateProfileCompletion(profile), [profile]);
@@ -507,7 +507,7 @@ export function ProfileCompletionBar({
     onEditProfile 
 }: { 
     profile: UserProfile; 
-    onEditProfile: () => void;
+    onEditProfile: (fieldKey?: string) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const completion = useMemo(() => calculateProfileCompletion(profile), [profile]);

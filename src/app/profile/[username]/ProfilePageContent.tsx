@@ -486,6 +486,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [activeTab, setActiveTab] = useState("about");
     const [copiedEmail, setCopiedEmail] = useState(false);
     const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+    const [editDrawerFocusField, setEditDrawerFocusField] = useState<string | null>(null);
     
     // Tab Data
     const [userStories, setUserStories] = useState<any[]>([]);
@@ -499,6 +500,12 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const bannerInputRef = useRef<HTMLInputElement>(null);
     const photoInputRef = useRef<HTMLInputElement>(null);
+
+    // Facebook-style dropdown menus for banner and profile photo
+    const [bannerMenuOpen, setBannerMenuOpen] = useState(false);
+    const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+    const bannerMenuRef = useRef<HTMLDivElement>(null);
+    const photoMenuRef = useRef<HTMLDivElement>(null);
 
     // Saved/Bookmark states
     const [savedPosts, setSavedPosts] = useState<any[]>([]);
@@ -718,6 +725,20 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [contactOpen]);
 
+    // Close banner/photo dropdown menus when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (bannerMenuRef.current && !bannerMenuRef.current.contains(e.target as Node)) {
+                setBannerMenuOpen(false);
+            }
+            if (photoMenuRef.current && !photoMenuRef.current.contains(e.target as Node)) {
+                setPhotoMenuOpen(false);
+            }
+        };
+        if (bannerMenuOpen || photoMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [bannerMenuOpen, photoMenuOpen]);
+
 
 
     const handleDeletePost = async (id: string) => {
@@ -922,6 +943,76 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         }
     };
 
+    // Remove banner with confirmation
+    const handleRemoveBanner = async () => {
+        setBannerMenuOpen(false);
+        const confirmed = await confirm({
+            title: "Remove Cover Photo?",
+            message: "Your cover photo will be reset to the default banner.",
+            confirmText: "Remove",
+            variant: "danger"
+        });
+        if (!confirmed || !uid) return;
+        setConfirmLoading(true);
+        try {
+            const db = getDb();
+            await updateDoc(doc(db, "users", uid), { bannerURL: "", updatedAt: serverTimestamp() });
+            showToast("Cover photo removed.", "success");
+        } catch (err) {
+            console.error("Failed to remove banner:", err);
+            showToast("Failed to remove cover photo.", "error");
+        } finally {
+            setConfirmLoading(false);
+            closeConfirm();
+        }
+    };
+
+    // Remove profile photo with confirmation
+    const handleRemovePhoto = async () => {
+        setPhotoMenuOpen(false);
+        const confirmed = await confirm({
+            title: "Remove Profile Picture?",
+            message: "Your profile picture will be reset to the default avatar.",
+            confirmText: "Remove",
+            variant: "danger"
+        });
+        if (!confirmed || !uid) return;
+        setConfirmLoading(true);
+        try {
+            const db = getDb();
+            await updateDoc(doc(db, "users", uid), { photoURL: "", updatedAt: serverTimestamp() });
+            if (profileData) {
+                syncUserProfileUpdates(
+                    uid,
+                    profileData.displayName,
+                    "",
+                    profileData.role
+                ).catch(err => console.error("Photo sync failed:", err));
+            }
+            showToast("Profile picture removed.", "success");
+        } catch (err) {
+            console.error("Failed to remove photo:", err);
+            showToast("Failed to remove profile picture.", "error");
+        } finally {
+            setConfirmLoading(false);
+            closeConfirm();
+        }
+    };
+
+    // Smart field navigation from Profile Strength card
+    const handleEditFromCompletion = useCallback((fieldKey?: string) => {
+        if (fieldKey === 'photoURL') {
+            photoInputRef.current?.click();
+            return;
+        }
+        if (fieldKey === 'bannerURL') {
+            bannerInputRef.current?.click();
+            return;
+        }
+        setEditDrawerFocusField(fieldKey || null);
+        setEditDrawerOpen(true);
+    }, []);
+
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] dark:bg-[#0c0c10]">
             <Loader2 className="animate-spin text-primary" size={40} />
@@ -956,17 +1047,70 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-navy-900/40 via-transparent to-transparent" />
                     
+                    {/* Facebook-style Edit Cover Photo button — always visible for own profile */}
                     {isOwnProfile && (
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                bannerInputRef.current?.click();
-                            }}
-                            disabled={uploadingBanner}
-                            className="absolute bottom-6 right-6 p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-2xl border border-white/20 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2 text-xs font-bold shadow-xl z-10 disabled:opacity-70"
-                        >
-                            {uploadingBanner ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {uploadingBanner ? "Uploading..." : "Edit Banner"}
-                        </button>
+                        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-10" ref={bannerMenuRef}>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBannerMenuOpen(!bannerMenuOpen);
+                                    setPhotoMenuOpen(false);
+                                }}
+                                disabled={uploadingBanner}
+                                className="px-4 py-2.5 bg-white/90 dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-900 backdrop-blur-md text-navy-900 dark:text-gray-100 rounded-xl border border-white/40 dark:border-gray-700/60 transition-all flex items-center gap-2 text-xs font-bold shadow-lg disabled:opacity-70"
+                            >
+                                {uploadingBanner ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                                <span className="hidden sm:inline">{uploadingBanner ? "Uploading..." : "Edit cover photo"}</span>
+                            </button>
+
+                            {/* Banner Dropdown Menu */}
+                            <AnimatePresence>
+                                {bannerMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                                        transition={{ duration: 0.12 }}
+                                        className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50"
+                                    >
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setBannerMenuOpen(false);
+                                                openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1544648151-1823eddfc5e3?auto=format&fit=crop&q=80&w=2071", "Profile Banner");
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                                        >
+                                            <Eye size={16} className="text-gray-400" />
+                                            View cover photo
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setBannerMenuOpen(false);
+                                                bannerInputRef.current?.click();
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                                        >
+                                            <ImageIcon size={16} className="text-gray-400" />
+                                            Choose cover photo
+                                        </button>
+                                        {profileData.bannerURL && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveBanner();
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-left border-t border-gray-100 dark:border-gray-800"
+                                            >
+                                                <Trash2 size={16} />
+                                                Remove cover photo
+                                            </button>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     )}
                 </div>
 
@@ -985,18 +1129,71 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     fill
                                     className="object-cover"
                                 />
-                                {isOwnProfile && (
-                                    <div 
+                            </div>
+                            {/* Camera badge button — Facebook-style, always visible for own profile */}
+                            {isOwnProfile && (
+                                <div className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 z-20" ref={photoMenuRef}>
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            photoInputRef.current?.click();
+                                            setPhotoMenuOpen(!photoMenuOpen);
+                                            setBannerMenuOpen(false);
                                         }}
-                                        className="absolute inset-0 bg-navy-900/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
+                                        disabled={uploadingPhoto}
+                                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-[#FAFAF8] dark:border-[#0c0c10] shadow-lg flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-all disabled:opacity-70"
                                     >
-                                        {uploadingPhoto ? <Loader2 className="text-white animate-spin" size={24} /> : <Camera className="text-white" size={24} />}
-                                    </div>
-                                )}
-                            </div>
+                                        {uploadingPhoto ? <Loader2 size={16} className="animate-spin text-gray-500" /> : <Camera size={16} className="text-gray-600 dark:text-gray-300" />}
+                                    </button>
+
+                                    {/* Photo Dropdown Menu */}
+                                    <AnimatePresence>
+                                        {photoMenuOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                                                transition={{ duration: 0.12 }}
+                                                className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50"
+                                            >
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPhotoMenuOpen(false);
+                                                        openLightbox(profileData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.displayName)}&background=1A56DB&color=fff&size=500`, profileData.displayName);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                                                >
+                                                    <Eye size={16} className="text-gray-400" />
+                                                    See profile picture
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPhotoMenuOpen(false);
+                                                        photoInputRef.current?.click();
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                                                >
+                                                    <Camera size={16} className="text-gray-400" />
+                                                    Choose profile picture
+                                                </button>
+                                                {profileData.photoURL && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRemovePhoto();
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-left border-t border-gray-100 dark:border-gray-800"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                        Remove profile picture
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
                             <div className="absolute top-2 right-2 bg-[#FAFAF8] dark:bg-[#0c0c10] p-1.5 rounded-2xl shadow-lg border border-slate-100 dark:border-gray-800">
                                 <BadgeDot role={profileData.role} />
                             </div>
@@ -1176,7 +1373,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6">
                     <ProfileCompletionBar
                         profile={profileData}
-                        onEditProfile={() => setEditDrawerOpen(true)}
+                        onEditProfile={handleEditFromCompletion}
                     />
                 </div>
             )}
@@ -1191,7 +1388,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         <div className="hidden lg:block">
                             <ProfileCompletionCard
                                 profile={profileData}
-                                onEditProfile={() => setEditDrawerOpen(true)}
+                                onEditProfile={handleEditFromCompletion}
                             />
                         </div>
                     )}
@@ -1815,8 +2012,10 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             {/* Profile Edit Drawer */}
             <ProfileEditDrawer 
                 isOpen={editDrawerOpen}
-                onClose={() => setEditDrawerOpen(false)}
+                onClose={() => { setEditDrawerOpen(false); setEditDrawerFocusField(null); }}
                 profile={profileData}
+                focusField={editDrawerFocusField}
+                onFocusFieldHandled={() => setEditDrawerFocusField(null)}
             />
 
             {/* Image Lightbox */}
