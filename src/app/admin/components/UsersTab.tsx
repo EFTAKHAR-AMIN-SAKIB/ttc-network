@@ -15,7 +15,9 @@ import {
     X,
     Award,
     Plus,
-    Loader2
+    Loader2,
+    Trash2,
+    AlertTriangle
 } from "lucide-react";
 import {
     getAllUsers,
@@ -36,6 +38,37 @@ export default function UsersTab({ profile }: { profile: UserProfile }) {
     const [moderatingUser, setModeratingUser] = useState<(FirestoreUser & { id: string }) | null>(null);
     const [updating, setUpdating] = useState(false);
     const [showBadgeModal, setShowBadgeModal] = useState(false);
+    const [deletingUser, setDeletingUser] = useState<(FirestoreUser & { id: string }) | null>(null);
+    const [deleteDataOption, setDeleteDataOption] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteUser = async () => {
+        if (!deletingUser) return;
+        setIsDeleting(true);
+        try {
+            const res = await fetch("/api/admin/delete-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: deletingUser.id,
+                    deleteData: deleteDataOption,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to delete user");
+            }
+            setMessage(`✅ ${deletingUser.displayName} has been successfully deleted.`);
+            setDeletingUser(null);
+            loadUsers();
+            setTimeout(() => setMessage(""), 4000);
+        } catch (err) {
+            setMessage(`❌ ${err instanceof Error ? err.message : "Error deleting user"}`);
+            setTimeout(() => setMessage(""), 4000);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const loadUsers = async () => {
         setLoading(true);
@@ -257,6 +290,14 @@ export default function UsersTab({ profile }: { profile: UserProfile }) {
                                 className={`p-2 rounded-lg text-xs transition-colors ${user.roleVerified ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-gray-100 dark:bg-[#161620] text-gray-700 dark:bg-gray-700 hover:bg-emerald-50 hover:text-emerald-500"}`}
                                     title={user.roleVerified ? "Remove verification" : "Verify role"}
                                 >{user.roleVerified ? <ShieldCheck size={14} /> : <ShieldX size={14} />}</button>
+                                {profile.role === "admin" && (
+                                    <button onClick={() => setDeletingUser(user)}
+                                        className="p-2 rounded-lg text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 transition-colors"
+                                        title="Delete User"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -405,6 +446,109 @@ export default function UsersTab({ profile }: { profile: UserProfile }) {
                                         className="w-full py-4 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
                                     >
                                         <Award size={16} /> Award New Badge
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deletingUser && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700"
+                        >
+                            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <AlertTriangle className="text-red-500 animate-pulse" size={20} />
+                                    <h3 className="text-lg font-bold text-red-600 dark:text-red-400">Confirm Deletion</h3>
+                                </div>
+                                <button onClick={() => setDeletingUser(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-6">
+                                <div className="p-4 bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-2xl">
+                                    <p className="text-sm text-red-700 dark:text-red-300">
+                                        You are about to delete <strong>{deletingUser.displayName}</strong> (@{deletingUser.username || "no-username"}) from the entire server.
+                                    </p>
+                                    <p className="text-[11px] text-red-600/80 dark:text-red-400/80 mt-1">
+                                        This will delete their account from Firebase Authentication and they will be immediately logged out. This action is permanent.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Associated Data Options</h4>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <button
+                                            onClick={() => setDeleteDataOption(true)}
+                                            className={`flex items-start gap-3 p-4 rounded-2xl border text-left transition-all ${
+                                                deleteDataOption
+                                                    ? "bg-red-50/30 dark:bg-red-950/10 border-red-500 shadow-sm"
+                                                    : "bg-white dark:bg-gray-900/20 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                                            }`}
+                                        >
+                                            <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                                                deleteDataOption ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                                            }`}>
+                                                {deleteDataOption && <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-950 dark:text-white">Delete all user data (Recommended)</p>
+                                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                                    Completely deletes all their posts, comments, stories, notices, study documents, gifts, notifications, and uploaded files.
+                                                </p>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => setDeleteDataOption(false)}
+                                            className={`flex items-start gap-3 p-4 rounded-2xl border text-left transition-all ${
+                                                !deleteDataOption
+                                                    ? "bg-primary/5 dark:bg-primary/10 border-primary shadow-sm"
+                                                    : "bg-white dark:bg-gray-900/20 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                                            }`}
+                                        >
+                                            <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                                                !deleteDataOption ? "border-primary" : "border-gray-300 dark:border-gray-600"
+                                            }`}>
+                                                {!deleteDataOption && <div className="w-2.5 h-2.5 bg-primary rounded-full" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-950 dark:text-white">Keep data on the server</p>
+                                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                                    Preserves the user's published posts, comments, stories, and study documents, but deletes their account credentials and user profile.
+                                                </p>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 pt-4 border-t border-gray-50 dark:border-gray-700">
+                                    <button
+                                        disabled={isDeleting}
+                                        onClick={() => setDeletingUser(null)}
+                                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-xl text-xs transition-colors disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        disabled={isDeleting}
+                                        onClick={handleDeleteUser}
+                                        className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                                    >
+                                        {isDeleting ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Deleting...
+                                            </>
+                                        ) : (
+                                            "Confirm Delete"
+                                        )}
                                     </button>
                                 </div>
                             </div>
