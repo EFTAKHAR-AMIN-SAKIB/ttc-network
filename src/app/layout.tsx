@@ -9,6 +9,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteSettingsProvider } from "@/contexts/SiteSettingsContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
+import { VerificationProvider } from "@/contexts/VerificationContext";
+import VerificationBanner from "@/components/VerificationBanner";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -73,16 +75,19 @@ export default function RootLayout({
       <body className="antialiased bg-[#FAFAFA] dark:bg-[#0C0C10] text-gray-900 dark:text-gray-100 transition-colors duration-300">
         <ThemeProvider>
           <AuthProvider>
-            <SiteSettingsProvider>
-              <ToastProvider>
-                <ConfirmProvider>
-                  <Navbar />
-                  <main className="pb-24 md:pb-14">{children}</main>
-                  <MobileDock />
-                  <DeveloperStrip />
-                </ConfirmProvider>
-              </ToastProvider>
-            </SiteSettingsProvider>
+            <VerificationProvider>
+              <SiteSettingsProvider>
+                <ToastProvider>
+                  <ConfirmProvider>
+                    <VerificationBanner />
+                    <Navbar />
+                    <main className="pb-24 md:pb-14">{children}</main>
+                    <MobileDock />
+                    <DeveloperStrip />
+                  </ConfirmProvider>
+                </ToastProvider>
+              </SiteSettingsProvider>
+            </VerificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

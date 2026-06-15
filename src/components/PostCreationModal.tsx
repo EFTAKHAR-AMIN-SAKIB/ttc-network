@@ -11,6 +11,7 @@ import { createPost, getMyClubs, type FirestoreClub } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 interface PostCreationModalProps {
     isOpen: boolean;
@@ -26,6 +27,16 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const [type, setType] = useState<"event" | "club">("event");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
+    const { requireVerification } = useVerifiedAccess();
+
+    useEffect(() => {
+        if (isOpen) {
+            const verified = requireVerification("share updates");
+            if (!verified) {
+                onClose();
+            }
+        }
+    }, [isOpen]);
     const [linkPreview, setLinkPreview] = useState<any>(null);
     const [isFetchingLink, setIsFetchingLink] = useState(false);
 

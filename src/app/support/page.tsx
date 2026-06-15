@@ -47,6 +47,7 @@ import { getApprovedGifts, getSupportSettings, getSupportPhases, getBuilderSetti
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import BuilderPopupModal from "@/components/BuilderPopupModal";
 
 const CONFIG = {
@@ -1047,6 +1048,7 @@ export default function SupportPage() {
     const { siteName } = useSiteSettings();
     const { user, profile } = useAuth();
     const { showToast } = useToast();
+    const { requireVerification } = useVerifiedAccess();
     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
     const [isEditingNote, setIsEditingNote] = useState(false);
     const [editNote, setEditNote] = useState("");
@@ -1387,7 +1389,11 @@ export default function SupportPage() {
                             <PaymentCard 
                                 giftAmount={giftAmount} 
                                 setGiftAmount={setGiftAmount} 
-                                onGiftSubmit={() => setShowGiftForm(true)} 
+                                onGiftSubmit={() => {
+                                    if (requireVerification("support the platform")) {
+                                        setShowGiftForm(true);
+                                    }
+                                }} 
                                 config={activeConfig}
                                 cardEnabled={cardEnabled}
                                 bkashEnabled={bkashEnabled}

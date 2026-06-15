@@ -8,6 +8,7 @@ import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import { format, isAfter, isBefore, addHours, parseISO } from "date-fns";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 interface StudyScheduleCardProps {
     post: FirestoreStudyPost & { id: string };
@@ -37,6 +38,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
     const [status, setStatus] = useState<"upcoming" | "live" | "ended">("upcoming");
     const [timeLeft, setTimeLeft] = useState("");
     const [showComments, setShowComments] = useState(false);
+    const { isVerified, requireVerification } = useVerifiedAccess();
     const showEdit = canEdit !== undefined ? canEdit : (currentUserId === post.authorId || isAdmin);
     const showDelete = canDelete !== undefined ? canDelete : (currentUserId === post.authorId || isAdmin);
 
@@ -249,13 +251,18 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                                 href={post.link} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
+                                onClick={(e) => {
+                                    if (!requireVerification("join live prep session")) {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className={`flex items-center gap-2.5 px-4 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.15em] transition-all ${
                                     status === 'live' 
                                         ? 'bg-primary text-white shadow-xl shadow-primary/30 hover:shadow-2xl hover:scale-105 active:scale-95'
                                         : 'bg-navy-900 dark:bg-gray-700 text-white hover:bg-navy-800 dark:hover:bg-gray-600'
                                 }`}
                             >
-                                <Video size={16} />
+                                {currentUserId && !isVerified ? <Lock size={16} /> : <Video size={16} />}
                                 {status === 'live' ? 'Join' : 'Link'}
                             </a>
                         ) : (

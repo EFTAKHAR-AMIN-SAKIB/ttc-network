@@ -19,6 +19,7 @@ import PostCard from "@/components/PostCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import SearchBar from "./components/SearchBar";
 import PostCreationModal from "@/components/PostCreationModal";
 
@@ -29,6 +30,7 @@ type Post = FirestorePost & { id: string };
 function NewsFeedInner() {
     const searchParams = useSearchParams();
     const { profile, loading: loadingAuth } = useAuth();
+    const { requireVerification } = useVerifiedAccess();
     const [posts, setPosts] = useState<Post[]>([]);
     const [activeTab, setActiveTab] = useState<"event" | "club" | any>("event");
     const [selectedFilter, setSelectedFilter] = useState("all");
@@ -104,6 +106,7 @@ function NewsFeedInner() {
     }, [posts]);
 
     const handleDeletePost = async (id: string) => {
+        if (!requireVerification("delete posts")) return;
         const confirmed = await confirm({
             title: "Delete Post?",
             message: "Are you sure you want to delete this post? This action is permanent and cannot be undone.",
@@ -125,6 +128,7 @@ function NewsFeedInner() {
     };
 
     const handleSavePost = async (postId: string) => {
+        if (!requireVerification("bookmark posts")) return;
         if (!profile?.uid) {
             showToast("Please log in to bookmark posts.", "error");
             return;
@@ -143,6 +147,7 @@ function NewsFeedInner() {
     };
 
     const handleEditStart = (post: Post) => {
+        if (!requireVerification("edit posts")) return;
         setEditingPostId(post.id);
         setEditEventName(post.eventName || "");
         setEditDescription(post.description || "");
@@ -271,7 +276,11 @@ function NewsFeedInner() {
                             </div>
                             <div className="flex flex-col items-stretch gap-2 w-full sm:w-auto">
                                 <button 
-                                    onClick={() => setIsSharing(true)}
+                                    onClick={() => {
+                                        if (requireVerification("share updates")) {
+                                            setIsSharing(true);
+                                        }
+                                    }}
                                     className="px-6 py-3 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-red-500/20 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                 >
                                     <Plus size={16} /> Share Update

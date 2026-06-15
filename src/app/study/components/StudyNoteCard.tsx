@@ -7,6 +7,7 @@ import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import Link from "next/link";
 
 interface StudyNoteCardProps {
@@ -24,6 +25,7 @@ interface StudyNoteCardProps {
 
 export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, onDelete, isSaved, onSave, onShare, canEdit, canDelete }: StudyNoteCardProps) {
     const [showComments, setShowComments] = useState(false);
+    const { isVerified, requireVerification } = useVerifiedAccess();
     const showEdit = canEdit !== undefined ? canEdit : (currentUserId === post.authorId || isAdmin);
     const showDelete = canDelete !== undefined ? canDelete : (currentUserId === post.authorId || isAdmin);
     const typeIcons = {
@@ -129,17 +131,29 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                         href={post.fileUrl || post.link} 
                         target="_blank" 
                         rel="noopener noreferrer" 
+                        onClick={(e) => {
+                            if (!requireVerification("open study resources")) {
+                                e.preventDefault();
+                            }
+                        }}
                         className="block mb-6 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all group/thumb"
                     >
                         <div className="relative aspect-video">
                             <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover group-hover/thumb:scale-[1.03] transition-transform duration-500" />
-                            <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center">
-                                {post.fileUrl ? (
-                                    <Download className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
-                                ) : (
-                                    <ExternalLink className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
-                                )}
-                            </div>
+                            {currentUserId && !isVerified ? (
+                                <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-[3px] flex flex-col items-center justify-center text-white p-4 transition-all duration-300">
+                                    <Lock className="w-8 h-8 text-amber-500 mb-2 animate-bounce" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Verify to Access</span>
+                                </div>
+                            ) : (
+                                <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center">
+                                    {post.fileUrl ? (
+                                        <Download className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
+                                    ) : (
+                                        <ExternalLink className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" size={24} />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </a>
                 )}
@@ -212,13 +226,18 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                 href={post.fileUrl || post.link} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
+                                onClick={(e) => {
+                                    if (!requireVerification("open study resources")) {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                                     isNoThumbnail 
                                         ? "bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/95" 
                                         : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-primary hover:text-white hover:shadow-lg"
                                 }`}
                                 title={post.fileUrl ? `Download: ${post.fileName || 'file'}` : "Open link"}
-                                animate={isNoThumbnail ? {
+                                animate={isNoThumbnail && (!currentUserId || isVerified) ? {
                                     scale: [1, 1.08, 1],
                                     boxShadow: [
                                         "0 4px 6px -1px rgba(26, 86, 219, 0.2), 0 2px 4px -2px rgba(26, 86, 219, 0.2)",
@@ -232,7 +251,13 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                     ease: "easeInOut"
                                 } : {}}
                             >
-                                {post.fileUrl ? <Download size={18} /> : <ExternalLink size={18} />}
+                                {currentUserId && !isVerified ? (
+                                    <Lock size={18} className="text-amber-500" />
+                                ) : post.fileUrl ? (
+                                    <Download size={18} />
+                                ) : (
+                                    <ExternalLink size={18} />
+                                )}
                             </motion.a>
 
                         </div>

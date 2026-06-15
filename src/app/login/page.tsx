@@ -16,14 +16,13 @@ import {
     Sparkles,
     ShieldCheck,
     Quote,
+    UserPlus,
 } from "lucide-react";
 import {
     signInWithEmailAndPassword,
-    sendPasswordResetEmail,
     onAuthStateChanged,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { getAuthInstance, getDb } from "@/lib/firebase";
+import { getAuthInstance } from "@/lib/firebase";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -249,18 +248,35 @@ function LoginPageInner() {
                              <button type="button" className="text-xs font-bold text-gray-400 hover:text-primary transition-colors">Forgot password?</button>
                          </div>
 
-                         <button 
-                            disabled={loading}
-                            type="submit"
-                            className="w-full py-5 bg-navy-900 text-white rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 group/btn hover:bg-black transition-all active:scale-95 shadow-xl shadow-navy-900/10"
-                         >
-                            {loading ? <Loader2 className="animate-spin" /> : (
-                                <>
-                                   Access Dashboard
-                                   <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                                </>
-                            )}
-                         </button>
+                          <button 
+                             disabled={loading}
+                             type="submit"
+                             className="w-full py-5 bg-navy-900 text-white rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 group/btn hover:bg-black transition-all active:scale-95 shadow-xl shadow-navy-900/10"
+                          >
+                             {loading ? <Loader2 className="animate-spin" /> : (
+                                 <>
+                                    Access Dashboard
+                                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                                 </>
+                             )}
+                          </button>
+
+                          {/* Divider */}
+                          <div className="flex items-center gap-4 py-2">
+                            <div className="flex-1 h-px bg-gray-100" />
+                            <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Or</span>
+                            <div className="flex-1 h-px bg-gray-100" />
+                          </div>
+
+                          {/* Sign Up Button */}
+                          <button
+                             type="button"
+                             onClick={() => router.push('/signup')}
+                             className="w-full py-5 bg-transparent border-2 border-gray-200 text-navy-900 rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 group/btn hover:border-primary hover:text-primary transition-all active:scale-95"
+                          >
+                             Create Account
+                             <UserPlus size={20} className="group-hover:translate-x-1 transition-transform" />
+                          </button>
                       </form>
                    </div>
                 </div>

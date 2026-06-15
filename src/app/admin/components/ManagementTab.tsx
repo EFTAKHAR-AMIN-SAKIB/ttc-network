@@ -270,10 +270,10 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{post.createdBy.name}</p>
-                                                <p className="text-[10px] text-gray-500 uppercase font-black">{post.collegeName} · {post.linkPreview.title}</p>
+                                                <p className="text-[10px] text-gray-500 uppercase font-black">{post.collegeName} · {post.linkPreview?.title || post.eventName || "Update"}</p>
                                             </div>
                                         </div>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-3 mb-4 leading-relaxed">{post.linkPreview.description}</p>
+                                        <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-3 mb-4 leading-relaxed">{post.linkPreview?.description || post.description || "No description provided."}</p>
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => handleAction("post", post.id!, "approve")} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
                                             <button onClick={() => handleAction("post", post.id!, "reject")} className="flex-1 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-[10px] font-bold hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors">Reject</button>

@@ -20,12 +20,14 @@ import StoryFilter from "@/components/StoryFilter";
 import StorySkeleton from "@/components/StorySkeleton";
 import StoryShareModal from "@/components/StoryShareModal";
 import ShareModal from "@/components/ShareModal";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 type Story = FirestoreStory & { id: string };
 
 function StoryPageInner() {
     const { user, profile, loading: loadingAuth } = useAuth();
     const router = useRouter();
+    const { requireVerification } = useVerifiedAccess();
     const [stories, setStories] = useState<Story[]>([]);
     const [activeTab, setActiveTab] = useState("all");
     const [loading, setLoading] = useState(true);
@@ -110,6 +112,7 @@ function StoryPageInner() {
     });
 
     const handleSaveStory = async (storyId: string) => {
+        if (!requireVerification("bookmark stories")) return;
         if (!profile?.uid) {
             showToast("Please log in to bookmark stories.", "error");
             return;
@@ -133,6 +136,7 @@ function StoryPageInner() {
     };
 
     const handleDeleteStory = async (id: string) => {
+        if (!requireVerification("delete stories")) return;
         const confirmed = await confirm({
             title: "Delete Story?",
             message: "Are you sure you want to delete this story? This action cannot be undone and will remove all associated narrative data.",
@@ -179,7 +183,7 @@ function StoryPageInner() {
                             if (!user) {
                               showToast("Please log in or register to share your story.", "info");
                               router.push("/login?redirect=/story");
-                            } else {
+                            } else if (requireVerification("share stories")) {
                               setShowSubmitModal(true);
                             }
                           }}
@@ -268,8 +272,10 @@ function StoryPageInner() {
                             key={story.id} 
                             story={story} 
                             onEdit={(s) => {
-                                setEditingStory(s);
-                                setShowSubmitModal(true);
+                                if (requireVerification("edit stories")) {
+                                    setEditingStory(s);
+                                    setShowSubmitModal(true);
+                                }
                             }}
                             onDelete={handleDeleteStory}
                             isSaved={savedStoryIds.includes(story.id)}

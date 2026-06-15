@@ -12,6 +12,7 @@ import { createStudyPost, updateStudyPost, type FirestoreStudyPost } from "@/lib
 import { uploadFile } from "@/lib/storage";
 import { useToast } from "@/contexts/ToastContext";
 import { format } from "date-fns";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 interface StudyPostCreationModalProps {
     isOpen: boolean;
@@ -34,6 +35,16 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
     const [privacy, setPrivacy] = useState<"public" | "campus">("public");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
+    const { requireVerification } = useVerifiedAccess();
+
+    useEffect(() => {
+        if (isOpen) {
+            const verified = requireVerification("share study resources");
+            if (!verified) {
+                onClose();
+            }
+        }
+    }, [isOpen]);
     
     const [linkPreview, setLinkPreview] = useState<any>(null);
     const [isFetchingLink, setIsFetchingLink] = useState(false);

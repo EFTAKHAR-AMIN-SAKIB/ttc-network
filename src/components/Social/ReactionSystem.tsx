@@ -6,6 +6,7 @@ import { Heart } from "lucide-react";
 import { reactToContent } from "@/lib/firestore";
 import ReactionViewerModal from "./ReactionViewerModal";
 import { useToast } from "@/contexts/ToastContext";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 /* ─── Reaction Types (Unified) ─── */
 export const REACTION_TYPES = [
@@ -70,6 +71,7 @@ export function ReactionBtn({
     const [isReacting, setIsReacting] = useState(false);
     const [showViewer, setShowViewer] = useState(false);
     const { showToast } = useToast();
+    const { requireVerification } = useVerifiedAccess();
 
     // Long-press support for mobile
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,6 +121,7 @@ export function ReactionBtn({
     const activeReaction = REACTION_TYPES.find(r => r.type === userReaction);
 
     const handleToggleReaction = async (type: string) => {
+        if (!requireVerification("react to content")) return;
         if (!currentUserId) {
             showToast("Please log in or register to react.", "info");
             return;

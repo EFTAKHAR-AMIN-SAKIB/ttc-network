@@ -61,6 +61,16 @@ service cloud.firestore {
         getUserData().collegeId == collegeId;
     }
 
+    function isVerified() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().roleVerified == true;
+    }
+
+    function isVerifiedOrAdmin() {
+      return isVerified() || isAdminOrManager();
+    }
+
     // ═══════════════════════════════════════════════════
     //  USERS COLLECTION
     // ═══════════════════════════════════════════════════
@@ -160,7 +170,7 @@ service cloud.firestore {
 
     match /posts/{postId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('posts');
+      allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('posts') && isVerifiedOrAdmin();
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
         (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'creatorId', 'collegeId'])) || 
@@ -171,7 +181,7 @@ service cloud.firestore {
 
     match /stories/{storyId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('stories');
+      allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('stories') && isVerifiedOrAdmin();
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
         (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'collegeId'])) || 
@@ -182,7 +192,7 @@ service cloud.firestore {
 
     match /comments/{commentId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isNotBanned();
+      allow create: if isAuthenticated() && isNotBanned() && isVerifiedOrAdmin();
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
         (isOwner(resource.data.userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'postId'])) || 
@@ -203,7 +213,7 @@ service cloud.firestore {
 
     match /gifts/{giftId} {
       allow read: if true;
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && isVerifiedOrAdmin();
       allow update: if isAdminOrManager() || (
         isAuthenticated() && resource.data.userId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoURL'])
@@ -266,7 +276,7 @@ service cloud.firestore {
 
     match /studyPosts/{postId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isNotBanned();
+      allow create: if isAuthenticated() && isNotBanned() && isVerifiedOrAdmin();
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
         (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'collegeId'])) ||

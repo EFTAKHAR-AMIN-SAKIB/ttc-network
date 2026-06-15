@@ -27,12 +27,14 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import ShareModal from "@/components/ShareModal";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 function StudyPageContent() {
     const { user, profile } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { showToast } = useToast();
+    const { requireVerification } = useVerifiedAccess();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
     const [activeCategory, setActiveCategory] = useState<"all" | "notes" | "suggestion" | "books" | "question" | "other">("all");
@@ -58,8 +60,10 @@ function StudyPageContent() {
             router.push("/login");
             return;
         }
-        setEditingPost(null);
-        setIsModalOpen(true);
+        if (requireVerification("share study resources")) {
+            setEditingPost(null);
+            setIsModalOpen(true);
+        }
     };
 
     useEffect(() => {
@@ -127,6 +131,7 @@ function StudyPageContent() {
     }, [searchParams, posts]);
 
     const handleSaveStudyPost = async (id: string) => {
+        if (!requireVerification("bookmark study resources")) return;
         if (!user?.uid) {
             showToast("Please log in to save resources.", "error");
             router.push("/login");
@@ -175,6 +180,7 @@ function StudyPageContent() {
     ).sort((a,b) => (a.startTime || "").localeCompare(b.startTime || ""));
 
     const handleDeleteStudyPost = async (id: string) => {
+        if (!requireVerification("delete study resources")) return;
         const confirmed = await confirm({
             title: "Delete Study Post?",
             message: "Are you sure you want to delete this resource? This will remove it from the library for everyone.",
@@ -345,8 +351,10 @@ function StudyPageContent() {
                                                                 onSave={handleSaveStudyPost}
                                                                 onShare={handleShareStudyPost}
                                                                 onEdit={(p) => {
-                                                                    setEditingPost(p);
-                                                                    setIsModalOpen(true);
+                                                                    if (requireVerification("edit study resources")) {
+                                                                        setEditingPost(p);
+                                                                        setIsModalOpen(true);
+                                                                    }
                                                                 }}
                                                                 onDelete={handleDeleteStudyPost}
                                                                 canEdit={canEdit}
@@ -414,8 +422,10 @@ function StudyPageContent() {
                                                             onSave={handleSaveStudyPost}
                                                             onShare={handleShareStudyPost}
                                                             onEdit={(p) => {
-                                                                setEditingPost(p);
-                                                                setIsModalOpen(true);
+                                                                if (requireVerification("edit study resources")) {
+                                                                    setEditingPost(p);
+                                                                    setIsModalOpen(true);
+                                                                }
                                                             }}
                                                             onDelete={handleDeleteStudyPost}
                                                             canEdit={canEdit}

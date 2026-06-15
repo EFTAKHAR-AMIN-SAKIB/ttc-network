@@ -9,6 +9,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { ReactionBtn } from "./ReactionSystem";
 import { ExpandableText, TimeAgo } from "./SocialUtils";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import Link from "next/link";
 
 /**
@@ -28,9 +29,11 @@ export function CommentItem({
     const { user } = useAuth();
     const { showToast } = useToast();
     const { confirm, setIsLoading, close } = useConfirm();
+    const { requireVerification } = useVerifiedAccess();
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async () => {
+        if (!requireVerification("delete comments")) return;
         const confirmed = await confirm({
             title: "Delete Comment?",
             message: "This action cannot be undone. Are you sure you want to remove your perspective from this conversation? It will be permanently deleted.",
@@ -108,7 +111,7 @@ export function CommentItem({
                             onClick={() => {
                                 if (!user) {
                                     showToast("Please log in or register to reply.", "info");
-                                } else {
+                                } else if (requireVerification("reply to comments")) {
                                     onReply(comment.userName, comment.parentId || comment.id);
                                 }
                             }}
@@ -148,6 +151,7 @@ export function CommentSystem({
 }) {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const { requireVerification } = useVerifiedAccess();
     const [comments, setComments] = useState<any[]>([]);
     const [text, setText] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -196,6 +200,7 @@ export function CommentSystem({
 
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
+        if (!requireVerification("post comments")) return;
         if (!user) {
             showToast("Please sign in to comment", "info");
             return;

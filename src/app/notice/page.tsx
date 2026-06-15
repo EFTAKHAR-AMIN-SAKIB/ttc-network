@@ -36,6 +36,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 import { canEditNotice } from "@/lib/permissions";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 type Notice = FirestoreNotice & { id: string };
 
@@ -373,6 +374,7 @@ function PostNoticeModal({
    ═══════════════════════════════════════════════════ */
 function NoticePageContent() {
     const { profile } = useAuth();
+    const { requireVerification } = useVerifiedAccess();
     const [selectedCollege, setSelectedCollege] = useState("All");
     const [selectedProgramme, setSelectedProgramme] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
@@ -477,6 +479,7 @@ function NoticePageContent() {
     }, [searchParams, notices]);
 
     const handleSaveNotice = async (noticeId: string) => {
+        if (!requireVerification("bookmark notices")) return;
         if (!profile?.uid) {
             showToast("Please log in to bookmark notices.", "error");
             return;
@@ -536,6 +539,7 @@ function NoticePageContent() {
         });
 
     const handleEditStart = (notice: Notice) => {
+        if (!requireVerification("edit notices")) return;
         setEditingNoticeId(notice.id);
         setEditTitle(notice.title);
         setEditBody(notice.body);
@@ -602,6 +606,7 @@ function NoticePageContent() {
     };
 
     const handleDelete = async (id: string) => {
+        if (!requireVerification("delete notices")) return;
         const confirmed = await confirm({
             title: "Delete Notice?",
             message: "Are you sure you want to delete this notice? This action cannot be undone and it will be removed for everyone.",
@@ -666,7 +671,11 @@ function NoticePageContent() {
                         )}
                         {canPost && (
                             <button
-                                onClick={() => setShowPostModal(true)}
+                                onClick={() => {
+                                    if (requireVerification("post notices")) {
+                                        setShowPostModal(true);
+                                    }
+                                }}
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 hover:scale-[1.02]"
                                 style={{ background: "var(--btn-primary)" }}
                             >

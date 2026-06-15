@@ -8,6 +8,7 @@ import { createStory, updateStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import StoryCard from "./StoryCard";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 interface StoryShareModalProps {
   isOpen: boolean;
@@ -27,9 +28,19 @@ const moods = [
 export default function StoryShareModal({ isOpen, onClose, editStory }: StoryShareModalProps) {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
+  const { requireVerification } = useVerifiedAccess();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showRestore, setShowRestore] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const verified = requireVerification("share stories");
+      if (!verified) {
+        onClose();
+      }
+    }
+  }, [isOpen]);
 
   // Form State
   const [title, setTitle] = useState("");

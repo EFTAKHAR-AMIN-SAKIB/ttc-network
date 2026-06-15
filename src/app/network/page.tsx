@@ -27,12 +27,14 @@ import {
     type FirestoreUser 
 } from "@/lib/firestore";
 import { colleges } from "@/data/colleges";
+import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 export default function NetworkPage() {
     const { profile, user, loading: loadingAuth } = useAuth();
     const { showToast } = useToast();
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
     const router = useRouter();
+    const { requireVerification } = useVerifiedAccess();
 
     const isManager = profile?.role === "manager" || profile?.role === "super_manager" || profile?.role === "admin";
     
@@ -185,6 +187,7 @@ export default function NetworkPage() {
 
     // Action: Toggle Follow / Unfollow
     const handleFollowToggle = async (targetUserId: string, displayName: string) => {
+        if (!requireVerification("follow users")) return;
         if (processingFollow[targetUserId] || !profile?.uid) return;
 
         const currentlyFollowing = !!followingStates[targetUserId];
