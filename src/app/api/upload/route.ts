@@ -95,12 +95,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
         }
 
-        if (!isConfigured) {
-            return NextResponse.json(
-                { error: "R2 not configured. Check .env.local" },
-                { status: 500 },
-            );
-        }
+        // Early return removed to allow Cloudinary fallback
 
         const formData = await request.formData();
         const file = formData.get("file") as File | null;
@@ -153,25 +148,60 @@ export async function POST(request: NextRequest) {
             key = `${folder}/${Date.now()}-${randomId()}.${ext}`;
         }
 
-        // Upload raw binary to R2
-        const buf = Buffer.from(await file.arrayBuffer());
+        if (isConfigured) {
+            // Upload raw binary to R2
+            const buf = Buffer.from(await file.arrayBuffer());
 
-        await getClient().send(new PutObjectCommand({
-            Bucket: R2.bucket,
-            Key: key,
-            Body: buf,
-            ContentType: file.type,
-            CacheControl: publicId ? "public, max-age=3600" : "public, max-age=31536000",
-        }));
+            await getClient().send(new PutObjectCommand({
+                Bucket: R2.bucket,
+                Key: key,
+                Body: buf,
+                ContentType: file.type,
+                CacheControl: publicId ? "public, max-age=3600" : "public, max-age=31536000",
+            }));
 
-        const url = `${R2.publicUrl.replace(/\/$/, "")}/${key}`;
+            const url = `${R2.publicUrl.replace(/\/$/, "")}/${key}`;
 
-        return NextResponse.json({
-            url,
-            publicId: key,
-            width: 0,
-            height: 0,
-        });
+            return NextResponse.json({
+                url,
+                publicId: key,
+                width: 0,
+                height: 0,
+            });
+        } else {
+            // Fallback to Cloudinary if R2 is not configured
+            const { v2: cloudinary } = require("cloudinary");
+            
+            cloudinary.config({
+                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+                api_key: process.env.CLOUDINARY_API_KEY,
+                api_secret: process.env.CLOUDINARY_API_SECRET,
+            });
+
+            const buf = Buffer.from(await file.arrayBuffer());
+            
+            const uploadResult = await new Promise<any>((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: folder,
+                        public_id: publicId ? publicId : undefined,
+                        resource_type: "auto",
+                    },
+                    (error: any, result: any) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                uploadStream.end(buf);
+            });
+
+            return NextResponse.json({
+                url: uploadResult.secure_url,
+                publicId: uploadResult.public_id,
+                width: uploadResult.width || 0,
+                height: uploadResult.height || 0,
+            });
+        }
     } catch (error) {
         console.error("[Upload API]", error);
         return NextResponse.json(
