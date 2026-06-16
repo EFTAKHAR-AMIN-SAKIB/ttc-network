@@ -17,10 +17,15 @@ import {
     ShieldCheck,
     Quote,
     UserPlus,
+    X,
+    ArrowLeft,
+    MailCheck,
+    KeyRound,
 } from "lucide-react";
 import {
     signInWithEmailAndPassword,
     onAuthStateChanged,
+    sendPasswordResetEmail,
 } from "firebase/auth";
 import { getAuthInstance } from "@/lib/firebase";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
@@ -85,6 +90,11 @@ function LoginPageInner() {
     const [isCapsLocked, setIsCapsLocked] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(true);
+    const [forgotOpen, setForgotOpen] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotSent, setForgotSent] = useState(false);
+    const [forgotError, setForgotError] = useState("");
 
     // Redirect already-logged-in users away from login page
     useEffect(() => {
@@ -134,6 +144,41 @@ function LoginPageInner() {
         }
     };
 
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!forgotEmail.trim()) {
+            setForgotError("Please enter your email address");
+            return;
+        }
+        setForgotLoading(true);
+        setForgotError("");
+        try {
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: forgotEmail.trim() }),
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to send reset email");
+            }
+            
+            setForgotSent(true);
+        } catch (err: any) {
+            setForgotError(err.message || "Something went wrong. Please try again.");
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
+    const openForgotModal = () => {
+        setForgotEmail(email); // Pre-fill from login form
+        setForgotSent(false);
+        setForgotError("");
+        setForgotOpen(true);
+    };
 
     return (
         <div className="min-h-screen bg-[#FDF8F3] flex items-center justify-center p-0 lg:p-6 overflow-hidden">
@@ -245,7 +290,7 @@ function LoginPageInner() {
                                 </div>
                                 <span className="text-xs font-bold text-gray-400 group-hover:text-navy-900 transition-colors">Keep me signed in</span>
                              </label>
-                             <button type="button" className="text-xs font-bold text-gray-400 hover:text-primary transition-colors">Forgot password?</button>
+                             <button type="button" onClick={openForgotModal} className="text-xs font-bold text-gray-400 hover:text-primary transition-colors">Forgot password?</button>
                          </div>
 
                           <button 
@@ -281,6 +326,145 @@ function LoginPageInner() {
                    </div>
                 </div>
             </motion.div>
+
+            {/* ═══════════ FORGOT PASSWORD MODAL ═══════════ */}
+            <AnimatePresence>
+                {forgotOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setForgotOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-md bg-white dark:bg-[#1a1b23] rounded-3xl shadow-2xl overflow-hidden"
+                        >
+                            {/* Header */}
+                            <div className="relative px-8 pt-8 pb-4">
+                                <button
+                                    onClick={() => setForgotOpen(false)}
+                                    className="absolute top-4 right-4 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                >
+                                    <X size={18} className="text-gray-400" />
+                                </button>
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${
+                                    forgotSent 
+                                        ? "bg-green-50 dark:bg-green-500/10" 
+                                        : "bg-primary/10 dark:bg-primary/20"
+                                }`}>
+                                    {forgotSent 
+                                        ? <MailCheck size={24} className="text-green-500" />
+                                        : <KeyRound size={24} className="text-primary" />
+                                    }
+                                </div>
+                                <h3 className="text-2xl font-black text-navy-900 dark:text-white tracking-tight">
+                                    {forgotSent ? "Check your inbox" : "Reset your password"}
+                                </h3>
+                                <p className="text-sm text-gray-400 font-medium mt-1">
+                                    {forgotSent 
+                                        ? `We've sent a password reset link to` 
+                                        : "Enter your email and we'll send you a reset link"
+                                    }
+                                </p>
+                                {forgotSent && (
+                                    <p className="text-sm font-bold text-navy-900 dark:text-white mt-1">{forgotEmail}</p>
+                                )}
+                            </div>
+
+                            {/* Body */}
+                            <div className="px-8 pb-8">
+                                {forgotSent ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="space-y-4"
+                                    >
+                                        <div className="p-4 bg-green-50 dark:bg-green-500/10 rounded-2xl border border-green-100 dark:border-green-500/20">
+                                            <div className="flex items-start gap-3">
+                                                <CheckCircle size={18} className="text-green-500 mt-0.5 shrink-0" />
+                                                <div>
+                                                    <p className="text-sm font-bold text-green-800 dark:text-green-400">Email sent successfully!</p>
+                                                    <p className="text-xs text-green-600 dark:text-green-500 mt-1">Check your inbox and spam folder. The link expires in 1 hour.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => { setForgotSent(false); setForgotError(""); }}
+                                                className="flex-1 py-3.5 border-2 border-gray-200 dark:border-gray-700 text-navy-900 dark:text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:border-primary transition-all"
+                                            >
+                                                <ArrowLeft size={16} /> Try another email
+                                            </button>
+                                            <button
+                                                onClick={() => setForgotOpen(false)}
+                                                className="flex-1 py-3.5 bg-navy-900 dark:bg-white text-white dark:text-navy-900 rounded-2xl font-bold text-sm hover:bg-black dark:hover:bg-gray-100 transition-all"
+                                            >
+                                                Back to login
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                                        <div>
+                                            <div className={`relative flex items-center transition-all duration-300 rounded-2xl border-2 ${
+                                                forgotError ? "border-red-500 bg-red-50/10" : "border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 focus-within:border-primary focus-within:bg-white dark:focus-within:bg-[#1a1b23] focus-within:shadow-xl focus-within:shadow-primary/5"
+                                            }`}>
+                                                <div className="pl-4 text-gray-400">
+                                                    <Mail size={18} />
+                                                </div>
+                                                <input
+                                                    type="email"
+                                                    value={forgotEmail}
+                                                    onChange={(e) => { setForgotEmail(e.target.value); setForgotError(""); }}
+                                                    placeholder="Enter your email address"
+                                                    className="w-full px-3 py-4 bg-transparent border-none focus:ring-0 focus:outline-none text-navy-900 dark:text-white font-bold placeholder-gray-400 text-sm"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            {forgotError && (
+                                                <motion.p 
+                                                    initial={{ opacity: 0, y: -5 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="text-[10px] font-black text-red-500 uppercase tracking-widest pl-4 mt-2 flex items-center gap-1.5"
+                                                >
+                                                    <AlertCircle size={10} /> {forgotError}
+                                                </motion.p>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={forgotLoading}
+                                            className="w-full py-4 bg-primary text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-red-700 transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-primary/20"
+                                        >
+                                            {forgotLoading ? (
+                                                <Loader2 className="animate-spin" size={18} />
+                                            ) : (
+                                                <>
+                                                    Send reset link
+                                                    <ArrowRight size={16} />
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setForgotOpen(false)}
+                                            className="w-full py-3 text-sm font-bold text-gray-400 hover:text-navy-900 dark:hover:text-white transition-colors"
+                                        >
+                                            Back to login
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
