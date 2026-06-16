@@ -152,8 +152,8 @@ export interface FirestorePost {
     collegeName: string;
     collegeLogo: string;
     eventName: string; // Used as 'Update Title' for clubs
-    clubName?: string;
-    clubId?: string; // Reference to the associated club
+    clubName?: string | null;
+    clubId?: string | null; // Reference to the associated club
     description?: string;
     shareLink: string;
     commentsCount?: number;
@@ -1581,7 +1581,11 @@ export async function rejectModerationItem(collectionName: string, id: string, r
 
 export async function updatePost(id: string, data: Partial<FirestorePost>): Promise<void> {
     // Allowlist: prevent mutation of sensitive fields
-    const ALLOWED_POST_FIELDS = ['title', 'content', 'type', 'tags', 'thumbnailUrl', 'eventName', 'eventDate', 'eventLocation', 'eventDescription', 'linkUrl', 'visibility'];
+    const ALLOWED_POST_FIELDS = [
+        'title', 'content', 'type', 'tags', 'thumbnailUrl', 'eventName', 
+        'eventDate', 'eventLocation', 'eventDescription', 'linkUrl', 'visibility',
+        'description', 'shareLink', 'linkPreview', 'clubId', 'clubName'
+    ];
     const clean = Object.fromEntries(
         Object.entries(data).filter(([k]) => ALLOWED_POST_FIELDS.includes(k))
     );

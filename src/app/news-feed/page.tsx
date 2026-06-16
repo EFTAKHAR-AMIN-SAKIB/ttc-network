@@ -11,7 +11,7 @@ import { LocationFilterButton } from "@/components/LocationIcons";
 import { 
     subscribePosts, subscribeModerationCount, deletePost, updatePost,
     toggleSavePost, subscribeSavedPosts,
-    type FirestorePost 
+    type FirestorePost, getMyClubs, type FirestoreClub
 } from "@/lib/firestore";
 import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
@@ -52,6 +52,12 @@ function NewsFeedInner() {
     const [editThumbnailUrl, setEditThumbnailUrl] = useState<string | null>(null);
     const [editThumbnailFile, setEditThumbnailFile] = useState<File | null>(null);
     const [editThumbnailPreview, setEditThumbnailPreview] = useState<string | null>(null);
+    const [editAttachClub, setEditAttachClub] = useState(false);
+    const [editClubId, setEditClubId] = useState("");
+    const [editClubName, setEditClubName] = useState("");
+    const [myClubs, setMyClubs] = useState<(FirestoreClub & {id: string})[]>([]);
+    const [editLinkPreview, setEditLinkPreview] = useState<any>(null);
+    const [isFetchingLink, setIsFetchingLink] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const { confirm, setIsLoading, close } = useConfirm();
     const { showToast } = useToast();
@@ -59,6 +65,33 @@ function NewsFeedInner() {
     const [targetPostId, setTargetPostId] = useState<string | null>(null);
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const hasScrolledRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!profile?.uid || !profile?.collegeId) return;
+        getMyClubs(profile.uid, profile.collegeId).then(setMyClubs).catch(console.error);
+    }, [profile]);
+
+    useEffect(() => {
+        if (!editShareLink || !editShareLink.startsWith('http')) {
+            if (!editShareLink) setEditLinkPreview(null);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setIsFetchingLink(true);
+            try {
+                const res = await fetch(`/api/link-preview?url=${encodeURIComponent(editShareLink)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setEditLinkPreview(data);
+                }
+            } catch (err) {
+                console.error("Link preview failed:", err);
+            } finally {
+                setIsFetchingLink(false);
+            }
+        }, 800);
+        return () => clearTimeout(timer);
+    }, [editShareLink]);
 
     // Moved useEffect down below handleEditStart
 
@@ -157,6 +190,10 @@ function NewsFeedInner() {
         setEditThumbnailUrl(post.thumbnailUrl || null);
         setEditThumbnailFile(null);
         setEditThumbnailPreview(post.thumbnailUrl || null);
+        setEditAttachClub(!!post.clubId);
+        setEditClubId(post.clubId || "");
+        setEditClubName(post.clubName || "");
+        setEditLinkPreview(post.linkPreview || null);
     };
 
     // Deep-link: read ?post= and ?edit= query params
@@ -189,6 +226,10 @@ function NewsFeedInner() {
         setEditingPostId(null);
         setEditThumbnailFile(null);
         setEditThumbnailPreview(null);
+        setEditAttachClub(false);
+        setEditClubId("");
+        setEditClubName("");
+        setEditLinkPreview(null);
     };
 
     const handleSaveEdit = async () => {
@@ -213,13 +254,20 @@ function NewsFeedInner() {
             }
 
             // 2. Update Firestore
+            const hasClub = editType === "club" || (editType === "event" && editAttachClub);
+            const clubMeta = hasClub && editClubId 
+                ? { clubId: editClubId, clubName: editClubName } 
+                : { clubId: null, clubName: null };
+
             await updatePost(editingPostId, {
                 eventName: editEventName.trim(),
                 description: editDescription.trim(),
                 shareLink: editShareLink.trim(),
                 type: editType as any,
                 visibility: editVisibility as any,
-                thumbnailUrl: finalThumbnailUrl
+                thumbnailUrl: finalThumbnailUrl,
+                linkPreview: editLinkPreview || null,
+                ...clubMeta
             });
 
             handleCancelEdit();
@@ -447,6 +495,15 @@ function NewsFeedInner() {
                                 setEditThumbnailPreview={setEditThumbnailPreview}
                                 onSaveEdit={handleSaveEdit}
                                 onCancelEdit={handleCancelEdit}
+                                editAttachClub={editAttachClub}
+                                setEditAttachClub={setEditAttachClub}
+                                editClubId={editClubId}
+                                setEditClubId={setEditClubId}
+                                editClubName={editClubName}
+                                setEditClubName={setEditClubName}
+                                myClubs={myClubs}
+                                editLinkPreview={editLinkPreview}
+                                isFetchingLink={isFetchingLink}
                             />
                             </div>
                         ))}

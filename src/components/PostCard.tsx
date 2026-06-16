@@ -48,6 +48,15 @@ interface PostCardProps {
     onSaveEdit?: () => void;
     onCancelEdit?: () => void;
     hideManageOptions?: boolean;
+    editAttachClub?: boolean;
+    setEditAttachClub?: (v: boolean) => void;
+    editClubId?: string;
+    setEditClubId?: (v: string) => void;
+    editClubName?: string;
+    setEditClubName?: (v: string) => void;
+    myClubs?: any[];
+    editLinkPreview?: any;
+    isFetchingLink?: boolean;
 }
 
 const roleColors: Record<string, string> = {
@@ -131,7 +140,9 @@ export default function PostCard({
     editThumbnailUrl, setEditThumbnailUrl,
     editThumbnailFile, setEditThumbnailFile,
     editThumbnailPreview, setEditThumbnailPreview,
-    onSaveEdit, onCancelEdit, hideManageOptions
+    onSaveEdit, onCancelEdit, hideManageOptions,
+    editAttachClub, setEditAttachClub, editClubId, setEditClubId,
+    editClubName, setEditClubName, myClubs, editLinkPreview, isFetchingLink
 }: PostCardProps) {
     const [showComments, setShowComments] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
@@ -188,13 +199,29 @@ export default function PostCard({
                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-1.5">
                             <ExternalLink size={10} className="text-primary" /> Share Link (Optional)
                         </label>
-                        <input 
-                            type="url"
-                            value={editShareLink}
-                            onChange={(e) => setEditShareLink?.(e.target.value)}
-                            placeholder="https://facebook.com/groups/..."
-                            className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
-                        />
+                        <div className="relative">
+                            <input 
+                                type="url"
+                                value={editShareLink}
+                                onChange={(e) => setEditShareLink?.(e.target.value)}
+                                placeholder="https://facebook.com/groups/..."
+                                className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                            {isFetchingLink && (
+                                <Loader2 size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-primary animate-spin" />
+                            )}
+                        </div>
+                        {editLinkPreview && (
+                            <div className="mt-2 bg-gray-50 dark:bg-black/40 rounded-xl p-3 border border-gray-100 dark:border-gray-800 flex items-center gap-3">
+                                {editLinkPreview.thumbnail && (
+                                    <img src={editLinkPreview.thumbnail} className="w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200" alt="" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{editLinkPreview.title}</h4>
+                                    <p className="text-[10px] text-gray-500 truncate mt-0.5">{editLinkPreview.domain}</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
@@ -221,6 +248,51 @@ export default function PostCard({
                             </select>
                         </div>
                     </div>
+
+                    {editType === 'event' && myClubs && myClubs.length > 0 && (
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 dark:border-gray-800/30">
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Arrange by a Club?</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const newAttach = !editAttachClub;
+                                    setEditAttachClub?.(newAttach);
+                                    if (!newAttach) {
+                                        setEditClubId?.("");
+                                        setEditClubName?.("");
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                    editAttachClub
+                                        ? "bg-primary text-white border-primary shadow-sm"
+                                        : "bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                                }`}
+                            >
+                                {editAttachClub ? "Yes, Attached" : "No, Individual"}
+                            </button>
+                        </div>
+                    )}
+
+                    <AnimatePresence>
+                        {(editType === 'club' || (editType === 'event' && editAttachClub)) && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="pt-2 overflow-hidden">
+                                <select 
+                                    required
+                                    value={editClubId}
+                                    onChange={(e) => {
+                                        setEditClubId?.(e.target.value);
+                                        setEditClubName?.(e.target.options[e.target.selectedIndex].text);
+                                    }}
+                                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all dark:text-white"
+                                >
+                                    <option value="" disabled>Select your club...</option>
+                                    {myClubs?.map(club => (
+                                        <option key={club.id} value={club.id}>{club.name}</option>
+                                    ))}
+                                </select>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Media Edit */}
                     <div className="space-y-2">

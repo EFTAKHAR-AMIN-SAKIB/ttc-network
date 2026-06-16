@@ -80,7 +80,13 @@ export async function GET(req: NextRequest) {
                 const data = cachedDoc.data();
                 // Cache valid for 7 days
                 if (data && data.cachedAt && (Date.now() - data.cachedAt.toMillis() < 7 * 24 * 60 * 60 * 1000)) {
-                    return NextResponse.json(data.preview);
+                    const titleLower = (data.preview?.title || "").toLowerCase();
+                    const hasLoginWording = titleLower.includes("log in") || titleLower.includes("log into") || titleLower.includes("login") || titleLower.includes("sign up");
+                    const isSocialLink = domain.includes("facebook.com") || domain.includes("fb.watch") || domain.includes("fb.com") || domain.includes("instagram.com");
+                    
+                    if (!(isSocialLink && hasLoginWording)) {
+                        return NextResponse.json(data.preview);
+                    }
                 }
             }
         }
@@ -105,6 +111,37 @@ export async function GET(req: NextRequest) {
         } else if (domain.includes('drive.google.com')) {
             preview.title = 'Google Drive File';
             preview.description = 'Shared file from Google Drive';
+        } else if (domain.includes('facebook.com') || domain.includes('fb.watch') || domain.includes('fb.com')) {
+            preview.title = 'Facebook Post';
+            preview.description = 'Click to view this content on Facebook.';
+            preview.thumbnail = 'https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg';
+            
+            if (targetUrl.href.includes('/groups/')) {
+                const groupMatch = targetUrl.pathname.match(/\/groups\/([^/]+)/);
+                const groupName = groupMatch 
+                    ? decodeURIComponent(groupMatch[1]).replace(/[-_]/g, ' ') 
+                    : '';
+                preview.title = groupName 
+                    ? `Facebook Group: ${groupName.charAt(0).toUpperCase() + groupName.slice(1)}` 
+                    : 'Facebook Group Post';
+                preview.description = 'Join or view this discussion on Facebook Groups.';
+            } else if (targetUrl.href.includes('/watch') || targetUrl.href.includes('/videos/') || domain.includes('fb.watch')) {
+                preview.title = 'Facebook Video';
+                preview.description = 'Watch this video on Facebook.';
+            } else if (targetUrl.href.includes('/events/')) {
+                preview.title = 'Facebook Event';
+                preview.description = 'View this event details on Facebook.';
+            } else {
+                const pathParts = targetUrl.pathname.split('/').filter(Boolean);
+                if (pathParts.length > 0 && !['posts', 'groups', 'share', 'permalink.php', 'watch', 'events'].includes(pathParts[0])) {
+                    const pageName = decodeURIComponent(pathParts[0]).replace(/[-_]/g, ' ');
+                    preview.title = `Facebook Post - ${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`;
+                }
+            }
+        } else if (domain.includes('instagram.com') || domain.includes('instagr.am')) {
+            preview.title = 'Instagram Post';
+            preview.description = 'View this photo or video on Instagram.';
+            preview.thumbnail = 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png';
         }
 
         // 3. If no fast thumbnail, try scraping HTML
