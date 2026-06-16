@@ -9,7 +9,7 @@ import {
     UploadCloud, Paperclip
 } from "lucide-react";
 import { createStudyPost, updateStudyPost, type FirestoreStudyPost } from "@/lib/firestore";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { useToast } from "@/contexts/ToastContext";
 import { format } from "date-fns";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -201,9 +201,13 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
             if (thumbnailFile) {
                 const resultUrl = await uploadFile("thumbnails", thumbnailFile);
                 thumbnailUrl = resultUrl;
+                if (editPost?.thumbnailUrl) {
+                    await deleteFromStorage(editPost.thumbnailUrl).catch(e => console.error("Failed to delete old thumbnail:", e));
+                }
             } else if (!thumbnailPreview && editPost?.thumbnailUrl) {
                 // User removed the thumbnail
                 thumbnailUrl = "";
+                await deleteFromStorage(editPost.thumbnailUrl).catch(e => console.error("Failed to delete old thumbnail:", e));
             }
 
             // 2. Upload study file if upload type is file
@@ -232,6 +236,10 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                         fileSize = uploadResult.size || selectedFile.size;
                         fileType = uploadResult.type || selectedFile.type;
                         finalLink = fileUrl; // compatibility fallback
+                        
+                        if (editPost?.fileUrl) {
+                            await deleteFromStorage(editPost.fileUrl).catch(e => console.error("Failed to delete old study file:", e));
+                        }
                     } else if (!editPost?.fileUrl) {
                         throw new Error("Please select a file to upload.");
                     }
@@ -241,6 +249,10 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                     fileName = "";
                     fileSize = 0;
                     fileType = "";
+                    
+                    if (editPost?.fileUrl) {
+                        await deleteFromStorage(editPost.fileUrl).catch(e => console.error("Failed to delete old study file:", e));
+                    }
                 }
             }
 

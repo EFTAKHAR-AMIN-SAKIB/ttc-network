@@ -41,7 +41,7 @@ import {
     toggleSaveStudyPost,
     getSavedStudyPostsFull
 } from "@/lib/firestore";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { ProfileCompletionCard, ProfileCompletionBar } from "./ProfileCompletionCard";
 import StoryCard from "@/components/StoryCard";
@@ -901,9 +901,16 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         if (!file || !uid) return;
         setUploadingBanner(true);
         try {
+            const oldBannerURL = profileData?.bannerURL;
             const url = await uploadFile(`banners/${uid}`, file);
             const db = getDb();
             await updateDoc(doc(db, "users", uid), { bannerURL: url, updatedAt: serverTimestamp() });
+            
+            // Delete old banner if it exists and isn't the same
+            if (oldBannerURL && oldBannerURL !== url) {
+                await deleteFromStorage(oldBannerURL).catch(e => console.error("Failed to delete old banner:", e));
+            }
+            
             showToast("Banner updated!", "success");
         } catch (err) {
             console.error("Banner upload failed:", err);
@@ -919,6 +926,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         if (!file || !uid) return;
         setUploadingPhoto(true);
         try {
+            const oldPhotoURL = profileData?.photoURL;
             const url = await uploadFile(`profile-photos/${uid}`, file);
             const db = getDb();
             await updateDoc(doc(db, "users", uid), { photoURL: url, updatedAt: serverTimestamp() });
@@ -931,6 +939,11 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     url,
                     profileData.role
                 ).catch(err => console.error("Photo sync failed:", err));
+            }
+            
+            // Delete old photo if it exists, isn't the same, and isn't a dicebear generated avatar
+            if (oldPhotoURL && oldPhotoURL !== url && !oldPhotoURL.includes("dicebear.com")) {
+                await deleteFromStorage(oldPhotoURL).catch(e => console.error("Failed to delete old profile photo:", e));
             }
             
             showToast("Profile photo updated!", "success");
