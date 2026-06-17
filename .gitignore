@@ -56,3 +56,5 @@ scripts/check*.ts
 scripts/cleanup*.ts
 scripts/inspect_*.ts
 test-rules.js
+
+.vercel
