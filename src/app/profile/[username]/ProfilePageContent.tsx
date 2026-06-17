@@ -1118,7 +1118,11 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     
                     {/* Facebook-style Edit Cover Photo button — always visible for own profile */}
                     {isOwnProfile && (
-                        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-10" ref={bannerMenuRef}>
+                        <div 
+                            className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20" 
+                            ref={bannerMenuRef}
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -1126,7 +1130,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     setPhotoMenuOpen(false);
                                 }}
                                 disabled={uploadingBanner}
-                                className="px-4 py-2.5 bg-white/90 dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-900 backdrop-blur-md text-navy-900 dark:text-gray-100 rounded-xl border border-white/40 dark:border-gray-700/60 transition-all flex items-center gap-2 text-xs font-bold shadow-lg disabled:opacity-70"
+                                className="w-10 h-10 rounded-full flex items-center justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 sm:rounded-xl sm:gap-2 bg-white/90 dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-900 backdrop-blur-md text-navy-900 dark:text-gray-100 border border-white/40 dark:border-gray-700/60 transition-all text-xs font-bold shadow-lg disabled:opacity-70 active:scale-95"
                             >
                                 {uploadingBanner ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                                 <span className="hidden sm:inline">{uploadingBanner ? "Uploading..." : "Edit cover photo"}</span>
