@@ -5,6 +5,7 @@ import { X, User, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { getProfilesByIds, type FirestoreUser } from "@/lib/firestore";
+import { createPortal } from "react-dom";
 
 interface ReactionViewerModalProps {
     isOpen: boolean;
@@ -32,6 +33,11 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
     const [activeTab, setActiveTab] = useState<string>("all");
     const [loading, setLoading] = useState(true);
     const [profiles, setProfiles] = useState<(FirestoreUser & { id: string })[]>([]);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (isOpen && reactedBy) {
@@ -49,7 +55,7 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
         }
     }, [isOpen, reactedBy]);
 
-    if (!isOpen) return null;
+    if (!mounted) return null;
 
     // Get available reaction types from the data
     const availableReactions = Object.keys(reactedBy || {}).filter(k => (reactedBy?.[k]?.length || 0) > 0);
@@ -62,14 +68,19 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
         ? profiles 
         : profiles.filter(p => reactedBy?.[activeTab]?.includes(p.id));
 
-    return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-[#121218] w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10 flex flex-col max-h-[80vh]"
-            >
+    return createPortal(
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+                    {/* Backdrop */}
+                    <div className="absolute inset-0" onClick={onClose} />
+                    <motion.div
+                        initial={{ opacity: 0, y: "30%" }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: "30%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                        className="bg-white dark:bg-[#121218] w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 dark:border-white/10 flex flex-col h-[70vh] sm:h-auto max-h-[85vh] sm:max-h-[80vh] relative z-10"
+                    >
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                     <div>
@@ -186,5 +197,8 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                 </div>
             </motion.div>
         </div>
+            )}
+        </AnimatePresence>,
+        document.body
     );
 }

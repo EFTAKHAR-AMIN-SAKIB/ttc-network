@@ -10,7 +10,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
-import { subscribeNotifications, subscribeUnreadNotificationsCount, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, type FirestoreNotification } from "@/lib/firestore";
+import { subscribeNotifications, subscribeUnreadNotificationsCount, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, pruneOldNotifications, type FirestoreNotification } from "@/lib/firestore";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 
@@ -69,6 +69,12 @@ export default function Navbar() {
             setNotifications(data);
         });
         return () => unsub();
+    }, [user?.uid]);
+
+    // Prune read notifications older than 7 days on login/mount
+    useEffect(() => {
+        if (!user?.uid) return;
+        pruneOldNotifications(user.uid).catch(console.error);
     }, [user?.uid]);
 
     // Subscribe to unread notifications count

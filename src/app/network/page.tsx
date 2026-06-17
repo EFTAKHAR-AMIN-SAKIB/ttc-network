@@ -81,8 +81,12 @@ export default function NetworkPage() {
         if (!profile?.collegeId || !isManager) return;
 
         const unsub = subscribeUsersByCollege(profile.collegeId, (users) => {
-            // Exclude self and users who have been dismissed/deleted from the moderation list by this manager
-            const filtered = users.filter(u => u.id !== profile.uid && !(u.dismissedBy || []).includes(profile.uid));
+            // Exclude self, users who have been dismissed/deleted from the moderation list by this manager, and already verified users
+            const filtered = users.filter(u => 
+                u.id !== profile.uid && 
+                !u.roleVerified && 
+                !(u.dismissedBy || []).includes(profile.uid)
+            );
             setCollegeUsers(filtered);
         });
 
@@ -379,11 +383,11 @@ export default function NetworkPage() {
                                 >
                                     <Shield size={16} />
                                     <span>Verification Center</span>
-                                    {collegeUsers.filter(u => !u.roleVerified).length > 0 && (
+                                    {collegeUsers.length > 0 && (
                                         <span className={`ml-auto px-2 py-0.5 rounded-full text-[9px] ${
                                             activeTab === "auth" ? "bg-white text-primary" : "bg-primary text-white"
                                         }`}>
-                                            {collegeUsers.filter(u => !u.roleVerified).length}
+                                            {collegeUsers.length}
                                         </span>
                                     )}
                                 </button>
@@ -429,9 +433,9 @@ export default function NetworkPage() {
                                                 Review and verify registrations for {getCollegeFullName(profile.collegeId)}.
                                             </p>
                                         </div>
-                                        <div className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-emerald-500/20 shadow-sm self-start">
-                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                            {collegeUsers.length} Active Accounts
+                                        <div className="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-amber-500/20 shadow-sm self-start">
+                                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                                            {collegeUsers.length} Pending Verifications
                                         </div>
                                     </div>
 

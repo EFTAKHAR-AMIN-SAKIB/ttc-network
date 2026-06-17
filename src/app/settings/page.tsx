@@ -32,6 +32,7 @@ import {
     verifyBeforeUpdateEmail,
     updateProfile,
     deleteUser,
+    sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { getAuthInstance, getDb } from "@/lib/firebase";
@@ -123,6 +124,7 @@ interface InputFieldProps {
     toggleState?: boolean;
     onToggle?: () => void;
     readOnly?: boolean;
+    rightLabel?: React.ReactNode;
 }
 
 function InputField({
@@ -137,12 +139,16 @@ function InputField({
     toggleState = false,
     onToggle,
     readOnly = false,
+    rightLabel,
 }: InputFieldProps) {
     return (
         <div className="space-y-1.5">
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                {label}
-            </label>
+            <div className="flex justify-between items-center">
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    {label}
+                </label>
+                {rightLabel}
+            </div>
             <div className="relative">
                 {icon && (
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
@@ -567,6 +573,15 @@ export default function SettingsPage() {
     const [showNewPw, setShowNewPw] = useState(false);
     const [showConfirmPw, setShowConfirmPw] = useState(false);
     const [pwLoading, setPwLoading] = useState(false);
+    const [forgotLoading, setForgotLoading] = useState(false);
+
+    // ─── Force scroll unlocking on mount ───
+    useEffect(() => {
+        document.body.style.overflow = "unset";
+        document.documentElement.style.overflow = "unset";
+        document.body.classList.remove("overflow-hidden");
+        document.documentElement.classList.remove("overflow-hidden");
+    }, []);
 
     // ─── Email State ───
     const [newEmail, setNewEmail] = useState("");
@@ -598,6 +613,21 @@ export default function SettingsPage() {
     const canSubmitPw = currentPw.length > 0 && strength.score >= 4 && passwordsMatch;
 
     // ─── Handlers ───
+
+    const handleForgotPassword = async () => {
+        if (!user?.email) return;
+        setForgotLoading(true);
+        try {
+            const auth = getAuthInstance();
+            await sendPasswordResetEmail(auth, user.email);
+            showToast("Password reset email sent to " + user.email, "success");
+        } catch (err: unknown) {
+            const firebaseError = err as { message?: string };
+            showToast(firebaseError.message || "Failed to send password reset email.", "error");
+        } finally {
+            setForgotLoading(false);
+        }
+    };
 
     const handleChangePassword = async (e: FormEvent) => {
         e.preventDefault();
@@ -806,6 +836,18 @@ export default function SettingsPage() {
                                 showToggle
                                 toggleState={showCurrentPw}
                                 onToggle={() => setShowCurrentPw(!showCurrentPw)}
+                                rightLabel={
+                                    user?.email && (
+                                        <button
+                                            type="button"
+                                            onClick={handleForgotPassword}
+                                            disabled={forgotLoading}
+                                            className="text-xs font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-all disabled:opacity-50"
+                                        >
+                                            {forgotLoading ? "Sending Reset..." : "Forgot Password?"}
+                                        </button>
+                                    )
+                                }
                             />
 
                             <div className="space-y-3">

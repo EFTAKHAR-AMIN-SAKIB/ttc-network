@@ -2256,6 +2256,42 @@ export async function deleteNotification(notifId: string): Promise<void> {
     await deleteDoc(doc(getDb(), "notifications", validId));
 }
 
+export async function pruneOldNotifications(uid: string): Promise<void> {
+    const db = getDb();
+    try {
+        const q = query(
+            collection(db, "notifications"),
+            where("recipientId", "==", uid),
+            where("read", "==", true)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return;
+
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const toDelete = snap.docs.filter(d => {
+            const data = d.data();
+            if (!data.createdAt) return false;
+            const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt.seconds * 1000);
+            return date.getTime() < sevenDaysAgo;
+        });
+
+        if (toDelete.length === 0) return;
+
+        const BATCH_LIMIT = 400;
+        for (let i = 0; i < toDelete.length; i += BATCH_LIMIT) {
+            const batch = writeBatch(db);
+            const chunk = toDelete.slice(i, i + BATCH_LIMIT);
+            chunk.forEach(d => {
+                batch.delete(d.ref);
+            });
+            await batch.commit();
+        }
+        console.log(`[Firestore] Pruned ${toDelete.length} old read notifications for user ${uid}`);
+    } catch (err) {
+        console.error("[Firestore] Failed to prune old notifications:", err);
+    }
+}
+
 export async function markAllNotificationsRead(uid: string): Promise<void> {
     const db = getDb();
     try {
