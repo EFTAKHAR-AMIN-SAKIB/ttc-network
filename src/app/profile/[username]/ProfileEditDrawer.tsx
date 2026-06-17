@@ -77,6 +77,23 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
         setFormData(profile);
     }, [profile]);
 
+    // Semester options based on programme and year
+    const getSemestersForEdit = () => {
+        const prog = formData.programme || "BEdHonours";
+        const yr = formData.year || "1st Year";
+        if (yr === "Graduate") return ["Graduated"];
+        if (prog === "BEdHonours") {
+            if (yr === "1st Year") return ["Semester 1", "Semester 2"];
+            if (yr === "2nd Year") return ["Semester 3", "Semester 4"];
+            if (yr === "3rd Year") return ["Semester 5", "Semester 6"];
+            if (yr === "4th Year") return ["Semester 7", "Semester 8"];
+        } else if (prog === "MEd") {
+            if (yr === "1st Year") return ["Semester 1", "Semester 2"];
+            if (yr === "2nd Year") return ["Semester 3", "Semester 4"];
+        }
+        return [];
+    };
+
     // Debounced username availability check
     const checkUsername = useCallback((username: string) => {
         if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
@@ -320,16 +337,41 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                                                 label="Programme" 
                                                 value={formData.programme || "BEdHonours"} 
                                                 onChange={(v: string) => {
-                                                    updateField("programme", v);
                                                     // Reset year/semester when switching programmes
+                                                    let nextYear = formData.year || "1st Year";
+                                                    let nextSemester = formData.semester || "Semester 1";
                                                     if (v === "MEd") {
-                                                        if (!["1st Year", "2nd Year"].includes(formData.year || "")) {
-                                                            updateField("year", "1st Year");
+                                                        if (!["1st Year", "2nd Year", "Graduate"].includes(formData.year || "")) {
+                                                            nextYear = "1st Year";
                                                         }
-                                                        if (!["Semester 1", "Semester 2", "Semester 3", "Semester 4"].includes(formData.semester || "")) {
-                                                            updateField("semester", "Semester 1");
+                                                        if (nextYear === "1st Year") {
+                                                            if (!["Semester 1", "Semester 2"].includes(nextSemester)) nextSemester = "Semester 1";
+                                                        } else if (nextYear === "2nd Year") {
+                                                            if (!["Semester 3", "Semester 4"].includes(nextSemester)) nextSemester = "Semester 3";
+                                                        } else {
+                                                            nextSemester = "Graduated";
+                                                        }
+                                                    } else {
+                                                        // BEdHonours
+                                                        if (nextYear === "1st Year") {
+                                                            if (!["Semester 1", "Semester 2"].includes(nextSemester)) nextSemester = "Semester 1";
+                                                        } else if (nextYear === "2nd Year") {
+                                                            if (!["Semester 3", "Semester 4"].includes(nextSemester)) nextSemester = "Semester 3";
+                                                        } else if (nextYear === "3rd Year") {
+                                                            if (!["Semester 5", "Semester 6"].includes(nextSemester)) nextSemester = "Semester 5";
+                                                        } else if (nextYear === "4th Year") {
+                                                            if (!["Semester 7", "Semester 8"].includes(nextSemester)) nextSemester = "Semester 7";
+                                                        } else {
+                                                            nextSemester = "Graduated";
                                                         }
                                                     }
+                                                    
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        programme: v,
+                                                        year: nextYear,
+                                                        semester: nextSemester
+                                                    }));
                                                 }}
                                                 options={[
                                                     { label: "B.Ed Honours (4-year)", value: "BEdHonours" },
@@ -341,7 +383,27 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                                                 <FormSelect 
                                                     label="Academic Year" 
                                                     value={formData.year} 
-                                                    onChange={(v: string) => updateField("year", v)}
+                                                    onChange={(v: string) => {
+                                                        const prog = formData.programme || "BEdHonours";
+                                                        let nextSemester = formData.semester || "Semester 1";
+                                                        if (v === "Graduate") {
+                                                            nextSemester = "Graduated";
+                                                        } else if (prog === "BEdHonours") {
+                                                            if (v === "1st Year" && !["Semester 1", "Semester 2"].includes(nextSemester)) nextSemester = "Semester 1";
+                                                            if (v === "2nd Year" && !["Semester 3", "Semester 4"].includes(nextSemester)) nextSemester = "Semester 3";
+                                                            if (v === "3rd Year" && !["Semester 5", "Semester 6"].includes(nextSemester)) nextSemester = "Semester 5";
+                                                            if (v === "4th Year" && !["Semester 7", "Semester 8"].includes(nextSemester)) nextSemester = "Semester 7";
+                                                        } else if (prog === "MEd") {
+                                                            if (v === "1st Year" && !["Semester 1", "Semester 2"].includes(nextSemester)) nextSemester = "Semester 1";
+                                                            if (v === "2nd Year" && !["Semester 3", "Semester 4"].includes(nextSemester)) nextSemester = "Semester 3";
+                                                        }
+                                                        
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            year: v,
+                                                            semester: nextSemester
+                                                        }));
+                                                    }}
                                                     options={
                                                         (formData.programme || "BEdHonours") === "MEd"
                                                             ? ["1st Year", "2nd Year", "Graduate"]
@@ -352,11 +414,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                                                     label="Semester" 
                                                     value={formData.semester} 
                                                     onChange={(v: string) => updateField("semester", v)}
-                                                    options={
-                                                        (formData.programme || "BEdHonours") === "MEd"
-                                                            ? ["Semester 1", "Semester 2", "Semester 3", "Semester 4"]
-                                                            : ["Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5", "Semester 6", "Semester 7", "Semester 8"]
-                                                    }
+                                                    options={getSemestersForEdit()}
                                                 />
                                             </div>
                                         </>

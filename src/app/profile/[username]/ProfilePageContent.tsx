@@ -294,37 +294,93 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
 
             {/* Academic & Professional Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Academic Context */}
+                {/* Academic Context / Institution Details */}
                 <div className="p-8 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2.5rem] shadow-sm">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2.5 bg-primary/5 text-primary rounded-2xl"><GraduationCap size={20} /></div>
-                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Academic Status</h3>
-                    </div>
-                    
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Programme</label>
-                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
-                                    {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed Honours"}
+                    {profile.role === "teacher" ? (
+                        <>
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2.5 bg-primary/5 text-primary rounded-2xl"><Building size={20} /></div>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Teaching Status</h3>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Employment Type</label>
+                                        <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                                            {profile.status === "govt" ? "Govt. TTC Teacher" : "Non-Govt. TTC Teacher"}
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Core Subjects / Department</label>
+                                        <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.subjects || "General Education"}</div>
+                                    </div>
+                                </div>
+                                <hr className="border-slate-50 dark:border-gray-800" />
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Primary College</label>
+                                    <div className="text-sm font-black text-primary uppercase">{college?.name || "Not Specified"}</div>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-0.5">{college?.city || "N/A"}</div>
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Year / Session</label>
-                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.year || "N/A"}</div>
+                        </>
+                    ) : profile.role === "admin" || profile.role === "manager" ? (
+                        <>
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2.5 bg-primary/5 text-primary rounded-2xl"><Shield size={20} /></div>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Institutional Role</h3>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Semester</label>
-                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.semester || "N/A"}</div>
+                            
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Role Type</label>
+                                        <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                                            {profile.role === "admin" ? "Platform Administrator" : "College Manager"}
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr className="border-slate-50 dark:border-gray-800" />
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Primary College</label>
+                                    <div className="text-sm font-black text-primary uppercase">{college?.name || "Not Specified"}</div>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-0.5">{college?.city || "N/A"}</div>
+                                </div>
                             </div>
-                        </div>
-                        <hr className="border-slate-50 dark:border-gray-800" />
-                        <div>
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Primary College</label>
-                            <div className="text-sm font-black text-primary uppercase">{college?.name || "Not Specified"}</div>
-                            <div className="text-[10px] font-bold text-gray-400 mt-0.5">{college?.city || "N/A"}</div>
-                        </div>
-                    </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2.5 bg-primary/5 text-primary rounded-2xl"><GraduationCap size={20} /></div>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Academic Status</h3>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Programme</label>
+                                        <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                                            {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed Honours"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Year / Session</label>
+                                        <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.year || "N/A"}</div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Semester</label>
+                                        <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.semester || "N/A"}</div>
+                                    </div>
+                                </div>
+                                <hr className="border-slate-50 dark:border-gray-800" />
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Primary College</label>
+                                    <div className="text-sm font-black text-primary uppercase">{college?.name || "Not Specified"}</div>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-0.5">{college?.city || "N/A"}</div>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Professional Context */}

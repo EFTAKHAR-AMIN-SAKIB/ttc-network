@@ -194,8 +194,7 @@ interface SectionCardProps {
 
 function SectionCard({ icon, iconBg, title, description, children, danger = false }: SectionCardProps) {
     return (
-        <motion.div
-            variants={cardVariants}
+        <div
             className={`
                 bg-white dark:bg-[#16181C] rounded-3xl shadow-sm
                 border ${danger
@@ -234,7 +233,7 @@ function SectionCard({ icon, iconBg, title, description, children, danger = fals
             <div className="px-6 py-6 sm:px-8 sm:py-7">
                 {children}
             </div>
-        </motion.div>
+        </div>
     );
 }
 
@@ -784,10 +783,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* ═══ Content ═══ */}
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
+                <div
                     className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6"
                 >
                     {/* ═══════════════════════════════════════════
@@ -1110,7 +1106,7 @@ export default function SettingsPage() {
 
                     {/* Bottom spacer */}
                     <div className="h-8" />
-                </motion.div>
+                </div>
             </div>
 
             {/* Delete Modal */}
