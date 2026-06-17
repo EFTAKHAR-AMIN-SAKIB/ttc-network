@@ -49,7 +49,7 @@ export default function OnboardingPage() {
     
     const [role, setRole] = useState<"student" | "teacher">("student");
     const [programme, setProgramme] = useState<"BEdHonours" | "MEd">("BEdHonours");
-    const [year, setYear] = useState("Year 1");
+    const [year, setYear] = useState("1st Year");
     const [semester, setSemester] = useState("Semester 1");
     const [status, setStatus] = useState<"govt" | "non-govt">("govt");
     const [subjects, setSubjects] = useState(""); // For teachers
@@ -73,22 +73,22 @@ export default function OnboardingPage() {
 
     // Year options based on programme
     const getYears = () => {
-        if (programme === "BEdHonours") return ["Year 1", "Year 2", "Year 3", "Year 4"];
-        return ["Year 1", "Year 2"]; // M.Ed is 1-2 years
+        if (programme === "BEdHonours") return ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+        return ["1st Year", "2nd Year"]; // M.Ed is 1-2 years
     };
 
     // Semester options based on programme and year
     const getSemesters = () => {
         if (programme === "BEdHonours") {
             // B.Ed Honours: 4 years, 8 semesters
-            if (year === "Year 1") return ["Semester 1", "Semester 2"];
-            if (year === "Year 2") return ["Semester 3", "Semester 4"];
-            if (year === "Year 3") return ["Semester 5", "Semester 6"];
-            if (year === "Year 4") return ["Semester 7", "Semester 8"];
+            if (year === "1st Year") return ["Semester 1", "Semester 2"];
+            if (year === "2nd Year") return ["Semester 3", "Semester 4"];
+            if (year === "3rd Year") return ["Semester 5", "Semester 6"];
+            if (year === "4th Year") return ["Semester 7", "Semester 8"];
         } else {
             // M.Ed: 1-2 years, 2-4 semesters
-            if (year === "Year 1") return ["Semester 1", "Semester 2"];
-            if (year === "Year 2") return ["Semester 3", "Semester 4"];
+            if (year === "1st Year") return ["Semester 1", "Semester 2"];
+            if (year === "2nd Year") return ["Semester 3", "Semester 4"];
         }
         return [];
     };
