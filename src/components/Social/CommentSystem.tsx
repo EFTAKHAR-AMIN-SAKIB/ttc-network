@@ -64,7 +64,7 @@ export function CommentItem({
             layout
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`flex gap-3 scroll-mt-24 ${comment.parentId ? 'ml-10 mt-3 pt-3 border-l-2 border-gray-100 dark:border-gray-800 pl-4' : 'mt-6'}`}
+            className={`flex gap-3 scroll-mt-24 ${comment.parentId ? 'ml-4 sm:ml-10 mt-3 pt-3 border-l-2 border-gray-100 dark:border-gray-800 pl-4' : 'mt-6'}`}
         >
             <Link href={`/profile/${comment.userId}`} className="shrink-0">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
@@ -78,7 +78,7 @@ export function CommentItem({
                 </div>
             </Link>
             <div className="flex-1 min-w-0">
-                <div className="bg-gray-50 dark:bg-gray-800/40 rounded-2xl px-4 py-2.5 relative group/comment">
+                <div className="bg-gray-50 dark:bg-gray-800/40 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 relative group/comment">
                     <div className="flex items-center justify-between gap-2 mb-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                             <Link href={`/profile/${comment.userId}`} className="text-xs font-black hover:text-primary transition-colors truncate">
@@ -149,12 +149,13 @@ export function CommentSystem({
     accentColor?: string;
     placeholder?: string;
 }) {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
     const [comments, setComments] = useState<any[]>([]);
     const [text, setText] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
     const [replyTo, setReplyTo] = useState<{ userName: string; parentId: string } | null>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -232,7 +233,11 @@ export function CommentSystem({
             </div>
 
             {/* Input Wrapper */}
-            <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-800/20 rounded-3xl border border-gray-100 dark:border-gray-800">
+            <div className={`mb-8 p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
+                isFocused 
+                    ? 'border-primary/40 shadow-lg shadow-primary/5 dark:border-primary/30' 
+                    : 'border-slate-100 dark:border-gray-850'
+            }`}>
                 {user ? (
                     <form onSubmit={handleSubmit}>
                         <AnimatePresence>
@@ -253,8 +258,14 @@ export function CommentSystem({
                         </AnimatePresence>
                         <div className="flex items-start gap-3">
                             <div className="shrink-0 pt-1">
-                                 <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse overflow-hidden">
-                                    {user?.photoURL && <img src={user.photoURL} alt="" className="w-full h-full object-cover" />}
+                                 <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
+                                     {profile?.photoURL || user?.photoURL ? (
+                                         <img src={profile?.photoURL || user?.photoURL} alt="" className="w-full h-full object-cover" />
+                                     ) : (
+                                         <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
+                                             {profile?.displayName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
+                                         </div>
+                                     )}
                                  </div>
                             </div>
                             <div className="flex-1 relative">
@@ -262,12 +273,16 @@ export function CommentSystem({
                                     ref={inputRef}
                                     value={text}
                                     onChange={(e) => setText(e.target.value)}
+                                    onFocus={() => setIsFocused(true)}
+                                    onBlur={() => setIsFocused(false)}
                                     placeholder={placeholder}
-                                    className="w-full bg-transparent border-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-200"
+                                    className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-300"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSubmit();
+                                            if (window.innerWidth > 640) {
+                                                e.preventDefault();
+                                                handleSubmit();
+                                            }
                                         }
                                     }}
                                 />

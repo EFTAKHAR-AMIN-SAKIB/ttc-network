@@ -300,21 +300,41 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
                         <>
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-2.5 bg-primary/5 text-primary rounded-2xl"><Building size={20} /></div>
-                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Teaching Status</h3>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">
+                                    {profile.programme ? "Teaching & Academic Status" : "Teaching Status"}
+                                </h3>
                             </div>
                             
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2">
+                                    <div>
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Employment Type</label>
                                         <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
                                             {profile.status === "govt" ? "Govt. TTC Teacher" : "Non-Govt. TTC Teacher"}
                                         </div>
                                     </div>
-                                    <div className="col-span-2">
+                                    <div>
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Core Subjects / Department</label>
                                         <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.subjects || "General Education"}</div>
                                     </div>
+                                    {profile.programme && (
+                                        <>
+                                            <div className="col-span-2">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Programme</label>
+                                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                                                    {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed (Honours)"}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Year / Session</label>
+                                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.year || "N/A"}</div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Semester</label>
+                                                <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.semester || "N/A"}</div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                                 <hr className="border-slate-50 dark:border-gray-800" />
                                 <div>
@@ -328,17 +348,39 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
                         <>
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-2.5 bg-primary/5 text-primary rounded-2xl"><Shield size={20} /></div>
-                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Institutional Role</h3>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">
+                                    {profile.programme ? "Institutional Role & Academic Status" : "Institutional Role"}
+                                </h3>
                             </div>
                             
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2">
+                                    <div className={profile.programme ? "col-span-1" : "col-span-2"}>
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Role Type</label>
                                         <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
                                             {profile.role === "admin" ? "Platform Administrator" : "College Manager"}
                                         </div>
                                     </div>
+                                    {profile.programme && (
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Programme</label>
+                                            <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
+                                                {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed (Honours)"}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {profile.year && (
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Year / Session</label>
+                                            <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.year}</div>
+                                        </div>
+                                    )}
+                                    {profile.semester && (
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Semester</label>
+                                            <div className="text-sm font-bold text-navy-900 dark:text-gray-100">{profile.semester}</div>
+                                        </div>
+                                    )}
                                 </div>
                                 <hr className="border-slate-50 dark:border-gray-800" />
                                 <div>
@@ -360,7 +402,7 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
                                     <div className="col-span-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Programme</label>
                                         <div className="text-sm font-bold text-navy-900 dark:text-gray-100">
-                                            {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed Honours"}
+                                            {profile.programme === "MEd" ? "M.Ed (Master of Education)" : "B.Ed (Honours)"}
                                         </div>
                                     </div>
                                     <div>
@@ -623,6 +665,8 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const tabsRef = useRef<HTMLDivElement>(null);
 
     const isOwnProfile = user?.uid === uid;
+    const [viewAsGuest, setViewAsGuest] = useState(false);
+    const isViewingAsOwner = isOwnProfile && !viewAsGuest;
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -647,7 +691,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         const fetchFeed = async () => {
             setLoadingFeed(true);
             try {
-                const feed = await getUserFeedContent(uid, user?.uid === uid);
+                const feed = await getUserFeedContent(uid, isViewingAsOwner);
                 setUserFeed(feed);
             } catch (err) {
                 console.error("Failed to fetch user feed", err);
@@ -660,13 +704,13 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         // Stories Subscription — pass isOwner to filter appropriately
         const unsubStories = subscribeUserStories(uid, (st) => {
             setUserStories(st);
-        }, user?.uid === uid);
+        }, isViewingAsOwner);
 
         return () => {
             unsubUser();
             unsubStories();
         };
-    }, [uid]);
+    }, [uid, isOwnProfile, viewAsGuest, user?.uid]);
 
     // Check follow status on mount
     useEffect(() => {
@@ -677,7 +721,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
     // Load saved posts/stories/notices/study posts when activeTab is "saved"
     useEffect(() => {
-        if (activeTab === "saved" && isOwnProfile && uid) {
+        if (activeTab === "saved" && isViewingAsOwner && uid) {
             setLoadingSaved(true);
             const loadData = async () => {
                 try {
@@ -703,7 +747,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             };
             loadData();
         }
-    }, [activeTab, savedSubTab, isOwnProfile, uid]);
+    }, [activeTab, savedSubTab, isViewingAsOwner, uid]);
 
     const handleSavePost = async (postId: string) => {
         if (!uid) return;
@@ -1100,6 +1144,22 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
     return (
         <div className="min-h-screen bg-[#FAFAF8] dark:bg-[#0c0c10] pb-32">
+            {viewAsGuest && (
+                <div className="bg-slate-900 dark:bg-purple-900 text-white py-3 px-4 flex items-center justify-between text-xs sm:text-sm font-bold sticky top-0 z-50 shadow-md backdrop-blur-md bg-opacity-95">
+                    <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Eye className="w-4 h-4 animate-pulse text-purple-400" />
+                            <span>Previewing Profile: This is how your profile appears to other users.</span>
+                        </div>
+                        <button 
+                            onClick={() => setViewAsGuest(false)}
+                            className="bg-white/20 hover:bg-white/30 text-white px-3.5 py-1.5 rounded-lg text-xs uppercase font-black tracking-wider transition-all"
+                        >
+                            Exit Preview
+                        </button>
+                    </div>
+                </div>
+            )}
             
             {/* 1. HERO SECTION */}
             <div className="relative">
@@ -1117,7 +1177,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     <div className="absolute inset-0 bg-gradient-to-t from-navy-900/40 via-transparent to-transparent" />
                     
                     {/* Facebook-style Edit Cover Photo button — always visible for own profile */}
-                    {isOwnProfile && (
+                    {isViewingAsOwner && (
                         <div 
                             className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20" 
                             ref={bannerMenuRef}
@@ -1204,7 +1264,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                 />
                             </div>
                             {/* Camera badge button — Facebook-style, always visible for own profile */}
-                            {isOwnProfile && (
+                            {isViewingAsOwner && (
                                 <div className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 z-20" ref={photoMenuRef}>
                                     <button
                                         onClick={(e) => {
@@ -1294,12 +1354,33 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         {/* Action Buttons */}
                         <div className="flex items-center gap-3 md:pb-3">
                             {isOwnProfile ? (
-                                <button 
-                                    onClick={() => setEditDrawerOpen(true)}
-                                    className="px-6 py-3 bg-primary text-white font-black text-sm uppercase tracking-wider rounded-[1.25rem] shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                                >
-                                    <Pencil size={16} /> Edit Profile
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {!viewAsGuest && (
+                                        <button 
+                                            onClick={() => setEditDrawerOpen(true)}
+                                            className="px-6 py-3 bg-primary text-white font-black text-sm uppercase tracking-wider rounded-[1.25rem] shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                                        >
+                                            <Pencil size={16} /> Edit Profile
+                                        </button>
+                                    )}
+                                    <button 
+                                        onClick={() => {
+                                            if (!viewAsGuest && activeTab === "saved") {
+                                                setActiveTab("about");
+                                            }
+                                            setViewAsGuest(!viewAsGuest);
+                                        }}
+                                        className={`px-4 py-3 border-2 font-black text-sm uppercase tracking-wider rounded-[1.25rem] transition-all flex items-center gap-2 shadow-lg active:scale-95 ${
+                                            viewAsGuest 
+                                                ? "bg-slate-900 border-slate-950 text-white dark:bg-primary dark:border-primary" 
+                                                : "bg-white dark:bg-gray-800 border-slate-100 dark:border-gray-700 text-gray-500 hover:text-primary hover:border-primary/20"
+                                        }`}
+                                        title={viewAsGuest ? "Exit guest preview mode" : "Preview how others see your profile"}
+                                    >
+                                        {viewAsGuest ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        <span>{viewAsGuest ? "Exit Preview" : "View as Guest"}</span>
+                                    </button>
+                                </div>
                             ) : (
                                 <>
                                     {/* Follow / Following Button */}
@@ -1442,7 +1523,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             </div>
 
             {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
-            {isOwnProfile && profileData && (
+            {isViewingAsOwner && profileData && (
                 <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6">
                     <ProfileCompletionBar
                         profile={profileData}
@@ -1457,7 +1538,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 {/* LEFT SIDEBAR (L-SIDEBAR) — 3 cols */}
                 <div className="lg:col-span-3 space-y-8">
                     {/* Profile Completion Card — Desktop Only */}
-                    {isOwnProfile && profileData && (
+                    {isViewingAsOwner && profileData && (
                         <div className="hidden lg:block">
                             <ProfileCompletionCard
                                 profile={profileData}
@@ -1549,7 +1630,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                 { id: "about", label: "About", icon: Info },
                                 { id: "activity", label: "Activity", icon: Activity },
                                 { id: "skills", label: "Credentials", icon: Award },
-                                ...(isOwnProfile ? [{ id: "saved", label: "Saved", icon: Bookmark }] : [])
+                                ...(isViewingAsOwner ? [{ id: "saved", label: "Saved", icon: Bookmark }] : [])
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -1619,13 +1700,13 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                             return (
                                                                 <div key={act.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${act.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative">
                                                                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
-                                                                    <PostCard post={act} profile={currentUserProfile} hideManageOptions={!isOwnProfile} onDelete={handleDeletePost} onEdit={handleEditPost} />
+                                                                    <PostCard post={act} profile={currentUserProfile} hideManageOptions={!isViewingAsOwner} onDelete={handleDeletePost} onEdit={handleEditPost} />
                                                                 </div>
                                                             );
                                                         } else if (act.activityType === 'story') {
                                                             return (
                                                                 <div key={act.id} onClick={() => router.push(`/story/${act.id}`)} className="cursor-pointer">
-                                                                    <StoryCard story={act} onDelete={isOwnProfile ? handleDeleteStory : undefined} onEdit={isOwnProfile ? handleEditStory : undefined} />
+                                                                    <StoryCard story={act} onDelete={isViewingAsOwner ? handleDeleteStory : undefined} onEdit={isViewingAsOwner ? handleEditStory : undefined} />
                                                                 </div>
                                                             );
                                                         } else if (act.activityType === 'notice') {
@@ -1650,7 +1731,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                                 <ActivityItem 
                                                                     key={act.id} 
                                                                     act={act}
-                                                                    isOwn={isOwnProfile}
+                                                                    isOwn={isViewingAsOwner}
                                                                     onDelete={(id) => handleDeleteComment(id, act.postId || id)}
                                                                     onNavigate={() => {
                                                                         const postId = act.postId || act.id;
@@ -1669,7 +1750,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                     {filteredFeed.posts.map(post => (
                                                         <div key={post.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${post.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-1 relative">
                                                             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
-                                                            <PostCard post={post} profile={currentUserProfile} hideManageOptions={!isOwnProfile} onDelete={handleDeletePost} onEdit={handleEditPost} />
+                                                            <PostCard post={post} profile={currentUserProfile} hideManageOptions={!isViewingAsOwner} onDelete={handleDeletePost} onEdit={handleEditPost} />
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1681,7 +1762,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                         <ActivityItem 
                                                             key={comment.id} 
                                                             act={{ ...comment, activityType: 'comment' }}
-                                                            isOwn={isOwnProfile}
+                                                            isOwn={isViewingAsOwner}
                                                             onDelete={(id) => handleDeleteComment(id, comment.postId || id)}
                                                             onNavigate={() => {
                                                                 const postId = comment.postId || comment.id;
@@ -1696,7 +1777,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                 <div className="grid gap-6">
                                                     {filteredFeed.stories.map(story => (
                                                         <div key={story.id} onClick={() => router.push(`/story/${story.id}`)} className="cursor-pointer">
-                                                            <StoryCard story={story} onDelete={isOwnProfile ? handleDeleteStory : undefined} onEdit={isOwnProfile ? handleEditStory : undefined} />
+                                                            <StoryCard story={story} onDelete={isViewingAsOwner ? handleDeleteStory : undefined} onEdit={isViewingAsOwner ? handleEditStory : undefined} />
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1790,7 +1871,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     <section>
                                         <div className="flex items-center justify-between mb-8">
                                             <h3 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">Academic & Digital Achievements</h3>
-                                            {isOwnProfile && (
+                                            {isViewingAsOwner && (
                                                 <button 
                                                     onClick={() => setShowAchievementModal(true)}
                                                     className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ml-4"
@@ -1817,7 +1898,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                         </div>
                                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <a href={ach.fileURL} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-primary transition-colors"><Eye size={16} /></a>
-                                                            {isOwnProfile && (
+                                                            {isViewingAsOwner && (
                                                                 <button onClick={() => handleAchievementDelete(ach.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                                                             )}
                                                         </div>
@@ -1834,7 +1915,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     </section>
                                 </motion.div>
                             )}
-                            {activeTab === "saved" && isOwnProfile && (
+                            {activeTab === "saved" && isViewingAsOwner && (
                                 <motion.div 
                                     key="saved-tab"
                                     initial={{ opacity: 0, y: 20 }}

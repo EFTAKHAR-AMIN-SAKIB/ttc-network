@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark } from "lucide-react";
-import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories } from "@/lib/firestore";
+import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User } from "lucide-react";
+import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories, subscribeStory, getProfilesByIds, type FirestoreUser } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import StoryCard from "@/components/StoryCard";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
@@ -22,33 +23,57 @@ export default function StoryDetailPage() {
 
     const [story, setStory] = useState<FirestoreStory & { id: string } | null>(null);
     const [moreStories, setMoreStories] = useState<(FirestoreStory & { id: string })[]>([]);
+    const [reactingUsers, setReactingUsers] = useState<(FirestoreUser & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
     const [isShareOpen, setIsShareOpen] = useState(false);
 
     useEffect(() => {
-        const fetchStory = async () => {
-            try {
-                const data = await getDocById<FirestoreStory>("stories", id);
-                setStory(data as FirestoreStory & { id: string });
-                
-                // Fetch more stories from same college
-                const unsubscribe = subscribeStories((all) => {
-                    const filtered = all.filter(s => s.collegeId === data.collegeId && s.id !== id).slice(0, 3);
-                    setMoreStories(filtered);
-                });
-                return () => unsubscribe();
-            } catch (err: any) {
-                console.error("Error fetching story:", err);
-                setError(err.code === 'permission-denied' ? "This story is private." : "Story not found.");
-            } finally {
-                setLoading(false);
+        if (!id) return;
+        
+        setLoading(true);
+        const unsubscribeStory = subscribeStory(id, (data) => {
+            if (data) {
+                setStory(data);
+                setError(null);
+            } else {
+                setError("Story not found.");
             }
-        };
+            setLoading(false);
+        });
 
-        if (id) fetchStory();
+        return () => unsubscribeStory();
     }, [id]);
+
+    useEffect(() => {
+        if (!story?.collegeId) return;
+        
+        const unsubscribeMore = subscribeStories((all) => {
+            const filtered = all.filter(s => s.collegeId === story.collegeId && s.id !== id).slice(0, 3);
+            setMoreStories(filtered);
+        });
+        
+        return () => unsubscribeMore();
+    }, [story?.collegeId, id]);
+
+    useEffect(() => {
+        if (!story?.reactedBy) {
+            setReactingUsers([]);
+            return;
+        }
+        
+        const allUids = Array.from(new Set(Object.values(story.reactedBy).flat())).slice(0, 4);
+        if (allUids.length > 0) {
+            getProfilesByIds(allUids).then(data => {
+                setReactingUsers(data);
+            }).catch(err => {
+                console.error("Error fetching reacting users' profiles:", err);
+            });
+        } else {
+            setReactingUsers([]);
+        }
+    }, [story?.reactedBy]);
 
     useEffect(() => {
         let unsubSaved = () => {};
@@ -227,12 +252,31 @@ export default function StoryDetailPage() {
                                 <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 sm:mb-4">Engage with this journey</p>
                                 <div className="flex items-center gap-3 sm:gap-4">
                                     <div className="flex -space-x-3">
-                                        {[...Array(4)].map((_, i) => (
-                                            <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm" />
-                                        ))}
+                                        {reactingUsers.length > 0 ? (
+                                            reactingUsers.map((u) => (
+                                                <div key={u.id} className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-900 overflow-hidden shadow-sm bg-gray-100 dark:bg-gray-800" title={u.displayName}>
+                                                    {u.photoURL ? (
+                                                        <Image src={u.photoURL} alt={u.displayName} fill className="object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
+                                                            {u.displayName?.substring(0, 2).toUpperCase() || "?"}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            [...Array(3)].map((_, i) => (
+                                                <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center">
+                                                    <User size={12} className="text-gray-350 dark:text-gray-600" />
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                     <span className="text-[10px] sm:text-xs font-black text-navy-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg sm:rounded-xl">
-                                        {Object.values(story.reactions || {}).reduce((a, b) => a + (b as number), 0)}+ Reactions
+                                        {(() => {
+                                            const total = Object.values(story.reactions || {}).reduce((a, b) => a + (b as number), 0);
+                                            return total === 0 ? "No reactions yet" : total === 1 ? "1 Reaction" : `${total} Reactions`;
+                                        })()}
                                     </span>
                                 </div>
                             </div>

@@ -146,7 +146,7 @@ export default function OnboardingPage() {
 
             await refreshProfile();
             showToast("Profile ready! Welcome to the network.", "success");
-            router.push("/");
+            router.push("/profile");
         } catch (err) {
             console.error("[Onboarding] Save failed:", err);
             showToast("Failed to save profile", "error");

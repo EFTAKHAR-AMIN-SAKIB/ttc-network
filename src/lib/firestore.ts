@@ -1755,6 +1755,23 @@ export async function deleteStory(id: string): Promise<void> {
 }
 
 /**
+ * Subscribes to a single story by ID in real-time.
+ */
+export function subscribeStory(id: string, callback: (story: (FirestoreStory & { id: string }) | null) => void) {
+    const validId = validateId(id, "Story ID");
+    return onSnapshot(doc(getDb(), "stories", validId), (docSnap) => {
+        if (docSnap.exists()) {
+            callback({ id: docSnap.id, ...(docSnap.data() as FirestoreStory) });
+        } else {
+            callback(null);
+        }
+    }, (error) => {
+        console.error(`[subscribeStory] Error subscribing to story ${id}:`, error);
+        callback(null);
+    });
+}
+
+/**
  * Subscribes to stories authored by a specific user.
  * @param isOwner - If true (viewing own profile), shows all statuses. If false, only published/approved.
  */
@@ -1983,7 +2000,21 @@ export async function createNotice(notice: Omit<FirestoreNotice, "date" | "statu
         isAuthorShadowBanned: profile.isShadowBanned || false,
     };
 
-    await addDoc(collection(getDb(), "notices"), fullNotice);
+    const docRef = await addDoc(collection(getDb(), "notices"), fullNotice);
+
+    // Notify college users if posted by admin or manager
+    if (profile.role === "admin" || profile.role === "manager") {
+        await notifyCollegeUsers(collegeId, profile.id!, {
+            type: "new_notice",
+            message: `${profile.displayName} published a new notice: "${notice.title}"`,
+            relatedId: docRef.id,
+            relatedType: "notice",
+            targetUrl: `/notice#notice-${docRef.id}`,
+            senderId: profile.id!,
+            senderName: profile.displayName,
+            senderPhotoURL: profile.photoURL || ""
+        });
+    }
 }
 
 export function subscribeNotices(callback: (data: (FirestoreNotice & { id: string })[]) => void) {
@@ -2227,6 +2258,31 @@ export async function createNotification(recipientId: string, data: Omit<Firesto
         createdAt: serverTimestamp() as Timestamp,
     };
     await addDoc(collection(getDb(), "notifications"), notification);
+}
+
+/**
+ * Sends a notification to all users belonging to a specific college (except the sender)
+ */
+export async function notifyCollegeUsers(
+    collegeId: string, 
+    senderId: string, 
+    notificationData: Omit<FirestoreNotification, "recipientId" | "read" | "createdAt" | "id">
+): Promise<void> {
+    if (!collegeId || collegeId === "global") return;
+    try {
+        const q = query(collection(getDb(), "users"), where("collegeId", "==", collegeId));
+        const snap = await getDocs(q);
+        const batch = [];
+        for (const docSnap of snap.docs) {
+            const userId = docSnap.id;
+            if (userId !== senderId) {
+                batch.push(createNotification(userId, notificationData));
+            }
+        }
+        await Promise.all(batch);
+    } catch (err) {
+        console.error("[Firestore] notifyCollegeUsers failed:", err);
+    }
 }
 
 export function subscribeNotifications(uid: string, callback: (data: (FirestoreNotification & { id: string })[]) => void) {
@@ -3524,7 +3580,7 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
         collegeName: (userProfile as any).collegeName || post.collegeName || "Global Community",
         // Sync visibility with privacy for backward compatibility
         visibility: post.privacy || "public",
-        status: "pending",
+        status: (userProfile.role === "admin" || userProfile.role === "manager" || userProfile.role === "teacher") ? "approved" : "pending",
         reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
         reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
         createdAt: serverTimestamp(),
@@ -3539,6 +3595,20 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
     }, {});
 
     const docRef = await addDoc(collection(getDb(), "studyPosts"), cleanedPost);
+
+    // Notify college users if posted by admin or manager
+    if (userProfile.role === "admin" || userProfile.role === "manager") {
+        await notifyCollegeUsers(rawPost.collegeId, userProfile.id!, {
+            type: "new_notice",
+            message: `${userProfile.displayName} shared a new study material: "${post.title}"`,
+            relatedId: docRef.id,
+            relatedType: "study",
+            targetUrl: `/study#study-${docRef.id}`,
+            senderId: userProfile.id!,
+            senderName: userProfile.displayName,
+            senderPhotoURL: userProfile.photoURL || ""
+        });
+    }
 
     // Handle Mentions in study post content
     await handleMentions(post.content || "", `/study?commentPostId=${docRef.id}`, userProfile, docRef.id, "study");
