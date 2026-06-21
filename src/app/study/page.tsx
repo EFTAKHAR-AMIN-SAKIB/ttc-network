@@ -55,11 +55,6 @@ function StudyPageContent() {
     const hasScrolledRef = useRef<string | null>(null);
 
     const handleShareClick = () => {
-        if (!user) {
-            showToast("Please log in to share study resources.", "error");
-            router.push("/login");
-            return;
-        }
         if (requireVerification("share study resources")) {
             setEditingPost(null);
             setIsModalOpen(true);
@@ -282,7 +277,7 @@ function StudyPageContent() {
 
                 {/* Main Content Area */}
                 <div className="relative">
-                    <div className={!user ? "blur-md select-none pointer-events-none transition-all" : ""}>
+                    <div>
                         <AnimatePresence mode="wait">
                             {activeTab === "materials" ? (
                                 <motion.div
@@ -448,43 +443,6 @@ function StudyPageContent() {
                             )}
                         </AnimatePresence>
                     </div>
-
-                    {!user && (
-                        <div className="absolute inset-0 z-50 flex items-start justify-center pt-16 pb-20 px-6 bg-gradient-to-b from-transparent via-[#FDF8F3]/70 to-[#FDF8F3] dark:via-[#0c0c10]/70 dark:to-[#0c0c10] backdrop-blur-[2px] pointer-events-auto">
-                            <motion.div 
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
-                                className="max-w-md w-full bg-white/95 dark:bg-[#1a1b23]/95 backdrop-blur-md p-8 sm:p-10 rounded-[2.5rem] border border-gray-200/60 dark:border-gray-800/80 shadow-2xl text-center space-y-6"
-                            >
-                                <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                                    <Lock size={30} className="animate-pulse" />
-                                </div>
-                                <div className="space-y-3">
-                                    <h3 className="text-2xl sm:text-3xl font-black text-navy-900 dark:text-white tracking-tight leading-tight">
-                                        Join to Access Resources
-                                    </h3>
-                                    <p className="text-gray-500 dark:text-gray-400 font-bold text-sm leading-relaxed">
-                                        Log in or create a free account to unlock all B.Ed & M.Ed study materials, class schedules, and community shared notes.
-                                    </p>
-                                </div>
-                                <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                                    <Link 
-                                        href="/login" 
-                                        className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center shadow-lg shadow-indigo-600/20"
-                                    >
-                                        Log In
-                                    </Link>
-                                    <Link 
-                                        href="/register" 
-                                        className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center border border-gray-200/50 dark:border-gray-700/50"
-                                    >
-                                        Register
-                                    </Link>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
                 </div>
             </div>
 

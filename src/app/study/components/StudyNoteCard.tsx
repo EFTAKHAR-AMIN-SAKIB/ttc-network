@@ -140,7 +140,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                     >
                         <div className="relative aspect-video">
                             <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover group-hover/thumb:scale-[1.03] transition-transform duration-500" />
-                            {currentUserId && !isVerified ? (
+                            {!isVerified ? (
                                 <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-[3px] flex flex-col items-center justify-center text-white p-4 transition-all duration-300">
                                     <Lock className="w-8 h-8 text-amber-500 mb-2 animate-bounce" />
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Verify to Access</span>
@@ -237,7 +237,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                         : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-primary hover:text-white hover:shadow-lg"
                                 }`}
                                 title={post.fileUrl ? `Download: ${post.fileName || 'file'}` : "Open link"}
-                                animate={isNoThumbnail && (!currentUserId || isVerified) ? {
+                                animate={isNoThumbnail && isVerified ? {
                                     scale: [1, 1.08, 1],
                                     boxShadow: [
                                         "0 4px 6px -1px rgba(26, 86, 219, 0.2), 0 2px 4px -2px rgba(26, 86, 219, 0.2)",
@@ -251,7 +251,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                     ease: "easeInOut"
                                 } : {}}
                             >
-                                {currentUserId && !isVerified ? (
+                                {!isVerified ? (
                                     <Lock size={18} className="text-amber-500" />
                                 ) : post.fileUrl ? (
                                     <Download size={18} />

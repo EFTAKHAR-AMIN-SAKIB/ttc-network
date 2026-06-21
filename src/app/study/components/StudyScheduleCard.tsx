@@ -262,7 +262,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                                         : 'bg-navy-900 dark:bg-gray-700 text-white hover:bg-navy-800 dark:hover:bg-gray-600'
                                 }`}
                             >
-                                {currentUserId && !isVerified ? <Lock size={16} /> : <Video size={16} />}
+                                {!isVerified ? <Lock size={16} /> : <Video size={16} />}
                                 {status === 'live' ? 'Join' : 'Link'}
                             </a>
                         ) : (

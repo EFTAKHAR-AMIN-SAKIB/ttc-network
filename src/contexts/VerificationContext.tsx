@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, X } from "lucide-react";
+import { ShieldAlert, X, Lock } from "lucide-react";
+import Link from "next/link";
 
 interface VerificationContextType {
     isVerified: boolean;
@@ -22,7 +23,7 @@ export function useVerifiedAccess() {
 }
 
 export function VerificationProvider({ children }: { children: ReactNode }) {
-    const { profile } = useAuth();
+    const { user, profile } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [actionText, setActionText] = useState("");
 
@@ -74,32 +75,75 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
                             </button>
 
                             <div className="p-8 text-center">
-                                {/* Shield Icon with pulse */}
-                                <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                                    <motion.div
-                                        animate={{ scale: [1, 1.15, 1] }}
-                                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                                        className="absolute inset-0 rounded-full bg-amber-500/10 dark:bg-amber-500/5"
-                                    />
-                                    <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-500 flex items-center justify-center relative z-10 border border-amber-200/20">
-                                        <ShieldAlert size={32} className="animate-pulse" />
-                                    </div>
-                                </div>
+                                {user ? (
+                                    <>
+                                        {/* Shield Icon with pulse */}
+                                        <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                                            <motion.div
+                                                animate={{ scale: [1, 1.15, 1] }}
+                                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                                className="absolute inset-0 rounded-full bg-amber-500/10 dark:bg-amber-500/5"
+                                            />
+                                            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-500 flex items-center justify-center relative z-10 border border-amber-200/20">
+                                                <ShieldAlert size={32} className="animate-pulse" />
+                                            </div>
+                                        </div>
 
-                                <h3 className="text-2xl font-black text-navy-900 dark:text-white tracking-tight mb-3">
-                                    Verification Required
-                                </h3>
-                                
-                                <p className="text-gray-500 dark:text-gray-400 font-medium leading-relaxed text-sm mb-8 px-2">
-                                    Your account needs to be verified by a college admin or manager before you can <span className="font-bold text-navy-900 dark:text-white">{actionText}</span>. This helps us keep our community safe and trusted.
-                                </p>
+                                        <h3 className="text-2xl font-black text-navy-900 dark:text-white tracking-tight mb-3">
+                                            Verification Required
+                                        </h3>
+                                        
+                                        <p className="text-gray-500 dark:text-gray-400 font-medium leading-relaxed text-sm mb-8 px-2">
+                                            Your account needs to be verified by a college admin or manager before you can <span className="font-bold text-navy-900 dark:text-white">{actionText}</span>. This helps us keep our community safe and trusted.
+                                        </p>
 
-                                <button
-                                    onClick={() => setIsOpen(false)}
-                                    className="w-full py-4 bg-navy-900 dark:bg-primary text-white dark:text-navy-900 rounded-2xl font-black text-base transition-all active:scale-95 hover:opacity-90 shadow-lg"
-                                >
-                                    Understood
-                                </button>
+                                        <button
+                                            onClick={() => setIsOpen(false)}
+                                            className="w-full py-4 bg-navy-900 dark:bg-primary text-white dark:text-navy-900 rounded-2xl font-black text-base transition-all active:scale-95 hover:opacity-90 shadow-lg"
+                                        >
+                                            Understood
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Lock Icon with pulse */}
+                                        <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                                            <motion.div
+                                                animate={{ scale: [1, 1.15, 1] }}
+                                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                                className="absolute inset-0 rounded-full bg-indigo-500/10 dark:bg-indigo-500/5"
+                                            />
+                                            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center relative z-10 border border-indigo-200/20">
+                                                <Lock size={30} className="animate-pulse" />
+                                            </div>
+                                        </div>
+
+                                        <h3 className="text-2xl font-black text-navy-900 dark:text-white tracking-tight mb-3">
+                                            Join to Access Resources
+                                        </h3>
+                                        
+                                        <p className="text-gray-500 dark:text-gray-400 font-medium leading-relaxed text-sm mb-8 px-2">
+                                            Log in or create a free account to unlock all B.Ed & M.Ed study materials, class schedules, and community shared notes. Note: You must be a verified user to see or download these resources.
+                                        </p>
+
+                                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                            <Link 
+                                                href="/login" 
+                                                onClick={() => setIsOpen(false)}
+                                                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center shadow-lg shadow-indigo-600/20"
+                                            >
+                                                Log In
+                                            </Link>
+                                            <Link 
+                                                href="/signup" 
+                                                onClick={() => setIsOpen(false)}
+                                                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 text-center border border-gray-200/50 dark:border-gray-700/50"
+                                            >
+                                                Register
+                                            </Link>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </motion.div>
                     </div>

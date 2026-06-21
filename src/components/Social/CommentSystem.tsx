@@ -260,7 +260,7 @@ export function CommentSystem({
                             <div className="shrink-0 pt-1">
                                  <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
                                      {profile?.photoURL || user?.photoURL ? (
-                                         <img src={profile?.photoURL || user?.photoURL} alt="" className="w-full h-full object-cover" />
+                                         <img src={profile?.photoURL || user?.photoURL || undefined} alt="" className="w-full h-full object-cover" />
                                      ) : (
                                          <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
                                              {profile?.displayName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
@@ -314,7 +314,7 @@ export function CommentSystem({
                                 Log In
                             </Link>
                             <Link 
-                                href="/register" 
+                                href="/signup" 
                                 className="flex-1 sm:flex-none px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-center border border-gray-200/50 dark:border-gray-700/50"
                             >
                                 Register
