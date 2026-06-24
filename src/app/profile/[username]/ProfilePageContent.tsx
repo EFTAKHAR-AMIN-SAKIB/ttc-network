@@ -1914,8 +1914,8 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     </div>
                 </div>
 
-                {/* MAIN CONTENT (M-CONTENT) — 6 cols */}
-                <div className="lg:col-span-6 space-y-12 min-h-[600px]">
+                {/* MAIN CONTENT (M-CONTENT) — 9 cols */}
+                <div className="lg:col-span-9 space-y-12 min-h-[600px]">
                     
                     {/* Sticky Tabs Navigation */}
                     <div ref={tabsRef} className="sticky top-16 z-40 bg-[#FAFAF8] dark:bg-[#0c0c10] -mx-4 px-4 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-b border-slate-100 dark:border-gray-800 shadow-sm">
@@ -2427,67 +2427,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     </div>
                 </div>
 
-                {/* RIGHT SIDEBAR (R-SIDEBAR) — 3 cols (Desktop Only) */}
-                <div className="hidden lg:col-span-3 lg:block space-y-8 sticky top-32">
-                    {/* Achievement Tracker */}
-                    <div className="p-8 bg-slate-950 dark:bg-gray-950 border border-slate-900 dark:border-gray-900 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden shadow-primary/5">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 rotate-12 text-primary"><Shield size={100} /></div>
-                        <div className="absolute -top-12 -left-12 w-28 h-28 bg-primary/20 rounded-full blur-3xl opacity-30 pointer-events-none" />
-                        
-                        <div className="flex items-center gap-2 mb-6">
-                            <Sparkles size={16} className="text-primary animate-pulse" />
-                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Engagement Impact</h4>
-                        </div>
-                        
-                        <div className="space-y-6">
-                            {[
-                                { 
-                                    label: "Total Inspired", 
-                                    value: (profileData as any)?.totalInspired || 0, 
-                                    gradient: "bg-gradient-to-r from-rose-500 to-orange-500", 
-                                    percent: (profileData as any)?.totalInspired ? Math.min(100, Math.max(10, ((profileData as any).totalInspired * 5))) : 15,
-                                    icon: Sparkles,
-                                    iconColor: "text-rose-500"
-                                },
-                                { 
-                                    label: "Stories Told", 
-                                    value: userStories.length, 
-                                    gradient: "bg-gradient-to-r from-blue-500 to-indigo-500", 
-                                    percent: userStories.length ? Math.min(100, Math.max(10, (userStories.length * 20))) : 10,
-                                    icon: BookOpen,
-                                    iconColor: "text-blue-500"
-                                },
-                                { 
-                                    label: "Network Presence", 
-                                    value: "Founding Member", 
-                                    gradient: "bg-gradient-to-r from-emerald-500 to-teal-500", 
-                                    percent: 100,
-                                    icon: Shield,
-                                    iconColor: "text-emerald-500"
-                                }
-                            ].map((impact, i) => (
-                                <div key={i} className="space-y-2 group/impact">
-                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                        <div className="flex items-center gap-2 text-gray-300">
-                                            <impact.icon size={12} className={`${impact.iconColor} group-hover/impact:scale-125 transition-transform`} />
-                                            <span>{impact.label}</span>
-                                        </div>
-                                        <span className="text-white font-bold">{impact.value}</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-[1px]">
-                                        <motion.div 
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${impact.percent}%` }}
-                                            className={`h-full rounded-full ${impact.gradient}`}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
 
-
-                </div>
             </div>
 
             {/* Hidden file inputs for banner and profile photo */}

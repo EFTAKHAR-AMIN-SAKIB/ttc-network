@@ -61,7 +61,7 @@ export function ReactionBtn({
     onReacted
 }: {
     contentId: string;
-    contentType: "post" | "story" | "study" | "comment";
+    contentType: "post" | "story" | "study" | "groupPost" | "comment";
     reactions?: any;
     reactedBy?: any;
     currentUserId?: string;

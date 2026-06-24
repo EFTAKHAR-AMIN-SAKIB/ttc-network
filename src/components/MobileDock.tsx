@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Rss, BookOpen, School, Megaphone, BookText, Heart } from "lucide-react";
+import { Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
 const dockLinks = [

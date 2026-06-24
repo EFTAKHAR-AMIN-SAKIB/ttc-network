@@ -202,6 +202,101 @@ service cloud.firestore {
       allow delete: if isAdminOrManager() || isOwner(resource.data.userId);
     }
 
+    // ═══════════════════════════════════════════════════
+    //  GROUPS SYSTEM
+    // ═══════════════════════════════════════════════════
+
+    match /groups/{groupId} {
+      allow read: if isAuthenticated() && (
+        resource.data.privacyType != "secret" ||
+        exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && isNotBanned() && isVerifiedOrAdmin();
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin") ||
+        (isVerifiedOrAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'postCount']))
+      );
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin")
+      );
+
+      match /members/{userId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && (
+          isOwner(userId) ||
+          isAdmin() ||
+          (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+           (get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+            get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "moderator"))
+        );
+      }
+
+      match /requests/{userId} {
+        allow read: if isAuthenticated() && (
+          isOwner(userId) ||
+          isAdmin() ||
+          (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+           (get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+            get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "moderator"))
+        );
+        allow write: if isAuthenticated() && (
+          isOwner(userId) ||
+          isAdmin() ||
+          (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+           (get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+            get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "moderator"))
+        );
+      }
+    }
+
+    match /groupPosts/{postId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)))
+      );
+      allow create: if isAuthenticated() && isNotBanned() && isVerifiedOrAdmin() && (
+        exists(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/members/$(request.auth.uid))
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)) && (
+          request.resource.data.diff(resource.data).affectedKeys().hasAny(['reactions', 'reactedBy', 'commentsCount', 'poll']) ||
+          (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['groupId', 'creatorId'])) ||
+          (get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+           get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "moderator")
+        ))
+      );
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        isOwner(resource.data.creatorId) ||
+        (exists(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+          get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "moderator"
+        ))
+      );
+    }
+
+    match /groupReports/{reportId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+          get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "moderator"))
+      );
+      allow create: if isAuthenticated() && isNotBanned();
+      allow update, delete: if isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin" ||
+          get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "moderator"))
+      );
+    }
+
     match /notices/{noticeId} {
       allow read: if true;
       allow create: if isAdminOrManager();

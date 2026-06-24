@@ -23,7 +23,7 @@ export function CommentItem({
 }: {
     comment: any;
     contentId: string;
-    contentType: "post" | "story" | "study";
+    contentType: "post" | "story" | "study" | "groupPost";
     onReply: (userName: string, parentId: string) => void;
 }) {
     const { user } = useAuth();
@@ -145,7 +145,7 @@ export function CommentSystem({
     placeholder = "Share your thoughts..."
 }: {
     contentId: string;
-    contentType: "post" | "story" | "study";
+    contentType: "post" | "story" | "study" | "groupPost";
     accentColor?: string;
     placeholder?: string;
 }) {

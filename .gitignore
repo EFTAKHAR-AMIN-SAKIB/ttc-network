@@ -58,3 +58,4 @@ scripts/inspect_*.ts
 test-rules.js
 
 .vercel
+/scratch
