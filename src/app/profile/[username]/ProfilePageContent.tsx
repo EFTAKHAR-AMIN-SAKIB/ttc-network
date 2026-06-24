@@ -541,6 +541,272 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
     );
 }
 
+function AllTab({
+    profile,
+    isTeacher,
+    allActivity,
+    loadingFeed,
+    currentUserProfile,
+    isViewingAsOwner,
+    handleDeletePost,
+    handleEditPost,
+    handleDeleteStory,
+    handleEditStory,
+    handleDeleteComment,
+    user,
+    router
+}: {
+    profile: UserProfile;
+    isTeacher: boolean;
+    allActivity: any[];
+    loadingFeed: boolean;
+    currentUserProfile: any;
+    isViewingAsOwner: boolean;
+    handleDeletePost: any;
+    handleEditPost: any;
+    handleDeleteStory: any;
+    handleEditStory: any;
+    handleDeleteComment: any;
+    user: any;
+    router: any;
+}) {
+    const college = colleges.find(c => c.id === profile.collegeId);
+    const bioStyle = profile.bioStyle || "serif";
+    const bioFontSize = profile.bioFontSize || "xl";
+    const fontSizes: Record<string, string> = {
+        sm: "text-sm",
+        base: "text-base",
+        lg: "text-lg",
+        xl: "text-xl",
+        "2xl": "text-2xl font-bold"
+    };
+    const sizeClass = fontSizes[bioFontSize] || fontSizes.xl;
+
+    const renderBioContent = () => {
+        if (!profile.bio) return null;
+        return (
+            <div className="relative p-6 sm:p-8 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border border-slate-200/60 dark:border-gray-800 rounded-[2.5rem] shadow-sm overflow-hidden">
+                <div className="absolute -top-12 -right-12 w-28 h-28 bg-primary/10 rounded-full blur-3xl opacity-60 pointer-events-none" />
+                <div className="flex gap-2 items-center mb-3">
+                    <Sparkles size={14} className="text-primary animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-primary">Interactive Narrative</span>
+                </div>
+                <p className={`${sizeClass} text-navy-900 dark:text-gray-100 leading-relaxed font-sans break-words pt-1`}>
+                    {profile.bio}
+                </p>
+            </div>
+        );
+    };
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+        >
+            {/* Bio/Narrative */}
+            {profile.bio && (
+                <section>
+                    {renderBioContent()}
+                </section>
+            )}
+
+            {/* Academic & Professional Grid */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 sm:p-8 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2rem] shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center gap-3 mb-4">
+                            {profile.role === "teacher" ? (
+                                <div className="p-2.5 bg-primary/5 text-primary rounded-xl"><Building size={16} /></div>
+                            ) : profile.role === "admin" || profile.role === "manager" ? (
+                                <div className="p-2.5 bg-primary/5 text-primary rounded-xl"><Shield size={16} /></div>
+                            ) : (
+                                <div className="p-2.5 bg-primary/5 text-primary rounded-xl"><GraduationCap size={16} /></div>
+                            )}
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                Academic Status
+                            </h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Role / Programme</label>
+                                <div className="text-xs font-bold text-navy-900 dark:text-gray-100">
+                                    {profile.role === "teacher" ? (profile.status === "govt" ? "Govt. Teacher" : "Non-Govt. Teacher") :
+                                     profile.role === "admin" ? "Platform Admin" :
+                                     profile.role === "manager" ? "College Manager" : 
+                                     (profile.programme === "MEd" ? "M.Ed Student" : "B.Ed Student")}
+                                </div>
+                            </div>
+                            {profile.subjects && (
+                                <div>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Subjects</label>
+                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-100 truncate">{profile.subjects}</div>
+                                </div>
+                            )}
+                            {profile.year && (
+                                <div>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Year / Session</label>
+                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-100">{profile.year}</div>
+                                </div>
+                            )}
+                            {profile.semester && (
+                                <div>
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Semester</label>
+                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-100">{profile.semester}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-50 dark:border-gray-800">
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">College</label>
+                        <div className="text-xs font-black text-primary uppercase truncate">{college?.name || "Not Specified"}</div>
+                        <div className="text-[9px] font-bold text-gray-400">{college?.city || "N/A"}</div>
+                    </div>
+                </div>
+
+                <div className="p-6 sm:p-8 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2rem] shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 bg-green-500/5 text-green-600 rounded-xl"><Briefcase size={16} /></div>
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Professional Info</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Specialization</label>
+                                <div className="text-xs font-bold text-navy-900 dark:text-gray-100">{profile.industry || "General Education"}</div>
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Working Model</label>
+                                <div className="text-xs font-bold text-navy-900 dark:text-gray-100 px-2 py-0.5 bg-slate-50 dark:bg-gray-800 rounded-lg w-fit">
+                                    {profile.workType || "In-Person"}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-50 dark:border-gray-800 flex items-center justify-between">
+                        <div>
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Availability</label>
+                            <div className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Active & Available</span>
+                            </div>
+                        </div>
+                        {profile.website && (
+                            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs font-bold flex items-center gap-1">
+                                Website <ExternalLink size={12} />
+                            </a>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            {/* Verified Badges Row */}
+            {profile.badges && profile.badges.length > 0 && (
+                <section className="p-6 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2rem] shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Award size={16} className="text-primary" />
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Verified Credentials</h3>
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                        {profile.badges.map((badge) => (
+                            <div key={badge.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-gray-800/40 border border-slate-100 dark:border-gray-800 rounded-2xl shrink-0">
+                                <div className="w-8 h-8 relative flex items-center justify-center shrink-0">
+                                    {badge.imageURL ? (
+                                        <img src={badge.imageURL} alt={badge.name} className="w-full h-full object-contain" />
+                                    ) : (
+                                        <Award className="w-full h-full text-primary" />
+                                    )}
+                                </div>
+                                <div className="min-w-0 pr-1">
+                                    <div className="text-[11px] font-black text-navy-900 dark:text-gray-100 truncate">{badge.name}</div>
+                                    <div className="text-[9px] text-gray-400 truncate max-w-[120px]">{badge.description}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* Timeline Activities Feed */}
+            <section className="space-y-6">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-gray-800">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 text-primary rounded-xl"><Activity size={16} /></div>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-navy-900 dark:text-white">Recent Activities</h3>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{allActivity.length} items</span>
+                </div>
+
+                {loadingFeed ? (
+                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div>
+                ) : allActivity.length > 0 ? (
+                    <div className="space-y-6">
+                        {allActivity.map((act) => {
+                            if (act.activityType === 'post') {
+                                return (
+                                    <div key={act.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/news-feed?post=${act.id}`); }} className="cursor-pointer group/post transition-transform hover:-translate-y-0.5 relative">
+                                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/post:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                        <PostCard post={act} profile={currentUserProfile} hideManageOptions={!isViewingAsOwner} onDelete={handleDeletePost} onEdit={handleEditPost} />
+                                    </div>
+                                );
+                            } else if (act.activityType === 'story') {
+                                return (
+                                    <div key={act.id} onClick={() => router.push(`/story/${act.id}`)} className="cursor-pointer">
+                                        <StoryCard story={act} onDelete={isViewingAsOwner ? handleDeleteStory : undefined} onEdit={isViewingAsOwner ? handleEditStory : undefined} />
+                                    </div>
+                                );
+                            } else if (act.activityType === 'notice') {
+                                return (
+                                    <div key={act.id} onClick={() => router.push(`/notice`)} className="cursor-pointer p-5 border-2 border-slate-100 dark:border-gray-800 rounded-3xl bg-white dark:bg-gray-900 shadow-sm hover:-translate-y-0.5 transition-transform">
+                                        <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
+                                            {act.date ? new Date(act.date?.seconds * 1000).toLocaleDateString() : 'Just now'}
+                                        </div>
+                                        <div className="text-base font-black text-navy-900 dark:text-gray-100">{act.title}</div>
+                                        <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{act.body}</p>
+                                    </div>
+                                );
+                            } else if (act.activityType === 'study') {
+                                return (
+                                    <div key={act.id} onClick={(e) => { const target = e.target as HTMLElement; if (target.closest('button') || target.closest('a')) return; router.push(`/study`); }} className="cursor-pointer group/study transition-transform hover:-translate-y-0.5 relative">
+                                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/study:opacity-100 rounded-[2.5rem] transition-opacity pointer-events-none" />
+                                        <StudyNoteCard post={act} currentUserId={user?.uid} isAdmin={false} />
+                                    </div>
+                                );
+                            } else if (act.activityType === 'comment') {
+                                return (
+                                    <ActivityItem 
+                                        key={act.id} 
+                                        act={act}
+                                        isOwn={isViewingAsOwner}
+                                        onDelete={(id) => handleDeleteComment(id, act.postId || id)}
+                                        onNavigate={() => {
+                                            const postId = act.postId || act.id;
+                                            router.push(`/news-feed?post=${postId}`);
+                                        }}
+                                    />
+                                );
+                            }
+                            return null;
+                        })}
+                    </div>
+                ) : (
+                    <div className="p-8 sm:p-12 bg-white dark:bg-gray-900 border-2 border-slate-50 dark:border-gray-800 rounded-2xl flex items-center gap-4 sm:gap-6 justify-center">
+                        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0"><Sparkle size={18} /></div>
+                        <div>
+                            <div className="text-xs font-black text-navy-900 dark:text-gray-100">No Recent Activities</div>
+                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Stay tuned for future updates.</div>
+                        </div>
+                    </div>
+                )}
+            </section>
+        </motion.div>
+    );
+}
+
 // ═══════════════════════════════════════════════════
 //  MAIN COMPONENT
 // ═══════════════════════════════════════════════════
@@ -581,7 +847,21 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState("about");
+    const [activeTab, setActiveTab] = useState("all");
+    const [showProfileStrength, setShowProfileStrength] = useState(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("ttc_hide_profile_strength");
+            return saved !== "true";
+        }
+        return true;
+    });
+
+    const handleDismissProfileStrength = () => {
+        setShowProfileStrength(false);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ttc_hide_profile_strength", "true");
+        }
+    };
     const [copiedEmail, setCopiedEmail] = useState(false);
     const [editDrawerOpen, setEditDrawerOpen] = useState(false);
     const [editDrawerFocusField, setEditDrawerFocusField] = useState<string | null>(null);
@@ -1523,8 +1803,15 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             </div>
 
             {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
-            {isViewingAsOwner && profileData && (
-                <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6">
+            {isViewingAsOwner && profileData && showProfileStrength && (
+                <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6 relative">
+                    <button 
+                        onClick={handleDismissProfileStrength} 
+                        className="absolute top-3 right-6 z-20 p-1.5 rounded-full bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shadow-sm"
+                        title="Dismiss Strength Bar"
+                    >
+                        <X size={12} />
+                    </button>
                     <ProfileCompletionBar
                         profile={profileData}
                         onEditProfile={handleEditFromCompletion}
@@ -1538,8 +1825,15 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 {/* LEFT SIDEBAR (L-SIDEBAR) — 3 cols */}
                 <div className="lg:col-span-3 space-y-8">
                     {/* Profile Completion Card — Desktop Only */}
-                    {isViewingAsOwner && profileData && (
-                        <div className="hidden lg:block">
+                    {isViewingAsOwner && profileData && showProfileStrength && (
+                        <div className="hidden lg:block relative">
+                            <button 
+                                onClick={handleDismissProfileStrength} 
+                                className="absolute top-5 right-5 z-20 p-1.5 rounded-full bg-white/85 dark:bg-gray-800/80 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shadow-sm"
+                                title="Dismiss Strength Card"
+                            >
+                                <X size={12} />
+                            </button>
                             <ProfileCompletionCard
                                 profile={profileData}
                                 onEditProfile={handleEditFromCompletion}
@@ -1627,6 +1921,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     <div ref={tabsRef} className="sticky top-16 z-40 bg-[#FAFAF8] dark:bg-[#0c0c10] -mx-4 px-4 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-b border-slate-100 dark:border-gray-800 shadow-sm">
                         <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar pb-1">
                             {[
+                                { id: "all", label: "All", icon: Sparkles },
                                 { id: "about", label: "About", icon: Info },
                                 { id: "activity", label: "Activity", icon: Activity },
                                 { id: "skills", label: "Credentials", icon: Award },
@@ -1655,6 +1950,24 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     {/* Tab Panels */}
                     <div className="relative">
                         <AnimatePresence mode="wait">
+                            {activeTab === "all" && (
+                                <AllTab 
+                                    key="all-tab"
+                                    profile={profileData} 
+                                    isTeacher={isTeacher}
+                                    allActivity={allActivity}
+                                    loadingFeed={loadingFeed}
+                                    currentUserProfile={currentUserProfile}
+                                    isViewingAsOwner={isViewingAsOwner}
+                                    handleDeletePost={handleDeletePost}
+                                    handleEditPost={handleEditPost}
+                                    handleDeleteStory={handleDeleteStory}
+                                    handleEditStory={handleEditStory}
+                                    handleDeleteComment={handleDeleteComment}
+                                    user={user}
+                                    router={router}
+                                />
+                            )}
                             {activeTab === "about" && (
                                 <AboutTab key="about-tab" profile={profileData} isTeacher={isTeacher} />
                             )}
@@ -2117,25 +2430,55 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 {/* RIGHT SIDEBAR (R-SIDEBAR) — 3 cols (Desktop Only) */}
                 <div className="hidden lg:col-span-3 lg:block space-y-8 sticky top-32">
                     {/* Achievement Tracker */}
-                    <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 rotate-12"><Shield size={80} /></div>
-                        <h4 className="text-sm font-black uppercase tracking-widest mb-6 text-white/40">Engagement Impact</h4>
+                    <div className="p-8 bg-slate-950 dark:bg-gray-950 border border-slate-900 dark:border-gray-900 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden shadow-primary/5">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 rotate-12 text-primary"><Shield size={100} /></div>
+                        <div className="absolute -top-12 -left-12 w-28 h-28 bg-primary/20 rounded-full blur-3xl opacity-30 pointer-events-none" />
+                        
+                        <div className="flex items-center gap-2 mb-6">
+                            <Sparkles size={16} className="text-primary animate-pulse" />
+                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Engagement Impact</h4>
+                        </div>
+                        
                         <div className="space-y-6">
                             {[
-                                { label: "Total Inspired", value: (profileData as any).totalInspired || 0, color: "bg-red-500", percent: 45 },
-                                { label: "Stories Told", value: userStories.length, color: "bg-blue-500", percent: userStories.length > 0 ? 80 : 10 },
-                                { label: "Network Presence", value: "Founding", color: "bg-emerald-500", percent: 100 }
+                                { 
+                                    label: "Total Inspired", 
+                                    value: (profileData as any)?.totalInspired || 0, 
+                                    gradient: "bg-gradient-to-r from-rose-500 to-orange-500", 
+                                    percent: (profileData as any)?.totalInspired ? Math.min(100, Math.max(10, ((profileData as any).totalInspired * 5))) : 15,
+                                    icon: Sparkles,
+                                    iconColor: "text-rose-500"
+                                },
+                                { 
+                                    label: "Stories Told", 
+                                    value: userStories.length, 
+                                    gradient: "bg-gradient-to-r from-blue-500 to-indigo-500", 
+                                    percent: userStories.length ? Math.min(100, Math.max(10, (userStories.length * 20))) : 10,
+                                    icon: BookOpen,
+                                    iconColor: "text-blue-500"
+                                },
+                                { 
+                                    label: "Network Presence", 
+                                    value: "Founding Member", 
+                                    gradient: "bg-gradient-to-r from-emerald-500 to-teal-500", 
+                                    percent: 100,
+                                    icon: Shield,
+                                    iconColor: "text-emerald-500"
+                                }
                             ].map((impact, i) => (
-                                <div key={i}>
-                                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2">
-                                        <span>{impact.label}</span>
-                                        <span className="text-white/60">{impact.value}</span>
+                                <div key={i} className="space-y-2 group/impact">
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                        <div className="flex items-center gap-2 text-gray-300">
+                                            <impact.icon size={12} className={`${impact.iconColor} group-hover/impact:scale-125 transition-transform`} />
+                                            <span>{impact.label}</span>
+                                        </div>
+                                        <span className="text-white font-bold">{impact.value}</span>
                                     </div>
-                                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden p-[1px]">
                                         <motion.div 
                                             initial={{ width: 0 }}
                                             animate={{ width: `${impact.percent}%` }}
-                                            className={`h-full ${impact.color}`}
+                                            className={`h-full rounded-full ${impact.gradient}`}
                                         />
                                     </div>
                                 </div>

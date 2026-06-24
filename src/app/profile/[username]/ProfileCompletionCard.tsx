@@ -18,7 +18,7 @@ interface FieldDef {
     key: string;
     label: string;
     labelBn: string;
-    icon: ComponentType<{ size?: number; className?: string }>;
+    icon: any;
     category: "essential" | "academic" | "contact" | "enrichment";
     weight: number;
     check: (p: UserProfile) => boolean;

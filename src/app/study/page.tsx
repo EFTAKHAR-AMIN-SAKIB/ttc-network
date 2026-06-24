@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,7 +37,7 @@ function StudyPageContent() {
     const { requireVerification } = useVerifiedAccess();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
-    const [activeCategory, setActiveCategory] = useState<"all" | "notes" | "suggestion" | "books" | "question" | "other">("all");
+    const [activeCategory, setActiveCategory] = useState<string>("all");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [posts, setPosts] = useState<(FirestoreStudyPost & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
@@ -162,9 +162,24 @@ function StudyPageContent() {
         return true;
     });
 
+    const uniqueCategories = useMemo(() => {
+        const cats = filteredPosts
+            .filter(p => p.type === 'material' && p.category)
+            .map(p => p.category!.trim().toLowerCase());
+        
+        // Start with default list to maintain structure and order
+        const defaults = ["notes", "suggestion", "books", "question", "other"];
+        
+        // Deduplicate but keep defaults first
+        const uniqueSet = new Set(defaults);
+        cats.forEach(c => uniqueSet.add(c));
+        
+        return Array.from(uniqueSet);
+    }, [filteredPosts]);
+
     const filteredMaterials = filteredPosts.filter(p => 
         p.type === 'material' && 
-        (activeCategory === 'all' || (p.category || 'notes') === activeCategory) &&
+        (activeCategory === 'all' || (p.category || 'notes').toLowerCase() === activeCategory.toLowerCase()) &&
         (p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
          p.content?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -301,15 +316,26 @@ function StudyPageContent() {
                                                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category:</span>
                                                 <select 
                                                     value={activeCategory}
-                                                    onChange={(e) => setActiveCategory(e.target.value as any)}
+                                                    onChange={(e) => setActiveCategory(e.target.value)}
                                                     className="bg-transparent text-[10px] font-black uppercase tracking-widest text-primary outline-none cursor-pointer font-sans"
                                                 >
                                                     <option value="all" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📖 All ({filteredPosts.filter(p => p.type === 'material').length})</option>
-                                                    <option value="notes" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📝 Notes ({filteredPosts.filter(p => p.type === 'material' && (p.category || 'notes') === 'notes').length})</option>
-                                                    <option value="suggestion" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">💡 Suggestions ({filteredPosts.filter(p => p.type === 'material' && p.category === 'suggestion').length})</option>
-                                                    <option value="books" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📚 Books ({filteredPosts.filter(p => p.type === 'material' && p.category === 'books').length})</option>
-                                                    <option value="question" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">❓ Questions ({filteredPosts.filter(p => p.type === 'material' && p.category === 'question').length})</option>
-                                                    <option value="other" className="bg-[#FDF8F3] dark:bg-[#1a1b23]">📁 Other ({filteredPosts.filter(p => p.type === 'material' && p.category === 'other').length})</option>
+                                                    {uniqueCategories.map(cat => {
+                                                        const count = filteredPosts.filter(p => p.type === 'material' && (p.category || 'notes').toLowerCase() === cat.toLowerCase()).length;
+                                                        let emoji = "📁";
+                                                        if (cat === "notes") emoji = "📝";
+                                                        else if (cat === "suggestion") emoji = "💡";
+                                                        else if (cat === "books") emoji = "📚";
+                                                        else if (cat === "question") emoji = "❓";
+                                                        else if (cat === "other") emoji = "📁";
+                                                        
+                                                        const displayLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+                                                        return (
+                                                            <option key={cat} value={cat} className="bg-[#FDF8F3] dark:bg-[#1a1b23]">
+                                                                {emoji} {displayLabel} ({count})
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
                                             </div>
                                         </div>

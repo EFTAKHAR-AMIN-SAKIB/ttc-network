@@ -30,7 +30,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
     const [description, setDescription] = useState("");
     const [link, setLink] = useState("");
     const [materialType, setMaterialType] = useState<"doc" | "video" | "link">("doc");
-    const [category, setCategory] = useState<"notes" | "suggestion" | "books" | "question" | "other">("notes");
+    const [category, setCategory] = useState<string>("notes");
     const [startTime, setStartTime] = useState("");
     const [privacy, setPrivacy] = useState<"public" | "campus">("public");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +69,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                 setDescription(editPost.content);
                 setLink(editPost.link || "");
                 setMaterialType((editPost.materialType as any) || "doc");
-                setCategory((editPost.category as any) || "notes");
+                setCategory(editPost.category || "notes");
                 
                 // Format startTime for the datetime-local input (yyyy-MM-ddThh:mm)
                 let dateValue = "";
@@ -78,24 +78,22 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                         ? (editPost.startTime as any).toDate() 
                         : new Date(editPost.startTime);
                     if (!isNaN(d.getTime())) {
-                        dateValue = format(d, "yyyy-MM-dd'T'HH:mm");
+                        const tzoffset = d.getTimezoneOffset() * 60000; //offset in milliseconds
+                        const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
+                        dateValue = localISOTime;
                     }
                 }
                 setStartTime(dateValue);
-
-                // Map legacy values
-                const vis = editPost.privacy || (editPost.visibility as any) || "public";
-                setPrivacy(vis === "college_only" ? "campus" : vis === "public" ? "public" : "campus");
-                // Restore existing thumbnail
-                if (editPost.thumbnailUrl) {
-                    setThumbnailPreview(editPost.thumbnailUrl);
-                }
-
-                // Restore R2 file fields
                 if (editPost.fileUrl) {
                     setUploadType("file");
-                } else {
+                } else if (editPost.link) {
                     setUploadType("link");
+                }
+                setPrivacy((editPost.privacy || "public") as any);
+                if (editPost.thumbnailUrl) {
+                    setThumbnailPreview(editPost.thumbnailUrl);
+                } else {
+                    setThumbnailPreview(null);
                 }
                 setSelectedFile(null);
             } else {
@@ -425,7 +423,7 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                                             ))}
                                         </div>
 
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Category</label>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                                 {[
@@ -433,18 +431,42 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                                                     { id: 'suggestion', label: '💡 Suggestion' },
                                                     { id: 'books', label: '📚 Books' },
                                                     { id: 'question', label: '❓ Questions' },
-                                                    { id: 'other', label: '📁 Other' }
-                                                ].map((cat) => (
-                                                    <button
-                                                        key={cat.id}
-                                                        type="button"
-                                                        onClick={() => setCategory(cat.id as any)}
-                                                        className={`py-3.5 px-4 rounded-2xl border-2 text-xs font-black uppercase tracking-wider text-center transition-all duration-200 ${category === cat.id ? 'bg-primary/5 border-primary/20 text-primary scale-[1.02]' : 'bg-gray-50 dark:bg-black/20 border-transparent text-gray-400 hover:bg-gray-100'}`}
-                                                    >
-                                                        {cat.label}
-                                                    </button>
-                                                ))}
+                                                    { id: 'custom', label: '✏️ Custom' }
+                                                ].map((cat) => {
+                                                    const isSelected = cat.id === 'custom' 
+                                                        ? !['notes', 'suggestion', 'books', 'question'].includes(category) 
+                                                        : category === cat.id;
+                                                    return (
+                                                        <button
+                                                            key={cat.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (cat.id === 'custom') {
+                                                                    setCategory("");
+                                                                } else {
+                                                                    setCategory(cat.id);
+                                                                }
+                                                            }}
+                                                            className={`py-3.5 px-4 rounded-2xl border-2 text-xs font-black uppercase tracking-wider text-center transition-all duration-200 ${isSelected ? 'bg-primary/5 border-primary/20 text-primary scale-[1.02]' : 'bg-gray-50 dark:bg-black/20 border-transparent text-gray-400 hover:bg-gray-100'}`}
+                                                        >
+                                                            {cat.label}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
+                                            
+                                            {!['notes', 'suggestion', 'books', 'question'].includes(category) && (
+                                                <div className="relative mt-2">
+                                                    <input 
+                                                        type="text"
+                                                        required={tab === 'material'}
+                                                        placeholder="Enter custom category name (e.g. English, Math)..."
+                                                        value={category}
+                                                        onChange={(e) => setCategory(e.target.value)}
+                                                        className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl px-6 py-4 text-xs font-bold outline-none transition-all shadow-inner"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ) : (

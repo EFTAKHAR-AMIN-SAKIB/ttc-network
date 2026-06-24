@@ -119,7 +119,9 @@ export interface UserProfile {
     role: "student" | "teacher" | "manager" | "super_manager" | "admin";
     roleVerified: boolean;
     collegeId: string;
-    programme?: "BEdHonours" | "MEd"; // B.Ed Honours (4yr) or M.Ed (1-2yr)
+    programme?: string;
+    status?: string;
+    subjects?: string;
     
     // Core Identity
     headline?: string;
