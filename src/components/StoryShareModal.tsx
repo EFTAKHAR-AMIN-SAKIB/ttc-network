@@ -16,14 +16,7 @@ interface StoryShareModalProps {
   editStory?: any | null;
 }
 
-const moods = [
-  { emoji: "🎓", label: "Proud" },
-  { emoji: "💪", label: "Struggling" },
-  { emoji: "✨", label: "Inspired" },
-  { emoji: "🌱", label: "Growing" },
-  { emoji: "🙏", label: "Grateful" },
-  { emoji: "🎯", label: "Focused" },
-];
+
 
 export default function StoryShareModal({ isOpen, onClose, editStory }: StoryShareModalProps) {
   const { user, profile } = useAuth();
@@ -44,19 +37,14 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
 
   // Form State
   const [title, setTitle] = useState("");
-  const [mood, setMood] = useState("Proud 🎓");
   const [content, setContent] = useState("");
-  const [futureGoals, setFutureGoals] = useState("");
   const [oneAdvice, setOneAdvice] = useState("");
   const [visibility, setVisibility] = useState<"public" | "campus">("public");
 
-  // PERSISTENCE LOGIC
   useEffect(() => {
     if (editStory) {
       setTitle(editStory.title || "");
-      setMood(editStory.coverMood || "Proud 🎓");
       setContent(editStory.fullStory || "");
-      setFutureGoals(editStory.futureGoals || "");
       setOneAdvice(editStory.oneAdvice || "");
       setVisibility(editStory.visibility || "public");
       setStep(1);
@@ -70,16 +58,14 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
 
   const saveDraft = () => {
     if (editStory) return; // Don't save drafts when editing
-    const draft = { title, mood, content, futureGoals, oneAdvice, visibility };
+    const draft = { title, content, oneAdvice, visibility };
     localStorage.setItem("ttc_story_draft", JSON.stringify(draft));
   };
 
   const restoreDraft = () => {
     const draft = JSON.parse(localStorage.getItem("ttc_story_draft") || "{}");
     setTitle(draft.title || "");
-    setMood(draft.mood || "Proud 🎓");
     setContent(draft.content || "");
-    setFutureGoals(draft.futureGoals || "");
     setOneAdvice(draft.oneAdvice || "");
     // Map legacy values to new privacy model
     const restoredVis = draft.visibility || "public";
@@ -93,10 +79,9 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
     setShowRestore(false);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (title || content) saveDraft();
-  }, [title, mood, content, futureGoals, oneAdvice, visibility]);
+  }, [title, content, oneAdvice, visibility]);
 
   const handleSubmit = async () => {
     if (!title || !content) {
@@ -111,8 +96,6 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
         title,
         fullStory: content,
         preview: content.slice(0, 200) + (content.length > 200 ? "..." : ""),
-        coverMood: mood,
-        futureGoals,
         oneAdvice,
         visibility,
       };
@@ -179,10 +162,9 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
           <div>
             <h2 className="text-2xl font-black flex items-center gap-2">
               {step === 1 && (editStory ? "Edit Your Story ✨" : "Your Story ✨")}
-              {step === 2 && (editStory ? "Edit Details 🎯" : "The Details 🎯")}
-              {step === 3 && (editStory ? "Preview Changes 👀" : "Final Look 👀")}
+              {step === 2 && (editStory ? "Preview & Publish 👀" : "Preview & Publish 👀")}
             </h2>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-1">Step {step} of 3</p>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-1">Step {step} of 2</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
             <X className="w-6 h-6" />
@@ -209,26 +191,6 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                       className="w-full text-3xl font-black border-none focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-600 bg-transparent"
                     />
                     <div className="h-1 bg-red-100 dark:bg-red-900/30 rounded-full w-24" />
-                </div>
-
-                <div className="space-y-4">
-                  <label className="text-sm font-black text-gray-500 uppercase tracking-widest">Current Mood</label>
-                  <div className="flex flex-wrap gap-2">
-                    {moods.map((m) => (
-                      <button
-                        key={m.label}
-                        onClick={() => setMood(`${m.label} ${m.emoji}`)}
-                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2
-                          ${mood === `${m.label} ${m.emoji}` 
-                            ? "bg-red-50 border-red-500 text-red-600 scale-105" 
-                            : "bg-gray-50 dark:bg-gray-800 border-transparent text-gray-500"
-                          }
-                        `}
-                      >
-                        {m.emoji} {m.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Audience / Visibility */}
@@ -280,30 +242,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Where did it all start? What hurdles did you jump? What victory are you celebrating today?"
-                    className="w-full min-h-[300px] text-lg font-medium leading-relaxed font-bengali border-2 border-gray-100 dark:border-gray-800 focus:border-primary p-6 rounded-[2rem] transition-all bg-white dark:bg-gray-800/10 shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {step === 2 && (
-              <motion.div 
-                key="step2"
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="max-w-2xl mx-auto space-y-12"
-              >
-                <div className="space-y-4">
-                  <label className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    Future Goals (Optional)
-                  </label>
-                  <textarea 
-                    value={futureGoals}
-                    onChange={(e) => setFutureGoals(e.target.value)}
-                    placeholder="Where do you see yourself in 5 years? Which primary school or education policy do you want to touch?"
-                    className="w-full min-h-[120px] text-lg font-medium font-bengali border-2 border-gray-50 dark:border-gray-800 focus:border-emerald-500 p-6 rounded-[2rem] bg-emerald-50/10"
+                    className="w-full min-h-[250px] text-lg font-medium leading-relaxed font-bengali border-2 border-gray-100 dark:border-gray-800 focus:border-primary p-6 rounded-[2rem] transition-all bg-white dark:bg-gray-800/10 shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-600"
                   />
                 </div>
 
@@ -316,32 +255,15 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                     value={oneAdvice}
                     onChange={(e) => setOneAdvice(e.target.value)}
                     placeholder="If you could whisper one lesson to a freshman today, what would it be?"
-                    className="w-full min-h-[120px] text-lg font-medium font-bengali border-2 border-gray-50 dark:border-gray-800 focus:border-amber-500 p-6 rounded-[2rem] bg-amber-50/10 italic"
+                    className="w-full min-h-[120px] text-lg font-medium font-bengali border-2 border-gray-50 dark:border-gray-800 focus:border-amber-500 p-6 rounded-[2rem] bg-amber-50/10 italic placeholder:text-gray-400 dark:placeholder:text-gray-600"
                   />
-                </div>
-
-
-                {/* Audience reminder */}
-                <div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${visibility === "campus" ? "bg-amber-100 dark:bg-amber-500/20 text-amber-500" : "bg-blue-100 dark:bg-blue-500/20 text-blue-500"}`}>
-                    {visibility === "campus" ? <School size={16} /> : <Globe size={16} />}
-                  </div>
-                  <div>
-                    <div className="text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-300">
-                      Sharing {visibility === "campus" ? "with your campus" : "globally"}
-                    </div>
-                    <div className="text-[10px] font-bold text-gray-400">
-                      {visibility === "campus" ? "Only your college community will see this" : "Visible to all TTC campuses"}
-                       — <button type="button" onClick={() => setStep(1)} className="text-primary hover:underline">change</button>
-                    </div>
-                  </div>
                 </div>
               </motion.div>
             )}
 
-            {step === 3 && (
+            {step === 2 && (
               <motion.div 
-                key="step3"
+                key="step2"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className="flex flex-col lg:flex-row gap-12 items-center justify-center p-4"
@@ -352,8 +274,8 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                       Feed Preview
                    </p>
                    <div className="pointer-events-none scale-90 sm:scale-100 origin-top">
-                    {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-                    {/* @ts-ignore */}
+                     {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+                     {/* @ts-ignore */}
                      <StoryCard story={{
                         id: 'preview',
                         title,
@@ -363,7 +285,6 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                         authorPhoto: profile?.photoURL || "",
                         authorRole: (profile?.role as "student" | "teacher" | "graduate") || "student",
                         college: (profile as { college?: string })?.college || "Your College",
-                        coverMood: mood,
                         readingTimeMinutes: Math.max(1, Math.ceil(content.length / 1500)),
                         reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 }
                      }} />
@@ -426,14 +347,20 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
            </button>
 
            <div className="flex gap-2">
-              {[1,2,3].map(i => (
+              {[1,2].map(i => (
                 <div key={i} className={`h-1.5 rounded-full transition-all ${step === i ? "w-8 bg-primary" : "w-1.5 bg-gray-200"}`} />
               ))}
            </div>
 
-           {step < 3 ? (
+           {step < 2 ? (
               <button 
-                onClick={() => setStep(step + 1)}
+                onClick={() => {
+                  if (!title.trim() || !content.trim()) {
+                    showToast("Please fill in the required fields", "error");
+                    return;
+                  }
+                  setStep(step + 1);
+                }}
                 className="px-8 py-3 bg-slate-900 dark:bg-primary text-white rounded-2xl font-black text-sm flex items-center gap-2 active:scale-95 transition-all shadow-xl shadow-slate-900/20 hover:bg-slate-800 dark:hover:bg-red-700"
               >
                 Continue

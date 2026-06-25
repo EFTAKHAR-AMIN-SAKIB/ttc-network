@@ -201,22 +201,7 @@ export default function StoryDetailPage() {
                                 {story.fullStory}
                             </div>
 
-                            {story.futureGoals && (
-                                <div className="relative group mb-8 sm:mb-12">
-                                    <div className="absolute -inset-0.5 sm:-inset-1 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-[1.5rem] sm:rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                                    <div className="relative bg-white dark:bg-emerald-950/10 p-5 sm:p-10 rounded-[1.5rem] sm:rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/40">
-                                        <h3 className="text-emerald-900 dark:text-emerald-400 text-lg sm:text-2xl font-black mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4 tracking-tight">
-                                            <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
-                                                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
-                                            </div>
-                                            Future Goals
-                                        </h3>
-                                        <p className="text-emerald-800 dark:text-emerald-300 font-bengali text-base sm:text-xl leading-relaxed">
-                                            {story.futureGoals}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+
 
                             {story.oneAdvice && (
                                 <div className="relative group mb-8 sm:mb-12">

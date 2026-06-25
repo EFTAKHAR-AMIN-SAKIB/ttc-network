@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, MoreHorizontal, Pin, Trash2, MessageCircle, 
-    AlertTriangle, Check, ShieldAlert, Loader2, Sparkles
+    AlertTriangle, Check, ShieldAlert, Loader2, Sparkles, Pencil
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
-import { CommentSystem } from "@/components/Social/CommentSystem";
+import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { TimeAgo, ExpandableText } from "@/components/Social/SocialUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -16,7 +16,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import { 
     deleteGroupPost, pinGroupPost, voteInPoll, reportGroupPost, 
-    type GroupPostDoc 
+    updateGroupPost, subscribeComments, type GroupPostDoc 
 } from "@/lib/firestore";
 
 interface GroupPostCardProps {
@@ -32,11 +32,51 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const { requireVerification } = useVerifiedAccess();
 
     const [showComments, setShowComments] = useState(false);
+    const [previewComments, setPreviewComments] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!post.id) return;
+        return subscribeComments(post.id, (allComments) => {
+            const rootComments = allComments.filter(c => !c.parentId);
+            const sorted = [...rootComments].sort((a, b) => {
+                const aLikes = a.likes || 0;
+                const bLikes = b.likes || 0;
+                const aReplies = allComments.filter(c => c.parentId === a.id).length;
+                const bReplies = allComments.filter(c => c.parentId === b.id).length;
+                const aScore = aLikes + aReplies * 2;
+                const bScore = bLikes + bReplies * 2;
+                if (aScore !== bScore) return bScore - aScore;
+                const aTime = a.createdAt?.seconds || a.createdAt?.toMillis?.() || 0;
+                const bTime = b.createdAt?.seconds || b.createdAt?.toMillis?.() || 0;
+                return bTime - aTime;
+            });
+            setPreviewComments(sorted.slice(0, 2));
+        });
+    }, [post.id]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [reportReportModalOpen, setReportModalOpen] = useState(false);
     const [reportReason, setReportReason] = useState("");
     const [isReporting, setIsReporting] = useState(false);
     const [isVoting, setIsVoting] = useState<string | null>(null);
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleEditSubmit = async () => {
+        if (!editContent.trim()) return;
+        setIsSaving(true);
+        try {
+            await updateGroupPost(post.id, { content: editContent.trim() });
+            showToast("Post updated successfully", "success");
+            setIsEditing(false);
+        } catch (err) {
+            console.error("Failed to edit post:", err);
+            showToast("Failed to update post.", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const isCreator = user?.uid === post.creatorId;
     const canManage = isCreator || userRole === "admin" || userRole === "moderator";
@@ -138,6 +178,39 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const authorPhoto = post.isAnonymous ? "" : post.creatorPhotoURL;
     const authorRole = post.isAnonymous ? "" : post.creatorRole;
 
+    if (isEditing) {
+        return (
+            <motion.div 
+                layout
+                className="bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4"
+            >
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-405">Edit Group Post</span>
+                </div>
+                <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-xs outline-none focus:ring-1 focus:ring-primary h-28 resize-none text-gray-800 dark:text-gray-200"
+                />
+                <div className="flex items-center justify-end gap-3">
+                    <button
+                        onClick={() => setIsEditing(false)}
+                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleEditSubmit}
+                        disabled={isSaving || !editContent.trim()}
+                        className="px-5 py-2.5 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                    >
+                        {isSaving ? <Loader2 className="animate-spin" size={14} /> : "Save Changes"}
+                    </button>
+                </div>
+            </motion.div>
+        );
+    }
+
     return (
         <motion.div 
             layout
@@ -238,6 +311,19 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                                             >
                                                 <Pin size={14} className={post.isPinned ? "fill-amber-500 stroke-amber-500" : ""} />
                                                 {post.isPinned ? "Unpin Post" : "Pin to Top"}
+                                            </button>
+                                        )}
+                                        {isCreator && (
+                                            <button 
+                                                onClick={() => {
+                                                    setMenuOpen(false);
+                                                    setIsEditing(true);
+                                                    setEditContent(post.content);
+                                                }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs font-bold text-gray-755 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
+                                            >
+                                                <Pencil size={14} />
+                                                Edit Post
                                             </button>
                                         )}
                                         {canManage && (
@@ -363,17 +449,38 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                 </button>
             </div>
 
-            {/* Threaded Comments Section */}
-            {showComments && (
-                <div className="border-t border-gray-50 dark:border-gray-800/30 mt-4 pt-2">
-                    <CommentSystem 
-                        contentId={post.id}
-                        contentType="groupPost"
-                        accentColor="text-primary"
-                        placeholder={isGroupMember ? "Share your perspective inside this group..." : "Join group to comment..."}
-                    />
+            {/* Preview of 1-2 top comments */}
+            {!showComments && previewComments.length > 0 && (
+                <div 
+                    onClick={() => setShowComments(true)}
+                    className="mt-4 p-4 bg-gray-50/50 dark:bg-gray-800/10 hover:bg-gray-50 dark:hover:bg-gray-800/20 border border-gray-100/50 dark:border-gray-800/50 rounded-2xl cursor-pointer transition-all space-y-2 relative z-10 animate-fade-in"
+                >
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1 flex items-center gap-1.5">
+                        <MessageCircle size={12} className="text-primary animate-pulse" /> Top Comments
+                    </p>
+                    <div className="space-y-1.5">
+                        {previewComments.map(c => (
+                            <div key={c.id} className="flex gap-2 text-[11px] leading-relaxed">
+                                <span className="font-black text-gray-900 dark:text-white shrink-0 uppercase tracking-tight">{c.userName}:</span>
+                                <span className="text-gray-600 dark:text-gray-300 line-clamp-1 break-all font-medium">{c.text}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
+
+            {/* Threaded Comments Drawer */}
+            <AnimatePresence>
+                {showComments && (
+                    <CommentDrawer 
+                        isOpen={showComments} 
+                        onClose={() => setShowComments(false)}
+                        contentId={post.id}
+                        contentType="groupPost"
+                        placeholder={isGroupMember ? "Share your perspective inside this group..." : "Join group to comment..."}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Report Reason Dialog */}
             <AnimatePresence>

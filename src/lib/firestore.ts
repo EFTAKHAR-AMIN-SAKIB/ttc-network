@@ -192,7 +192,7 @@ export interface FirestoreStory {
     fullStory: string;
     futureGoals?: string;
     oneAdvice?: string;
-    coverMood: string; // "Proud 🎓", "Struggling 💪", etc.
+    coverMood?: string; // "Proud 🎓", "Struggling 💪", etc.
     readingTimeMinutes: number;
     reactions: { 
         love: number; 
@@ -1623,6 +1623,7 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
 
     const fullStory: Omit<FirestoreStory, "id"> = {
         ...story,
+        coverMood: story.coverMood || "Inspiring ✨",
         authorId: profile.id!,
         authorPhoto: profile.photoURL || "",
         name: profile.displayName,
@@ -3313,6 +3314,25 @@ export function subscribeComments(postId: string, callback: (comments: (Firestor
     });
 }
 
+export function subscribeCommentsWithLimit(
+    postId: string,
+    limitCount: number,
+    callback: (comments: (FirestoreComment & { id: string })[]) => void
+) {
+    const q = query(
+        collection(getDb(), "comments"),
+        where("postId", "==", postId),
+        orderBy("createdAt", "asc"),
+        limit(limitCount)
+    );
+    
+    return safeSubscribe(q, (snap: import("firebase/firestore").QuerySnapshot) => {
+        const comments = snap.docs.map((d: import("firebase/firestore").DocumentSnapshot) => ({ ...(d.data() as FirestoreComment), id: d.id }));
+        callback(comments);
+    });
+}
+
+
 export async function reactToComment(commentId: string, reaction: "love" | "relatable" | "respect" | "cry" | "angry" | "fire" | "insightful" | "clap" | "wow"): Promise<{ added: boolean }> {
     const auth = getAuthInstance();
     const user = auth.currentUser;
@@ -3517,6 +3537,13 @@ export async function getFollowingCount(userId: string): Promise<number> {
     const snap = await getDoc(doc(db, "users", userId));
     return snap.exists() ? (snap.data().followingCount || 0) : 0;
 }
+
+export async function getFollowingUserIds(userId: string): Promise<string[]> {
+    const db = getDb();
+    const snap = await getDocs(collection(db, "users", userId, "following"));
+    return snap.docs.map(doc => doc.id);
+}
+
 
 // ═══════════════════════════════════════════════════
 //  USERNAME AVAILABILITY
@@ -4449,9 +4476,11 @@ export async function createGroup(data: Omit<GroupDoc, "inviteToken" | "creatorI
 // 2. Subscribe to Discover Groups (Public/Private, not secret)
 export function subscribeDiscoverGroups(callback: (groups: (GroupDoc & { id: string })[]) => void) {
     const db = getDb();
-    const q = query(collection(db, "groups"), where("privacyType", "!=", "secret"), orderBy("privacyType"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "groups"), orderBy("createdAt", "desc"));
     return safeSubscribe(q, (snap: any) => {
-        callback(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+        const allGroups = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        const discoverable = allGroups.filter((g: any) => g.privacyType !== "secret");
+        callback(discoverable);
     });
 }
 
@@ -4697,6 +4726,42 @@ export async function deleteGroupPost(postId: string, groupId: string): Promise<
         reportsSnap.docs.forEach(d => batch.delete(d.ref));
         await batch.commit();
     }
+}
+
+// 12.5. Update Group Post
+export async function updateGroupPost(postId: string, updates: Partial<GroupPostDoc>): Promise<void> {
+    const db = getDb();
+    await updateDoc(doc(db, "groupPosts", postId), updates);
+}
+
+// 12.6. Subscribe to Group Feed (posts from joined groups)
+export function subscribeMyGroupFeed(groupIds: string[], callback: (posts: (GroupPostDoc & { id: string })[]) => void) {
+    if (groupIds.length === 0) {
+        callback([]);
+        return () => {};
+    }
+    const db = getDb();
+    
+    // Chunk groupIds if it exceeds 30
+    const chunks: string[][] = [];
+    for (let i = 0; i < groupIds.length; i += 30) {
+        chunks.push(groupIds.slice(i, i + 30));
+    }
+    
+    const q = query(
+        collection(db, "groupPosts"),
+        where("groupId", "in", chunks[0])
+    );
+    
+    return safeSubscribe(q, (snap: any) => {
+        const posts = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        posts.sort((a: any, b: any) => {
+            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+            return tB - tA;
+        });
+        callback(posts);
+    });
 }
 
 // 13. Pin Group Post (Admins/Moderators only)

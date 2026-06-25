@@ -79,9 +79,6 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                      <span className="text-base sm:text-lg font-black text-gray-400">{story.name?.[0]}</span>
                    )}
                  </div>
-                 {story.coverMood && (
-                    <span className="absolute -bottom-1 -right-1 text-sm sm:text-base filter drop-shadow-sm">{story.coverMood.split(" ").pop()}</span>
-                 )}
                </div>
                <div className="min-w-0">
                  <h4 className="text-sm sm:text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>

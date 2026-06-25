@@ -618,12 +618,18 @@ export default function SettingsPage() {
         if (!user?.email) return;
         setForgotLoading(true);
         try {
-            const auth = getAuthInstance();
-            await sendPasswordResetEmail(auth, user.email);
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: user.email }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to send reset email");
+            }
             showToast("Password reset email sent to " + user.email, "success");
-        } catch (err: unknown) {
-            const firebaseError = err as { message?: string };
-            showToast(firebaseError.message || "Failed to send password reset email.", "error");
+        } catch (err: any) {
+            showToast(err.message || "Failed to send password reset email.", "error");
         } finally {
             setForgotLoading(false);
         }

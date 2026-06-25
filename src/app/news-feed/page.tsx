@@ -11,6 +11,7 @@ import { LocationFilterButton } from "@/components/LocationIcons";
 import { 
     subscribePosts, subscribeModerationCount, deletePost, updatePost,
     toggleSavePost, subscribeSavedPosts,
+    subscribeMyGroups, subscribeMyGroupFeed,
     type FirestorePost, getMyClubs, type FirestoreClub
 } from "@/lib/firestore";
 import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
@@ -44,6 +45,95 @@ function NewsFeedInner() {
             setActiveTab(tabParam);
         }
     }, [searchParams]);
+
+    // Timestamps and group states for tab badges
+    const getMs = (ts: any): number => {
+        if (!ts) return 0;
+        if (typeof ts.toDate === "function") return ts.toDate().getTime();
+        if (typeof ts.seconds === "number") return ts.seconds * 1000;
+        if (typeof ts._seconds === "number") return ts._seconds * 1000;
+        return new Date(ts).getTime();
+    };
+
+    const [lastSeenEvent, setLastSeenEvent] = useState<number>(0);
+    const [lastSeenClub, setLastSeenClub] = useState<number>(0);
+    const [lastSeenGroup, setLastSeenGroup] = useState<number>(0);
+    const [myGroups, setMyGroups] = useState<any[]>([]);
+    const [groupPosts, setGroupPosts] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const now = Date.now();
+            const storedEvent = localStorage.getItem("ttc_last_seen_event");
+            const storedClub = localStorage.getItem("ttc_last_seen_club");
+            const storedGroup = localStorage.getItem("ttc_last_seen_group");
+
+            if (!storedEvent) localStorage.setItem("ttc_last_seen_event", now.toString());
+            if (!storedClub) localStorage.setItem("ttc_last_seen_club", now.toString());
+            if (!storedGroup) localStorage.setItem("ttc_last_seen_group", now.toString());
+
+            setLastSeenEvent(Number(storedEvent || now));
+            setLastSeenClub(Number(storedClub || now));
+            setLastSeenGroup(Number(storedGroup || now));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && activeTab) {
+            const now = Date.now();
+            localStorage.setItem(`ttc_last_seen_${activeTab}`, now.toString());
+            if (activeTab === "event") setLastSeenEvent(now);
+            if (activeTab === "club") setLastSeenClub(now);
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (!profile?.uid) return;
+        const unsubGroups = subscribeMyGroups(profile.uid, (groups) => {
+            setMyGroups(groups);
+        });
+        return () => unsubGroups();
+    }, [profile]);
+
+    useEffect(() => {
+        if (myGroups.length === 0) {
+            setGroupPosts([]);
+            return;
+        }
+        const groupIds = myGroups.map(g => g.id);
+        const unsubGroupPosts = subscribeMyGroupFeed(groupIds, (posts) => {
+            setGroupPosts(posts);
+        });
+        return () => unsubGroupPosts();
+    }, [myGroups]);
+
+    const unseenCounts = useMemo(() => {
+        const eventCount = posts.filter(p => (p.type || "event") === "event" && getMs(p.timestamp) > lastSeenEvent).length;
+        const clubCount = posts.filter(p => p.type === "club" && getMs(p.timestamp) > lastSeenClub).length;
+        const groupCount = groupPosts.filter(gp => getMs(gp.createdAt) > lastSeenGroup).length;
+        return {
+            event: activeTab === "event" ? 0 : eventCount,
+            club: activeTab === "club" ? 0 : clubCount,
+            group: groupCount
+        };
+    }, [posts, groupPosts, lastSeenEvent, lastSeenClub, lastSeenGroup, activeTab]);
+
+    const handleTabClick = (tab: string) => {
+        if (tab === "group") {
+            if (typeof window !== "undefined") {
+                localStorage.setItem("ttc_last_seen_group", Date.now().toString());
+            }
+            router.push("/groups");
+        } else {
+            setActiveTab(tab as any);
+            if (typeof window !== "undefined") {
+                const now = Date.now();
+                localStorage.setItem(`ttc_last_seen_${tab}`, now.toString());
+                if (tab === "event") setLastSeenEvent(now);
+                if (tab === "club") setLastSeenClub(now);
+            }
+        }
+    };
     
     // New States
     const [searchQuery, setSearchQuery] = useState("");
@@ -424,21 +514,24 @@ function NewsFeedInner() {
                 {/* Tab Switcher & Activity Pill */}
                 <div className="flex items-center justify-between mb-10">
                     <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-800/50 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-inner">
-                        {["event", "club", "group"].map(tab => (
-                            <button 
-                                key={tab}
-                                onClick={() => {
-                                    if (tab === "group") {
-                                        router.push("/groups");
-                                    } else {
-                                        setActiveTab(tab as any);
-                                    }
-                                }}
-                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all ${activeTab === tab ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xl" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
-                            >
-                                {tab === "event" ? "Global Feed" : tab === "club" ? "College Clubs" : "Groups"}
-                            </button>
-                        ))}
+                        {["event", "club", "group"].map(tab => {
+                            const countKey = tab as keyof typeof unseenCounts;
+                            const badgeCount = unseenCounts[countKey] || 0;
+                            return (
+                                <button 
+                                    key={tab}
+                                    onClick={() => handleTabClick(tab)}
+                                    className={`relative px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all ${activeTab === tab ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xl" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
+                                >
+                                    {tab === "event" ? "Global Feed" : tab === "club" ? "College Clubs" : "Groups"}
+                                    {badgeCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center px-1 animate-pulse shadow-sm">
+                                            {badgeCount}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                     
                     <div className="flex items-center gap-3">
@@ -450,9 +543,6 @@ function NewsFeedInner() {
                                 #{selectedTag} <X size={12} />
                             </button>
                         )}
-                        <div className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-emerald-500/20 shadow-sm">
-                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> {counts[activeTab as keyof typeof counts]} Active {activeTab === "event" ? "Updates" : "Threads"}
-                        </div>
                     </div>
                 </div>
 

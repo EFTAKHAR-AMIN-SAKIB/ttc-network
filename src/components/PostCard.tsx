@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
-import { CommentSystem } from "@/components/Social/CommentSystem";
+import { CommentDrawer } from "@/components/Social/CommentSystem";
+import { subscribeComments } from "@/lib/firestore";
 import { ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
 import ShareModal from "@/components/ShareModal";
 
@@ -145,6 +146,28 @@ export default function PostCard({
     editClubName, setEditClubName, myClubs, editLinkPreview, isFetchingLink
 }: PostCardProps) {
     const [showComments, setShowComments] = useState(false);
+    const [previewComments, setPreviewComments] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!post.id) return;
+        return subscribeComments(post.id, (allComments) => {
+            const rootComments = allComments.filter(c => !c.parentId);
+            const sorted = [...rootComments].sort((a, b) => {
+                const aLikes = a.likes || 0;
+                const bLikes = b.likes || 0;
+                const aReplies = allComments.filter(c => c.parentId === a.id).length;
+                const bReplies = allComments.filter(c => c.parentId === b.id).length;
+                const aScore = aLikes + aReplies * 2;
+                const bScore = bLikes + bReplies * 2;
+                if (aScore !== bScore) return bScore - aScore;
+                const aTime = a.createdAt?.seconds || a.createdAt?.toMillis?.() || 0;
+                const bTime = b.createdAt?.seconds || b.createdAt?.toMillis?.() || 0;
+                return bTime - aTime;
+            });
+            setPreviewComments(sorted.slice(0, 2));
+        });
+    }, [post.id]);
+
     const [showOptions, setShowOptions] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -562,22 +585,35 @@ export default function PostCard({
                 </div>
             </div>
 
-            {/* Comments Section */}
+            {/* Preview of 1-2 top comments */}
+            {!showComments && previewComments.length > 0 && (
+                <div 
+                    onClick={() => setShowComments(true)}
+                    className="mt-6 p-4 bg-gray-50/50 dark:bg-gray-800/10 hover:bg-gray-50 dark:hover:bg-gray-800/20 border border-gray-100/50 dark:border-gray-800/50 rounded-2xl cursor-pointer transition-all space-y-2 relative z-10 animate-fade-in"
+                >
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1 flex items-center gap-1.5">
+                        <MessageCircle size={12} className="text-primary animate-pulse" /> Top Comments
+                    </p>
+                    <div className="space-y-1.5">
+                        {previewComments.map(c => (
+                            <div key={c.id} className="flex gap-2 text-[11px] leading-relaxed">
+                                <span className="font-black text-gray-900 dark:text-white shrink-0 uppercase tracking-tight">{c.userName}:</span>
+                                <span className="text-gray-600 dark:text-gray-300 line-clamp-1 break-all font-medium">{c.text}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Comment Drawer Overlay */}
             <AnimatePresence>
                 {showComments && (
-                    <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="mt-6 pt-6 border-t border-gray-50 dark:border-gray-800">
-                            <CommentSystem 
-                                contentId={post.id} 
-                                contentType="post" 
-                            />
-                        </div>
-                    </motion.div>
+                    <CommentDrawer 
+                        isOpen={showComments} 
+                        onClose={() => setShowComments(false)}
+                        contentId={post.id}
+                        contentType="post"
+                    />
                 )}
             </AnimatePresence>
 
