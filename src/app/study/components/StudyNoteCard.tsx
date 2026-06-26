@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2, Download, Bookmark, Share2 } from "lucide-react";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
-import { CommentSystem } from "@/components/Social/CommentSystem";
+import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -217,10 +217,13 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                             )}
                             <button 
                                 onClick={() => setShowComments(!showComments)}
-                                className={`p-2.5 rounded-xl transition-all ${showComments ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-400 hover:bg-gray-100'}`}
+                                className={`flex items-center gap-2 group/btn transition-colors ${showComments ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                                 title="Comments"
                             >
-                                <MessageSquare size={18} />
+                                <div className={`p-2 rounded-xl transition-colors ${showComments ? 'bg-primary/10' : 'bg-gray-50 dark:bg-white/5 group-hover/btn:bg-primary/10'}`}>
+                                    <MessageSquare size={18} className={showComments ? 'fill-primary' : 'group-hover/btn:fill-primary/20'} />
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest">{post.commentsCount || 0}</span>
                             </button>
                             <motion.a 
                                 href={post.fileUrl || post.link} 
@@ -263,23 +266,17 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                         </div>
                     </div>
 
-                    <AnimatePresence>
-                        {showComments && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden bg-gray-50/50 dark:bg-black/20 rounded-2xl"
-                            >
-                                <div className="p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
-                                    <CommentSystem 
-                                        contentId={post.id} 
-                                        contentType="study" 
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+            {/* Comment Drawer Overlay */}
+            <AnimatePresence>
+                {showComments && (
+                    <CommentDrawer 
+                        isOpen={showComments} 
+                        onClose={() => setShowComments(false)}
+                        contentId={post.id}
+                        contentType="study"
+                    />
+                )}
+            </AnimatePresence>
                 </div>
             </div>
             

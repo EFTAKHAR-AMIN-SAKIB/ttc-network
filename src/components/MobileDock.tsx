@@ -18,10 +18,7 @@ const dockLinks = [
 export default function MobileDock() {
     const pathname = usePathname();
 
-    // Hide the global dock on pages that have their own mobile navigation (e.g., college-info)
-    if (pathname.startsWith("/college-info")) {
-        return null;
-    }
+
 
     return (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe">

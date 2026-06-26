@@ -234,95 +234,99 @@ export function CommentSystem({
             </div>
 
             {/* Input Wrapper */}
-            <div className={`mb-8 p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
-                isFocused 
-                    ? 'border-primary/40 shadow-lg shadow-primary/5 dark:border-primary/30' 
-                    : 'border-slate-100 dark:border-gray-850'
-            }`}>
-                {user ? (
-                    <form onSubmit={handleSubmit}>
-                        <AnimatePresence>
-                            {replyTo && (
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 10 }}
-                                    className="flex items-center justify-between bg-white dark:bg-gray-800 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-700 mb-2"
-                                >
-                                    <div className="flex items-center gap-2 text-[10px] uppercase font-black text-gray-500">
-                                        <Reply size={12} className="text-primary" /> 
-                                        <span>Replying to <span className="text-primary">{replyTo.userName}</span></span>
+            <div className="mb-8">
+                <div className={`p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
+                    isFocused 
+                        ? 'border-primary/45 shadow-lg shadow-primary/5 dark:border-primary/30' 
+                        : 'border-slate-100 dark:border-gray-850'
+                }`}>
+                    {user ? (
+                        <form onSubmit={handleSubmit}>
+                            <AnimatePresence>
+                                {replyTo && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="flex items-center justify-between bg-white dark:bg-gray-850 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-700 mb-2"
+                                    >
+                                        <div className="flex items-center gap-2 text-[10px] uppercase font-black text-gray-500">
+                                            <Reply size={12} className="text-primary" /> 
+                                            <span>Replying to <span className="text-primary">{replyTo.userName}</span></span>
+                                        </div>
+                                        <button type="button" onClick={() => setReplyTo(null)} className="text-[10px] font-black text-gray-400 hover:text-red-500">Cancel</button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            <div className="flex items-end gap-3">
+                                <div className="shrink-0 mb-1">
+                                     <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
+                                         {profile?.photoURL || user?.photoURL ? (
+                                             <img src={profile?.photoURL || user?.photoURL || undefined} alt="" className="w-full h-full object-cover" />
+                                         ) : (
+                                             <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
+                                                 {profile?.displayName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
+                                             </div>
+                                         )}
+                                     </div>
+                                </div>
+                                <div className="flex-1 flex items-end gap-2">
+                                    <div className="flex-1">
+                                        <textarea
+                                            ref={inputRef}
+                                            value={text}
+                                            onChange={(e) => setText(e.target.value)}
+                                            onFocus={() => setIsFocused(true)}
+                                            onBlur={() => setIsFocused(false)}
+                                            placeholder={placeholder}
+                                            className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-300"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    if (window.innerWidth > 640) {
+                                                        e.preventDefault();
+                                                        handleSubmit();
+                                                    }
+                                                }
+                                            }}
+                                        />
                                     </div>
-                                    <button type="button" onClick={() => setReplyTo(null)} className="text-[10px] font-black text-gray-400 hover:text-red-500">Cancel</button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                        <div className="flex items-start gap-3">
-                            <div className="shrink-0 pt-1">
-                                 <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
-                                     {profile?.photoURL || user?.photoURL ? (
-                                         <img src={profile?.photoURL || user?.photoURL || undefined} alt="" className="w-full h-full object-cover" />
-                                     ) : (
-                                         <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
-                                             {profile?.displayName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
-                                         </div>
-                                     )}
-                                 </div>
-                            </div>
-                            <div className="flex-1 relative">
-                                <textarea
-                                    ref={inputRef}
-                                    value={text}
-                                    onChange={(e) => setText(e.target.value)}
-                                    onFocus={() => setIsFocused(true)}
-                                    onBlur={() => setIsFocused(false)}
-                                    placeholder={placeholder}
-                                    className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-300"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            if (window.innerWidth > 640) {
-                                                e.preventDefault();
-                                                handleSubmit();
-                                            }
-                                        }
-                                    }}
-                                />
-                                <div className="flex items-center justify-between mt-2">
-                                    <span className="text-[10px] font-bold text-gray-400">Shift + Enter for new line</span>
                                     <button
                                         type="submit"
                                         disabled={!text.trim() || isSubmitting}
-                                        className={`p-2 rounded-xl transition-all ${
-                                            text.trim() ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                                        className={`p-2.5 rounded-xl transition-all shrink-0 mb-1 ${
+                                            text.trim() ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
                                         } disabled:opacity-50`}
                                     >
-                                        <Send size={16} className={isSubmitting ? 'animate-pulse' : ''} />
+                                        <Send size={14} className={isSubmitting ? 'animate-pulse' : ''} />
                                     </button>
                                 </div>
                             </div>
+                        </form>
+                    ) : (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 px-3">
+                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                                Want to share your thoughts? Log in or register to join the conversation.
+                            </p>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <Link 
+                                    href="/login" 
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all text-center"
+                                >
+                                    Log In
+                                </Link>
+                                <Link 
+                                    href="/signup" 
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-center border border-gray-200/50 dark:border-gray-700/50"
+                                >
+                                    Register
+                                </Link>
+                            </div>
                         </div>
-                    </form>
-                ) : (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 px-3">
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                            Want to share your thoughts? Log in or register to join the conversation.
-                        </p>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <Link 
-                                href="/login" 
-                                className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all text-center"
-                            >
-                                Log In
-                            </Link>
-                            <Link 
-                                href="/signup" 
-                                className="flex-1 sm:flex-none px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-center border border-gray-200/50 dark:border-gray-700/50"
-                            >
-                                Register
-                            </Link>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
+                <div className="hidden md:flex justify-end mt-1.5 px-4 text-[9px] font-bold text-gray-400">
+                    <span>Shift + Enter for new line</span>
+                </div>
             </div>
 
             {/* Comments List */}
@@ -570,7 +574,7 @@ export function CommentDrawer({
 
     return (
         <Portal>
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+            <div className="fixed inset-0 z-[150] flex items-end md:items-center justify-center p-0 md:p-4">
                 {/* Backdrop */}
                 <motion.div 
                     initial={{ opacity: 0 }}
@@ -696,8 +700,8 @@ export function CommentDrawer({
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
-                                    <div className="flex items-start gap-3">
-                                        <div className="shrink-0 pt-1">
+                                    <div className="flex items-end gap-3">
+                                        <div className="shrink-0 mb-1">
                                              <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
                                                  {profile?.photoURL || user?.photoURL ? (
                                                      <img src={profile?.photoURL || user?.photoURL || undefined} alt="" className="w-full h-full object-cover" />
@@ -708,36 +712,35 @@ export function CommentDrawer({
                                                  )}
                                              </div>
                                         </div>
-                                        <div className="flex-1 relative">
-                                            <textarea
-                                                ref={inputRef}
-                                                value={text}
-                                                onChange={(e) => setText(e.target.value)}
-                                                onFocus={() => setIsFocused(true)}
-                                                onBlur={() => setIsFocused(false)}
-                                                placeholder={placeholder}
-                                                className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[120px] font-medium placeholder:text-gray-400 dark:text-gray-300"
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        if (window.innerWidth > 640) {
-                                                            e.preventDefault();
-                                                            handleSubmit();
+                                        <div className="flex-1 flex items-end gap-2">
+                                            <div className="flex-1">
+                                                <textarea
+                                                    ref={inputRef}
+                                                    value={text}
+                                                    onChange={(e) => setText(e.target.value)}
+                                                    onFocus={() => setIsFocused(true)}
+                                                    onBlur={() => setIsFocused(false)}
+                                                    placeholder={placeholder}
+                                                    className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[120px] font-medium placeholder:text-gray-400 dark:text-gray-300"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            if (window.innerWidth > 640) {
+                                                                e.preventDefault();
+                                                                handleSubmit();
+                                                            }
                                                         }
-                                                    }
-                                                }}
-                                            />
-                                            <div className="flex items-center justify-between mt-1">
-                                                <span className="text-[9px] font-bold text-gray-400">Shift + Enter for new line</span>
-                                                <button
-                                                    type="submit"
-                                                    disabled={!text.trim() || isSubmitting}
-                                                    className={`p-2 rounded-xl transition-all ${
-                                                        text.trim() ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                                                    } disabled:opacity-50`}
-                                                >
-                                                    <Send size={14} className={isSubmitting ? 'animate-pulse' : ''} />
-                                                </button>
+                                                    }}
+                                                />
                                             </div>
+                                            <button
+                                                type="submit"
+                                                disabled={!text.trim() || isSubmitting}
+                                                className={`p-2.5 rounded-xl transition-all shrink-0 mb-1 ${
+                                                    text.trim() ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                                                } disabled:opacity-50`}
+                                            >
+                                                <Send size={14} className={isSubmitting ? 'animate-pulse' : ''} />
+                                            </button>
                                         </div>
                                     </div>
                                 </form>
@@ -762,6 +765,9 @@ export function CommentDrawer({
                                     </div>
                                 </div>
                             )}
+                        </div>
+                        <div className="hidden md:flex justify-end mt-1.5 px-4 text-[9px] font-bold text-gray-400">
+                            <span>Shift + Enter for new line</span>
                         </div>
                     </div>
                 </motion.div>

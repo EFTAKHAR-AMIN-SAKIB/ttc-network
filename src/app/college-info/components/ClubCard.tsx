@@ -19,6 +19,8 @@ const categoryColors = {
 };
 
 export default function ClubCard({ club, onClick }: ClubCardProps) {
+    const [bannerError, setBannerError] = React.useState(false);
+    const [logoError, setLogoError] = React.useState(false);
     const colorClass = categoryColors[club.category || "Other"];
 
     return (
@@ -27,9 +29,15 @@ export default function ClubCard({ club, onClick }: ClubCardProps) {
             className="group relative bg-white dark:bg-[#161620] rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer"
         >
             {/* Top Pattern / Accent or Banner */}
-            {club.bannerUrl ? (
+            {club.bannerUrl && !bannerError ? (
                 <div className="h-20 w-full relative">
-                    <Image src={club.bannerUrl} alt="Banner" fill className="object-cover opacity-90" />
+                    <Image 
+                        src={club.bannerUrl} 
+                        alt="Banner" 
+                        fill 
+                        className="object-cover opacity-90" 
+                        onError={() => setBannerError(true)}
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
             ) : (
@@ -39,8 +47,15 @@ export default function ClubCard({ club, onClick }: ClubCardProps) {
             <div className="p-5">
                 <div className="flex items-start justify-between mb-4">
                     <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform duration-300`}>
-                        {club.logo ? (
-                            <Image src={club.logo} alt={club.name} width={40} height={40} className="object-cover rounded-xl" />
+                        {club.logo && !logoError ? (
+                            <Image 
+                                src={club.logo} 
+                                alt={club.name} 
+                                width={40} 
+                                height={40} 
+                                className="object-cover rounded-xl" 
+                                onError={() => setLogoError(true)}
+                            />
                         ) : (
                             <span>{club.icon || "🎯"}</span>
                         )}

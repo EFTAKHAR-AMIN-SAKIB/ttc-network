@@ -6,7 +6,7 @@ import { Video, Calendar, Clock, User, Link as LinkIcon, AlertCircle, Pencil, Gl
 import Link from "next/link";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
-import { CommentSystem } from "@/components/Social/CommentSystem";
+import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { format, isAfter, isBefore, addHours, parseISO } from "date-fns";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
@@ -273,22 +273,17 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                     </div>
                 </div>
 
-                {/* Comments Section */}
-                <AnimatePresence>
-                    {showComments && (
-                        <motion.div 
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mt-8 pt-8 border-t border-gray-50 dark:border-gray-800"
-                        >
-                            <CommentSystem 
-                                contentId={post.id} 
-                                contentType="study" 
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+            {/* Comment Drawer Overlay */}
+            <AnimatePresence>
+                {showComments && (
+                    <CommentDrawer 
+                        isOpen={showComments} 
+                        onClose={() => setShowComments(false)}
+                        contentId={post.id}
+                        contentType="study"
+                    />
+                )}
+            </AnimatePresence>
             </div>
         </motion.div>
     );

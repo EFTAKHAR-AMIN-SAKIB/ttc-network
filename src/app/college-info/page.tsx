@@ -870,7 +870,7 @@ function CollegeInfoInner() {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 py-6">
-                <div className="flex flex-col lg:flex-row gap-8 items-start">
+                <div className="flex flex-col lg:flex-row gap-8 items-stretch lg:items-start">
 
                     {/* ─── Desktop Sidebar ─── */}
                     <aside className="hidden lg:flex flex-col w-80 bg-white dark:bg-[#0C0C10] border border-gray-100 dark:border-gray-800/50 rounded-3xl sticky top-24 h-[calc(100vh-120px)] overflow-hidden shadow-sm dark:shadow-black/20">
@@ -956,10 +956,9 @@ function CollegeInfoInner() {
                     </aside>
 
                     {/* ─── Main Content ─── */}
-                    {/* ─── Main Content ─── */}
-                    <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden relative" ref={contentRef}>
+                    <main className="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden relative" ref={contentRef}>
                         {/* ─── Mobile Header & College Switcher Trigger ─── */}
-                        <div className="lg:hidden sticky top-0 z-[40] bg-white/90 dark:bg-black/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-3 mb-4 -mx-4 flex items-center justify-between">
+                        <div className="lg:hidden sticky top-[64px] z-[40] bg-white/90 dark:bg-black/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-3 mb-4 -mx-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-[#161620] border border-gray-200 dark:border-gray-800 flex items-center justify-center shadow-sm overflow-hidden">
                                     {selectedCollege.hasLogo ? <Image src={selectedCollege.logo} alt="" width={24} height={24} className="object-contain" /> : <School size={16} className="text-gray-400" />}
@@ -1048,8 +1047,10 @@ function CollegeInfoInner() {
                                     </div>
                                 </div>
 
-                                {/* Majestic About Institution */}
-                                <div className="px-3 sm:px-6 py-4 sm:py-8 sm:p-10 bg-white dark:bg-[#161620] border-t border-gray-100 dark:border-white/5 relative group/about">
+
+
+                                {/* Majestic About Institution (Desktop Only) */}
+                                <div className="hidden lg:block px-3 sm:px-6 py-4 sm:py-8 sm:p-10 bg-white dark:bg-[#161620] border-t border-gray-100 dark:border-white/5 relative group/about">
                                     <div className="flex items-center justify-between mb-4 relative">
                                         <div className="flex items-center gap-3">
                                             <div className="h-8 w-1.5 bg-primary rounded-full shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
@@ -1087,6 +1088,39 @@ function CollegeInfoInner() {
                                     )}
                                 </div>
                             </section>
+
+                            {/* ─── Mobile Sticky Tab Navigation ─── */}
+                            <div className="lg:hidden sticky top-[124px] z-[39] bg-white/95 dark:bg-[#161620]/95 backdrop-blur-2xl border-y border-gray-100 dark:border-white/5 px-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)] -mx-4 overflow-x-auto no-scrollbar">
+                                <div className="flex items-center justify-around py-3 w-full px-2">
+                                    {[
+                                        { id: 'overview', label: 'Overview', icon: BookOpen },
+                                        { id: 'faculty', label: 'Faculty', icon: Users },
+                                        { id: 'clubs', label: 'Clubs', icon: Trophy },
+                                        { id: 'gallery', label: 'Gallery', icon: ImageIcon },
+                                    ].map((tab) => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => {
+                                                setActiveTab(tab.id as any);
+                                            }}
+                                            className={`relative flex items-center gap-2 py-1.5 px-1 transition-all text-[11px] font-black uppercase tracking-wider whitespace-nowrap ${activeTab === tab.id
+                                                    ? "text-primary"
+                                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                                }`}
+                                        >
+                                            <tab.icon size={13} className={`transition-all duration-300 ${activeTab === tab.id ? "text-primary scale-110" : "opacity-40"}`} />
+                                            {tab.label}
+                                            {activeTab === tab.id && (
+                                                <motion.div
+                                                    layoutId="activeTabIndicatorMobile"
+                                                    className="absolute bottom-[-13px] left-0 right-0 h-1 bg-primary rounded-t-full shadow-[0_-2px_10px_rgba(var(--primary-rgb),0.5)]"
+                                                    transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                                                />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
                             {/* ─── Premium Sticky Tab Navigation (Desktop Only) ─── */}
                             <div className="hidden lg:block sticky top-0 z-[48] bg-white/95 dark:bg-[#161620]/95 backdrop-blur-2xl border-b border-gray-100 dark:border-white/5 px-10 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)]">
@@ -1131,6 +1165,45 @@ function CollegeInfoInner() {
 
                                     {activeTab === 'overview' && (
                                         <div className="space-y-4 sm:space-y-8 w-full max-w-full flex-1 min-w-0">
+                                            {/* Majestic About Institution (Mobile Only) */}
+                                            <div className="lg:hidden px-3 py-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-white/5 relative group/about">
+                                                <div className="flex items-center justify-between mb-4 relative">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-8 w-1.5 bg-primary rounded-full shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
+                                                        <h3 className="text-[12px] font-black text-gray-900 dark:text-white uppercase tracking-[0.3em]">About Institution</h3>
+                                                    </div>
+                                                    {permissions.allowed && editingSection !== "description" && (
+                                                        <button
+                                                            onClick={() => handleEditStart("description", { description: selectedCollege.description })}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <Pencil size={13} /> <span>Edit</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {editingSection === "description" ? (
+                                                    <div className="mt-4 space-y-4">
+                                                        <textarea
+                                                            value={editForm.description || ""}
+                                                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                                            className="w-full text-base bg-gray-50 dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 min-h-[150px] text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                                                            placeholder="Enter majestic description..."
+                                                        />
+                                                        <div className="flex gap-3">
+                                                            <button onClick={() => handleEditSave("description")} className="px-6 py-2.5 bg-primary text-white font-black rounded-xl text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95">
+                                                                {savingSection === "description" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Updates
+                                                            </button>
+                                                            <button onClick={() => setEditingSection(null)} className="px-6 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-500 font-black rounded-xl text-[10px] uppercase tracking-widest">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="font-bengali tracking-normal text-[13px] text-gray-600 dark:text-gray-400 leading-relaxed font-medium italic !whitespace-normal !break-words [overflow-wrap:anywhere]">
+                                                        &ldquo;{selectedCollege.description}&rdquo;
+                                                    </p>
+                                                )}
+                                            </div>
+
                                             {/* Key Statistics Grid */}
                                             <div className="relative">
                                                 <div className="flex items-center justify-between mb-3 sm:mb-6 relative">
@@ -1411,9 +1484,9 @@ function CollegeInfoInner() {
                                     )}
 
                                     {activeTab === 'faculty' && (
-                                        <div className="bg-white dark:bg-[#161620] rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 border border-gray-100 dark:border-white/10 shadow-sm dark:shadow-black/20 min-h-[300px]">
+                                        <div className="bg-transparent dark:bg-transparent rounded-none p-0 border-transparent dark:border-transparent shadow-none dark:shadow-none min-h-[300px] lg:bg-white lg:dark:bg-[#161620] lg:rounded-[2rem] lg:p-6 lg:border lg:border-gray-100 lg:dark:border-white/10 lg:shadow-sm lg:dark:shadow-black/20 mt-4 lg:mt-0">
                                             {/* Faculty Header */}
-                                            <div className="flex items-center justify-between mb-4 sm:mb-6 relative">
+                                            <div className="flex items-center justify-between mb-4 sm:mb-6 relative px-1 sm:px-0">
                                                 <h3 className="text-xs sm:text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2 sm:gap-3">
                                                     <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-primary/10 flex items-center justify-center"><Users size={12} className="text-primary sm:w-[14px] sm:h-[14px]" /></div>
                                                     Faculty Members
@@ -1516,8 +1589,8 @@ function CollegeInfoInner() {
                                     )}
 
                                     {activeTab === 'clubs' && (
-                                        <div className="bg-white dark:bg-[#161620] rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 border border-gray-100 dark:border-white/10 shadow-sm dark:shadow-black/20 min-h-[300px]">
-                                            <div className="flex items-center justify-between mb-4 sm:mb-6">
+                                        <div className="bg-transparent dark:bg-transparent rounded-none p-0 border-transparent dark:border-transparent shadow-none dark:shadow-none min-h-[300px] lg:bg-white lg:dark:bg-[#161620] lg:rounded-[2rem] lg:p-6 lg:border lg:border-gray-100 lg:dark:border-white/10 lg:shadow-sm lg:dark:shadow-black/20 mt-4 lg:mt-0">
+                                            <div className="flex items-center justify-between mb-4 sm:mb-6 px-1 sm:px-0">
                                                 <h3 className="text-xs sm:text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2 sm:gap-3">
                                                     <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-primary/10 flex items-center justify-center"><Trophy size={12} className="text-primary sm:w-[14px] sm:h-[14px]" /></div>
                                                     Active Clubs
@@ -1554,8 +1627,8 @@ function CollegeInfoInner() {
                                     )}
 
                                     {activeTab === 'gallery' && (
-                                        <div className="bg-white dark:bg-[#161620] rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 border border-gray-100 dark:border-gray-800/50 shadow-sm dark:shadow-black/20 min-h-[300px]">
-                                            <div className="flex items-center justify-between mb-4 sm:mb-8">
+                                        <div className="bg-transparent dark:bg-transparent rounded-none p-0 border-transparent dark:border-transparent shadow-none dark:shadow-none min-h-[300px] lg:bg-white lg:dark:bg-[#161620] lg:rounded-[2rem] lg:p-6 lg:border lg:border-gray-100 lg:dark:border-white/10 lg:shadow-sm lg:dark:shadow-black/20 mt-4 lg:mt-0">
+                                            <div className="flex items-center justify-between mb-4 sm:mb-8 px-1 sm:px-0">
                                                 <div>
                                                     <h3 className="text-xs sm:text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2 sm:gap-3">
                                                         <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-primary/10 flex items-center justify-center"><ImageIcon size={12} className="text-primary sm:w-[14px] sm:h-[14px]" /></div>
@@ -1716,33 +1789,7 @@ function CollegeInfoInner() {
                         </div>
                     </main>
 
-                    {/* ─── Mobile Sticky Bottom Navigation ─── */}
-                    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-black/95 backdrop-blur-2xl border-t border-gray-100 dark:border-white/10 pb-safe z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-                        <div className="flex items-center justify-around px-2 py-3">
-                            {[
-                                { id: 'overview', label: 'Overview', icon: BookOpen },
-                                { id: 'faculty', label: 'Faculty', icon: Users },
-                                { id: 'clubs', label: 'Clubs', icon: Trophy },
-                                { id: 'gallery', label: 'Gallery', icon: ImageIcon },
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => {
-                                        setActiveTab(tab.id as any);
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                    }}
-                                    className={`relative flex flex-col items-center gap-1.5 p-2 w-16 transition-all ${activeTab === tab.id ? "text-primary" : "text-gray-400 dark:text-gray-500"
-                                        }`}
-                                >
-                                    <tab.icon size={20} className={`transition-all duration-300 ${activeTab === tab.id ? "scale-110" : ""}`} />
-                                    <span className="text-[9px] font-black uppercase tracking-wider">{tab.label}</span>
-                                    {activeTab === tab.id && (
-                                        <motion.div layoutId="mobileTabIndicator" className="absolute top-0 w-8 h-1 bg-primary rounded-b-full shadow-[0_2px_10px_rgba(var(--primary-rgb),0.5)]" />
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+
                 </div>
             </div>
 
