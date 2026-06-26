@@ -12,7 +12,7 @@ import { useVerifiedAccess } from "@/contexts/VerificationContext";
 export const REACTION_TYPES = [
     { type: "love", icon: "❤️", label: "Love", color: "text-red-500", bg: "bg-red-50 dark:bg-red-950/30" },
     { type: "relatable", icon: "🤝", label: "Relatable", color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-950/30" },
-    { type: "respect", icon: "🫡", label: "Respect", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30" },
+    { type: "respect", icon: "😂", label: "Haha", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/30" },
     { type: "cry", icon: "😢", label: "Cry", color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-950/30" },
     { type: "angry", icon: "😡", label: "Angry", color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30" },
 ] as const;

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Plus, X, Shield, Sparkles, Loader2, Trash2
+    Plus, X, Shield, Loader2
 } from "lucide-react";
 import { colleges } from "@/data/colleges";
 import { LocationFilterButton } from "@/components/LocationIcons";
@@ -461,35 +461,6 @@ function NewsFeedInner() {
                         Every college has a story worth sharing. Post your events, achievements, and activities — and inspire every TTC across Bangladesh to do the same.
                     </p>
 
-                    {/* Deterministic Daily Prompt */}
-                    <div className="bg-gray-50 dark:bg-black/20 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                            <Sparkles size={20} />
-                        </div>
-                        <div className="overflow-hidden h-5 flex-1 relative">
-                            <AnimatePresence mode="wait">
-                                <motion.p 
-                                    key={new Date().getDay()}
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    className="text-xs font-bold text-gray-600 dark:text-gray-400 italic"
-                                >
-                                    {[
-                                        "What's one thing your students taught you today? 🍎",
-                                        "Share a small win that made your campus life better this week. ✨",
-                                        "If your college had a theme song, what would it be? 🎵",
-                                        "Shoutout to the colleague who always has your back! 🤝",
-                                        "What's the best teaching advice you've ever received? 📖",
-                                        "Describe your college campus in exactly three words. 🏫",
-                                        "What are you building for your students this semester? 🛠️",
-                                        "Share a photo that captures the soul of your campus. 📸",
-                                        "Who was the most inspiring person you met today? 🌟",
-                                        "What's one feature you wish we had on TTC Network? 💡"
-                                    ][(Math.floor(Date.now() / (1000 * 60 * 60 * 24))) % 10]}
-                                </motion.p>
-                            </AnimatePresence>
-                        </div>
-                    </div>
                 </div>
             </header>
 

@@ -17,15 +17,15 @@ interface ReactionViewerModalProps {
 const REACTION_CONFIG: Record<string, { emoji: string, label: string, color: string }> = {
     love: { emoji: "❤️", label: "Love", color: "text-red-500" },
     relatable: { emoji: "🤝", label: "Relatable", color: "text-purple-500" },
-    respect: { emoji: "🫡", label: "Respect", color: "text-blue-500" },
+    respect: { emoji: "😂", label: "Haha", color: "text-amber-500" },
     cry: { emoji: "😢", label: "Cry", color: "text-cyan-500" },
     angry: { emoji: "😡", label: "Angry", color: "text-orange-500" },
     // Legacy backward-compat
     inspired: { emoji: "❤️", label: "Love", color: "text-red-500" },
     fire: { emoji: "😡", label: "Angry", color: "text-orange-500" },
     powerful: { emoji: "😡", label: "Angry", color: "text-orange-500" },
-    insightful: { emoji: "🫡", label: "Respect", color: "text-blue-500" },
-    clap: { emoji: "🫡", label: "Respect", color: "text-blue-500" },
+    insightful: { emoji: "😂", label: "Haha", color: "text-amber-500" },
+    clap: { emoji: "😂", label: "Haha", color: "text-amber-500" },
     wow: { emoji: "🤝", label: "Relatable", color: "text-purple-500" },
 };
 
