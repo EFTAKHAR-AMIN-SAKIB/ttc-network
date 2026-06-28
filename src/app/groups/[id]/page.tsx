@@ -17,6 +17,7 @@ import {
 import GroupPostCard from "@/components/GroupPostCard";
 import GroupPostCreationModal from "@/components/GroupPostCreationModal";
 import GroupModerationPanel from "@/components/GroupModerationPanel";
+import InviteModal from "@/components/InviteModal";
 import { TimeAgo } from "@/components/Social/SocialUtils";
 
 interface GroupPageProps {
@@ -47,6 +48,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     const [isModPanelOpen, setIsModPanelOpen] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
     const [leaveDropdownOpen, setLeaveDropdownOpen] = useState(false);
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
     const isMember = !!myMemberRecord;
     const userRole = myMemberRecord ? myMemberRecord.role : null;
@@ -303,6 +305,12 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                             {isMember ? (
                                 <div className="flex items-center gap-2">
                                     <button 
+                                        onClick={() => setIsInviteModalOpen(true)}
+                                        className="px-5 py-3 bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all flex items-center gap-1.5 shadow-md shadow-indigo-500/20"
+                                    >
+                                        <Plus size={12} className="stroke-[2.5]" /> Invite
+                                    </button>
+                                    <button 
                                         onClick={() => setLeaveDropdownOpen(!leaveDropdownOpen)}
                                         className="px-5 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all flex items-center gap-1"
                                     >
@@ -544,10 +552,10 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                                                 <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">Copy and share to invite fellow campus peers.</p>
                                             </div>
                                             <button 
-                                                onClick={copyInviteLink}
+                                                onClick={() => setIsInviteModalOpen(true)}
                                                 className="px-4 py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
                                             >
-                                                <Clipboard size={14} /> Copy Invite Link
+                                                <Users size={14} /> Invite Peers
                                             </button>
                                         </div>
                                     )}
@@ -611,6 +619,16 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                 groupId={groupId}
                 groupName={group.name}
                 currentUserRole={userRole}
+            />
+
+            {/* Invite Modal */}
+            <InviteModal 
+                isOpen={isInviteModalOpen}
+                onClose={() => setIsInviteModalOpen(false)}
+                groupId={groupId}
+                groupName={group?.name || ""}
+                groupMembers={groupMembersList}
+                inviteToken={group?.inviteToken || ""}
             />
 
         </div>

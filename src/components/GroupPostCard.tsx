@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, MoreHorizontal, Pin, Trash2, MessageCircle, 
-    AlertTriangle, Check, ShieldAlert, Loader2, Sparkles, Pencil
+    AlertTriangle, Check, ShieldAlert, Loader2, Sparkles, Pencil,
+    Globe, Lock
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
@@ -13,11 +14,24 @@ import { TimeAgo, ExpandableText } from "@/components/Social/SocialUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
-import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import { 
     deleteGroupPost, pinGroupPost, voteInPoll, reportGroupPost, 
-    updateGroupPost, subscribeComments, type GroupPostDoc 
+    updateGroupPost, subscribeComments, type GroupPostDoc,
+    subscribeGroupDetails
 } from "@/lib/firestore";
+
+const gradients = [
+    "from-blue-600 to-indigo-600",
+    "from-emerald-600 to-teal-600",
+    "from-purple-600 to-pink-600",
+    "from-rose-600 to-orange-600",
+    "from-cyan-600 to-blue-600"
+];
+
+const getGroupGradient = (name: string) => {
+    const charCode = name?.charCodeAt(0) || 0;
+    return gradients[charCode % gradients.length];
+};
 
 interface GroupPostCardProps {
     post: GroupPostDoc & { id: string };
@@ -26,11 +40,9 @@ interface GroupPostCardProps {
 }
 
 export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPostCardProps) {
-    const { user, profile } = useAuth();
+    const { user } = useAuth();
     const { confirm, setIsLoading, close } = useConfirm();
     const { showToast } = useToast();
-    const { requireVerification } = useVerifiedAccess();
-
     const [showComments, setShowComments] = useState(false);
     const [previewComments, setPreviewComments] = useState<any[]>([]);
 
@@ -59,6 +71,15 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const [isReporting, setIsReporting] = useState(false);
     const [isVoting, setIsVoting] = useState<string | null>(null);
 
+    const [groupDetails, setGroupDetails] = useState<any>(null);
+
+    useEffect(() => {
+        if (!post.groupId) return;
+        return subscribeGroupDetails(post.groupId, (data) => {
+            setGroupDetails(data);
+        });
+    }, [post.groupId]);
+
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState("");
     const [isSaving, setIsSaving] = useState(false);
@@ -80,8 +101,6 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
 
     const isCreator = user?.uid === post.creatorId;
     const canManage = isCreator || userRole === "admin" || userRole === "moderator";
-    const isAdmin = userRole === "admin";
-    const isModerator = userRole === "moderator";
 
     // Check if current user voted in poll
     const hasVoted = useMemo(() => {
@@ -230,43 +249,71 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
             {/* Post Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    {post.isAnonymous ? (
-                        <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800/80 border border-gray-200/50 dark:border-gray-700/50 flex items-center justify-center text-gray-400 dark:text-gray-500">
-                            🎭
-                        </div>
-                    ) : (
-                        <Link href={`/profile/${post.creatorId}`} className="group">
-                            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 group-hover:scale-105 transition-transform duration-300">
-                                {authorPhoto ? (
-                                    <img src={authorPhoto} alt={authorName} className="w-full h-full object-cover" />
+                    {/* Overlapping Avatars (Facebook style) */}
+                    <div className="relative w-12 h-12 shrink-0">
+                        {/* Group Cover Avatar */}
+                        <Link href={`/groups/${post.groupId}`}>
+                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 shadow-sm hover:scale-[1.03] transition-transform duration-300">
+                                {groupDetails?.coverUrl ? (
+                                    <img src={groupDetails.coverUrl} alt={post.groupName} className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500 bg-primary/10 text-primary">
-                                        {authorName[0]}
+                                    <div className={`w-full h-full bg-gradient-to-br ${getGroupGradient(post.groupName)} flex items-center justify-center text-xs font-black text-white uppercase`}>
+                                        {post.groupName.slice(0, 2)}
                                     </div>
                                 )}
                             </div>
                         </Link>
-                    )}
+
+                        {/* Overlapping User Avatar */}
+                        {post.isAnonymous ? (
+                            <div 
+                                className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-850 border-2 border-white dark:border-[#1a1b23] flex items-center justify-center text-[10px] shadow-sm"
+                                title="Anonymous Post"
+                            >
+                                🎭
+                            </div>
+                        ) : (
+                            <Link href={`/profile/${post.creatorId}`}>
+                                <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-[#1a1b23] hover:scale-105 transition-transform duration-300 shadow-sm">
+                                    {authorPhoto ? (
+                                        <img src={authorPhoto} alt={authorName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-gray-500 bg-primary/10 text-primary">
+                                            {authorName[0]}
+                                        </div>
+                                    )}
+                                </div>
+                            </Link>
+                        )}
+                    </div>
 
                     {/* Meta */}
-                    <div>
+                    <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link 
+                                href={`/groups/${post.groupId}`} 
+                                className="text-sm font-black text-gray-900 dark:text-white hover:text-primary transition-colors uppercase tracking-tight truncate max-w-[200px] sm:max-w-[320px]"
+                            >
+                                {post.groupName}
+                            </Link>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-0.5 flex-wrap">
                             {post.isAnonymous ? (
-                                <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-1">
-                                    Anonymous Member <span className="text-[10px] text-gray-400 font-normal normal-case italic">(Identity Masked)</span>
+                                <span className="font-bold text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                    Anonymous Member <span className="text-[9px] font-normal italic text-gray-400 dark:text-gray-500 leading-none">(Identity Masked)</span>
                                 </span>
                             ) : (
                                 <Link 
                                     href={`/profile/${post.creatorId}`} 
-                                    className="text-sm font-black text-gray-900 dark:text-white hover:text-primary transition-colors uppercase tracking-tight"
+                                    className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors truncate max-w-[120px] sm:max-w-[180px]"
                                 >
                                     {authorName}
                                 </Link>
                             )}
 
                             {authorRole && (
-                                <span className={`text-[9px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded ${
+                                <span className={`text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded leading-none shrink-0 ${
                                     authorRole === 'admin' || authorRole === 'super_manager' ? 'bg-purple-100 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400' : 
                                     authorRole === 'teacher' ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 
                                     'bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
@@ -274,12 +321,22 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                                     {authorRole}
                                 </span>
                             )}
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-0.5">
-                            <Clock size={12} />
-                            <TimeAgo ts={post.createdAt} />
-                            <span className="mx-1">•</span>
-                            <span className="font-bold text-primary dark:text-primary/80">{post.groupName}</span>
+
+                            <span className="text-gray-300 dark:text-gray-700 font-normal leading-none">•</span>
+                            
+                            <div className="flex items-center gap-1 text-[10px]">
+                                <Clock size={11} className="stroke-[2.5]" />
+                                <TimeAgo ts={post.createdAt} />
+                            </div>
+
+                            <span className="text-gray-300 dark:text-gray-700 font-normal leading-none">•</span>
+                            
+                            {/* Privacy Icon */}
+                            {groupDetails?.privacyType === "public" ? (
+                                <Globe size={11} className="text-gray-400 dark:text-gray-500" title="Public Group" />
+                            ) : (
+                                <Lock size={11} className="text-gray-400 dark:text-gray-500" title="Private Group" />
+                            )}
                         </div>
                     </div>
                 </div>

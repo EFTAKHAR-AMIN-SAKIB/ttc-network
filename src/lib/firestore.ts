@@ -554,7 +554,8 @@ export interface FirestoreNotification {
     | "mention"
     | "reply"
     | "club_post_request"
-    | "club_post_approved";
+    | "club_post_approved"
+    | "group_invite";
     message: string;
     relatedId: string;
     relatedType: string;
@@ -2260,6 +2261,29 @@ export async function createNotification(recipientId: string, data: Omit<Firesto
         createdAt: serverTimestamp() as Timestamp,
     };
     await addDoc(collection(getDb(), "notifications"), notification);
+}
+
+/**
+ * Invite a user to join a group.
+ */
+export async function inviteUserToGroup(
+    groupId: string,
+    groupName: string,
+    recipientId: string,
+    senderId: string,
+    senderName: string,
+    senderPhotoURL: string
+): Promise<void> {
+    await createNotification(recipientId, {
+        type: "group_invite",
+        message: `${senderName} invited you to join the group "${groupName}".`,
+        relatedId: groupId,
+        relatedType: "group",
+        targetUrl: `/groups/${groupId}`,
+        senderId,
+        senderName,
+        senderPhotoURL
+    });
 }
 
 /**
@@ -4919,7 +4943,14 @@ export function subscribeGroupRequest(groupId: string, userId: string, callback:
 // 19. Update Group Settings
 export async function updateGroupSettings(
     groupId: string, 
-    settings: { joinApprovalRequired?: boolean; adminAssistRules?: any; keywordAlerts?: string[] }
+    settings: { 
+        name?: string;
+        description?: string;
+        coverUrl?: string;
+        joinApprovalRequired?: boolean; 
+        adminAssistRules?: any; 
+        keywordAlerts?: string[] 
+    }
 ): Promise<void> {
     const db = getDb();
     const groupRef = doc(db, "groups", groupId);

@@ -27,6 +27,7 @@ const notifIcons: Record<string, ComponentType<{ size?: number | string; classNa
     mention: MessageSquare,
     reply: MessageSquare,
     new_post: Bell,
+    group_invite: UserPlus,
 };
 
 const notifColors: Record<string, string> = {
@@ -48,6 +49,7 @@ const notifColors: Record<string, string> = {
     mention: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
     reply: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
     new_post: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    group_invite: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
 };
 
 interface NotificationCenterProps {
@@ -115,10 +117,10 @@ export function NotificationCenter({
     const filteredNotifications = notifications.filter(notif => {
         if (activeTab === "unread") return !notif.read;
         if (activeTab === "social") {
-            return ["comment", "reply", "reaction", "follow", "mention"].includes(notif.type);
+            return ["comment", "reply", "reaction", "follow", "mention", "group_invite"].includes(notif.type);
         }
         if (activeTab === "system") {
-            return !["comment", "reply", "reaction", "follow", "mention"].includes(notif.type);
+            return !["comment", "reply", "reaction", "follow", "mention", "group_invite"].includes(notif.type);
         }
         return true;
     });
@@ -133,9 +135,9 @@ export function NotificationCenter({
                 const count = tab === "unread" 
                     ? notifications.filter(n => !n.read).length
                     : tab === "social" 
-                    ? notifications.filter(n => ["comment", "reply", "reaction", "follow", "mention"].includes(n.type)).length
+                    ? notifications.filter(n => ["comment", "reply", "reaction", "follow", "mention", "group_invite"].includes(n.type)).length
                     : tab === "system"
-                    ? notifications.filter(n => !["comment", "reply", "reaction", "follow", "mention"].includes(n.type)).length
+                    ? notifications.filter(n => !["comment", "reply", "reaction", "follow", "mention", "group_invite"].includes(n.type)).length
                     : notifications.length;
 
                 const isActive = activeTab === tab;

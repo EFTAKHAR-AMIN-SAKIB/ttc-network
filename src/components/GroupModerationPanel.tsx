@@ -15,7 +15,7 @@ import {
     resolveGroupReport, deleteGroupPost, type GroupRequest, type GroupMember,
     muteGroupMember, unmuteGroupMember, banGroupMemberWithPurge, getGroupInsights,
     updateGroupSettings, subscribeGroupActivityLog, subscribeGroupDetails,
-    deleteGroup
+    deleteGroup, uploadFile
 } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -59,6 +59,12 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
     const [newKeyword, setNewKeyword] = useState("");
     const [settingsKeywords, setSettingsKeywords] = useState<string[]>([]);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+    // Group Details editing state
+    const [settingsGroupName, setSettingsGroupName] = useState("");
+    const [settingsGroupDescription, setSettingsGroupDescription] = useState("");
+    const [settingsCoverFile, setSettingsCoverFile] = useState<File | null>(null);
+    const [settingsCoverPreview, setSettingsCoverPreview] = useState<string | null>(null);
 
     // Muting & Banning local interactive state
     const [mutingUserId, setMutingUserId] = useState<string | null>(null);
@@ -147,6 +153,11 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
             setSettingsBlockNewMembersEnabled(rules.blockNewMembersEnabled || false);
             setSettingsNewMemberHours(rules.newMemberHours || 24);
             setSettingsKeywords(group.keywordAlerts || []);
+
+            setSettingsGroupName(group.name || "");
+            setSettingsGroupDescription(group.description || "");
+            setSettingsCoverPreview(group.coverUrl || null);
+            setSettingsCoverFile(null);
         }
     }, [group]);
 
@@ -221,6 +232,27 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
         } catch (err) {
             console.error(err);
             showToast("Failed to promote member", "error");
+        } finally {
+            setIsActioning(null);
+        }
+    };
+
+    const handlePromoteToAdmin = async (m: GroupMember) => {
+        const confirmed = await confirm({
+            title: "Promote to Admin?",
+            message: `Are you sure you want to promote ${m.displayName} to Admin? This will give them full management permissions, including the ability to edit group settings and delete the group.`,
+            confirmText: "Promote",
+            variant: "danger"
+        });
+        if (!confirmed) return;
+
+        setIsActioning(m.userId);
+        try {
+            await updateGroupMemberRole(groupId, m.userId, "admin");
+            showToast(`${m.displayName} promoted to Admin`, "success");
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to promote member to admin", "error");
         } finally {
             setIsActioning(null);
         }
@@ -302,12 +334,23 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
             setPurgePostsOnBan(false);
         }
     };
-
     // Save settings & admin assist rules
     const handleSaveSettings = async () => {
+        if (!settingsGroupName.trim()) {
+            showToast("Group name cannot be empty", "error");
+            return;
+        }
         setIsSavingSettings(true);
         try {
+            let finalCoverUrl = group?.coverUrl || "";
+            if (settingsCoverFile) {
+                finalCoverUrl = await uploadFile("group-covers", settingsCoverFile);
+            }
+
             await updateGroupSettings(groupId, {
+                name: settingsGroupName.trim(),
+                description: settingsGroupDescription.trim(),
+                coverUrl: finalCoverUrl,
                 joinApprovalRequired: settingsJoinApproval,
                 adminAssistRules: {
                     minWordsEnabled: settingsMinWordsEnabled,
@@ -318,7 +361,8 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                 },
                 keywordAlerts: settingsKeywords
             });
-            showToast("Group rules and settings updated!", "success");
+            showToast("Group details and settings updated!", "success");
+            setSettingsCoverFile(null);
         } catch (err) {
             console.error(err);
             showToast("Failed to update settings", "error");
@@ -328,7 +372,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
     };
 
     const handleDeleteGroupSubmit = async () => {
-        if (deleteConfirmText !== groupName) return;
+        if (deleteConfirmText.trim().toLowerCase() !== "confirm") return;
         setIsActioning("deleting_group");
         try {
             await deleteGroup(groupId);
@@ -342,7 +386,6 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
             setIsActioning(null);
         }
     };
-
     const handleAddKeyword = () => {
         if (!newKeyword.trim()) return;
         const kw = newKeyword.trim().toLowerCase();
@@ -663,7 +706,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                 { id: "requests", label: `Requests (${requests.length})`, icon: UserCheck },
                                 { id: "reports", label: `Reports (${reports.length})`, icon: AlertTriangle },
                                 { id: "members", label: `Members (${members.length})`, icon: Users },
-                                ...(isAdmin ? [{ id: "settings", label: "Rules & Settings", icon: Settings }] : []),
+                                ...((isAdmin || isModerator) ? [{ id: "settings", label: "Rules & Settings", icon: Settings }] : []),
                                 { id: "insights", label: "Insights", icon: BarChart2 },
                                 { id: "activity", label: "Activity Log", icon: Activity }
                             ].map(tab => {
@@ -707,13 +750,13 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                         
                                         <div className="space-y-2">
                                             <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                                Type <span className="text-gray-900 dark:text-white font-bold">{groupName}</span> to confirm deletion:
+                                                Type <span className="text-gray-900 dark:text-white font-bold">confirm</span> to confirm deletion:
                                             </p>
                                             <input 
                                                 type="text" 
                                                 value={deleteConfirmText}
                                                 onChange={(e) => setDeleteConfirmText(e.target.value)}
-                                                placeholder="Type group name exactly..."
+                                                placeholder="Type confirm..."
                                                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-red-500 text-gray-800 dark:text-gray-200"
                                             />
                                         </div>
@@ -730,9 +773,9 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                             </button>
                                             <button
                                                 onClick={handleDeleteGroupSubmit}
-                                                disabled={deleteConfirmText !== groupName || isActioning !== null}
+                                                disabled={deleteConfirmText.trim().toLowerCase() !== "confirm" || isActioning !== null}
                                                 className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-white ${
-                                                    deleteConfirmText === groupName 
+                                                    deleteConfirmText.trim().toLowerCase() === "confirm" 
                                                         ? "bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20" 
                                                         : "bg-red-500/40 cursor-not-allowed"
                                                 }`}
@@ -767,7 +810,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                                 className="mt-0.5 border-gray-300 dark:border-gray-700 text-red-500 focus:ring-red-500 rounded"
                                             />
                                             <div className="text-[10px] text-red-600 dark:text-red-400 font-black uppercase tracking-wider">
-                                                Purge member's post history
+                                                {"Purge member's post history"}
                                                 <p className="text-[9px] text-red-500/80 normal-case font-bold mt-0.5">
                                                     Deletes all posts, comments, and polls created by this member inside this group.
                                                 </p>
@@ -884,7 +927,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                                     </div>
 
                                                     <div className="p-3 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-xl text-xs text-gray-700 dark:text-gray-300 italic max-h-24 overflow-y-auto whitespace-pre-wrap">
-                                                        "{rep.postContent}"
+                                                        {`"${rep.postContent}"`}
                                                     </div>
                                                 </div>
                                             ))
@@ -989,29 +1032,49 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
 
                                                             {/* Promote / Demote (Admins Only) */}
                                                             {isAdmin && (
-                                                                <>
+                                                                <div className="flex items-center gap-1">
                                                                     {isTargetModerator ? (
-                                                                        <button
-                                                                            onClick={() => handleDemoteMember(m)}
-                                                                            disabled={isActioning !== null}
-                                                                            className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-xl transition-colors"
-                                                                            title="Demote to Member"
-                                                                        >
-                                                                            <UserMinus size={15} />
-                                                                        </button>
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => handleDemoteMember(m)}
+                                                                                disabled={isActioning !== null}
+                                                                                className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-xl transition-colors"
+                                                                                title="Demote to Member"
+                                                                            >
+                                                                                <UserMinus size={15} />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handlePromoteToAdmin(m)}
+                                                                                disabled={isActioning !== null}
+                                                                                className="p-1.5 text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 rounded-xl transition-colors"
+                                                                                title="Promote to Admin"
+                                                                            >
+                                                                                <ShieldCheck size={15} />
+                                                                            </button>
+                                                                        </>
                                                                     ) : (
                                                                         !isTargetAdmin && (
-                                                                            <button
-                                                                                onClick={() => handlePromoteMember(m)}
-                                                                                disabled={isActioning !== null}
-                                                                                className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-xl transition-colors"
-                                                                                title="Promote to Moderator"
-                                                                            >
-                                                                                <UserCheck size={15} />
-                                                                            </button>
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => handlePromoteMember(m)}
+                                                                                    disabled={isActioning !== null}
+                                                                                    className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-xl transition-colors"
+                                                                                    title="Promote to Moderator"
+                                                                                >
+                                                                                    <UserCheck size={15} />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handlePromoteToAdmin(m)}
+                                                                                    disabled={isActioning !== null}
+                                                                                    className="p-1.5 text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 rounded-xl transition-colors"
+                                                                                    title="Promote to Admin"
+                                                                                >
+                                                                                    <ShieldCheck size={15} />
+                                                                                </button>
+                                                                            </>
                                                                         )
                                                                     )}
-                                                                </>
+                                                                </div>
                                                             )}
                                                             
                                                             {/* Ban/Remove Trigger (Custom Overlay) */}
@@ -1036,178 +1099,253 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                     {activeTab === "settings" && (
                                         <div className="space-y-6 animate-fade-in">
                                             
-                                            {/* General Rules Toggle */}
+                                            {/* Group Identity Settings */}
                                             <div className="bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 space-y-4">
                                                 <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                    <Shield size={15} className="text-primary" /> General Group Settings
+                                                    <Info size={15} className="text-primary" /> Group Identity Settings
                                                 </h3>
-                                                
-                                                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl cursor-pointer">
-                                                    <div>
-                                                        <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Require Admin Approval</p>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Approve requests before joining</p>
-                                                    </div>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={settingsJoinApproval}
-                                                        onChange={(e) => setSettingsJoinApproval(e.target.checked)}
-                                                        className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
-                                                    />
-                                                </label>
-                                            </div>
-
-                                            {/* Admin Assist Toggles */}
-                                            <div className="bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 space-y-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <Settings size={15} className="text-indigo-500" />
-                                                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">Admin Assist Auto-Moderation</h3>
-                                                </div>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase">Automated moderation rules for posts inside this group.</p>
                                                 
                                                 <div className="space-y-3">
-                                                    {/* Rule 1: Min Word Count */}
-                                                    <div className="p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl space-y-3">
-                                                        <label className="flex items-center justify-between cursor-pointer">
-                                                            <div>
-                                                                <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Minimum Word Count</p>
-                                                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Decline short posts automatically</p>
-                                                            </div>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                checked={settingsMinWordsEnabled}
-                                                                onChange={(e) => setSettingsMinWordsEnabled(e.target.checked)}
-                                                                className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
-                                                            />
-                                                        </label>
-                                                        {settingsMinWordsEnabled && (
-                                                            <div className="flex items-center gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/50">
-                                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Limit:</span>
-                                                                <input 
-                                                                    type="number"
-                                                                    value={settingsMinWordsCount}
-                                                                    onChange={(e) => setSettingsMinWordsCount(Number(e.target.value))}
-                                                                    className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-2.5 py-1 text-xs font-black"
-                                                                    min="1"
-                                                                />
-                                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">words</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Rule 2: Block Links */}
-                                                    <label className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl cursor-pointer">
-                                                        <div>
-                                                            <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Block Links</p>
-                                                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Reject posts containing URLs</p>
-                                                        </div>
+                                                    {/* Group Name */}
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black uppercase text-gray-400 dark:text-gray-500">Group Name</label>
                                                         <input 
-                                                            type="checkbox" 
-                                                            checked={settingsBlockLinksEnabled}
-                                                            onChange={(e) => setSettingsBlockLinksEnabled(e.target.checked)}
-                                                            className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
+                                                            type="text" 
+                                                            value={settingsGroupName}
+                                                            onChange={(e) => setSettingsGroupName(e.target.value)}
+                                                            placeholder="Enter group name..."
+                                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:ring-1 focus:ring-primary outline-none text-gray-800 dark:text-gray-200"
                                                         />
-                                                    </label>
+                                                    </div>
 
-                                                    {/* Rule 3: Block New Members */}
-                                                    <div className="p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl space-y-3">
-                                                        <label className="flex items-center justify-between cursor-pointer">
+                                                    {/* Group Description */}
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black uppercase text-gray-400 dark:text-gray-500">Group Description</label>
+                                                        <textarea 
+                                                            value={settingsGroupDescription}
+                                                            onChange={(e) => setSettingsGroupDescription(e.target.value)}
+                                                            placeholder="Enter group description..."
+                                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:ring-1 focus:ring-primary outline-none h-24 resize-none text-gray-800 dark:text-gray-200"
+                                                        />
+                                                    </div>
+
+                                                    {/* Cover Photo */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black uppercase text-gray-400 dark:text-gray-500">Cover Photo</label>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-24 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 relative border border-gray-100 dark:border-gray-800 shrink-0">
+                                                                {settingsCoverPreview ? (
+                                                                    <img src={settingsCoverPreview} alt="Cover Preview" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-black uppercase text-gray-400">No Photo</div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 space-y-1.5">
+                                                                <input 
+                                                                    type="file" 
+                                                                    accept="image/*"
+                                                                    id="settings-cover-file"
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (!file) return;
+                                                                        if (file.size > 5 * 1024 * 1024) {
+                                                                            showToast("Cover image must be under 5MB", "error");
+                                                                            return;
+                                                                        }
+                                                                        setSettingsCoverFile(file);
+                                                                        setSettingsCoverPreview(URL.createObjectURL(file));
+                                                                    }}
+                                                                    className="hidden"
+                                                                />
+                                                                <label 
+                                                                    htmlFor="settings-cover-file"
+                                                                    className="inline-flex px-3.5 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-sm"
+                                                                >
+                                                                    Choose New Photo
+                                                                </label>
+                                                                <p className="text-[9px] text-gray-400 font-bold uppercase">PNG, JPG or WEBP up to 5MB</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {isAdmin && (
+                                                <>
+                                                    {/* General Rules Toggle */}
+                                                    <div className="bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 space-y-4">
+                                                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                            <Shield size={15} className="text-primary" /> General Group Settings
+                                                        </h3>
+                                                        
+                                                        <label className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl cursor-pointer">
                                                             <div>
-                                                                <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Restrict New Members</p>
-                                                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Restrict posting for fresh members</p>
+                                                                <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Require Admin Approval</p>
+                                                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Approve requests before joining</p>
                                                             </div>
                                                             <input 
                                                                 type="checkbox" 
-                                                                checked={settingsBlockNewMembersEnabled}
-                                                                onChange={(e) => setSettingsBlockNewMembersEnabled(e.target.checked)}
+                                                                checked={settingsJoinApproval}
+                                                                onChange={(e) => setSettingsJoinApproval(e.target.checked)}
                                                                 className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
                                                             />
                                                         </label>
-                                                        {settingsBlockNewMembersEnabled && (
-                                                            <div className="flex items-center gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/50">
-                                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Restrict for first:</span>
-                                                                <input 
-                                                                    type="number"
-                                                                    value={settingsNewMemberHours}
-                                                                    onChange={(e) => setSettingsNewMemberHours(Number(e.target.value))}
-                                                                    className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-2.5 py-1 text-xs font-black"
-                                                                    min="1"
-                                                                />
-                                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">hours after joining</span>
+                                                    </div>
+
+                                                    {/* Admin Assist Toggles */}
+                                                    <div className="bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 space-y-4">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Settings size={15} className="text-indigo-500" />
+                                                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">Admin Assist Auto-Moderation</h3>
+                                                        </div>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase">Automated moderation rules for posts inside this group.</p>
+                                                        
+                                                        <div className="space-y-3">
+                                                            {/* Rule 1: Min Word Count */}
+                                                            <div className="p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl space-y-3">
+                                                                <label className="flex items-center justify-between cursor-pointer">
+                                                                    <div>
+                                                                        <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Minimum Word Count</p>
+                                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Decline short posts automatically</p>
+                                                                    </div>
+                                                                    <input 
+                                                                        type="checkbox" 
+                                                                        checked={settingsMinWordsEnabled}
+                                                                        onChange={(e) => setSettingsMinWordsEnabled(e.target.checked)}
+                                                                        className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
+                                                                    />
+                                                                </label>
+                                                                {settingsMinWordsEnabled && (
+                                                                    <div className="flex items-center gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/50">
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Limit:</span>
+                                                                        <input 
+                                                                            type="number"
+                                                                            value={settingsMinWordsCount}
+                                                                            onChange={(e) => setSettingsMinWordsCount(Number(e.target.value))}
+                                                                            className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-2.5 py-1 text-xs font-black"
+                                                                            min="1"
+                                                                        />
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">words</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
+
+                                                            {/* Rule 2: Block Links */}
+                                                            <label className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl cursor-pointer">
+                                                                <div>
+                                                                    <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Block Links</p>
+                                                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Reject posts containing URLs</p>
+                                                                </div>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={settingsBlockLinksEnabled}
+                                                                    onChange={(e) => setSettingsBlockLinksEnabled(e.target.checked)}
+                                                                    className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
+                                                                />
+                                                            </label>
+
+                                                            {/* Rule 3: Block New Members */}
+                                                            <div className="p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl space-y-3">
+                                                                <label className="flex items-center justify-between cursor-pointer">
+                                                                    <div>
+                                                                        <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Restrict New Members</p>
+                                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Restrict posting for fresh members</p>
+                                                                    </div>
+                                                                    <input 
+                                                                        type="checkbox" 
+                                                                        checked={settingsBlockNewMembersEnabled}
+                                                                        onChange={(e) => setSettingsBlockNewMembersEnabled(e.target.checked)}
+                                                                        className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full checked:bg-primary appearance-none cursor-pointer relative transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:translate-x-4 before:transition-transform"
+                                                                    />
+                                                                </label>
+                                                                {settingsBlockNewMembersEnabled && (
+                                                                    <div className="flex items-center gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/50">
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Restrict for first:</span>
+                                                                        <input 
+                                                                            type="number"
+                                                                            value={settingsNewMemberHours}
+                                                                            onChange={(e) => setSettingsNewMemberHours(Number(e.target.value))}
+                                                                            className="w-20 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-2.5 py-1 text-xs font-black"
+                                                                            min="1"
+                                                                        />
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">hours after joining</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
 
-                                            {/* Keyword Alerts config */}
-                                            <div className="bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 space-y-4">
-                                                <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                    <AlertTriangle size={15} className="text-amber-500" /> Admin Custom Keyword Alerts
-                                                </h3>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase">Posts matching these words will be flagged automatically to reports queue.</p>
-                                                
-                                                <div className="flex items-center gap-2">
-                                                    <input 
-                                                        type="text"
-                                                        value={newKeyword}
-                                                        onChange={(e) => setNewKeyword(e.target.value)}
-                                                        placeholder="Add custom keyword (e.g. exam, leaking)..."
-                                                        className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
-                                                        onKeyDown={(e) => e.key === "Enter" && handleAddKeyword()}
-                                                    />
-                                                    <button
-                                                        onClick={handleAddKeyword}
-                                                        className="px-4 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shrink-0"
-                                                    >
-                                                        <Plus size={14} /> Add
-                                                    </button>
-                                                </div>
-
-                                                <div className="flex flex-wrap gap-1.5 pt-2">
-                                                    {settingsKeywords.length === 0 ? (
-                                                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">No custom keywords configured</span>
-                                                    ) : (
-                                                        settingsKeywords.map(kw => (
-                                                            <span 
-                                                                key={kw} 
-                                                                className="px-2.5 py-1 bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-[10px] font-bold flex items-center gap-1.5"
+                                                    {/* Keyword Alerts config */}
+                                                    <div className="bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800 rounded-3xl p-5 space-y-4">
+                                                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                            <AlertTriangle size={15} className="text-amber-500" /> Admin Custom Keyword Alerts
+                                                        </h3>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase">Posts matching these words will be flagged automatically to reports queue.</p>
+                                                        
+                                                        <div className="flex items-center gap-2">
+                                                            <input 
+                                                                type="text"
+                                                                value={newKeyword}
+                                                                onChange={(e) => setNewKeyword(e.target.value)}
+                                                                placeholder="Add custom keyword (e.g. exam, leaking)..."
+                                                                className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                                                onKeyDown={(e) => e.key === "Enter" && handleAddKeyword()}
+                                                            />
+                                                            <button
+                                                                onClick={handleAddKeyword}
+                                                                className="px-4 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shrink-0"
                                                             >
-                                                                {kw}
-                                                                <button 
-                                                                    onClick={() => handleRemoveKeyword(kw)}
-                                                                    className="text-red-500 hover:text-red-600 transition-colors"
-                                                                >
-                                                                    <X size={10} />
-                                                                </button>
-                                                            </span>
-                                                        ))
-                                                    )}
-                                                </div>
-                                            </div>
+                                                                <Plus size={14} /> Add
+                                                            </button>
+                                                        </div>
 
-                                            {/* Danger Zone */}
-                                            <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-5 space-y-4 mt-6">
-                                                <h3 className="text-xs font-black uppercase tracking-wider text-red-500 flex items-center gap-1.5">
-                                                    <AlertTriangle size={15} /> Danger Zone
-                                                </h3>
-                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-white dark:bg-gray-900/40 border border-gray-100 dark:border-gray-800 rounded-2xl">
-                                                    <div className="space-y-0.5">
-                                                        <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Delete this group</p>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase leading-normal normal-case">
-                                                            Permanently delete this group and all its associated data. This action is irreversible.
-                                                        </p>
+                                                        <div className="flex flex-wrap gap-1.5 pt-2">
+                                                            {settingsKeywords.length === 0 ? (
+                                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">No custom keywords configured</span>
+                                                            ) : (
+                                                                settingsKeywords.map(kw => (
+                                                                    <span 
+                                                                        key={kw} 
+                                                                        className="px-2.5 py-1 bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-[10px] font-bold flex items-center gap-1.5"
+                                                                    >
+                                                                        {kw}
+                                                                        <button 
+                                                                            onClick={() => handleRemoveKeyword(kw)}
+                                                                            className="text-red-500 hover:text-red-600 transition-colors"
+                                                                        >
+                                                                            <X size={10} />
+                                                                        </button>
+                                                                    </span>
+                                                                ))
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            setIsDeletingGroup(true);
-                                                            setDeleteConfirmText("");
-                                                        }}
-                                                        className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shrink-0"
-                                                    >
-                                                        Delete Group
-                                                    </button>
-                                                </div>
-                                            </div>
+
+                                                    {/* Danger Zone */}
+                                                    <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-5 space-y-4 mt-6">
+                                                        <h3 className="text-xs font-black uppercase tracking-wider text-red-500 flex items-center gap-1.5">
+                                                            <AlertTriangle size={15} /> Danger Zone
+                                                        </h3>
+                                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-white dark:bg-gray-900/40 border border-gray-100 dark:border-gray-800 rounded-2xl">
+                                                            <div className="space-y-0.5">
+                                                                <p className="text-xs font-black uppercase text-gray-800 dark:text-gray-200">Delete this group</p>
+                                                                <p className="text-[10px] text-gray-400 font-bold uppercase leading-normal normal-case">
+                                                                    Permanently delete this group and all its associated data. This action is irreversible.
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setIsDeletingGroup(true);
+                                                                    setDeleteConfirmText("");
+                                                                }}
+                                                                className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shrink-0"
+                                                            >
+                                                                Delete Group
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
 
                                             {/* Action save bar */}
                                             <div className="flex justify-end pt-2">
