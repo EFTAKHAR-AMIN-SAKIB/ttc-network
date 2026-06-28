@@ -4956,6 +4956,27 @@ export async function updateGroupSettings(
     const groupRef = doc(db, "groups", groupId);
     await updateDoc(groupRef, settings);
     await logGroupActivity(groupId, "update_settings", "Updated group settings / rules");
+
+    if (settings.name) {
+        const postsQuery = query(collection(db, "groupPosts"), where("groupId", "==", groupId));
+        const postsSnapshot = await getDocs(postsQuery);
+        if (!postsSnapshot.empty) {
+            let batch = writeBatch(db);
+            let count = 0;
+            for (const docSnap of postsSnapshot.docs) {
+                batch.update(docSnap.ref, { groupName: settings.name });
+                count++;
+                if (count === 500) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    count = 0;
+                }
+            }
+            if (count > 0) {
+                await batch.commit();
+            }
+        }
+    }
 }
 
 // 20. Log Group Activity

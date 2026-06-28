@@ -363,7 +363,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     
                     {/* Main Feed Tab Area */}
-                    <div className="lg:col-span-8 space-y-6">
+                    <div className={`${activeTab === "about" ? "lg:col-span-8" : "lg:col-span-12"} space-y-6`}>
                         
                         {/* Tab Switcher */}
                         <div className="flex border-b border-gray-200 dark:border-gray-800 pb-px gap-6 bg-white dark:bg-[#1a1b23] px-6 py-3 rounded-2xl border border-gray-100 dark:border-gray-800/50 shadow-sm">
@@ -565,41 +565,43 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                     </div>
 
                     {/* Right Sidebar */}
-                    <div className="lg:col-span-4 space-y-6">
-                        {/* Group Admin Info Box */}
-                        <div className="bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-5 shadow-sm text-center">
-                            <Shield size={36} className="mx-auto text-primary mb-3 stroke-[2.5]" />
-                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">Group Administrators</h3>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Moderating this community</p>
-                            
-                            <div className="mt-4 space-y-3 text-left border-t border-gray-50 dark:border-gray-800/40 pt-4">
-                                {groupMembersList.filter(m => m.role === "admin" || m.role === "moderator").map(m => (
-                                    <div key={m.userId} className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                                            {m.photoURL ? <img src={m.photoURL} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">{m.displayName[0]}</div>}
+                    {activeTab === "about" && (
+                        <div className="lg:col-span-4 space-y-6">
+                            {/* Group Admin Info Box */}
+                            <div className="bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-5 shadow-sm text-center">
+                                <Shield size={36} className="mx-auto text-primary mb-3 stroke-[2.5]" />
+                                <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">Group Administrators</h3>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Moderating this community</p>
+                                
+                                <div className="mt-4 space-y-3 text-left border-t border-gray-50 dark:border-gray-800/40 pt-4">
+                                    {groupMembersList.filter(m => m.role === "admin" || m.role === "moderator").map(m => (
+                                        <div key={m.userId} className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                                                {m.photoURL ? <img src={m.photoURL} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">{m.displayName[0]}</div>}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-[11px] font-black uppercase tracking-tight text-gray-800 dark:text-gray-200 truncate">{m.displayName}</p>
+                                                <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{m.role}</p>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-black uppercase tracking-tight text-gray-800 dark:text-gray-200 truncate">{m.displayName}</p>
-                                            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{m.role}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Rules Summary Box */}
+                            <div className="bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+                                <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-3 flex items-center gap-1.5">
+                                    <AlertTriangle size={14} className="text-amber-500" /> Community Rules
+                                </h3>
+                                <ul className="space-y-2 text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider list-decimal pl-4">
+                                    <li>Be respectful and collaborative.</li>
+                                    <li>No spam or academic dishonesty.</li>
+                                    <li>Keep campus discussions constructive.</li>
+                                    <li>Respect privacy and anonymous flags.</li>
+                                </ul>
                             </div>
                         </div>
-
-                        {/* Rules Summary Box */}
-                        <div className="bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
-                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-3 flex items-center gap-1.5">
-                                <AlertTriangle size={14} className="text-amber-500" /> Community Rules
-                            </h3>
-                            <ul className="space-y-2 text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider list-decimal pl-4">
-                                <li>Be respectful and collaborative.</li>
-                                <li>No spam or academic dishonesty.</li>
-                                <li>Keep campus discussions constructive.</li>
-                                <li>Respect privacy and anonymous flags.</li>
-                            </ul>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
             </div>

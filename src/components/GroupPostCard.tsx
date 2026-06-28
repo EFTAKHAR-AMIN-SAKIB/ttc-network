@@ -19,6 +19,7 @@ import {
     updateGroupPost, subscribeComments, type GroupPostDoc,
     subscribeGroupDetails
 } from "@/lib/firestore";
+import GroupPostCreationModal from "./GroupPostCreationModal";
 
 const gradients = [
     "from-blue-600 to-indigo-600",
@@ -81,23 +82,6 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     }, [post.groupId]);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [editContent, setEditContent] = useState("");
-    const [isSaving, setIsSaving] = useState(false);
-
-    const handleEditSubmit = async () => {
-        if (!editContent.trim()) return;
-        setIsSaving(true);
-        try {
-            await updateGroupPost(post.id, { content: editContent.trim() });
-            showToast("Post updated successfully", "success");
-            setIsEditing(false);
-        } catch (err) {
-            console.error("Failed to edit post:", err);
-            showToast("Failed to update post.", "error");
-        } finally {
-            setIsSaving(false);
-        }
-    };
 
     const isCreator = user?.uid === post.creatorId;
     const canManage = isCreator || userRole === "admin" || userRole === "moderator";
@@ -197,40 +181,8 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const authorPhoto = post.isAnonymous ? "" : post.creatorPhotoURL;
     const authorRole = post.isAnonymous ? "" : post.creatorRole;
 
-    if (isEditing) {
-        return (
-            <motion.div 
-                layout
-                className="bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4"
-            >
-                <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-405">Edit Group Post</span>
-                </div>
-                <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-xs outline-none focus:ring-1 focus:ring-primary h-28 resize-none text-gray-800 dark:text-gray-200"
-                />
-                <div className="flex items-center justify-end gap-3">
-                    <button
-                        onClick={() => setIsEditing(false)}
-                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleEditSubmit}
-                        disabled={isSaving || !editContent.trim()}
-                        className="px-5 py-2.5 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
-                    >
-                        {isSaving ? <Loader2 className="animate-spin" size={14} /> : "Save Changes"}
-                    </button>
-                </div>
-            </motion.div>
-        );
-    }
-
     return (
+        <>
         <motion.div 
             layout
             initial={{ opacity: 0, y: 15 }}
@@ -255,10 +207,10 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                         <Link href={`/groups/${post.groupId}`}>
                             <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 shadow-sm hover:scale-[1.03] transition-transform duration-300">
                                 {groupDetails?.coverUrl ? (
-                                    <img src={groupDetails.coverUrl} alt={post.groupName} className="w-full h-full object-cover" />
+                                    <img src={groupDetails.coverUrl} alt={groupDetails?.name || post.groupName} className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className={`w-full h-full bg-gradient-to-br ${getGroupGradient(post.groupName)} flex items-center justify-center text-xs font-black text-white uppercase`}>
-                                        {post.groupName.slice(0, 2)}
+                                    <div className={`w-full h-full bg-gradient-to-br ${getGroupGradient(groupDetails?.name || post.groupName)} flex items-center justify-center text-xs font-black text-white uppercase`}>
+                                        {(groupDetails?.name || post.groupName).slice(0, 2)}
                                     </div>
                                 )}
                             </div>
@@ -294,7 +246,7 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                                 href={`/groups/${post.groupId}`} 
                                 className="text-sm font-black text-gray-900 dark:text-white hover:text-primary transition-colors uppercase tracking-tight truncate max-w-[200px] sm:max-w-[320px]"
                             >
-                                {post.groupName}
+                                {groupDetails?.name || post.groupName}
                             </Link>
                         </div>
                         
@@ -333,9 +285,9 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                             
                             {/* Privacy Icon */}
                             {groupDetails?.privacyType === "public" ? (
-                                <Globe size={11} className="text-gray-400 dark:text-gray-500" title="Public Group" />
+                                <span title="Public Group"><Globe size={11} className="text-gray-400 dark:text-gray-500" /></span>
                             ) : (
-                                <Lock size={11} className="text-gray-400 dark:text-gray-500" title="Private Group" />
+                                <span title="Private Group"><Lock size={11} className="text-gray-400 dark:text-gray-500" /></span>
                             )}
                         </div>
                     </div>
@@ -375,7 +327,6 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                                                 onClick={() => {
                                                     setMenuOpen(false);
                                                     setIsEditing(true);
-                                                    setEditContent(post.content);
                                                 }}
                                                 className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs font-bold text-gray-755 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
                                             >
@@ -588,5 +539,14 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                 )}
             </AnimatePresence>
         </motion.div>
+
+        <GroupPostCreationModal 
+            isOpen={isEditing}
+            onClose={() => setIsEditing(false)}
+            groupId={post.groupId}
+            groupName={groupDetails?.name || post.groupName}
+            editPost={post}
+        />
+        </>
     );
 }

@@ -4,20 +4,24 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     X, Send, ImageIcon, BarChart2, UserCheck, UserX, 
-    AlertCircle, Plus, Trash2, Loader2, Sparkles, ShieldAlert
+    AlertCircle, Plus, Trash2, Loader2, Sparkles, ShieldAlert,
+    Check
 } from "lucide-react";
 import { 
-    createGroupPost, subscribeGroupDetails, subscribeGroupMember, reportGroupPost 
+    createGroupPost, subscribeGroupDetails, subscribeGroupMember, reportGroupPost,
+    updateGroupPost, type GroupPostDoc
 } from "@/lib/firestore";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { deleteField } from "firebase/firestore";
 
 interface GroupPostCreationModalProps {
     isOpen: boolean;
     onClose: () => void;
     groupId: string;
     groupName: string;
+    editPost?: (GroupPostDoc & { id: string }) | null;
 }
 
 const BAD_WORDS = [
@@ -25,7 +29,7 @@ const BAD_WORDS = [
     "সালা", "কুত্তা", "কামিন", "হারামজাদা", "চোতমারানি", "খানকি"
 ];
 
-export default function GroupPostCreationModal({ isOpen, onClose, groupId, groupName }: GroupPostCreationModalProps) {
+export default function GroupPostCreationModal({ isOpen, onClose, groupId, groupName, editPost }: GroupPostCreationModalProps) {
     const { user } = useAuth();
     const { showToast } = useToast();
 
@@ -91,9 +95,33 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
         return until.toLocaleString();
     }, [myMemberRecord]);
 
-    // Reset state on close
+    // Sync with editPost when opening, reset when closing
     useEffect(() => {
-        if (!isOpen) {
+        if (isOpen) {
+            if (editPost) {
+                setContent(editPost.content || "");
+                setIsAnonymous(editPost.isAnonymous || false);
+                setImageFile(null);
+                setImagePreview(editPost.imageUrl || null);
+                if (editPost.poll) {
+                    setShowPoll(true);
+                    setPollQuestion(editPost.poll.question || "");
+                    setPollOptions(editPost.poll.options?.map(opt => opt.text) || ["", ""]);
+                } else {
+                    setShowPoll(false);
+                    setPollQuestion("");
+                    setPollOptions(["", ""]);
+                }
+            } else {
+                setContent("");
+                setIsAnonymous(false);
+                setImageFile(null);
+                setImagePreview(null);
+                setShowPoll(false);
+                setPollQuestion("");
+                setPollOptions(["", ""]);
+            }
+        } else {
             setContent("");
             setIsAnonymous(false);
             setImageFile(null);
@@ -103,7 +131,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
             setPollOptions(["", ""]);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
-    }, [isOpen]);
+    }, [isOpen, editPost]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -154,7 +182,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
             return;
         }
 
-        if (!content.trim() && !imageFile && (!showPoll || !pollQuestion.trim())) {
+        if (!content.trim() && !imageFile && !imagePreview && (!showPoll || !pollQuestion.trim())) {
             showToast("Please add some text, an image, or a poll question", "info");
             return;
         }
@@ -185,8 +213,8 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                 }
             }
 
-            // 3. Block New Members
-            if (rules.blockNewMembersEnabled && myMemberRecord?.joinedAt) {
+            // 3. Block New Members (only on creation)
+            if (!editPost && rules.blockNewMembersEnabled && myMemberRecord?.joinedAt) {
                 const hoursJoined = (Date.now() - myMemberRecord.joinedAt.toDate().getTime()) / (1000 * 60 * 60);
                 if (hoursJoined < (rules.newMemberHours || 24)) {
                     const remainingHours = Math.ceil((rules.newMemberHours || 24) - hoursJoined);
@@ -198,23 +226,66 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
         }
 
         try {
-            let imageUrl = "";
+            let imageUrl = editPost?.imageUrl || "";
             if (imageFile) {
                 imageUrl = await uploadFile("group-posts", imageFile);
+                if (editPost?.imageUrl) {
+                    await deleteFromStorage(editPost.imageUrl).catch(e => console.error("Failed to delete old image:", e));
+                }
+            } else if (!imagePreview && editPost?.imageUrl) {
+                imageUrl = "";
+                await deleteFromStorage(editPost.imageUrl).catch(e => console.error("Failed to delete old image:", e));
             }
 
             const pollData = showPoll && pollQuestion.trim()
-                ? { question: pollQuestion.trim(), options: pollOptions.filter(o => o.trim() !== "") }
-                : undefined;
+                ? { 
+                    question: pollQuestion.trim(), 
+                    options: pollOptions.filter(o => o.trim() !== "").map((opt, index) => {
+                        const existingOpt = editPost?.poll?.options?.[index];
+                        if (existingOpt && existingOpt.text === opt.trim()) {
+                            return existingOpt;
+                        }
+                        const matchedOpt = editPost?.poll?.options?.find(o => o.text === opt.trim());
+                        if (matchedOpt) {
+                            return matchedOpt;
+                        }
+                        return {
+                            id: `opt-${index}-${Date.now()}`,
+                            text: opt.trim(),
+                            votes: []
+                        };
+                    })
+                  }
+                : null;
 
-            const postId = await createGroupPost(
-                groupId,
-                groupName,
-                content,
-                imageUrl,
-                isAnonymous,
-                pollData
-            );
+            let postId = "";
+            if (editPost) {
+                postId = editPost.id;
+                const updates: any = {
+                    content: content.trim(),
+                    imageUrl,
+                    isAnonymous,
+                };
+                if (pollData) {
+                    updates.poll = pollData;
+                } else {
+                    updates.poll = deleteField();
+                }
+                await updateGroupPost(editPost.id, updates);
+            } else {
+                const pollDataForCreation = showPoll && pollQuestion.trim()
+                    ? { question: pollQuestion.trim(), options: pollOptions.filter(o => o.trim() !== "") }
+                    : undefined;
+
+                postId = await createGroupPost(
+                    groupId,
+                    groupName,
+                    content,
+                    imageUrl,
+                    isAnonymous,
+                    pollDataForCreation
+                );
+            }
 
             // AI Toxicity Scan (Bullying, hate speech, spam)
             const textToScan = (content + " " + pollQuestion + " " + pollOptions.join(" ")).toLowerCase();
@@ -227,7 +298,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                     postId,
                     content,
                     user?.uid || "unknown",
-                    `Flagged by AI: Potential bullying/hate/spam term matching (${matchedToxicity.join(", ")})`
+                    `Flagged by AI${editPost ? " (On Edit)" : ""}: Potential bullying/hate/spam term matching (${matchedToxicity.join(", ")})`
                 ).catch(console.error);
             }
 
@@ -240,16 +311,16 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                         postId,
                         content,
                         user?.uid || "unknown",
-                        `Keyword Alert: Matched admin keyword(s) (${matchedKeywords.join(", ")})`
+                        `Keyword Alert${editPost ? " (On Edit)" : ""}: Matched admin keyword(s) (${matchedKeywords.join(", ")})`
                     ).catch(console.error);
                 }
             }
 
-            showToast("Post published inside the group!", "success");
+            showToast(editPost ? "Post updated successfully!" : "Post published inside the group!", "success");
             onClose();
         } catch (err) {
-            console.error("Error creating group post:", err);
-            showToast("Failed to create post.", "error");
+            console.error("Error submitting group post:", err);
+            showToast(editPost ? "Failed to update post." : "Failed to create post.", "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -273,7 +344,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                             <div className="flex items-center gap-2">
                                 <Sparkles size={18} className="text-primary" />
                                 <h2 className="text-sm font-black uppercase tracking-tight text-gray-900 dark:text-white">
-                                    Create Post in {groupName}
+                                    {editPost ? `Edit Post in ${groupName}` : `Create Post in ${groupName}`}
                                 </h2>
                             </div>
                             <button 
@@ -447,11 +518,11 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                             >
                                 {isSubmitting ? (
                                     <>
-                                        <Loader2 size={14} className="animate-spin" /> Publishing...
+                                        <Loader2 size={14} className="animate-spin" /> {editPost ? "Saving..." : "Publishing..."}
                                     </>
                                 ) : (
                                     <>
-                                        <Send size={14} /> Post
+                                        {editPost ? <Check size={14} /> : <Send size={14} />} {editPost ? "Save Changes" : "Post"}
                                     </>
                                 )}
                             </button>
