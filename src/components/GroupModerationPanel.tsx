@@ -7,7 +7,7 @@ import {
     X, Shield, Users, AlertTriangle, Check, XCircle, 
     UserCheck, UserMinus, ShieldAlert, ShieldCheck, Loader2,
     BarChart2, FileText, Settings, VolumeX, Volume2, Trash2, 
-    Plus, HelpCircle, Activity, Info
+    Plus, HelpCircle, Activity, Info, Globe, Lock, EyeOff
 } from "lucide-react";
 import { 
     subscribeGroupRequests, subscribeGroupMembers, subscribeGroupReports,
@@ -59,6 +59,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
     const [newKeyword, setNewKeyword] = useState("");
     const [settingsKeywords, setSettingsKeywords] = useState<string[]>([]);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [settingsPrivacyType, setSettingsPrivacyType] = useState<"public" | "private" | "secret">("public");
 
     // Group Details editing state
     const [settingsGroupName, setSettingsGroupName] = useState("");
@@ -153,6 +154,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
             setSettingsBlockNewMembersEnabled(rules.blockNewMembersEnabled || false);
             setSettingsNewMemberHours(rules.newMemberHours || 24);
             setSettingsKeywords(group.keywordAlerts || []);
+            setSettingsPrivacyType(group.privacyType || "public");
 
             setSettingsGroupName(group.name || "");
             setSettingsGroupDescription(group.description || "");
@@ -352,6 +354,7 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                 description: settingsGroupDescription.trim(),
                 coverUrl: finalCoverUrl,
                 joinApprovalRequired: settingsJoinApproval,
+                privacyType: settingsPrivacyType,
                 adminAssistRules: {
                     minWordsEnabled: settingsMinWordsEnabled,
                     minWordsCount: Number(settingsMinWordsCount),
@@ -1177,6 +1180,47 @@ export default function GroupModerationPanel({ isOpen, onClose, groupId, groupNa
                                                         <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
                                                             <Shield size={15} className="text-primary" /> General Group Settings
                                                         </h3>
+
+                                                        {/* Privacy Type Selector */}
+                                                        <div className="space-y-2 pb-2 border-b border-gray-150 dark:border-gray-250/20 dark:border-gray-800/50">
+                                                            <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">Group Privacy Type</label>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                                {[
+                                                                    { id: "public", label: "Public", desc: "Direct join, visible to all", icon: Globe },
+                                                                    { id: "private", label: "Private", desc: "Request join, visible to all", icon: Lock },
+                                                                    { id: "secret", label: "Secret", desc: "Invite only, hidden from search", icon: EyeOff },
+                                                                ].map((item) => {
+                                                                    const Icon = item.icon;
+                                                                    const isSelected = settingsPrivacyType === item.id;
+                                                                    return (
+                                                                        <button
+                                                                            type="button"
+                                                                            key={item.id}
+                                                                            onClick={() => {
+                                                                                setSettingsPrivacyType(item.id as any);
+                                                                                // If they select public, join approval is not needed
+                                                                                if (item.id === "public") {
+                                                                                    setSettingsJoinApproval(false);
+                                                                                } else if (item.id === "private") {
+                                                                                    setSettingsJoinApproval(true);
+                                                                                }
+                                                                            }}
+                                                                            className={`text-left p-3 rounded-2xl border flex flex-col gap-1.5 transition-all ${
+                                                                                isSelected
+                                                                                    ? "border-primary bg-primary/5 text-primary"
+                                                                                    : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1a1b23] text-gray-650 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700"
+                                                                            }`}
+                                                                        >
+                                                                            <div className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-tight">
+                                                                                <Icon size={12} className="shrink-0" />
+                                                                                {item.label}
+                                                                            </div>
+                                                                            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 leading-tight normal-case">{item.desc}</p>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
                                                         
                                                         <label className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800/50 rounded-2xl cursor-pointer">
                                                             <div>

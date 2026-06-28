@@ -4498,12 +4498,23 @@ export async function createGroup(data: Omit<GroupDoc, "inviteToken" | "creatorI
 }
 
 // 2. Subscribe to Discover Groups (Public/Private, not secret)
-export function subscribeDiscoverGroups(callback: (groups: (GroupDoc & { id: string })[]) => void) {
+export function subscribeDiscoverGroups(isAdmin: boolean = false, callback: (groups: (GroupDoc & { id: string })[]) => void) {
     const db = getDb();
-    const q = query(collection(db, "groups"), orderBy("createdAt", "desc"));
+    const q = isAdmin 
+        ? query(collection(db, "groups"))
+        : query(collection(db, "groups"), where("privacyType", "in", ["public", "private"]));
+
     return safeSubscribe(q, (snap: any) => {
         const allGroups = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-        const discoverable = allGroups.filter((g: any) => g.privacyType !== "secret");
+        const discoverable = isAdmin 
+            ? allGroups 
+            : allGroups.filter((g: any) => g.privacyType !== "secret");
+
+        discoverable.sort((a: any, b: any) => {
+            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+            return tB - tA;
+        });
         callback(discoverable);
     });
 }
@@ -4949,7 +4960,8 @@ export async function updateGroupSettings(
         coverUrl?: string;
         joinApprovalRequired?: boolean; 
         adminAssistRules?: any; 
-        keywordAlerts?: string[] 
+        keywordAlerts?: string[];
+        privacyType?: "public" | "private" | "secret";
     }
 ): Promise<void> {
     const db = getDb();

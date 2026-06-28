@@ -150,7 +150,8 @@ function GroupsPageInner() {
     // Subscriptions
     useEffect(() => {
         setLoading(true);
-        const unsubDiscover = subscribeDiscoverGroups((groups) => {
+        const isSiteAdmin = profile?.role === "admin";
+        const unsubDiscover = subscribeDiscoverGroups(isSiteAdmin, (groups) => {
             setDiscoverGroups(groups);
             setLoading(false);
         });
@@ -168,7 +169,7 @@ function GroupsPageInner() {
             unsubDiscover();
             unsubMy();
         };
-    }, [user?.uid]);
+    }, [user?.uid, profile?.role]);
 
     // Group Feed Subscription
     useEffect(() => {
