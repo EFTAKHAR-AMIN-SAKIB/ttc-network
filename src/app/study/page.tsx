@@ -52,6 +52,7 @@ function StudyPageContent() {
     const [sharingPost, setSharingPost] = useState<(FirestoreStudyPost & { id: string }) | null>(null);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [targetStudyPostId, setTargetStudyPostId] = useState<string | null>(null);
+    const [temporaryHighlightId, setTemporaryHighlightId] = useState<string | null>(null);
     const hasScrolledRef = useRef<string | null>(null);
 
     const handleShareClick = () => {
@@ -101,29 +102,54 @@ function StudyPageContent() {
         return () => unsubSaved();
     }, [user?.uid]);
 
+    const [hashStudyId, setHashStudyId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const handleHashChange = () => {
+                const hash = window.location.hash;
+                if (hash.startsWith("#study-")) {
+                    setHashStudyId(hash.substring(7));
+                }
+            };
+            handleHashChange();
+            window.addEventListener("hashchange", handleHashChange);
+            return () => window.removeEventListener("hashchange", handleHashChange);
+        }
+    }, []);
+
     // Scroll to & highlight study deep link
     useEffect(() => {
-        const studyParam = searchParams.get('study');
-        if (studyParam && posts.length > 0) {
-            setTargetStudyPostId(studyParam);
-            const postExists = posts.find(p => p.id === studyParam);
-            if (postExists && hasScrolledRef.current !== studyParam) {
+        const effectiveStudyId = searchParams.get('study') || searchParams.get('commentPostId') || hashStudyId;
+        if (effectiveStudyId && posts.length > 0) {
+            setTargetStudyPostId(effectiveStudyId);
+            const postExists = posts.find(p => p.id === effectiveStudyId);
+            if (postExists && hasScrolledRef.current !== effectiveStudyId) {
                 // Ensure correct tab is activated depending on post type
                 if (postExists.type === "schedule") {
                     setActiveTab("schedule");
                 } else {
                     setActiveTab("materials");
                 }
-                hasScrolledRef.current = studyParam;
+                hasScrolledRef.current = effectiveStudyId;
+                
+                // Highlight temporary for 3 seconds
+                setTemporaryHighlightId(effectiveStudyId);
+                const timer = setTimeout(() => {
+                    setTemporaryHighlightId(null);
+                }, 3000);
+
                 setTimeout(() => {
-                    const el = document.getElementById(`study-${studyParam}`);
+                    const el = document.getElementById(`study-${effectiveStudyId}`);
                     if (el) {
                         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 }, 400);
+
+                return () => clearTimeout(timer);
             }
         }
-    }, [searchParams, posts]);
+    }, [searchParams, posts, hashStudyId]);
 
     const handleSaveStudyPost = async (id: string) => {
         if (!requireVerification("bookmark study resources")) return;
@@ -221,6 +247,22 @@ function StudyPageContent() {
             : (heroSettings?.schedulesCount || 8),
         members: heroSettings?.membersCount || 1400
     };
+
+    const effectiveStudyId = searchParams.get('study') || searchParams.get('commentPostId') || hashStudyId;
+    const isStudyPostMissing = !loading && effectiveStudyId && !posts.some(p => p.id === effectiveStudyId);
+
+    if (isStudyPostMissing) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50/50 dark:bg-[#0c0c10]">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+                    <BookOpen size={28} />
+                </div>
+                <h1 className="text-2xl font-black mb-2 uppercase tracking-tight text-gray-900 dark:text-white">This content is no longer available</h1>
+                <p className="text-gray-500 max-w-sm mb-6 leading-relaxed">The study resource or discussion you are trying to view has been deleted or is not accessible.</p>
+                <button onClick={() => router.push('/study')} className="px-6 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Back to Study Portal</button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pb-20">
@@ -359,9 +401,11 @@ function StudyPageContent() {
                                                             key={post.id} 
                                                             id={`study-${post.id}`}
                                                             className={`rounded-[2.5rem] transition-all duration-500 ${
-                                                                targetStudyPostId === post.id 
-                                                                    ? "ring-4 ring-primary ring-offset-4 dark:ring-offset-[#0c0c10]" 
-                                                                    : ""
+                                                                temporaryHighlightId === post.id 
+                                                                    ? "ring-4 ring-blue-500 ring-offset-4 dark:ring-offset-[#0c0c10] shadow-xl scale-[1.01]" 
+                                                                    : targetStudyPostId === post.id 
+                                                                        ? "ring-4 ring-primary ring-offset-4 dark:ring-offset-[#0c0c10]" 
+                                                                        : ""
                                                             }`}
                                                         >
                                                             <StudyNoteCard 
@@ -430,9 +474,11 @@ function StudyPageContent() {
                                                         key={post.id} 
                                                         id={`study-${post.id}`}
                                                         className={`rounded-[3rem] transition-all duration-500 ${
-                                                            targetStudyPostId === post.id 
-                                                                ? "ring-4 ring-primary ring-offset-4 dark:ring-offset-[#0c0c10]" 
-                                                                : ""
+                                                            temporaryHighlightId === post.id 
+                                                                ? "ring-4 ring-blue-500 ring-offset-4 dark:ring-offset-[#0c0c10] shadow-xl scale-[1.01]" 
+                                                                : targetStudyPostId === post.id 
+                                                                    ? "ring-4 ring-primary ring-offset-4 dark:ring-offset-[#0c0c10]" 
+                                                                    : ""
                                                         }`}
                                                     >
                                                         <StudyScheduleCard 

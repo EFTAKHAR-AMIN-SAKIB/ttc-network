@@ -1238,7 +1238,7 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
     }
 
     // Handle Mentions in post description
-    await handleMentions(post.description || "", `/news-feed?commentPostId=${docRef.id}`, profile, docRef.id, "post");
+    await handleMentions(post.description || "", `/news-feed?post=${docRef.id}`, profile, docRef.id, "post");
 }
 
 export function subscribePosts(callback: (data: (FirestorePost & { id: string })[]) => void) {
@@ -2012,7 +2012,7 @@ export async function createNotice(notice: Omit<FirestoreNotice, "date" | "statu
             message: `${profile.displayName} published a new notice: "${notice.title}"`,
             relatedId: docRef.id,
             relatedType: "notice",
-            targetUrl: `/notice#notice-${docRef.id}`,
+            targetUrl: `/notice?notice=${docRef.id}`,
             senderId: profile.id!,
             senderName: profile.displayName,
             senderPhotoURL: profile.photoURL || ""
@@ -2254,13 +2254,82 @@ export async function getProfilesByIds(uids: string[]): Promise<(FirestoreUser &
 // ═══════════════════════════════════════════════════
 
 export async function createNotification(recipientId: string, data: Omit<FirestoreNotification, "recipientId" | "read" | "createdAt" | "id">): Promise<void> {
-    const notification: Omit<FirestoreNotification, "id"> = {
-        ...data,
-        recipientId,
-        read: false,
-        createdAt: serverTimestamp() as Timestamp,
-    };
-    await addDoc(collection(getDb(), "notifications"), notification);
+    const db = getDb();
+    let isGrouped = false;
+    let finalMessage = data.message;
+
+    // Grouping/aggregation for comments and reactions
+    if (data.type === "comment" || data.type === "reaction") {
+        try {
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const q = query(
+                collection(db, "notifications"),
+                where("recipientId", "==", recipientId),
+                where("relatedId", "==", data.relatedId),
+                where("type", "==", data.type),
+                where("createdAt", ">=", twentyFourHoursAgo)
+            );
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const existingDoc = snap.docs[0];
+                const existingData = existingDoc.data() as any;
+                
+                let senderIds = existingData.senderIds || [];
+                if (senderIds.length === 0 && existingData.senderId) {
+                    senderIds.push(existingData.senderId);
+                }
+                
+                if (data.senderId && !senderIds.includes(data.senderId)) {
+                    senderIds.push(data.senderId);
+                }
+                
+                const firstSenderName = existingData.senderName || data.senderName || "Someone";
+                const count = senderIds.length;
+                const action = data.type === "reaction" ? "reacted to" : "commented on";
+                
+                if (count > 1) {
+                    finalMessage = `${firstSenderName} and ${count - 1} other${count - 1 > 1 ? "s" : ""} ${action} your ${data.relatedType || "content"}`;
+                } else {
+                    finalMessage = `${firstSenderName} ${action} your ${data.relatedType || "content"}`;
+                }
+                
+                await updateDoc(existingDoc.ref, {
+                    senderIds,
+                    message: finalMessage,
+                    read: false,
+                    createdAt: serverTimestamp()
+                });
+                isGrouped = true;
+            }
+        } catch (err) {
+            console.warn("[Firestore] Notification grouping failed, falling back to normal insert:", err);
+        }
+    }
+
+    if (!isGrouped) {
+        const notification: Omit<FirestoreNotification, "id"> = {
+            ...data,
+            recipientId,
+            read: false,
+            createdAt: serverTimestamp() as Timestamp,
+            senderIds: data.senderId ? [data.senderId] : []
+        };
+        await addDoc(collection(db, "notifications"), notification);
+    }
+
+    // Trigger push notification asynchronously (fire and forget)
+    if (typeof fetch !== "undefined") {
+        fetch("/api/send-push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                recipientId,
+                title: "TTC Network",
+                body: finalMessage,
+                targetUrl: data.targetUrl || "/"
+            })
+        }).catch(err => console.warn("[Firestore] Failed to trigger push notification:", err));
+    }
 }
 
 /**
@@ -2349,12 +2418,12 @@ export async function pruneOldNotifications(uid: string): Promise<void> {
         const snap = await getDocs(q);
         if (snap.empty) return;
 
-        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         const toDelete = snap.docs.filter(d => {
             const data = d.data();
             if (!data.createdAt) return false;
             const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt.seconds * 1000);
-            return date.getTime() < sevenDaysAgo;
+            return date.getTime() < oneMonthAgo;
         });
 
         if (toDelete.length === 0) return;
@@ -2416,6 +2485,49 @@ export async function markAllNotificationsRead(uid: string): Promise<void> {
             throw fallbackErr;
         }
     }
+}
+
+/**
+ * Registers an FCM Token for the user.
+ */
+export async function registerFCMToken(uid: string, token: string): Promise<void> {
+    if (!uid || !token) return;
+    const db = getDb();
+    try {
+        const userRef = doc(db, "users", uid);
+        await updateDoc(userRef, {
+            fcmTokens: arrayUnion(token)
+        });
+    } catch (e) {
+        console.error("[Firestore] Failed to register FCM token:", e);
+    }
+}
+
+/**
+ * Retrieves notifications for a user with cursor-based pagination.
+ */
+export async function getNotificationsPaginated(
+    uid: string,
+    limitVal: number,
+    lastDocSnap: any = null
+): Promise<{ notifications: (FirestoreNotification & { id: string })[], lastDoc: any }> {
+    const db = getDb();
+    let q = query(
+        collection(db, "notifications"),
+        where("recipientId", "==", uid),
+        orderBy("createdAt", "desc"),
+        limit(limitVal)
+    );
+    
+    if (lastDocSnap) {
+        q = query(q, startAfter(lastDocSnap));
+    }
+    
+    const snap = await getDocs(q);
+    const notifications = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreNotification) }));
+    const lastVisible = snap.docs[snap.docs.length - 1] || null;
+    
+    return { notifications, lastDoc: lastVisible };
 }
 // ═══════════════════════════════════════════════════
 //  QA CARDS
@@ -3116,7 +3228,7 @@ export function subscribeSiteSettings(callback: (settings: SiteSettingsDoc | nul
         }
     });
 }
-async function handleMentions(text: string, targetUrl: string, profile: any, relatedId: string, relatedType: string) {
+async function handleMentions(text: string, targetUrl: string, profile: any, relatedId: string, relatedType: string, excludeUserIds: string[] = []) {
     if (!text) return;
     const mentions = text.match(/@(\w+)/g);
     if (!mentions) return;
@@ -3129,6 +3241,8 @@ async function handleMentions(text: string, targetUrl: string, profile: any, rel
         const users = await getAllUsersByUsername(username);
         if (users.length > 0) {
             const targetUser = users[0];
+            if (targetUser.id && excludeUserIds.includes(targetUser.id)) continue;
+            
             await createNotification(targetUser.id!, {
                 type: "mention",
                 message: `${profile.displayName} mentioned you: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
@@ -3186,14 +3300,17 @@ export async function addComment(
             const parentData = parentSnap.data();
             await updateDoc(parentRef, { commentsCount: increment(1) });
 
+            const notifiedIds: string[] = [];
+
             // Notify author if it's someone else
             const authorId = parentData.creatorId || parentData.authorId || parentData.userId; // posts use creatorId, stories use authorId, others might use userId
             if (authorId && authorId !== profile.id) {
+                notifiedIds.push(authorId);
                 let targetUrl = "";
-                if (contentType === "post") targetUrl = `/news-feed?commentPostId=${contentId}#comment-${docRef.id}`;
-                else if (contentType === "story") targetUrl = `/story/${contentId}#comment-${docRef.id}`;
-                else if (contentType === "study") targetUrl = `/study?commentPostId=${contentId}#comment-${docRef.id}`;
-                else if (contentType === "groupPost") targetUrl = `/groups/${parentData.groupId}?postId=${contentId}#comment-${docRef.id}`;
+                if (contentType === "post") targetUrl = `/news-feed?post=${contentId}&comment=${docRef.id}`;
+                else if (contentType === "story") targetUrl = `/story/${contentId}?comment=${docRef.id}`;
+                else if (contentType === "study") targetUrl = `/study?study=${contentId}&comment=${docRef.id}`;
+                else if (contentType === "groupPost") targetUrl = `/groups/${parentData.groupId}?postId=${contentId}&comment=${docRef.id}`;
 
                 await createNotification(authorId, {
                     type: "comment",
@@ -3216,11 +3333,12 @@ export async function addComment(
                     // Only notify if parent author is not current user AND not already notified as post author
                     const postAuthorId = parentData.creatorId || parentData.authorId || parentData.userId;
                     if (parentAuthorId && parentAuthorId !== profile.id && parentAuthorId !== postAuthorId) {
+                        notifiedIds.push(parentAuthorId);
                         let targetUrl = "";
-                        if (contentType === "post") targetUrl = `/news-feed?commentPostId=${contentId}#comment-${docRef.id}`;
-                        else if (contentType === "story") targetUrl = `/story/${contentId}#comment-${docRef.id}`;
-                        else if (contentType === "study") targetUrl = `/study?commentPostId=${contentId}#comment-${docRef.id}`;
-                        else if (contentType === "groupPost") targetUrl = `/groups/${parentData.groupId}?postId=${contentId}#comment-${docRef.id}`;
+                        if (contentType === "post") targetUrl = `/news-feed?post=${contentId}&comment=${docRef.id}`;
+                        else if (contentType === "story") targetUrl = `/story/${contentId}?comment=${docRef.id}`;
+                        else if (contentType === "study") targetUrl = `/study?study=${contentId}&comment=${docRef.id}`;
+                        else if (contentType === "groupPost") targetUrl = `/groups/${parentData.groupId}?postId=${contentId}&comment=${docRef.id}`;
 
                         await createNotification(parentAuthorId, {
                             type: "reply",
@@ -3238,11 +3356,11 @@ export async function addComment(
 
             // Handle Mentions in comment
             let mentionUrl = "";
-            if (contentType === "post") mentionUrl = `/news-feed?commentPostId=${contentId}#comment-${docRef.id}`;
-            else if (contentType === "story") mentionUrl = `/story/${contentId}#comment-${docRef.id}`;
-            else if (contentType === "study") mentionUrl = `/study?commentPostId=${contentId}#comment-${docRef.id}`;
-            else if (contentType === "groupPost") mentionUrl = `/groups/${parentData.groupId}?postId=${contentId}#comment-${docRef.id}`;
-            await handleMentions(text, mentionUrl, profile, contentId, contentType);
+            if (contentType === "post") mentionUrl = `/news-feed?post=${contentId}&comment=${docRef.id}`;
+            else if (contentType === "story") mentionUrl = `/story/${contentId}?comment=${docRef.id}`;
+            else if (contentType === "study") mentionUrl = `/study?study=${contentId}&comment=${docRef.id}`;
+            else if (contentType === "groupPost") mentionUrl = `/groups/${parentData.groupId}?postId=${contentId}&comment=${docRef.id}`;
+            await handleMentions(text, mentionUrl, profile, contentId, contentType, notifiedIds);
         }
     } catch (err) {
         console.warn(`Could not update commentsCount or notify for ${contentType} ${contentId}`, err);
@@ -3661,7 +3779,7 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
             message: `${userProfile.displayName} shared a new study material: "${post.title}"`,
             relatedId: docRef.id,
             relatedType: "study",
-            targetUrl: `/study#study-${docRef.id}`,
+            targetUrl: `/study?study=${docRef.id}`,
             senderId: userProfile.id!,
             senderName: userProfile.displayName,
             senderPhotoURL: userProfile.photoURL || ""
@@ -3669,7 +3787,7 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
     }
 
     // Handle Mentions in study post content
-    await handleMentions(post.content || "", `/study?commentPostId=${docRef.id}`, userProfile, docRef.id, "study");
+    await handleMentions(post.content || "", `/study?study=${docRef.id}`, userProfile, docRef.id, "study");
 };
 
 export const getPendingStudyPosts = async () => {
@@ -3853,19 +3971,19 @@ export async function reactToContent(contentId: string, reaction: string, conten
         let targetUrl = "";
         if (contentType === "post") {
             recipientId = data.creatorId || data.authorId;
-            targetUrl = `/news-feed#post-${contentId}`;
+            targetUrl = `/news-feed?post=${contentId}`;
         } else if (contentType === "story") {
             recipientId = data.authorId;
             targetUrl = `/story/${contentId}`;
         } else if (contentType === "study") {
             recipientId = data.authorId;
-            targetUrl = `/study#study-${contentId}`;
+            targetUrl = `/study?study=${contentId}`;
         } else if (contentType === "groupPost") {
             recipientId = data.creatorId;
             targetUrl = `/groups/${data.groupId}?postId=${contentId}`;
         } else if (contentType === "comment") {
             recipientId = data.userId;
-            targetUrl = data.postId ? `/news-feed#comment-${contentId}` : "";
+            targetUrl = data.postId ? `/news-feed?post=${data.postId}&comment=${contentId}` : "";
         }
 
         if (recipientId && recipientId !== user.uid) {

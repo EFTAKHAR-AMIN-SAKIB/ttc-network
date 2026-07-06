@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, use } from "react";
+import { useState, useEffect, useMemo, use, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -40,6 +40,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     
     // Page state
     const [loading, setLoading] = useState(true);
+    const [groupMissing, setGroupMissing] = useState(false);
     const [activeTab, setActiveTab] = useState<"posts" | "members" | "about">("posts");
     const [groupMembersList, setGroupMembersList] = useState<any[]>([]);
     
@@ -74,10 +75,11 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     // Subscriptions
     useEffect(() => {
         setLoading(true);
+        setGroupMissing(false);
         const unsubDetails = subscribeGroupDetails(groupId, (data) => {
             if (!data) {
-                showToast("Group not found", "error");
-                router.push("/groups");
+                setGroupMissing(true);
+                setLoading(false);
                 return;
             }
             setGroup(data);
@@ -147,6 +149,43 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                 });
         }
     }, [group, user?.uid, isMember, isPending, searchParams]);
+
+    const hasScrolledRef = useRef<string | null>(null);
+    const [targetPostId, setTargetPostId] = useState<string | null>(null);
+    const [hashPostId, setHashPostId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const handleHashChange = () => {
+                const hash = window.location.hash;
+                if (hash.startsWith("#post-")) {
+                    setHashPostId(hash.substring(6));
+                }
+            };
+            handleHashChange();
+            window.addEventListener("hashchange", handleHashChange);
+            return () => window.removeEventListener("hashchange", handleHashChange);
+        }
+    }, []);
+
+    // Scroll to & highlight group post deep link
+    useEffect(() => {
+        const effectivePostId = searchParams.get('postId') || searchParams.get('post') || hashPostId;
+        if (effectivePostId && posts.length > 0) {
+            setTargetPostId(effectivePostId);
+            const exists = posts.some(p => p.id === effectivePostId);
+            if (exists && hasScrolledRef.current !== effectivePostId) {
+                hasScrolledRef.current = effectivePostId;
+                
+                setTimeout(() => {
+                    const el = document.getElementById(`post-${effectivePostId}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 400);
+            }
+        }
+    }, [searchParams, posts, hashPostId]);
 
     const handleJoin = async () => {
         if (!user) {
@@ -228,6 +267,19 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex items-center justify-center">
                 <Loader2 className="animate-spin text-primary" size={28} />
+            </div>
+        );
+    }
+
+    if (groupMissing) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50/50 dark:bg-[#0c0c10]">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+                    <Users size={28} />
+                </div>
+                <h1 className="text-2xl font-black mb-2 uppercase tracking-tight text-gray-900 dark:text-white">This content is no longer available</h1>
+                <p className="text-gray-500 max-w-sm mb-6 leading-relaxed">The group you are trying to view has been deleted or is not accessible.</p>
+                <button onClick={() => router.push('/groups')} className="px-6 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Back to Groups</button>
             </div>
         );
     }

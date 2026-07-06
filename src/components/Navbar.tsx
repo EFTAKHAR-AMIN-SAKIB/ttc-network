@@ -11,8 +11,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
 import { subscribeNotifications, subscribeUnreadNotificationsCount, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, pruneOldNotifications, type FirestoreNotification } from "@/lib/firestore";
+import { useSectionUpdates } from "@/hooks/useSectionUpdates";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
+import { useToast } from "@/contexts/ToastContext";
 
 const navLinks = [
     { href: "/", label: "Home", icon: Home },
@@ -35,9 +37,34 @@ export default function Navbar() {
     const [searchOpen, setSearchOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState<(FirestoreNotification & { id: string })[]>([]);
+    const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
+
+    const getSectionKey = (href: string) => {
+        if (href === "/news-feed") return "news-feed";
+        if (href === "/story") return "story";
+        if (href === "/notice") return "notice";
+        if (href === "/study") return "study";
+        return null;
+    };
+
+    const hasUnseenUpdate = (href: string) => {
+        if (href === "/news-feed") {
+            return (
+                latestUpdate.event > lastSeen.event ||
+                latestUpdate.club > lastSeen.club ||
+                latestUpdate.group > lastSeen.group
+            );
+        }
+        if (href === "/story") return latestUpdate.story > lastSeen.story;
+        if (href === "/notice") return latestUpdate.notice > lastSeen.notice;
+        if (href === "/study") return latestUpdate.study > lastSeen.study;
+        return false;
+    };
     const [mounted, setMounted] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
+    const { showToast } = useToast();
+    const prevNotificationsRef = useRef<string[] | null>(null);
     const [pendingVerificationsCount, setPendingVerificationsCount] = useState(0);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -64,8 +91,28 @@ export default function Navbar() {
 
     // Subscribe to real-time notifications
     useEffect(() => {
-        if (!user?.uid) return;
+        if (!user?.uid) {
+            prevNotificationsRef.current = null;
+            return;
+        }
         const unsub = subscribeNotifications(user.uid, (data) => {
+            if (prevNotificationsRef.current === null) {
+                prevNotificationsRef.current = data.map(n => n.id);
+                setNotifications(data);
+                return;
+            }
+            
+            // Detect new unread notifications
+            const prevIds = prevNotificationsRef.current;
+            
+            // We no longer trigger in-app toast popups for new unread notifications
+            // to keep the UI clean/premium and avoid duplicate native notifications.
+            // const newUnread = data.filter(n => !n.read && !prevIds.includes(n.id));
+            // newUnread.forEach(notif => {
+            //     showToast(notif.message, "info");
+            // });
+            
+            prevNotificationsRef.current = data.map(n => n.id);
             setNotifications(data);
         });
         return () => unsub();
@@ -197,18 +244,35 @@ export default function Navbar() {
                                 <Link
                                     key={link.href}
                                     href={link.href}
+                                    onClick={() => {
+                                        const sectionKey = getSectionKey(link.href);
+                                        if (sectionKey) markAsSeen(sectionKey);
+                                    }}
                                     className={`group/nav relative flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3.5 py-2 rounded-xl text-[13px] lg:text-sm font-bold transition-all duration-300 ${isActive
                                         ? "text-primary dark:text-[#1D9BF0] bg-primary/[0.07] dark:bg-[#1D9BF0]/10"
                                         : "text-gray-600 dark:text-[#71767B] hover:text-primary dark:hover:text-[#1D9BF0] hover:bg-gray-50 dark:hover:bg-white/5"
                                         }`}
                                 >
-                                    <NavIcon
-                                        size={16}
-                                        className={`shrink-0 transition-all duration-300 ${isActive
-                                            ? "text-primary dark:text-[#1D9BF0] stroke-[2.5]"
-                                            : "text-gray-400 dark:text-gray-500 group-hover/nav:text-primary dark:group-hover/nav:text-[#1D9BF0] group-hover/nav:scale-110 stroke-2"
-                                        }`}
-                                    />
+                                    <div className="relative">
+                                        <NavIcon
+                                            size={16}
+                                            className={`shrink-0 transition-all duration-300 ${isActive
+                                                ? "text-primary dark:text-[#1D9BF0] stroke-[2.5]"
+                                                : "text-gray-400 dark:text-gray-500 group-hover/nav:text-primary dark:group-hover/nav:text-[#1D9BF0] group-hover/nav:scale-110 stroke-2"
+                                            }`}
+                                        />
+                                        {(() => {
+                                            if (hasUnseenUpdate(link.href)) {
+                                                return (
+                                                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                    </span>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </div>
                                     <span className="hidden lg:inline">{link.label}</span>
                                     {isActive && (
                                         <motion.div

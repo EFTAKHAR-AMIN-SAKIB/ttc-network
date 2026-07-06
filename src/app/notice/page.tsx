@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import ImageLightbox from "@/components/ImageLightbox";
 import {
     Pin,
@@ -388,8 +388,10 @@ function NoticePageContent() {
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [shareNotice, setShareNotice] = useState<any | null>(null);
     const [targetNoticeId, setTargetNoticeId] = useState<string | null>(null);
+    const [temporaryHighlightId, setTemporaryHighlightId] = useState<string | null>(null);
     const hasScrolledRef = useRef<string | null>(null);
     const searchParams = useSearchParams();
+    const router = useRouter();
 
     // Edit state
     const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
@@ -460,23 +462,48 @@ function NoticePageContent() {
         };
     }, [profile]);
 
-    // Scroll to & highlight notice deep link
+    const [hashNoticeId, setHashNoticeId] = useState<string | null>(null);
+
     useEffect(() => {
-        const noticeParam = searchParams.get('notice');
-        if (noticeParam && notices.length > 0) {
-            setTargetNoticeId(noticeParam);
-            const noticeExists = notices.some(n => n.id === noticeParam);
-            if (noticeExists && hasScrolledRef.current !== noticeParam) {
-                hasScrolledRef.current = noticeParam;
+        if (typeof window !== "undefined") {
+            const handleHashChange = () => {
+                const hash = window.location.hash;
+                if (hash.startsWith("#notice-")) {
+                    setHashNoticeId(hash.substring(8));
+                }
+            };
+            handleHashChange();
+            window.addEventListener("hashchange", handleHashChange);
+            return () => window.removeEventListener("hashchange", handleHashChange);
+        }
+    }, []);
+
+    // Handle URL parameters (deep-linking)
+    useEffect(() => {
+        const effectiveNoticeId = searchParams.get("notice") || hashNoticeId;
+        if (effectiveNoticeId && notices.length > 0) {
+            setTargetNoticeId(effectiveNoticeId);
+            const exists = notices.some((n) => n.id === effectiveNoticeId);
+            if (exists && hasScrolledRef.current !== effectiveNoticeId) {
+                hasScrolledRef.current = effectiveNoticeId;
+
+                // Highlight temporary for 3 seconds
+                setTemporaryHighlightId(effectiveNoticeId);
+                const timer = setTimeout(() => {
+                    setTemporaryHighlightId(null);
+                }, 3000);
+
                 setTimeout(() => {
-                    const el = document.getElementById(`notice-${noticeParam}`);
-                    if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const element = document.getElementById(`notice-${effectiveNoticeId}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: "smooth", block: "center" });
                     }
                 }, 400);
+
+                return () => clearTimeout(timer);
             }
         }
-    }, [searchParams, notices]);
+    }, [searchParams, notices, hashNoticeId]);
 
     const handleSaveNotice = async (noticeId: string) => {
         if (!requireVerification("bookmark notices")) return;
@@ -626,6 +653,22 @@ function NoticePageContent() {
             close();
         }
     };
+
+    const effectiveNoticeId = searchParams.get("notice") || hashNoticeId;
+    const isNoticeMissing = !loading && effectiveNoticeId && !notices.some(n => n.id === effectiveNoticeId);
+
+    if (isNoticeMissing) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50/50 dark:bg-[#0c0c10]">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+                    <Megaphone size={28} />
+                </div>
+                <h1 className="text-2xl font-black mb-2 uppercase tracking-tight text-gray-900 dark:text-white">This content is no longer available</h1>
+                <p className="text-gray-500 max-w-sm mb-6 leading-relaxed">The notice you are trying to view has been deleted or is no longer available.</p>
+                <button onClick={() => router.push('/notice')} className="px-6 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Back to Notice Board</button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen" style={{ background: "var(--bg)" }}>
@@ -802,17 +845,19 @@ function NoticePageContent() {
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.05 }}
                                         className={`relative rounded-2xl p-6 border shadow-md hover:shadow-xl transition-all duration-300 ${
-                                            targetNoticeId === notice.id
-                                                ? "ring-2 ring-primary border-primary/50"
-                                                : notice.isUrgent
-                                                    ? "bg-gradient-to-br from-[var(--card-bg)] to-red-500/[0.01] dark:to-red-500/[0.03] border-l-4 border-l-red-500 border-red-500/20"
-                                                    : notice.isPinned
-                                                        ? "bg-gradient-to-br from-[var(--card-bg)] to-indigo-500/[0.01] dark:to-indigo-500/[0.03] border-l-4 border-l-accent border-indigo-500/20"
-                                                        : "hover:border-slate-300 dark:hover:border-slate-700"
+                                            temporaryHighlightId === notice.id
+                                                ? "ring-4 ring-blue-500 ring-offset-4 dark:ring-offset-[#12131a] shadow-xl scale-[1.01]"
+                                                : targetNoticeId === notice.id
+                                                    ? "ring-2 ring-primary border-primary/50"
+                                                    : notice.isUrgent
+                                                        ? "bg-gradient-to-br from-[var(--card-bg)] to-red-500/[0.01] dark:to-red-500/[0.03] border-l-4 border-l-red-500 border-red-500/20"
+                                                        : notice.isPinned
+                                                            ? "bg-gradient-to-br from-[var(--card-bg)] to-indigo-500/[0.01] dark:to-indigo-500/[0.03] border-l-4 border-l-accent border-indigo-500/20"
+                                                            : "hover:border-slate-300 dark:hover:border-slate-700"
                                         }`}
                                         style={{
                                             background: "var(--card-bg)",
-                                            borderColor: targetNoticeId === notice.id ? undefined : notice.isUrgent ? undefined : notice.isPinned ? undefined : "var(--card-border)",
+                                            borderColor: temporaryHighlightId === notice.id ? undefined : targetNoticeId === notice.id ? undefined : notice.isUrgent ? undefined : notice.isPinned ? undefined : "var(--card-border)",
                                         }}
                                     >
                                         <div className="flex items-start gap-3">

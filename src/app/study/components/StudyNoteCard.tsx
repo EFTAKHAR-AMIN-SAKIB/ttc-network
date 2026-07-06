@@ -45,7 +45,10 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
     useEffect(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
-            if (params.get("commentPostId") === post.id) {
+            const targetId = params.get("study") || params.get("post") || params.get("commentPostId");
+            const hasCommentParam = params.get("comment");
+            const hasCommentHash = window.location.hash.startsWith("#comment-");
+            if (targetId === post.id && (hasCommentParam || hasCommentHash || params.get("commentPostId"))) {
                 setShowComments(true);
             }
         }

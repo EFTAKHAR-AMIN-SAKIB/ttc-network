@@ -1,55 +1,61 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCircle, X, BookText, Globe, MessageSquare, Award, Heart, Scroll, UserPlus, Check, Trash2 } from "lucide-react";
+import { Bell, CheckCircle, X, BookText, Globe, MessageSquare, Award, Heart, Scroll, UserPlus, Check, Trash2, Share2, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FirestoreNotification } from "@/lib/firestore";
 import { useState, useEffect, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import { useNotificationValidity } from "@/hooks/useNotificationValidity";
+import { useToast } from "@/contexts/ToastContext";
 
 const notifIcons: Record<string, ComponentType<{ size?: number | string; className?: string }>> = {
-    post_approved: CheckCircle,
-    post_rejected: X,
-    story_approved: BookText,
-    story_rejected: X,
-    college_edit_approved: Globe,
-    college_edit_rejected: X,
-    new_notice: MessageSquare,
-    urgent_notice: Bell,
-    gift_approved: Heart,
-    club_join_approved: Award,
-    club_join_rejected: X,
     comment: MessageSquare,
-    reaction: Heart,
-    follow: UserPlus,
-    badge_received: Award,
-    mention: MessageSquare,
     reply: MessageSquare,
+    mention: MessageSquare,
+    reaction: Heart,
+    share: Share2,
+    // notice / resource
+    new_notice: FileText,
+    urgent_notice: FileText,
+    story_approved: FileText,
+    story_rejected: FileText,
+    post_approved: FileText,
+    post_rejected: FileText,
+    // system fallbacks
+    follow: Bell,
+    group_invite: Bell,
+    badge_received: Bell,
+    college_edit_approved: Bell,
+    college_edit_rejected: Bell,
+    gift_approved: Bell,
+    club_join_approved: Bell,
+    club_join_rejected: Bell,
     new_post: Bell,
-    group_invite: UserPlus,
 };
 
 const notifColors: Record<string, string> = {
-    post_approved: "text-green-500 bg-green-50 dark:bg-green-500/10",
-    post_rejected: "text-red-500 bg-red-50 dark:bg-red-500/10",
-    story_approved: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
-    story_rejected: "text-red-500 bg-red-50 dark:bg-red-500/10",
-    college_edit_approved: "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10",
-    college_edit_rejected: "text-red-500 bg-red-50 dark:bg-red-500/10",
-    new_notice: "text-purple-500 bg-purple-50 dark:bg-purple-500/10",
-    urgent_notice: "text-amber-500 bg-amber-50 dark:bg-amber-500/10",
-    gift_approved: "text-pink-500 bg-pink-50 dark:bg-pink-500/10",
-    club_join_approved: "text-[#1A5276] bg-[#1A5276]/5",
-    club_join_rejected: "text-red-500 bg-red-50 dark:bg-red-500/10",
-    comment: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
     reaction: "text-pink-500 bg-pink-50 dark:bg-pink-500/10",
-    follow: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
-    badge_received: "text-amber-500 bg-amber-50 dark:bg-amber-500/10",
-    mention: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    comment: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
     reply: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
-    new_post: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
-    group_invite: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
+    mention: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10",
+    share: "text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10",
+    new_notice: "text-amber-500 bg-amber-50 dark:bg-amber-500/10",
+    urgent_notice: "text-amber-500 bg-amber-50 dark:bg-amber-500/10",
+    story_approved: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    story_rejected: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    post_approved: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    post_rejected: "text-blue-500 bg-blue-50 dark:bg-blue-500/10",
+    follow: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    group_invite: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    badge_received: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    college_edit_approved: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    college_edit_rejected: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    gift_approved: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    club_join_approved: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    club_join_rejected: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
+    new_post: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
 };
 
 interface NotificationCenterProps {
@@ -76,6 +82,8 @@ export function NotificationCenter({
     const router = useRouter();
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState<"all" | "unread" | "social" | "system">("all");
+    const validityMap = useNotificationValidity(notifications);
+    const { showToast } = useToast();
 
     useEffect(() => {
         setMounted(true);
@@ -99,6 +107,12 @@ export function NotificationCenter({
     const handleNotifClick = (notif: FirestoreNotification & { id: string }) => {
         onMarkRead(notif);
         onClose();
+
+        const isValid = validityMap[notif.id] !== false;
+        if (!isValid) {
+            showToast("This content is no longer available", "error");
+            return;
+        }
 
         if (notif.targetUrl) {
             router.push(notif.targetUrl);
@@ -221,6 +235,7 @@ export function NotificationCenter({
                                                         onMarkSingleRead={onMarkSingleRead}
                                                         onDelete={onDelete}
                                                         formatTime={formatTime} 
+                                                        isValid={validityMap[notif.id] !== false}
                                                     />
                                                 </motion.div>
                                             ))}
@@ -245,6 +260,7 @@ export function NotificationCenter({
                                                         onMarkSingleRead={onMarkSingleRead}
                                                         onDelete={onDelete}
                                                         formatTime={formatTime} 
+                                                        isValid={validityMap[notif.id] !== false}
                                                     />
                                                 </motion.div>
                                             ))}
@@ -326,6 +342,7 @@ export function NotificationCenter({
                                                             onDelete={onDelete}
                                                             formatTime={formatTime}
                                                             isMobile 
+                                                            isValid={validityMap[notif.id] !== false}
                                                         />
                                                     </motion.div>
                                                 ))
@@ -348,7 +365,10 @@ export function NotificationCenter({
 }
 
 // Sub-Component: Styled typography & content preview
-function FormattedNotificationText({ notif }: { notif: FirestoreNotification & { senderName?: string } }) {
+function FormattedNotificationText({ notif, isRead }: { notif: FirestoreNotification & { senderName?: string }, isRead: boolean }) {
+    const textWeightClass = isRead ? "font-normal text-gray-500 dark:text-gray-400" : "font-semibold text-gray-950 dark:text-white";
+    const senderWeightClass = isRead ? "font-semibold text-gray-700 dark:text-gray-305" : "font-black text-gray-955 dark:text-white";
+
     if (notif.senderName && notif.message.startsWith(notif.senderName)) {
         const restOfMessage = notif.message.substring(notif.senderName.length);
         const quoteIndex = restOfMessage.indexOf(': "');
@@ -359,9 +379,13 @@ function FormattedNotificationText({ notif }: { notif: FirestoreNotification & {
 
             return (
                 <div className="text-sm leading-normal">
-                    <span className="font-extrabold text-gray-900 dark:text-gray-100">{notif.senderName}</span>
-                    <span className="text-gray-500 dark:text-gray-400 font-medium">{actionText}</span>
-                    <div className="mt-2 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-805/40 border-l-[3px] border-primary/45 rounded-r-xl text-xs italic text-gray-600 dark:text-gray-300 font-medium leading-relaxed break-words shadow-sm">
+                    <span className={senderWeightClass}>{notif.senderName}</span>
+                    <span className={`font-medium ${isRead ? "text-gray-450 dark:text-gray-500" : "text-gray-600 dark:text-gray-300"}`}>{actionText}</span>
+                    <div className={`mt-2 px-3.5 py-2.5 border-l-[3px] rounded-r-xl text-xs italic leading-relaxed break-words shadow-sm ${
+                        isRead 
+                        ? "bg-gray-50/50 dark:bg-gray-800/10 border-gray-200 dark:border-gray-800 text-gray-550 dark:text-gray-400" 
+                        : "bg-gray-50 dark:bg-gray-800/40 border-primary/45 text-gray-700 dark:text-gray-300"
+                    }`}>
                         &quot;{quoteText}&quot;
                     </div>
                 </div>
@@ -369,14 +393,14 @@ function FormattedNotificationText({ notif }: { notif: FirestoreNotification & {
         }
 
         return (
-            <div className="text-sm text-gray-600 dark:text-gray-450 leading-normal font-medium">
-                <span className="font-extrabold text-gray-900 dark:text-gray-100">{notif.senderName}</span>
+            <div className={`text-sm leading-normal ${textWeightClass}`}>
+                <span className={senderWeightClass}>{notif.senderName}</span>
                 {restOfMessage}
             </div>
         );
     }
 
-    return <p className="text-sm text-gray-805 dark:text-gray-200 font-bold leading-normal">{notif.message}</p>;
+    return <p className={`text-sm leading-normal ${isRead ? "font-normal text-gray-505 dark:text-gray-400" : "font-bold text-gray-950 dark:text-white"}`}>{notif.message}</p>;
 }
 
 // Sub-Component: Individual Notification Row Item
@@ -386,7 +410,8 @@ function NotificationItem({
     onMarkSingleRead,
     onDelete,
     formatTime,
-    isMobile
+    isMobile,
+    isValid = true
 }: {
     notif: FirestoreNotification & { id: string; senderName?: string; senderPhotoURL?: string };
     onClick: () => void;
@@ -394,6 +419,7 @@ function NotificationItem({
     onDelete: (id: string) => void;
     formatTime: (ts: { seconds?: number } | null | undefined) => string;
     isMobile?: boolean;
+    isValid?: boolean;
 }) {
     const Icon = notifIcons[notif.type] || Bell;
     const colorClass = notifColors[notif.type] || "text-gray-500 bg-gray-50 dark:bg-gray-800";
@@ -401,12 +427,17 @@ function NotificationItem({
     return (
         <div
             onClick={onClick}
-            className={`w-full text-left flex items-start gap-3.5 transition-all group relative cursor-pointer ${
+            className={`w-full text-left flex items-start gap-3.5 transition-all group relative cursor-pointer pr-12 pl-8 ${
                 isMobile 
-                ? "p-4 rounded-2xl border border-gray-100 dark:border-gray-850 bg-white dark:bg-[#161620]" 
-                : "px-5 py-4 hover:bg-gray-50/70 dark:hover:bg-gray-800/30"
+                ? "p-4 pr-12 pl-8 rounded-2xl border border-gray-100 dark:border-gray-850 bg-white dark:bg-[#161620]" 
+                : "px-5 pr-12 pl-8 py-4 hover:bg-gray-50/70 dark:hover:bg-gray-800/30"
             } ${!notif.read ? (isMobile ? "bg-primary/[0.03] border-primary/20 dark:bg-primary/[0.05]" : "bg-blue-50/15 dark:bg-blue-900/5") : "opacity-80 hover:opacity-100"}`}
         >
+            {/* Blue dot on left */}
+            {!notif.read && (
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            )}
+
             {/* Left: Avatar or System Icon */}
             <div className="shrink-0 relative mt-0.5 animate-in fade-in zoom-in duration-300">
                 {notif.senderPhotoURL ? (
@@ -434,8 +465,14 @@ function NotificationItem({
             </div>
 
             {/* Middle: Content & Timestamp */}
-            <div className="flex-1 min-w-0 pr-8">
-                <FormattedNotificationText notif={notif} />
+            <div className="flex-grow min-w-0 pr-8">
+                {isValid ? (
+                    <FormattedNotificationText notif={notif} isRead={notif.read} />
+                ) : (
+                    <p className="text-sm leading-normal font-medium text-gray-400 dark:text-gray-500 italic">
+                        Content is not available
+                    </p>
+                )}
                 <div className="flex items-center gap-2 mt-2">
                     <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                         {formatTime(notif.createdAt)}
@@ -443,12 +480,8 @@ function NotificationItem({
                 </div>
             </div>
 
-            {/* Right Side: Unread dot / Quick hover controls */}
+            {/* Right Side: Quick hover controls */}
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
-                {/* Default State: Unread dot */}
-                {!notif.read && (
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse group-hover:hidden transition-all duration-150" />
-                )}
 
                 {/* Quick actions: Show on hover (Desktop) or always (Mobile) */}
                 <div className={`${isMobile ? "flex" : "hidden group-hover:flex"} items-center gap-1 bg-white/95 dark:bg-[#1a1b23]/95 p-1 rounded-lg border border-gray-100 dark:border-gray-800 shadow-md`}>

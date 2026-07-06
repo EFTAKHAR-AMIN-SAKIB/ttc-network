@@ -112,11 +112,13 @@ export default function StoryDetailPage() {
     );
 
     if (error || !story) return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-            <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
-            <p className="text-gray-500 mb-6">{error || "We couldn't find that story."}</p>
-            <button onClick={() => router.push('/story')} className="px-6 py-2 bg-primary text-white rounded-xl font-bold">Back to Feed</button>
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50/50 dark:bg-[#0c0c10]">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+                <BookOpen size={28} />
+            </div>
+            <h1 className="text-2xl font-black mb-2 uppercase tracking-tight text-gray-900 dark:text-white">This content is no longer available</h1>
+            <p className="text-gray-500 max-w-sm mb-6 leading-relaxed">The story you are trying to view has been deleted or is not accessible.</p>
+            <button onClick={() => router.push('/story')} className="px-6 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Back to Stories</button>
         </div>
     );
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Send, Trash2, Reply, MoreHorizontal, CheckCircle2, X, Loader2 } from "lucide-react";
 import { addComment, deleteComment, subscribeComments, subscribeCommentsWithLimit, getFollowingUserIds } from "@/lib/firestore";
@@ -159,6 +160,7 @@ export function CommentSystem({
     const [isFocused, setIsFocused] = useState(false);
     const [replyTo, setReplyTo] = useState<{ userName: string; parentId: string } | null>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const searchParams = useSearchParams();
 
     const draftKey = `ttc_comment_draft_${contentType}_${contentId}`;
 
@@ -182,23 +184,32 @@ export function CommentSystem({
         if (!contentId) return;
         return subscribeComments(contentId, (all) => {
             setComments(all);
-
-            // Auto-scroll to specific comment if hash matches
-            if (typeof window !== "undefined" && window.location.hash.startsWith("#comment-")) {
-                const commentId = window.location.hash.substring(1);
-                // We use a small timeout to ensure the DOM has rendered the new comment items
-                setTimeout(() => {
-                    const el = document.getElementById(commentId);
-                    if (el) {
-                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                        // Add a subtle highlight effect
-                        el.classList.add("ring-2", "ring-primary", "ring-offset-2");
-                        setTimeout(() => el.classList.remove("ring-2", "ring-primary", "ring-offset-2"), 3000);
-                    }
-                }, 500);
-            }
         });
     }, [contentId]);
+
+    // Auto-scroll to specific comment if query parameter or hash matches
+    useEffect(() => {
+        let commentId = "";
+        const commentParam = searchParams.get("comment");
+        if (commentParam) {
+            commentId = `comment-${commentParam}`;
+        } else if (typeof window !== "undefined" && window.location.hash.startsWith("#comment-")) {
+            commentId = window.location.hash.substring(1);
+        }
+
+        if (commentId && comments.length > 0) {
+            const timer = setTimeout(() => {
+                const el = document.getElementById(commentId);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    // Add a subtle highlight effect
+                    el.classList.add("ring-2", "ring-primary/50", "rounded-2xl", "transition-all", "duration-500", "p-2", "bg-primary/[0.02]");
+                    setTimeout(() => el.classList.remove("ring-2", "ring-primary/50", "p-2", "bg-primary/[0.02]"), 3000);
+                }
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [contentId, searchParams, comments.length]);
 
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -426,6 +437,7 @@ export function CommentDrawer({
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const searchParams = useSearchParams();
 
     const draftKey = `ttc_comment_draft_${contentType}_${contentId}`;
 
@@ -435,6 +447,40 @@ export function CommentDrawer({
         window.addEventListener("resize", checkMobile);
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
+
+    // Auto-scroll to comment if deep link parameter or hash is present
+    useEffect(() => {
+        if (!isOpen || comments.length === 0) return;
+        
+        let commentId = "";
+        const commentParam = searchParams.get("comment");
+        if (commentParam) {
+            commentId = commentParam;
+        } else if (typeof window !== "undefined") {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith("#comment-")) {
+                commentId = hash.substring(9);
+            } else if (hash && hash.startsWith("#comment_")) {
+                commentId = hash.substring(9);
+            }
+        }
+        
+        if (commentId) {
+            const timer = setTimeout(() => {
+                const el = document.getElementById(`comment-${commentId}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    
+                    // Highlight the comment temporary
+                    el.classList.add("ring-2", "ring-primary/50", "rounded-2xl", "transition-all", "duration-500", "p-2", "bg-primary/[0.02]");
+                    setTimeout(() => {
+                        el.classList.remove("ring-2", "ring-primary/50", "p-2", "bg-primary/[0.02]");
+                    }, 3000);
+                }
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, comments.length, searchParams]);
 
     // Load draft
     useEffect(() => {

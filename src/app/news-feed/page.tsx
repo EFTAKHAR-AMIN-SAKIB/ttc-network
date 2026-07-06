@@ -162,6 +162,7 @@ function NewsFeedInner() {
     const { showToast } = useToast();
 
     const [targetPostId, setTargetPostId] = useState<string | null>(null);
+    const [temporaryHighlightId, setTemporaryHighlightId] = useState<string | null>(null);
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const hasScrolledRef = useRef<string | null>(null);
 
@@ -295,31 +296,60 @@ function NewsFeedInner() {
         setEditLinkPreview(post.linkPreview || null);
     };
 
+    const [hashPostId, setHashPostId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const handleHashChange = () => {
+                const hash = window.location.hash;
+                if (hash.startsWith("#post-")) {
+                    setHashPostId(hash.substring(6));
+                }
+            };
+            handleHashChange();
+            window.addEventListener("hashchange", handleHashChange);
+            return () => window.removeEventListener("hashchange", handleHashChange);
+        }
+    }, []);
+
     // Deep-link: read ?post= and ?edit= query params
     useEffect(() => {
-        const postParam = searchParams.get('post');
+        const effectivePostId = searchParams.get('post') || searchParams.get('commentPostId') || hashPostId;
         const editParam = searchParams.get('edit');
-        if (postParam && posts.length > 0) {
-            setTargetPostId(postParam);
+        if (effectivePostId && posts.length > 0) {
+            setTargetPostId(effectivePostId);
             
             // Check if post exists in current list
-            const postExists = posts.some(p => p.id === postParam);
-            if (postExists && hasScrolledRef.current !== postParam) {
-                hasScrolledRef.current = postParam;
+            const postExists = posts.find(p => p.id === effectivePostId);
+            if (postExists && hasScrolledRef.current !== effectivePostId) {
+                // Automatically switch to correct tab for events or clubs
+                if (postExists.type) {
+                    setActiveTab(postExists.type);
+                } else {
+                    setActiveTab("event");
+                }
+                
+                hasScrolledRef.current = effectivePostId;
+                
+                // Highlight temporary for 3 seconds
+                setTemporaryHighlightId(effectivePostId);
+                const timer = setTimeout(() => {
+                    setTemporaryHighlightId(null);
+                }, 3000);
+
                 setTimeout(() => {
-                    const el = document.getElementById(`post-${postParam}`);
+                    const el = document.getElementById(`post-${effectivePostId}`);
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
+                }, 300);
                 
                 if (editParam === 'true' && !editingPostId) {
-                    const postToEdit = posts.find(p => p.id === postParam);
-                    if (postToEdit) {
-                        setTimeout(() => handleEditStart(postToEdit), 200);
-                    }
+                    setTimeout(() => handleEditStart(postExists), 400);
                 }
+
+                return () => clearTimeout(timer);
             }
         }
-    }, [searchParams, posts, editingPostId]);
+    }, [searchParams, posts, editingPostId, hashPostId]);
 
     const handleCancelEdit = () => {
         setEditingPostId(null);
@@ -402,6 +432,22 @@ function NewsFeedInner() {
             return true;
         });
     }, [selectedFilter, posts, activeTab, searchQuery, selectedTag, profile?.collegeId, profile?.uid]);
+
+    const effectivePostId = searchParams.get('post') || searchParams.get('commentPostId') || hashPostId;
+    const isPostMissing = !loading && effectivePostId && !posts.some(p => p.id === effectivePostId);
+
+    if (isPostMissing) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50/50 dark:bg-[#0c0c10]">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-full flex items-center justify-center mb-6">
+                    <X size={28} />
+                </div>
+                <h1 className="text-2xl font-black mb-2 uppercase tracking-tight text-gray-900 dark:text-white">This content is no longer available</h1>
+                <p className="text-gray-500 max-w-sm mb-6 leading-relaxed">The post or conversation you are trying to view has been deleted or is not accessible.</p>
+                <button onClick={() => router.push('/news-feed')} className="px-6 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Back to Feed</button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117]">
@@ -539,7 +585,17 @@ function NewsFeedInner() {
                 ) : (
                     <div className="space-y-12 pb-32">
                         {filteredPosts.map(post => (
-                            <div key={post.id} id={`post-${post.id}`} className={targetPostId === post.id ? 'ring-2 ring-primary/50 rounded-3xl transition-all' : ''}>
+                            <div 
+                                key={post.id} 
+                                id={`post-${post.id}`} 
+                                className={`rounded-3xl transition-all duration-500 ${
+                                    temporaryHighlightId === post.id 
+                                        ? 'ring-4 ring-blue-500 ring-offset-4 dark:ring-offset-[#0f1117] shadow-xl' 
+                                        : targetPostId === post.id 
+                                            ? 'ring-2 ring-primary/50' 
+                                            : ''
+                                }`}
+                            >
                             <PostCard
                                 post={post}
                                 profile={profile}

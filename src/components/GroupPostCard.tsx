@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, MoreHorizontal, Pin, Trash2, MessageCircle, 
@@ -46,6 +47,8 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const { showToast } = useToast();
     const [showComments, setShowComments] = useState(false);
     const [previewComments, setPreviewComments] = useState<any[]>([]);
+    const searchParams = useSearchParams();
+    const [isTarget, setIsTarget] = useState(false);
 
     useEffect(() => {
         if (!post.id) return;
@@ -66,6 +69,32 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
             setPreviewComments(sorted.slice(0, 2));
         });
     }, [post.id]);
+
+    const [temporaryHighlight, setTemporaryHighlight] = useState(false);
+
+    // Auto-expand comments if the URL points to this post
+    useEffect(() => {
+        const expandId = searchParams.get("postId") || searchParams.get("post") || searchParams.get("commentPostId");
+        const hasCommentParam = searchParams.get("comment");
+        const hasCommentHash = typeof window !== "undefined" && window.location.hash.startsWith("#comment-");
+        if (expandId === post.id && (hasCommentParam || hasCommentHash || searchParams.get("commentPostId"))) {
+            setShowComments(true);
+        }
+    }, [post.id, searchParams]);
+
+    // Highlighting
+    useEffect(() => {
+        const highlightId = searchParams.get("postId") || searchParams.get("post") || searchParams.get("commentPostId");
+        if (highlightId === post.id) {
+            setTemporaryHighlight(true);
+            setIsTarget(true);
+            const timer = setTimeout(() => setTemporaryHighlight(false), 3000);
+            return () => clearTimeout(timer);
+        } else {
+            setIsTarget(false);
+        }
+    }, [post.id, searchParams]);
+
     const [menuOpen, setMenuOpen] = useState(false);
     const [reportReportModalOpen, setReportModalOpen] = useState(false);
     const [reportReason, setReportReason] = useState("");
@@ -184,11 +213,18 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     return (
         <>
         <motion.div 
+            id={`post-${post.id}`}
             layout
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             className={`bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm transition-all duration-300 hover:shadow-md relative overflow-visible ${
                 post.isPinned ? "border-amber-500/30 dark:border-amber-500/20 bg-amber-50/10 dark:bg-amber-950/5" : ""
+            } ${
+                temporaryHighlight 
+                    ? "ring-4 ring-blue-500/50 shadow-2xl shadow-blue-500/10 dark:ring-blue-400/50" 
+                    : isTarget 
+                        ? "ring-2 ring-primary/50" 
+                        : ""
             }`}
         >
             {/* Pinned Badge */}

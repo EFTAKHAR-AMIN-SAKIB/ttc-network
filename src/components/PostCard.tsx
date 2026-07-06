@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, ExternalLink, School, MapPin, 
@@ -147,6 +148,7 @@ export default function PostCard({
 }: PostCardProps) {
     const [showComments, setShowComments] = useState(false);
     const [previewComments, setPreviewComments] = useState<any[]>([]);
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         if (!post.id) return;
@@ -178,16 +180,15 @@ export default function PostCard({
     
     const isEditing = editingId === post.id;
     
-    // Auto-expand comments if the URL hash points to a comment on this post
+    // Auto-expand comments if the URL hash or query points to a comment on this post
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const params = new URLSearchParams(window.location.search);
-            const expandId = params.get("commentPostId");
-            if (expandId === post.id) {
-                setShowComments(true);
-            }
+        const expandId = searchParams.get("post") || searchParams.get("commentPostId");
+        const hasCommentParam = searchParams.get("comment");
+        const hasCommentHash = typeof window !== "undefined" && window.location.hash.startsWith("#comment-");
+        if (expandId === post.id && (hasCommentParam || hasCommentHash || searchParams.get("commentPostId"))) {
+            setShowComments(true);
         }
-    }, [post.id]);
+    }, [post.id, searchParams]);
 
     if (isEditing) {
         return (

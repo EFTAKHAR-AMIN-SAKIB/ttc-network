@@ -5,6 +5,7 @@ import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getAuthInstance } from "@/lib/firebase";
 import { getDb } from "@/lib/firebase";
+import { setupFCM } from "@/lib/fcm";
 
 // ═══════════════════════════════════════════════════
 //  TYPES
@@ -291,6 +292,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(firebaseUser);
                 const p = await fetchOrCreateProfile(firebaseUser);
                 setProfile(p);
+                
+                // Initialize FCM push notifications
+                setupFCM(firebaseUser.uid).catch(err => console.error("[FCM] Auth setup failed:", err));
                 
                 // Create server-signed session cookie via API
                 if (p) {

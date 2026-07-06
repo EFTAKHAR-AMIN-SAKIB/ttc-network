@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Users } from "lucide-react";
 import { motion } from "framer-motion";
+import { useSectionUpdates } from "@/hooks/useSectionUpdates";
 
 const dockLinks = [
     { href: "/", label: "Home", icon: Home },
@@ -17,8 +18,29 @@ const dockLinks = [
 
 export default function MobileDock() {
     const pathname = usePathname();
+    const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
 
+    const getSectionKey = (href: string) => {
+        if (href === "/news-feed") return "news-feed";
+        if (href === "/story") return "story";
+        if (href === "/notice") return "notice";
+        if (href === "/study") return "study";
+        return null;
+    };
 
+    const hasUnseenUpdate = (href: string) => {
+        if (href === "/news-feed") {
+            return (
+                latestUpdate.event > lastSeen.event ||
+                latestUpdate.club > lastSeen.club ||
+                latestUpdate.group > lastSeen.group
+            );
+        }
+        if (href === "/story") return latestUpdate.story > lastSeen.story;
+        if (href === "/notice") return latestUpdate.notice > lastSeen.notice;
+        if (href === "/study") return latestUpdate.study > lastSeen.study;
+        return false;
+    };
 
     return (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe">
@@ -30,10 +52,27 @@ export default function MobileDock() {
                         <Link
                             key={link.href}
                             href={link.href}
+                            onClick={() => {
+                                const sectionKey = getSectionKey(link.href);
+                                if (sectionKey) markAsSeen(sectionKey);
+                            }}
                             className="relative flex flex-col items-center justify-center w-14 h-12"
                         >
                             <div className={`relative flex flex-col items-center justify-center w-full h-full transition-colors duration-300 ${isActive ? "text-primary dark:text-[#1D9BF0]" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"}`}>
-                                <Icon size={isActive ? 22 : 20} className={`mb-1 transition-all duration-300 ${isActive ? "stroke-[2.5]" : "stroke-2"}`} />
+                                <div className="relative">
+                                    <Icon size={isActive ? 22 : 20} className={`mb-1 transition-all duration-300 ${isActive ? "stroke-[2.5]" : "stroke-2"}`} />
+                                    {(() => {
+                                        if (hasUnseenUpdate(link.href)) {
+                                            return (
+                                                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                                </span>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
                                 <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive ? "opacity-100 scale-100" : "opacity-70 scale-95"}`}>
                                     {link.label}
                                 </span>
