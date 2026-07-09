@@ -544,8 +544,8 @@ export function CommentDrawer({
             text: commentText,
             parentId: parentId,
             createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
-            reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
-            reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
+            reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
+            reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
             isOptimistic: true
         };
 

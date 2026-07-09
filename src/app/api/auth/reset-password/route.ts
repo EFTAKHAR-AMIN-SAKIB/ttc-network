@@ -17,12 +17,24 @@ export async function POST(request: Request) {
         // 1. Generate the secure Firebase password reset link
         let resetLink: string;
         try {
+            // Verify user exists first to prevent generatePasswordResetLink from throwing an internal assertion error
+            try {
+                await adminAuth.getUserByEmail(email);
+            } catch (err: any) {
+                if (err.code === 'auth/user-not-found') {
+                    return NextResponse.json({ error: 'This email is not registered in TTC Network' }, { status: 404 });
+                }
+                throw err;
+            }
+
             resetLink = await adminAuth.generatePasswordResetLink(email);
         } catch (error: any) {
             console.error("Error generating reset link:", error);
-            // Don't expose if user doesn't exist for security reasons
-            if (error.code === 'auth/user-not-found') {
-                return NextResponse.json({ success: true });
+            if (
+                error.code === 'auth/user-not-found' ||
+                (error.code === 'auth/internal-error' && error.message?.includes('Unable to create the email action link'))
+            ) {
+                return NextResponse.json({ error: 'This email is not registered in TTC Network' }, { status: 404 });
             }
             throw error;
         }

@@ -138,7 +138,16 @@ function LoginPageInner() {
             showToast("Welcome back!", "success");
             router.push(redirectTo === "/" ? `/network?tab=discover` : redirectTo);
         } catch (err: any) {
-            showToast(err.message || "Invalid credentials", "error");
+            const code = err?.code || "";
+            const message = err?.message || "";
+            if (code === "auth/user-not-found" || message.includes("user-not-found")) {
+                showToast("This email is not registered in TTC Network.", "error");
+            } else if (code === "auth/invalid-credential" || message.includes("invalid-credential")) {
+                // Friendly error covering general auth failures
+                showToast("Invalid credentials. Please make sure your email is registered.", "error");
+            } else {
+                showToast(err.message || "Invalid credentials", "error");
+            }
         } finally {
             setLoading(false);
         }

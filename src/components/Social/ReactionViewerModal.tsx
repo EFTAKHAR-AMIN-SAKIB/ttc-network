@@ -16,17 +16,22 @@ interface ReactionViewerModalProps {
 // Emoji-based config for all reaction types (new + legacy)
 const REACTION_CONFIG: Record<string, { emoji: string, label: string, color: string }> = {
     love: { emoji: "❤️", label: "Love", color: "text-red-500" },
-    relatable: { emoji: "🤝", label: "Relatable", color: "text-purple-500" },
-    respect: { emoji: "😂", label: "Haha", color: "text-amber-500" },
-    cry: { emoji: "😢", label: "Cry", color: "text-cyan-500" },
-    angry: { emoji: "😡", label: "Angry", color: "text-orange-500" },
-    // Legacy backward-compat
+    like: { emoji: "👍", label: "Like", color: "text-blue-500" },
+    haha: { emoji: "😂", label: "Haha", color: "text-yellow-500" },
+    sad: { emoji: "😢", label: "Sad", color: "text-amber-500" },
+    angry: { emoji: "😡", label: "Angry", color: "text-orange-600" },
+    wow: { emoji: "😮", label: "Wow", color: "text-yellow-500" },
+    
+    // Legacy backward-compat mappings
     inspired: { emoji: "❤️", label: "Love", color: "text-red-500" },
-    fire: { emoji: "😡", label: "Angry", color: "text-orange-500" },
-    powerful: { emoji: "😡", label: "Angry", color: "text-orange-500" },
-    insightful: { emoji: "😂", label: "Haha", color: "text-amber-500" },
-    clap: { emoji: "😂", label: "Haha", color: "text-amber-500" },
-    wow: { emoji: "🤝", label: "Relatable", color: "text-purple-500" },
+    fire: { emoji: "😡", label: "Angry", color: "text-orange-600" },
+    powerful: { emoji: "😡", label: "Angry", color: "text-orange-600" },
+    clap: { emoji: "👍", label: "Like", color: "text-blue-500" },
+    insightful: { emoji: "👍", label: "Like", color: "text-blue-500" },
+    respect: { emoji: "😂", label: "Haha", color: "text-yellow-500" }, // respect mapped to haha
+    relatable: { emoji: "👍", label: "Like", color: "text-blue-500" }, // relatable mapped to like
+    relate: { emoji: "👍", label: "Like", color: "text-blue-500" }, // relate mapped to like
+    cry: { emoji: "😢", label: "Sad", color: "text-amber-500" },
 };
 
 export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: ReactionViewerModalProps) {
@@ -34,6 +39,54 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
     const [loading, setLoading] = useState(true);
     const [profiles, setProfiles] = useState<(FirestoreUser & { id: string })[]>([]);
     const [mounted, setMounted] = useState(false);
+
+    // Group the database reactedBy keys into the 6 active types (perfectly aligned Option 1)
+    const groupedReactedBy = React.useMemo(() => {
+        const grouped: Record<string, string[]> = {
+            love: [],
+            like: [],
+            haha: [],
+            sad: [],
+            angry: [],
+            wow: []
+        };
+
+        if (!reactedBy) return grouped;
+
+        const keyMapping: Record<string, string> = {
+            love: "love",
+            inspired: "love",
+            
+            like: "like",
+            clap: "like",
+            insightful: "like",
+            relatable: "like",
+            relate: "like",
+            wow: "like", // legacy wow key mapped to like
+            
+            haha: "haha",
+            respect: "haha",
+            
+            sad: "sad",
+            cry: "sad",
+            
+            angry: "angry",
+            fire: "angry",
+            powerful: "angry"
+            
+            // Note: Since 'wow' is now the new fresh reaction type key itself,
+            // any new wow reactions are implicitly handled under the 'wow' key
+        };
+
+        Object.entries(reactedBy).forEach(([key, uids]) => {
+            const targetKey = keyMapping[key] || key;
+            if (Array.isArray(uids)) {
+                grouped[targetKey] = Array.from(new Set([...(grouped[targetKey] || []), ...uids]));
+            }
+        });
+
+        return grouped;
+    }, [reactedBy]);
 
     useEffect(() => {
         setMounted(true);
@@ -55,18 +108,21 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
         }
     }, [isOpen, reactedBy]);
 
-    if (!mounted) return null;
-
-    // Get available reaction types from the data
-    const availableReactions = Object.keys(reactedBy || {}).filter(k => (reactedBy?.[k]?.length || 0) > 0);
+    // Get available reaction types from the grouped data
+    const availableReactions = Object.keys(groupedReactedBy).filter(k => (groupedReactedBy[k]?.length || 0) > 0);
     
-    // Total count
-    const totalCount = Object.values(reactedBy || {}).flat().length;
+    // Total count of unique reactors
+    const totalCount = React.useMemo(() => {
+        const allUids = Object.values(groupedReactedBy).flat();
+        return new Set(allUids).size;
+    }, [groupedReactedBy]);
 
     // Filter profiles based on selected tab
     const filteredProfiles = activeTab === "all" 
         ? profiles 
-        : profiles.filter(p => reactedBy?.[activeTab]?.includes(p.id));
+        : profiles.filter(p => groupedReactedBy[activeTab]?.includes(p.id));
+
+    if (!mounted) return null;
 
     return createPortal(
         <AnimatePresence>
@@ -108,7 +164,7 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                     {availableReactions.map(key => {
                         const config = REACTION_CONFIG[key];
                         if (!config) return null;
-                        const count = reactedBy?.[key]?.length || 0;
+                        const count = groupedReactedBy[key]?.length || 0;
                         return (
                             <button
                                 key={key}
@@ -144,8 +200,8 @@ export default function ReactionViewerModal({ isOpen, onClose, reactedBy }: Reac
                                 // Find which reaction this user gave (for the 'all' tab)
                                 let userReaction = null;
                                 if (activeTab === "all") {
-                                    for (const key of availableReactions) {
-                                        if (reactedBy?.[key]?.includes(user.id)) {
+                                    for (const key of ["love", "like", "haha", "sad", "angry", "wow"]) {
+                                        if (groupedReactedBy[key]?.includes(user.id)) {
                                             userReaction = key;
                                             break;
                                         }

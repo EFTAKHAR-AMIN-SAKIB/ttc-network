@@ -11,10 +11,11 @@ import { useVerifiedAccess } from "@/contexts/VerificationContext";
 /* ─── Reaction Types (Unified) ─── */
 export const REACTION_TYPES = [
     { type: "love", icon: "❤️", label: "Love", color: "text-red-500", bg: "bg-red-50 dark:bg-red-950/30" },
-    { type: "relatable", icon: "🤝", label: "Relatable", color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-950/30" },
-    { type: "respect", icon: "😂", label: "Haha", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/30" },
-    { type: "cry", icon: "😢", label: "Cry", color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-950/30" },
-    { type: "angry", icon: "😡", label: "Angry", color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30" },
+    { type: "like", icon: "👍", label: "Like", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30" },
+    { type: "haha", icon: "😂", label: "Haha", color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-950/30" },
+    { type: "sad", icon: "😢", label: "Sad", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/30" },
+    { type: "angry", icon: "😡", label: "Angry", color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950/30" },
+    { type: "wow", icon: "😮", label: "Wow", color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-950/30" },
 ] as const;
 
 export type ReactionType = typeof REACTION_TYPES[number]["type"];
@@ -73,6 +74,26 @@ export function ReactionBtn({
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
 
+    // Debouncing timers for hover
+    const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleMouseEnter = () => {
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
+        }
+        setShowPicker(true);
+    };
+
+    const handleMouseLeave = () => {
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+        }
+        closeTimeoutRef.current = setTimeout(() => {
+            setShowPicker(false);
+        }, 500);
+    };
+
     // Long-press support for mobile
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isLongPress = useRef(false);
@@ -92,7 +113,14 @@ export function ReactionBtn({
         }
     }, []);
 
-    // Filter used to check current user's reaction
+    const handleTouchMove = useCallback(() => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    }, []);
+
+    // Filter used to check current user's reaction (fully aligned legacy mapping)
     const userReaction = useMemo(() => {
         if (!currentUserId) return null;
         
@@ -102,17 +130,21 @@ export function ReactionBtn({
         }
 
         // Backward compatibility for old reaction keys
-        const legacyMap: Record<string, string> = {
+        const legacyMap: Record<string, ReactionType> = {
             inspired: "love",
             fire: "angry",
-            clap: "respect",
-            wow: "relatable",
             powerful: "angry",
-            insightful: "respect"
+            clap: "like",
+            insightful: "like",
+            respect: "haha", // respect mapped to haha
+            wow: "like", // legacy wow mapped to like
+            relatable: "like", // relatable mapped to like
+            relate: "like", // relate mapped to like
+            cry: "sad"
         };
         
         for (const [legacy, fresh] of Object.entries(legacyMap)) {
-            if (reactedBy?.[legacy]?.includes(currentUserId)) return fresh as ReactionType;
+            if (reactedBy?.[legacy]?.includes(currentUserId)) return fresh;
         }
 
         return null;
@@ -148,7 +180,51 @@ export function ReactionBtn({
         handleToggleReaction(userReaction || "love");
     };
 
-    const totalReactions = Object.values(reactions || {}).reduce((a: any, b: any) => a + (typeof b === 'number' ? b : 0), 0);
+    // Aligned legacy mapping for summary counts
+    const legacyMappingGroup: Record<ReactionType, string[]> = useMemo(() => ({
+        love: ["inspired"],
+        like: ["clap", "insightful", "relatable", "relate", "wow"],
+        haha: ["respect"],
+        sad: ["cry"],
+        angry: ["fire", "powerful"],
+        wow: []
+    }), []);
+
+    // Calculate aggregated counts including legacy keys
+    const aggregatedCounts = useMemo(() => {
+        const counts: Record<ReactionType, number> = {
+            love: 0,
+            like: 0,
+            haha: 0,
+            sad: 0,
+            angry: 0,
+            wow: 0
+        };
+
+        REACTION_TYPES.forEach(r => {
+            const freshCount = Number(reactions?.[r.type]) || 0;
+            const legacyKeys = legacyMappingGroup[r.type] || [];
+            const legacyCount = legacyKeys.reduce((sum, key) => sum + (Number(reactions?.[key]) || 0), 0);
+            counts[r.type] = freshCount + legacyCount;
+        });
+
+        return counts;
+    }, [reactions, legacyMappingGroup]);
+
+    const totalReactions = useMemo(() => {
+        return Object.entries(reactions || {}).reduce((sum, [key, val]) => {
+            return sum + (typeof val === 'number' ? val : 0);
+        }, 0);
+    }, [reactions]);
+
+    // Top 2 reactions to display in the summaries bar
+    const topReactions = useMemo(() => {
+        return REACTION_TYPES
+            .map(r => ({ ...r, count: aggregatedCounts[r.type] || 0 }))
+            .filter(r => r.count > 0)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 2);
+    }, [aggregatedCounts]);
 
     return (
         <div className="relative flex items-center gap-1 group/reaction">
@@ -158,22 +234,11 @@ export function ReactionBtn({
                 onClick={() => setShowViewer(true)}
             >
                 <div className="flex -space-x-1 items-center mr-1">
-                    {REACTION_TYPES.map(r => {
-                        const count = reactions?.[r.type] || 0;
-                        // Also count legacy keys that map to this new type
-                        const legacyKeys: string[] = r.type === "love" ? ["inspired"] : 
-                                        r.type === "angry" ? ["fire", "powerful"] : 
-                                        r.type === "respect" ? ["clap", "insightful"] : 
-                                        r.type === "relatable" ? ["wow"] : [];
-                        const legacyTotal = legacyKeys.reduce((sum, k) => sum + (reactions?.[k] || 0), 0);
-                        const totalForThisEmoji = count + legacyTotal;
-                        
-                        return totalForThisEmoji > 0 ? (
-                            <span key={r.type} className={`w-5 h-5 rounded-full border-2 border-white dark:border-gray-900 ${r.bg} flex items-center justify-center text-[10px] z-[1]`} title={r.label}>
-                                {r.icon}
-                            </span>
-                        ) : null;
-                    })}
+                    {topReactions.map(r => (
+                        <span key={r.type} className={`w-5 h-5 rounded-full border-2 border-white dark:border-gray-900 ${r.bg} flex items-center justify-center text-[10px] z-[1]`} title={r.label}>
+                            {r.icon}
+                        </span>
+                    ))}
                 </div>
                 
                 <span className="text-xs font-bold text-gray-500 mr-2 group-hover/v:text-primary transition-colors">
@@ -183,11 +248,12 @@ export function ReactionBtn({
 
             <div className="relative">
                 <button
-                    onMouseEnter={() => setShowPicker(true)}
-                    onMouseLeave={() => setTimeout(() => setShowPicker(false), 500)}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                     onTouchCancel={handleTouchEnd}
+                    onTouchMove={handleTouchMove}
                     onClick={handleButtonClick}
                     disabled={isReacting}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border select-none ${
@@ -214,8 +280,8 @@ export function ReactionBtn({
                                 onTouchStart={() => setShowPicker(false)}
                             />
                             <div 
-                                onMouseEnter={() => setShowPicker(true)}
-                                onMouseLeave={() => setShowPicker(false)}
+                                onMouseEnter={handleMouseEnter}
+                                onMouseLeave={handleMouseLeave}
                                 className="absolute bottom-full left-0 z-50 px-2 sm:px-0"
                             >
                                 <ReactionPicker 

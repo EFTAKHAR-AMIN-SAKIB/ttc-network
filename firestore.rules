@@ -275,7 +275,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isAdmin() ||
         (exists(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)) && (
-          request.resource.data.diff(resource.data).affectedKeys().hasAny(['reactions', 'reactedBy', 'commentsCount', 'poll']) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'poll']) ||
           (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['groupId', 'creatorId'])) ||
           (get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin" ||
            get(/databases/$(database)/documents/groups/$(resource.data.groupId)/members/$(request.auth.uid)).data.role == "moderator")

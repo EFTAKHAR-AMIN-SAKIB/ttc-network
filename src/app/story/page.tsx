@@ -216,7 +216,7 @@ function StoryPageInner() {
                     </div>
                   </div>
 
-                    {heroData?.isVisible !== false && (
+                    {heroData && heroData.isVisible !== false && (
                          <div className="flex-1 grid grid-cols-2 gap-3 sm:gap-4">
                             {[
                               { label: "Colleges", value: heroData?.collegesCount || "14", icon: <School className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> },

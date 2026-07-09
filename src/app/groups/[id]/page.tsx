@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Globe, Lock, EyeOff, Users, Shield, Plus, Pin, Clock, 
-    ArrowLeft, Clipboard, Loader2, Sparkles, AlertTriangle, ShieldCheck
+    ArrowLeft, Clipboard, Loader2, Sparkles, AlertTriangle, ShieldCheck, LogIn, UserPlus
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -28,7 +28,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     const groupId = params.id;
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { showToast } = useToast();
     const { confirm, setIsLoading, close } = useConfirm();
 
@@ -40,6 +40,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     
     // Page state
     const [loading, setLoading] = useState(true);
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [groupMissing, setGroupMissing] = useState(false);
     const [activeTab, setActiveTab] = useState<"posts" | "members" | "about">("posts");
     const [groupMembersList, setGroupMembersList] = useState<any[]>([]);
@@ -74,8 +75,20 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
 
     // Subscriptions
     useEffect(() => {
+        // If auth is still loading, wait for it to resolve
+        if (authLoading) return;
+
+        // If user is not logged in, show login prompt immediately
+        if (!user) {
+            setLoading(false);
+            setShowLoginPrompt(true);
+            return;
+        }
+
         setLoading(true);
         setGroupMissing(false);
+        setShowLoginPrompt(false);
+
         const unsubDetails = subscribeGroupDetails(groupId, (data) => {
             if (!data) {
                 setGroupMissing(true);
@@ -103,7 +116,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
             unsubPosts();
             unsubMembers();
         };
-    }, [groupId]);
+    }, [groupId, authLoading, user]);
 
     // Subscriptions for current user context
     useEffect(() => {
@@ -263,10 +276,70 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
         document.body.removeChild(textArea);
     };
 
-    if (loading) {
+    if (loading || authLoading) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex items-center justify-center">
                 <Loader2 className="animate-spin text-primary" size={28} />
+            </div>
+        );
+    }
+
+    if (showLoginPrompt) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex items-center justify-center p-4">
+                {/* Backdrop overlay */}
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" />
+                
+                {/* Popup Card */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    className="relative z-50 bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-gray-700/60 rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center"
+                >
+                    {/* Icon */}
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-3xl flex items-center justify-center">
+                        <Lock size={36} className="text-primary" />
+                    </div>
+
+                    {/* Title */}
+                    <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white mb-2">
+                        Login Required
+                    </h2>
+
+                    {/* Message */}
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed mb-8">
+                        This is a private group. Please log in or create an account to join and view its content.
+                    </p>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => router.push(`/login?redirect=/groups/${groupId}${searchParams.get('invite') ? `?invite=${searchParams.get('invite')}` : ''}`)}
+                            className="w-full px-6 py-3.5 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                            <LogIn size={16} />
+                            Log In
+                        </button>
+
+                        <button
+                            onClick={() => router.push(`/signup?redirect=/groups/${groupId}${searchParams.get('invite') ? `?invite=${searchParams.get('invite')}` : ''}`)}
+                            className="w-full px-6 py-3.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-black uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2"
+                        >
+                            <UserPlus size={16} />
+                            Create Account
+                        </button>
+                    </div>
+
+                    {/* Back link */}
+                    <button
+                        onClick={() => router.push('/groups')}
+                        className="mt-6 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-1 mx-auto"
+                    >
+                        <ArrowLeft size={12} />
+                        Back to Groups
+                    </button>
+                </motion.div>
             </div>
         );
     }

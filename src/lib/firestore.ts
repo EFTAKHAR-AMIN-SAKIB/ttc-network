@@ -169,8 +169,8 @@ export interface FirestorePost {
     reviewedBy?: string;
     reviewedAt?: Timestamp | null;
     rejectReason?: string;
-    reactions: { love: number; relatable: number; respect: number; cry: number; angry: number; [key: string]: number };
-    reactedBy?: { love: string[]; relatable: string[]; respect: string[]; cry: string[]; angry: string[]; [key: string]: string[] };
+    reactions: { love: number; like: number; haha: number; sad: number; angry: number; wow: number; [key: string]: number };
+    reactedBy?: { love: string[]; like: string[]; haha: string[]; sad: string[]; angry: string[]; wow: string[]; [key: string]: string[] };
     timestamp: Timestamp | null;
     visibility?: "public" | "campus" | "private"; // "campus" = same college only
     thumbnailUrl?: string; // Optional clickable thumbnail image
@@ -196,18 +196,20 @@ export interface FirestoreStory {
     readingTimeMinutes: number;
     reactions: { 
         love: number; 
-        relatable: number; 
-        respect: number; 
-        cry: number; 
+        like: number; 
+        haha: number; 
+        sad: number; 
         angry: number;
+        wow: number;
         [key: string]: number;
     };
     reactedBy: { 
         love: string[]; 
-        relatable: string[]; 
-        respect: string[]; 
-        cry: string[]; 
+        like: string[]; 
+        haha: string[]; 
+        sad: string[]; 
         angry: string[];
+        wow: string[];
         [key: string]: string[];
     };
     inspireCount?: number; // Legacy
@@ -346,18 +348,20 @@ export interface FirestoreStudyPost {
     };
     reactions: { 
         love: number; 
-        relatable: number; 
-        respect: number; 
-        cry: number; 
+        like: number; 
+        haha: number; 
+        sad: number; 
         angry: number;
+        wow: number;
         [key: string]: number;
     };
     reactedBy: { 
         love: string[]; 
-        relatable: string[]; 
-        respect: string[]; 
-        cry: string[]; 
+        like: string[]; 
+        haha: string[]; 
+        sad: string[]; 
         angry: string[];
+        wow: string[];
         [key: string]: string[];
     };
     commentsCount?: number;
@@ -385,18 +389,20 @@ export interface FirestoreComment {
     updatedAt?: Timestamp;
     reactions?: {
         love: number;
-        relatable: number;
-        respect: number;
-        cry: number;
+        like: number;
+        haha: number;
+        sad: number;
         angry: number;
+        wow: number;
         [key: string]: number;
     };
     reactedBy?: {
         love: string[];
-        relatable: string[];
-        respect: string[];
-        cry: string[];
+        like: string[];
+        haha: string[];
+        sad: string[];
         angry: string[];
+        wow: string[];
         [key: string]: string[];
     };
     parentId: string | null;
@@ -1169,8 +1175,8 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
         },
         creatorId: profile.id!,
         status: isAutoApproved ? "approved" : "pending",
-        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
-        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
+        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
+        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         timestamp: serverTimestamp() as Timestamp,
         isAuthorShadowBanned: profile.isShadowBanned || false,
         tags,
@@ -1634,8 +1640,8 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
         authorRole: (['student', 'teacher', 'graduate'].includes(profile.role || '') ? profile.role : 'student') as "student" | "teacher" | "graduate",
         role: profile.role || 'student', // Legacy
         status: "pending",
-        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
-        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
+        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
+        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         readingTimeMinutes: Math.max(1, Math.ceil((story.fullStory?.length || 0) / 1500)), 
         timestamp: serverTimestamp() as Timestamp,
         visibility: story.visibility || "public",
@@ -3280,8 +3286,8 @@ export async function addComment(
         text,
         parentId: parentId || null,
         createdAt: serverTimestamp() as Timestamp,
-        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
-        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] }
+        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
+        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] }
     };
 
     const db = getDb();
@@ -3757,8 +3763,8 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
         // Sync visibility with privacy for backward compatibility
         visibility: post.privacy || "public",
         status: (userProfile.role === "admin" || userProfile.role === "manager" || userProfile.role === "teacher") ? "approved" : "pending",
-        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
-        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
+        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
+        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         createdAt: serverTimestamp(),
     };
 
@@ -3869,6 +3875,59 @@ export const updateStudyPost = async (id: string, data: Partial<FirestoreStudyPo
 //  UNIFIED REACTION SYSTEM
 // ═══════════════════════════════════════════════════
 
+// Helper to remove/update notification on un-react
+export async function removeReactionNotification(senderId: string, relatedId: string): Promise<void> {
+    const db = getDb();
+    try {
+        const q = query(
+            collection(db, "notifications"),
+            where("relatedId", "==", relatedId),
+            where("type", "==", "reaction"),
+            where("senderIds", "array-contains", senderId)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return;
+
+        for (const d of snap.docs) {
+            const notifData = d.data() as any;
+            let senderIds = (notifData.senderIds || []) as string[];
+            senderIds = senderIds.filter(id => id !== senderId);
+
+            if (senderIds.length === 0) {
+                await deleteDoc(d.ref);
+            } else {
+                const firstRemainingSenderId = senderIds[0];
+                let senderName = "Someone";
+                try {
+                    const senderDoc = await getDoc(doc(db, "users", firstRemainingSenderId));
+                    if (senderDoc.exists()) {
+                        senderName = senderDoc.data()?.displayName || "Someone";
+                    }
+                } catch (e) {
+                    console.warn("Failed to fetch remaining sender profile for notification update", e);
+                }
+
+                const count = senderIds.length;
+                const relatedType = notifData.relatedType || "content";
+                let finalMessage = "";
+                if (count > 1) {
+                    finalMessage = `${senderName} and ${count - 1} other${count - 1 > 1 ? "s" : ""} reacted to your ${relatedType}`;
+                } else {
+                    finalMessage = `${senderName} reacted to your ${relatedType}`;
+                }
+
+                await updateDoc(d.ref, {
+                    senderIds,
+                    message: finalMessage,
+                    senderName
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Failed to remove reaction notification:", err);
+    }
+}
+
 export async function reactToContent(contentId: string, reaction: string, contentType: "post" | "story" | "study" | "groupPost" | "comment"): Promise<{ added: boolean }> {
     const auth = getAuthInstance();
     const user = auth.currentUser;
@@ -3892,17 +3951,18 @@ export async function reactToContent(contentId: string, reaction: string, conten
         if (!reactedBy["relatable"]) reactedBy["relatable"] = reactedBy["relate"] || [];
     }
 
-    // Support Fresh Reaction mapping + Legacy compatibility
-    // For new reaction types, check if the user already has a legacy key that maps to this type
+    // Support Fresh Reaction mapping + Legacy compatibility (Option 1 - fully aligned)
     const freshKey = reaction;
     const legacyKeysForReaction: string[] = 
         reaction === 'love' ? ['inspired'] :
+        reaction === 'like' ? ['clap', 'insightful', 'relatable', 'relate', 'wow'] :
+        reaction === 'haha' ? ['respect'] :
+        reaction === 'sad' ? ['cry'] :
         reaction === 'angry' ? ['fire', 'powerful'] :
-        reaction === 'respect' ? ['clap', 'insightful'] :
-        reaction === 'relatable' ? ['wow', 'relate'] :
+        reaction === 'wow' ? [] :
         [];
 
-    // Check if user already reacted via a legacy key
+    // Check if user already reacted via a legacy key mapping to this target
     let legacyKeyUsed = '';
     for (const lk of legacyKeysForReaction) {
         if ((reactedBy[lk] || []).includes(user.uid)) {
@@ -3928,12 +3988,18 @@ export async function reactToContent(contentId: string, reaction: string, conten
              if (data["likes"] !== undefined) updates["likes"] = increment(-1);
              if (data["likedBy"] !== undefined) updates["likedBy"] = arrayRemove(user.uid);
         }
-        // Sync story legacy 'relate'
-        if (actualKey === 'relatable' && contentType === 'story' && data["reactions"]?.relate !== undefined) {
+        // Sync story legacy 'relate' when un-reacting relatable/relate/like
+        if ((actualKey === 'relatable' || actualKey === 'relate' || actualKey === 'like') && contentType === 'story' && data["reactions"]?.relate !== undefined) {
              updates['reactions.relate'] = increment(-1);
              updates['reactedBy.relate'] = arrayRemove(user.uid);
         }
         await updateDoc(contentRef, updates);
+
+        // Delete/update notification on un-react
+        removeReactionNotification(user.uid, contentId).catch(err =>
+            console.warn("Failed to remove notification on un-react:", err)
+        );
+
         return { added: false };
     } else {
         // REACT
@@ -3942,15 +4008,27 @@ export async function reactToContent(contentId: string, reaction: string, conten
             [`reactedBy.${freshKey}`]: arrayUnion(user.uid),
         };
 
-        // Remove previous reactions (exclusive mode)
+        // Remove previous reactions (exclusive mode) and sync legacy counts
         Object.keys(reactedBy).forEach(r => {
             if (reactedBy[r]?.includes(user.uid)) {
                 updates[`reactions.${r}`] = increment(-1);
                 updates[`reactedBy.${r}`] = arrayRemove(user.uid);
+
+                // Sync legacy likes if switching away from love
+                if (r === 'love' || r === 'inspired') {
+                    if (data["likes"] !== undefined) updates["likes"] = increment(-1);
+                    if (data["likedBy"] !== undefined) updates["likedBy"] = arrayRemove(user.uid);
+                }
+
+                // Sync story legacy relate if switching away from relatable/relate/like
+                if ((r === 'relatable' || r === 'relate' || r === 'like') && contentType === 'story' && data.reactions?.relate !== undefined) {
+                    updates['reactions.relate'] = increment(-1);
+                    updates['reactedBy.relate'] = arrayRemove(user.uid);
+                }
             }
         });
 
-        // Sync legacy 'likes' for news-feed
+        // Sync legacy 'likes' for news-feed when reacting with love
         if (freshKey === 'love') {
              if (data["likes"] !== undefined) {
                  updates["likes"] = increment(1);
@@ -3958,8 +4036,8 @@ export async function reactToContent(contentId: string, reaction: string, conten
              }
         }
 
-        // Sync story legacy 'relate'
-        if (freshKey === 'relatable' && contentType === 'story' && data.reactions?.relate !== undefined) {
+        // Sync story legacy 'relate' when reacting with like (as relatable/relate/wow map to like)
+        if (freshKey === 'like' && contentType === 'story' && data.reactions?.relate !== undefined) {
              updates['reactions.relate'] = increment(1);
              updates['reactedBy.relate'] = arrayUnion(user.uid);
         }
@@ -4849,8 +4927,8 @@ export async function createGroupPost(
         content: content.trim(),
         imageUrl: imageUrl || "",
         ...(pollFormatted ? { poll: pollFormatted } : {}),
-        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 },
-        reactedBy: { love: [], relatable: [], respect: [], cry: [], angry: [] },
+        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
+        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         commentsCount: 0,
         createdAt: serverTimestamp(),
         isPinned: false

@@ -5,6 +5,7 @@ import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, Messa
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
+import { ExpandableText } from "@/components/Social/SocialUtils";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -124,9 +125,11 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                 <h3 className="text-xl font-black text-navy-900 dark:text-white mb-3 line-clamp-2 leading-tight tracking-tight group-hover:text-primary transition-colors">
                     {post.title}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-6 leading-relaxed font-medium">
-                    {post.content}
-                </p>
+                {post.content && (
+                    <div className="mb-6 text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium [&_button]:text-xs">
+                        <ExpandableText text={post.content} limit={100} />
+                    </div>
+                )}
 
                 {/* Thumbnail Display */}
                 {post.thumbnailUrl && (

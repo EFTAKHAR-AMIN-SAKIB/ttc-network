@@ -268,7 +268,7 @@ function StudyPageContent() {
         <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pb-20">
             <StudyHero 
                 stats={stats} 
-                isVisible={heroSettings?.isVisible}
+                isVisible={heroSettings?.isVisible ?? false}
                 onSearchChange={setSearchTerm} 
                 onShareClick={handleShareClick} 
             />

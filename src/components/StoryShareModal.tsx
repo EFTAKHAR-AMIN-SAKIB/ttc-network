@@ -286,7 +286,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                         authorRole: (profile?.role as "student" | "teacher" | "graduate") || "student",
                         college: (profile as { college?: string })?.college || "Your College",
                         readingTimeMinutes: Math.max(1, Math.ceil(content.length / 1500)),
-                        reactions: { love: 0, relatable: 0, respect: 0, cry: 0, angry: 0 }
+                        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 }
                      }} />
                    </div>
                 </div>
