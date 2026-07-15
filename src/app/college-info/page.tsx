@@ -863,14 +863,14 @@ function CollegeInfoInner() {
         <div className="min-h-screen bg-white dark:bg-black overflow-x-hidden">
             {/* Header */}
             <div className="bg-white dark:bg-[#16181C] border-b border-gray-100 dark:border-white/10">
-                <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+                <div className="max-w-7xl mx-auto px-4 py-4 sm:py-8">
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white font-english">College Information</h1>
                     <p className="text-gray-700 dark:text-gray-400 text-xs sm:text-sm mt-1">Detailed profiles of all {collegesData.length} Government Teachers&apos; Training Colleges</p>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-6">
-                <div className="flex flex-col lg:flex-row gap-8 items-stretch lg:items-start">
+            <div className="max-w-7xl mx-auto px-4 py-3 lg:py-6">
+                <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-stretch lg:items-start">
 
                     {/* ─── Desktop Sidebar ─── */}
                     <aside className="hidden lg:flex flex-col w-80 bg-white dark:bg-[#0C0C10] border border-gray-100 dark:border-gray-800/50 rounded-3xl sticky top-24 h-[calc(100vh-120px)] overflow-hidden shadow-sm dark:shadow-black/20">
