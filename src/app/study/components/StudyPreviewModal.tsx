@@ -6,7 +6,7 @@ import {
     X, Download, ExternalLink, FileText, BookOpen, Video,
     Loader2, Eye, AlertCircle, Maximize2, Minimize2
 } from "lucide-react";
-import { type FirestoreStudyPost } from "@/lib/firestore";
+import { type FirestoreStudyPost, incrementStudyPostDownloadCount } from "@/lib/firestore";
 
 interface StudyPreviewModalProps {
     isOpen: boolean;
@@ -139,6 +139,9 @@ export default function StudyPreviewModal({ isOpen, onClose, post }: StudyPrevie
         if (!resourceUrl) return;
         setIsDownloading(true);
 
+        // Increment download count
+        incrementStudyPostDownloadCount(post.id);
+
         if (fileUrl) {
             const downloadUrl = `/api/study/download?url=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(post.fileName || post.title)}`;
             window.location.href = downloadUrl;
@@ -149,7 +152,7 @@ export default function StudyPreviewModal({ isOpen, onClose, post }: StudyPrevie
             window.open(link, "_blank", "noopener,noreferrer");
             setIsDownloading(false);
         }
-    }, [fileUrl, link, resourceUrl, post.fileName, post.title]);
+    }, [fileUrl, link, resourceUrl, post.id, post.fileName, post.title]);
 
     // Build the preview content
     const renderPreview = () => {

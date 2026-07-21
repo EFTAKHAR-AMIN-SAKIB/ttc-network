@@ -365,6 +365,8 @@ export interface FirestoreStudyPost {
         [key: string]: string[];
     };
     commentsCount?: number;
+    viewCount?: number;
+    downloadCount?: number;
     scheduleDetails?: {
         platform?: string;
         link?: string;
@@ -3845,6 +3847,26 @@ export const deleteStudyPost = async (id: string) => {
     }
     await deleteDoc(doc(getDb(), "studyPosts", id));
     await deleteAllCommentsForContent(id);
+};
+
+/** Atomically increment the viewCount of a study post (for preview opens) */
+export const incrementStudyPostViewCount = async (postId: string) => {
+    try {
+        const postRef = doc(getDb(), "studyPosts", postId);
+        await updateDoc(postRef, { viewCount: increment(1) });
+    } catch (err) {
+        console.warn("[Firestore] Could not increment viewCount for study post", postId, err);
+    }
+};
+
+/** Atomically increment the downloadCount of a study post (for file downloads) */
+export const incrementStudyPostDownloadCount = async (postId: string) => {
+    try {
+        const postRef = doc(getDb(), "studyPosts", postId);
+        await updateDoc(postRef, { downloadCount: increment(1) });
+    } catch (err) {
+        console.warn("[Firestore] Could not increment downloadCount for study post", postId, err);
+    }
 };
 
 export const updateStudyPost = async (id: string, data: Partial<FirestoreStudyPost>) => {

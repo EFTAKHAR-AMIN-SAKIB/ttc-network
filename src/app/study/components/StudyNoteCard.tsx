@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2, Download, Bookmark, Share2, Loader2, Eye } from "lucide-react";
-import { type FirestoreStudyPost } from "@/lib/firestore";
+import { type FirestoreStudyPost, incrementStudyPostViewCount, incrementStudyPostDownloadCount } from "@/lib/firestore";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { ExpandableText } from "@/components/Social/SocialUtils";
@@ -40,6 +40,9 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
 
         const resourceUrl = post.fileUrl || post.link;
         if (!resourceUrl) return;
+
+        // Increment download count
+        incrementStudyPostDownloadCount(post.id);
 
         if (post.fileUrl) {
             setIsDownloading(true);
@@ -112,6 +115,12 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                             <Clock size={14} className="text-primary" /> 
                             {post.createdAt ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true }) : "recently"}
                         </div>
+                        {(post.viewCount !== undefined && post.viewCount > 0) && (
+                            <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400" title={`${post.viewCount} views`}>
+                                <Eye size={13} className="text-emerald-500" />
+                                <span>{post.viewCount >= 1000 ? `${(post.viewCount / 1000).toFixed(1)}k` : post.viewCount}</span>
+                            </div>
+                        )}
                         
                         {(showEdit || showDelete) && (
                             <div className="flex items-center gap-1.5 border-l border-gray-100 dark:border-gray-800 pl-3">
@@ -163,6 +172,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                             e.stopPropagation();
                             if (requireVerification("open study resources")) {
                                 setShowPreview(true);
+                                incrementStudyPostViewCount(post.id);
                             }
                         }}
                         className="w-full text-left block mb-6 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all group/thumb focus:outline-none"
@@ -254,6 +264,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                 </div>
                                 <span className="text-[10px] font-black uppercase tracking-widest">{post.commentsCount || 0}</span>
                             </button>
+                            <div className="flex items-center gap-1.5">
                             <motion.button 
                                 type="button"
                                 onClick={handleDownload}
@@ -288,6 +299,12 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                     <ExternalLink size={18} />
                                 )}
                             </motion.button>
+                            {(post.downloadCount !== undefined && post.downloadCount > 0) && (
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400" title={`${post.downloadCount} downloads`}>
+                                    {post.downloadCount >= 1000 ? `${(post.downloadCount / 1000).toFixed(1)}k` : post.downloadCount}
+                                </span>
+                            )}
+                            </div>
 
                         </div>
                     </div>
