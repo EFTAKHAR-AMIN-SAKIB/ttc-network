@@ -183,3 +183,36 @@ export function canDeleteGalleryPhoto(
 
     return false;
 }
+
+/**
+ * Check if a post, story, notice, or study material is restricted for a specific viewer.
+ * - Public content: accessible to everyone.
+ * - Campus / College Only content: allowed ONLY if viewer is logged in and belongs to the same college (or is author/admin).
+ * - Private content: allowed ONLY if viewer is the author or admin.
+ */
+export function isContentRestrictedForUser(
+    item: { visibility?: string; privacy?: string; collegeId?: string; creatorId?: string; authorId?: string; userId?: string },
+    profile: UserProfile | null,
+    userUid?: string | null
+): boolean {
+    if (!item) return false;
+    const vis = item.visibility || item.privacy;
+    if (!vis || vis === "public") return false;
+
+    const uid = userUid || profile?.uid;
+    const authorId = item.creatorId || item.authorId || item.userId;
+    const isAuthor = !!(uid && authorId && uid === authorId);
+    const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+
+    if (isAuthor || isAdmin) return false;
+
+    if (vis === "private") return true;
+
+    if (vis === "campus" || vis === "college_only") {
+        if (!uid || !profile?.collegeId) return true; // Logged-out visitor -> restricted!
+        if (item.collegeId && profile.collegeId !== item.collegeId) return true; // Different college -> restricted!
+        return false;
+    }
+
+    return false;
+}

@@ -12,7 +12,8 @@ import {
     subscribePosts, subscribeModerationCount, deletePost, updatePost,
     toggleSavePost, subscribeSavedPosts,
     subscribeMyGroups, subscribeMyGroupFeed,
-    type FirestorePost, getMyClubs, type FirestoreClub
+    type FirestorePost, getMyClubs, type FirestoreClub,
+    getDocById
 } from "@/lib/firestore";
 import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
@@ -311,6 +312,27 @@ function NewsFeedInner() {
             return () => window.removeEventListener("hashchange", handleHashChange);
         }
     }, []);
+
+    const [fetchedTargetPostId, setFetchedTargetPostId] = useState<string | null>(null);
+
+    // Fallback lookup if effectivePostId is present in URL but not in initial loaded posts
+    useEffect(() => {
+        const effectivePostId = searchParams.get('post') || searchParams.get('commentPostId') || hashPostId;
+        if (!effectivePostId || loading) return;
+
+        const existsInPosts = posts.some(p => p.id === effectivePostId);
+        if (!existsInPosts && fetchedTargetPostId !== effectivePostId) {
+            setFetchedTargetPostId(effectivePostId);
+            getDocById("posts", effectivePostId).then((singlePost: any) => {
+                if (singlePost) {
+                    const formatted = { ...singlePost, id: effectivePostId } as Post;
+                    setPosts(prev => [formatted, ...prev]);
+                }
+            }).catch(err => {
+                console.warn("[news-feed] Fallback fetch for target post failed:", err);
+            });
+        }
+    }, [searchParams, hashPostId, posts, loading, fetchedTargetPostId]);
 
     // Deep-link: read ?post= and ?edit= query params
     useEffect(() => {

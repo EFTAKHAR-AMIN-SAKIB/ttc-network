@@ -78,6 +78,36 @@ const RoleTag = ({ role }: { role: string }) => {
     );
 };
 
+const handleCommentActivityNavigate = (act: any, router: any) => {
+    const parentId = act.postId || act.targetId || act.parentId;
+    if (!parentId) {
+        router.push("/news-feed");
+        return;
+    }
+
+    const type = act.contentType;
+    if (type === "story") {
+        router.push(`/story/${parentId}?comment=${act.id}`);
+        return;
+    }
+
+    if (type === "study") {
+        router.push(`/study?post=${parentId}`);
+        return;
+    }
+
+    if (type === "groupPost" || act.groupId) {
+        if (act.groupId) {
+            router.push(`/groups/${act.groupId}?post=${parentId}&comment=${act.id}`);
+        } else {
+            router.push(`/groups?post=${parentId}`);
+        }
+        return;
+    }
+
+    router.push(`/news-feed?post=${parentId}&comment=${act.id}#comment-${act.id}`);
+};
+
 const ActivityItem = ({ act, isOwn, onDelete, onNavigate }: { act: any; isOwn?: boolean; onDelete?: (id: string, type: string) => void; onNavigate?: () => void }) => {
     const icons: Record<string, any> = {
         post: Globe,
@@ -783,10 +813,7 @@ function AllTab({
                                         act={act}
                                         isOwn={isViewingAsOwner}
                                         onDelete={(id) => handleDeleteComment(id, act.postId || id)}
-                                        onNavigate={() => {
-                                            const postId = act.postId || act.id;
-                                            router.push(`/news-feed?post=${postId}`);
-                                        }}
+                                        onNavigate={() => handleCommentActivityNavigate(act, router)}
                                     />
                                 );
                             }
@@ -971,7 +998,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         const fetchFeed = async () => {
             setLoadingFeed(true);
             try {
-                const feed = await getUserFeedContent(uid, isViewingAsOwner);
+                const feed = await getUserFeedContent(uid, isViewingAsOwner, user?.uid, currentUserProfile);
                 setUserFeed(feed);
             } catch (err) {
                 console.error("Failed to fetch user feed", err);
@@ -2046,10 +2073,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                                     act={act}
                                                                     isOwn={isViewingAsOwner}
                                                                     onDelete={(id) => handleDeleteComment(id, act.postId || id)}
-                                                                    onNavigate={() => {
-                                                                        const postId = act.postId || act.id;
-                                                                        router.push(`/news-feed?post=${postId}`);
-                                                                    }}
+                                                                    onNavigate={() => handleCommentActivityNavigate(act, router)}
                                                                 />
                                                             );
                                                         }
@@ -2077,10 +2101,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                             act={{ ...comment, activityType: 'comment' }}
                                                             isOwn={isViewingAsOwner}
                                                             onDelete={(id) => handleDeleteComment(id, comment.postId || id)}
-                                                            onNavigate={() => {
-                                                                const postId = comment.postId || comment.id;
-                                                                router.push(`/news-feed?post=${postId}`);
-                                                            }}
+                                                            onNavigate={() => handleCommentActivityNavigate(comment, router)}
                                                         />
                                                     ))}
                                                 </div>

@@ -116,7 +116,8 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
     const filteredPosts = q ? posts.filter(post => 
         post.eventName?.toLowerCase().includes(q) ||
         post.description?.toLowerCase().includes(q) ||
-        post.collegeName?.toLowerCase().includes(q)
+        post.collegeName?.toLowerCase().includes(q) ||
+        post.createdBy?.name?.toLowerCase().includes(q)
     ) : [];
 
     const filteredStories = q ? stories.filter(story => 
@@ -172,7 +173,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                             value={query}
                             onChange={e => setQuery(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Search people, posts, stories..."
+                            placeholder="Search people, posts, stories, study materials, groups..."
                             className="flex-1 bg-transparent border-none px-4 py-2 sm:text-xl text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-0 placeholder-gray-400 font-bold"
                         />
                         {query && (

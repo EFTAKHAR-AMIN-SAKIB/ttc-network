@@ -4,11 +4,12 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2 } from "lucide-react";
+import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn } from "lucide-react";
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { TimeAgo } from "@/components/Social/SocialUtils";
+import { isContentRestrictedForUser } from "@/lib/permissions";
 
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 
@@ -51,6 +52,8 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
   const role = story.authorRole || 'student';
   const formattedRole = role.charAt(0).toUpperCase() + role.slice(1);
   const collegeShort = story.college.split(',')[0].trim();
+
+  const isRestricted = isContentRestrictedForUser(story, profile, user?.uid);
 
   return (
     <motion.div
@@ -143,60 +146,80 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
           {story.title}
         </h3>
         
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 leading-relaxed font-bengali">
-          {story.preview}
-        </p>
-
-        <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-50 dark:border-gray-800">
-          <div onClick={(e) => e.preventDefault()}>
-            <ReactionBtn 
-              contentId={story.id} 
-              contentType="story" 
-              reactions={story.reactions} 
-              reactedBy={story.reactedBy} 
-              currentUserId={user?.uid}
-            />
+        {isRestricted ? (
+          <div className="my-4 p-4 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+              <Lock size={16} />
+            </div>
+            <p className="text-xs font-bold text-gray-200">
+              {story.visibility === "private" 
+                ? "Private Story" 
+                : "Campus Only Story — Log in with your verified college account to read full story."}
+            </p>
+            {!user?.uid && (
+              <span className="mt-1 px-4 py-1.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-md">
+                <LogIn size={12} /> Log In to Read
+              </span>
+            )}
           </div>
-          
-          <div className="flex items-center gap-2">
-            {onSave && (
-              <button 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onSave(story.id);
-                }}
-                className={`p-2 rounded-xl border hover:scale-105 active:scale-95 duration-200 ${
-                  isSaved 
-                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                    : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
-                }`}
-                title={isSaved ? "Remove Bookmark" : "Bookmark Story"}
-              >
-                <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
-              </button>
-            )}
-            {onShare && (
-              <button 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onShare(story);
-                }}
-                className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
-                title="Share Story"
-              >
-                <Share2 size={16} />
-              </button>
-            )}
-            <div className="flex items-center gap-2 group/btn ml-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
-              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
-                <BookOpen className="w-5 h-5" />
+        ) : (
+          <>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 leading-relaxed font-bengali">
+              {story.preview}
+            </p>
+
+            <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-50 dark:border-gray-800">
+              <div onClick={(e) => e.preventDefault()}>
+                <ReactionBtn 
+                  contentId={story.id} 
+                  contentType="story" 
+                  reactions={story.reactions} 
+                  reactedBy={story.reactedBy} 
+                  currentUserId={user?.uid}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {onSave && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSave(story.id);
+                    }}
+                    className={`p-2 rounded-xl border hover:scale-105 active:scale-95 duration-200 ${
+                      isSaved 
+                        ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                    }`}
+                    title={isSaved ? "Remove Bookmark" : "Bookmark Story"}
+                  >
+                    <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
+                  </button>
+                )}
+                {onShare && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onShare(story);
+                    }}
+                    className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
+                    title="Share Story"
+                  >
+                    <Share2 size={16} />
+                  </button>
+                )}
+                <div className="flex items-center gap-2 group/btn ml-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
+                  <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </Link>
     </motion.div>
   );

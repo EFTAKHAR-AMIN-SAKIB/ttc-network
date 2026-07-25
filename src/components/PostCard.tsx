@@ -7,7 +7,7 @@ import {
     Clock, ExternalLink, School, MapPin, 
     MoreHorizontal, Edit2, Trash2, MessageCircle, 
     Share2, Bookmark, CheckCircle2, XCircle, Loader2,
-    ImageIcon
+    ImageIcon, Lock, LogIn
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
@@ -15,6 +15,7 @@ import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { subscribeComments } from "@/lib/firestore";
 import { ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
 import ShareModal from "@/components/ShareModal";
+import { isContentRestrictedForUser } from "@/lib/permissions";
 
 interface PostCardProps {
     post: any;
@@ -178,6 +179,7 @@ export default function PostCard({
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
     const canManage = !hideManageOptions && (isOwner || isAdmin || (profile?.role === "manager" && profile?.collegeId === post.collegeId));
     
+    const isRestricted = isContentRestrictedForUser(post, profile, profile?.uid);
     const isEditing = editingId === post.id;
     
     // Auto-expand comments if the URL hash or query points to a comment on this post
@@ -495,96 +497,132 @@ export default function PostCard({
                     </h2>
                 </div>
 
-                <ExpandableText text={post.description || ""} onTagClick={onTagClick || undefined} />
-                
-                {!post.thumbnailUrl && <LinkPreviewCard post={post} />}
-                {post.thumbnailUrl && (
-                    <div className="relative group/media-link">
-                         {post.shareLink ? (
-                            <a 
-                                href={post.shareLink} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="block rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner mt-4 group/img relative"
+                {isRestricted ? (
+                    <div className="mt-4 p-6 sm:p-8 rounded-[2rem] bg-gradient-to-br from-slate-900 via-gray-900 to-slate-950 text-white border border-white/10 shadow-2xl relative overflow-hidden text-center flex flex-col items-center justify-center gap-3">
+                        {/* Ambient glow */}
+                        <div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+                            <Lock size={24} />
+                        </div>
+
+                        <div>
+                            <h4 className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
+                                {post.visibility === "private" ? "Private Post" : "Campus Only Content"}
+                            </h4>
+                            <p className="text-xs sm:text-sm text-gray-300 max-w-md mt-1 font-medium leading-relaxed">
+                                {post.visibility === "private" 
+                                    ? "This post is marked as private by the creator."
+                                    : `This post is exclusively available to verified students & faculty of ${post.collegeName || "this college"}. Please log in with your college account to view.`}
+                            </p>
+                        </div>
+
+                        {!profile?.uid && (
+                            <Link
+                                href="/login"
+                                className="mt-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-primary to-accent text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/25 flex items-center gap-2"
                             >
-                                <img 
-                                    src={post.thumbnailUrl} 
-                                    alt={post.eventName}
-                                    className="w-full h-auto object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/30 text-white transform translate-y-4 group-hover/img:translate-y-0 transition-transform duration-500">
-                                        <ExternalLink size={24} />
-                                    </div>
-                                    <span className="text-white text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover/img:opacity-100 translate-y-4 group-hover/img:translate-y-0 transition-all duration-500 delay-75">Visit Link</span>
-                                </div>
-                            </a>
-                         ) : (
-                            <div className="rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner mt-4 group/img">
-                                <img 
-                                    src={post.thumbnailUrl} 
-                                    alt={post.eventName}
-                                    className="w-full h-auto object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
-                                />
-                            </div>
-                         )}
+                                <LogIn size={14} /> Log In to View
+                            </Link>
+                        )}
                     </div>
+                ) : (
+                    <>
+                        <ExpandableText text={post.description || ""} onTagClick={onTagClick || undefined} />
+                        
+                        {!post.thumbnailUrl && <LinkPreviewCard post={post} />}
+                        {post.thumbnailUrl && (
+                            <div className="relative group/media-link">
+                                 {post.shareLink ? (
+                                    <a 
+                                        href={post.shareLink} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="block rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner mt-4 group/img relative"
+                                    >
+                                        <img 
+                                            src={post.thumbnailUrl} 
+                                            alt={post.eventName}
+                                            className="w-full h-auto object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/30 text-white transform translate-y-4 group-hover/img:translate-y-0 transition-transform duration-500">
+                                                <ExternalLink size={24} />
+                                            </div>
+                                            <span className="text-white text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover/img:opacity-100 translate-y-4 group-hover/img:translate-y-0 transition-all duration-500 delay-75">Visit Link</span>
+                                        </div>
+                                    </a>
+                                 ) : (
+                                    <div className="rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner mt-4 group/img">
+                                        <img 
+                                            src={post.thumbnailUrl} 
+                                            alt={post.eventName}
+                                            className="w-full h-auto object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
+                                        />
+                                    </div>
+                                 )}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
             {/* Interactions Bar */}
-            <div className="mt-8 pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-4 sm:gap-6">
-                    <ReactionBtn 
-                        contentId={post.id} 
-                        contentType="post" 
-                        reactions={post.reactions} 
-                        reactedBy={post.reactedBy}
-                        currentUserId={profile?.uid}
-                    />
-                    <button 
-                        onClick={() => setShowComments(!showComments)}
-                        className={`flex items-center gap-2 group/btn transition-colors ${showComments ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
-                    >
-                        <div className={`p-2 rounded-xl transition-colors ${showComments ? 'bg-primary/10' : 'bg-gray-50 dark:bg-white/5 group-hover/btn:bg-primary/10'}`}>
-                            <MessageCircle size={18} className={showComments ? 'fill-primary' : 'group-hover/btn:fill-primary/20'} />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{post.commentsCount || 0}</span>
-                    </button>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <button 
-                        onClick={() => onSave?.(post.id)}
-                        className={`p-2 rounded-xl transition-all border hover:scale-105 active:scale-95 duration-200 ${
-                            isSaved 
-                                ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                                : "bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
-                        }`}
-                        title={isSaved ? "Remove Bookmark" : "Bookmark Post"}
-                    >
-                        <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
-                    </button>
-                    <button 
-                        onClick={() => setIsShareOpen(true)}
-                        className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
-                        title="Share Post"
-                    >
-                        <Share2 size={18} />
-                    </button>
-                    {post.shareLink && (
-                        <a 
-                            href={post.shareLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="p-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 duration-200"
-                            title="Visit External Link"
+            {!isRestricted && (
+                <div className="mt-8 pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-4 sm:gap-6">
+                        <ReactionBtn 
+                            contentId={post.id} 
+                            contentType="post" 
+                            reactions={post.reactions} 
+                            reactedBy={post.reactedBy}
+                            currentUserId={profile?.uid}
+                        />
+                        <button 
+                            onClick={() => setShowComments(!showComments)}
+                            className={`flex items-center gap-2 group/btn transition-colors ${showComments ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                         >
-                            <ExternalLink size={18} />
-                        </a>
-                    )}
+                            <div className={`p-2 rounded-xl transition-colors ${showComments ? 'bg-primary/10' : 'bg-gray-50 dark:bg-white/5 group-hover/btn:bg-primary/10'}`}>
+                                <MessageCircle size={18} className={showComments ? 'fill-primary' : 'group-hover/btn:fill-primary/20'} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{post.commentsCount || 0}</span>
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <button 
+                            onClick={() => onSave?.(post.id)}
+                            className={`p-2 rounded-xl transition-all border hover:scale-105 active:scale-95 duration-200 ${
+                                isSaved 
+                                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                                    : "bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                            }`}
+                            title={isSaved ? "Remove Bookmark" : "Bookmark Post"}
+                        >
+                            <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
+                        </button>
+                        <button 
+                            onClick={() => setIsShareOpen(true)}
+                            className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
+                            title="Share Post"
+                        >
+                            <Share2 size={18} />
+                        </button>
+                        {post.shareLink && (
+                            <a 
+                                href={post.shareLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 duration-200"
+                                title="Visit External Link"
+                            >
+                                <ExternalLink size={18} />
+                            </a>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Preview of 1-2 top comments */}
             {!showComments && previewComments.length > 0 && (

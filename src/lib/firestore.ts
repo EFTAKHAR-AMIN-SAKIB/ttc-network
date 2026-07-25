@@ -35,6 +35,7 @@ import {
     type QueryConstraint
 } from "firebase/firestore";
 import { getDb, getAuthInstance } from "./firebase";
+export { getDb, getAuthInstance };
 import { uploadFile as cloudinaryUpload, deleteFromCloudinary } from "./storage";
 
 // ═══════════════════════════════════════════════════
@@ -411,6 +412,9 @@ export interface FirestoreComment {
     replyToId?: string; // For nested replies
     likes?: number; // Legacy support
     likedBy?: string[]; // Legacy support
+    contentType?: "post" | "story" | "study" | "groupPost";
+    groupId?: string;
+    visibility?: string;
 }
 
 export interface FirestoreUser {
@@ -1854,11 +1858,116 @@ export async function deleteOwnStory(storyId: string): Promise<void> {
 }
 
 /**
+ * Helper to filter comments based on group membership and visibility permissions for a viewer.
+ * Confirms privacy enforcement at the raw data layer before returning activity/feed responses.
+ */
+async function filterCommentsForViewer(
+    comments: any[], 
+    isOwner: boolean, 
+    viewerUid?: string | null, 
+    viewerProfile?: any | null
+): Promise<any[]> {
+    if (comments.length === 0) return [];
+    if (isOwner) return comments; // Owner can see all their comments
+
+    const db = getDb();
+
+    // 1. Get viewer joined group IDs
+    let viewerJoinedGroupIds: string[] = [];
+    const isAdmin = viewerProfile?.role === "admin" || viewerProfile?.role === "super_manager";
+
+    if (viewerUid && !isAdmin) {
+        try {
+            const joinedSnap = await getDocs(collection(db, "users", viewerUid, "joinedGroups"));
+            viewerJoinedGroupIds = joinedSnap.docs.map(d => d.id);
+        } catch (err) {
+            console.warn("[filterCommentsForViewer] Failed to fetch viewer joined groups:", err);
+        }
+    }
+
+    // 2. Resolve missing groupIds for legacy comments
+    const missingPostIds = Array.from(new Set(
+        comments.filter(c => !c.groupId && !c.contentType).map(c => c.postId).filter(Boolean)
+    ));
+
+    const groupPostMap: Record<string, { groupId: string }> = {};
+    if (missingPostIds.length > 0) {
+        for (let i = 0; i < missingPostIds.length; i += 30) {
+            const chunk = missingPostIds.slice(i, i + 30);
+            try {
+                const gpSnap = await getDocs(query(collection(db, "groupPosts"), where("__name__", "in", chunk)));
+                gpSnap.docs.forEach(doc => {
+                    groupPostMap[doc.id] = { groupId: doc.data().groupId };
+                });
+            } catch (err) {
+                console.warn("[filterCommentsForViewer] Failed to batch resolve group posts:", err);
+            }
+        }
+    }
+
+    // Enrich comments with resolved groupId if needed
+    const enrichedComments = comments.map(c => {
+        if (!c.groupId && groupPostMap[c.postId]) {
+            return { ...c, groupId: groupPostMap[c.postId].groupId, contentType: 'groupPost' };
+        }
+        return c;
+    });
+
+    // 3. Batch fetch group privacyType for all unique groupIds involved
+    const groupIdsToFetch = Array.from(new Set(
+        enrichedComments.map(c => c.groupId).filter((gid): gid is string => Boolean(gid))
+    ));
+
+    const groupPrivacyMap: Record<string, "public" | "private" | "secret"> = {};
+    if (groupIdsToFetch.length > 0) {
+        for (let i = 0; i < groupIdsToFetch.length; i += 30) {
+            const chunk = groupIdsToFetch.slice(i, i + 30);
+            try {
+                const groupsSnap = await getDocs(query(collection(db, "groups"), where("__name__", "in", chunk)));
+                groupsSnap.docs.forEach(doc => {
+                    groupPrivacyMap[doc.id] = doc.data().privacyType || "public";
+                });
+            } catch (err) {
+                console.warn("[filterCommentsForViewer] Failed to batch fetch group privacy types:", err);
+            }
+        }
+    }
+
+    // 4. Perform final filtering based on group privacy and visibility
+    return enrichedComments.filter(comment => {
+        // A. If comment belongs to a group
+        if (comment.groupId) {
+            const privacy = groupPrivacyMap[comment.groupId] || "public";
+            if (privacy === "private" || privacy === "secret") {
+                // Member or admin required
+                if (isAdmin) return true;
+                return viewerJoinedGroupIds.includes(comment.groupId);
+            }
+            return true; // Public group comments are visible
+        }
+
+        // B. If comment has explicit visibility (e.g. private post comment)
+        if (comment.visibility === "private") {
+            return false;
+        }
+
+        return true;
+    });
+}
+
+/**
  * Fetches recent activity for a user (posts, reactions, comments)
  * This is a composite fetch for the Activity tab.
  * @param isOwner - If true, shows all statuses. If false, only approved/published.
+ * @param viewerUid - ID of the user viewing the profile (or null for guests).
+ * @param viewerProfile - Profile of the user viewing the profile.
  */
-export async function getUserActivity(uid: string, isOwner: boolean = false) {
+export async function getUserActivity(
+    uid: string, 
+    isOwner: boolean = false, 
+    viewerUid?: string | null, 
+    viewerProfile?: any | null
+) {
     const db = getDb();
     
     // 1. User's Posts
@@ -1874,14 +1983,16 @@ export async function getUserActivity(uid: string, isOwner: boolean = false) {
     // 3. User's Comments (include postId for navigation)
     const commentsQ = query(collection(db, "comments"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(10));
     const commentsSnap = await getDocs(commentsQ);
-    const comments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'comment' as const }));
+    const rawComments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, activityType: 'comment' as const }));
+
+    const comments = await filterCommentsForViewer(rawComments, isOwner, viewerUid, viewerProfile);
 
     // Filter out rejected/pending items for non-owner viewers
     let all: any[] = [...posts, ...stories, ...comments];
     if (!isOwner) {
         all = all.filter((item: any) => {
             if (item.visibility === 'private') return false;
-            if (item.activityType === 'comment') return true; // comments don't have status
+            if (item.activityType === 'comment') return true; // Privacy filtering already handled by filterCommentsForViewer
             const status = item.status || '';
             return status === 'approved' || status === 'published';
         });
@@ -1900,8 +2011,15 @@ export async function getUserActivity(uid: string, isOwner: boolean = false) {
 /**
  * Fetches feed content (posts, stories, notices, study materials) for a specific user
  * Used for the "My Feed" tab on user profiles
+ * @param viewerUid - ID of the user viewing the profile (or null for guests).
+ * @param viewerProfile - Profile of the user viewing the profile.
  */
-export async function getUserFeedContent(uid: string, isOwner: boolean = false) {
+export async function getUserFeedContent(
+    uid: string, 
+    isOwner: boolean = false, 
+    viewerUid?: string | null, 
+    viewerProfile?: any | null
+) {
     const db = getDb();
     
     // 1. User's Posts
@@ -1931,7 +2049,7 @@ export async function getUserFeedContent(uid: string, isOwner: boolean = false) 
     // 5. User's Comments
     const commentsQ = query(collection(db, "comments"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(20));
     const commentsSnap = await getDocs(commentsQ);
-    let comments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'comment' as const }));
+    let rawComments = commentsSnap.docs.map(d => ({ ...d.data(), id: d.id, feedType: 'comment' as const }));
 
     // Apply visibility filters for non-owners
     if (!isOwner) {
@@ -1940,6 +2058,8 @@ export async function getUserFeedContent(uid: string, isOwner: boolean = false) 
         notices = notices.filter((n: any) => (n.status === 'published' || n.status === 'approved' || !n.status) && n.visibility !== 'private');
         studyMaterials = studyMaterials.filter((sm: any) => (sm.status === 'published' || sm.status === 'approved' || !sm.status) && sm.visibility !== 'private');
     }
+
+    const comments = await filterCommentsForViewer(rawComments, isOwner, viewerUid, viewerProfile);
 
     return {
         posts,
@@ -3278,6 +3398,32 @@ export async function addComment(
     const profile = await getCurrentUserProfile();
     if (!profile) throw new Error("Auth required");
 
+    const db = getDb();
+
+    // Fetch parent doc details to populate metadata for system privacy checks
+    const collectionName = 
+        contentType === "post" ? "posts" : 
+        contentType === "story" ? "stories" : 
+        contentType === "study" ? "studyPosts" : "groupPosts";
+    const parentRef = doc(db, collectionName, contentId);
+
+    let groupId: string | undefined = undefined;
+    let visibility: string | undefined = undefined;
+    let parentSnap: any = null;
+
+    try {
+        parentSnap = await getDoc(parentRef);
+        if (parentSnap.exists()) {
+            const parentData = parentSnap.data();
+            if (contentType === "groupPost" && parentData.groupId) {
+                groupId = parentData.groupId;
+            }
+            visibility = parentData.visibility || parentData.privacy || undefined;
+        }
+    } catch (err) {
+        console.warn("[addComment] Failed to pre-fetch parent doc:", err);
+    }
+
     const comment: Omit<FirestoreComment, "id"> = {
         postId: contentId, // Named 'postId' in schema but generic here
         userId: profile.id,
@@ -3289,22 +3435,17 @@ export async function addComment(
         parentId: parentId || null,
         createdAt: serverTimestamp() as Timestamp,
         reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
-        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] }
+        reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
+        contentType,
+        ...(groupId ? { groupId } : {}),
+        ...(visibility ? { visibility } : {})
     };
 
-    const db = getDb();
     const docRef = await addDoc(collection(db, "comments"), comment);
 
     // Update count on parent doc
-    const collectionName = 
-        contentType === "post" ? "posts" : 
-        contentType === "story" ? "stories" : 
-        contentType === "study" ? "studyPosts" : "groupPosts";
-    const parentRef = doc(db, collectionName, contentId);
-    
     try {
-        const parentSnap = await getDoc(parentRef);
-        if (parentSnap.exists()) {
+        if (parentSnap && parentSnap.exists()) {
             const parentData = parentSnap.data();
             await updateDoc(parentRef, { commentsCount: increment(1) });
 

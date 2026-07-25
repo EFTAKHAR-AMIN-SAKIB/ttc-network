@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User } from "lucide-react";
+import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User, Lock, LogIn } from "lucide-react";
 import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories, subscribeStory, getProfilesByIds, type FirestoreUser } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -13,6 +13,7 @@ import StoryCard from "@/components/StoryCard";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import ShareModal from "@/components/ShareModal";
+import { isContentRestrictedForUser } from "@/lib/permissions";
 
 export default function StoryDetailPage() {
     const params = useParams();
@@ -191,103 +192,131 @@ export default function StoryDetailPage() {
                     </header>
 
                     {/* Content Section */}
-                    <div className="p-5 sm:p-14">
-                        <div className="prose prose-base sm:prose-xl dark:prose-invert max-w-none">
-                            <h2 className="text-xl sm:text-3xl font-black mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 tracking-tight">
-                                <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
-                                    <Footprints className="w-5 h-5 sm:w-7 sm:h-7" />
-                                </div>
-                                Their Journey
-                            </h2>
-                            <div className="text-gray-800 dark:text-gray-200 font-bengali leading-[1.8] text-lg sm:text-2xl whitespace-pre-wrap mb-10 sm:mb-20">
-                                {story.fullStory}
+                    {isContentRestrictedForUser(story, profile, user?.uid) ? (
+                        <div className="p-8 sm:p-16 text-center flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-950 text-white rounded-[2rem] border border-white/10 shadow-2xl my-8">
+                            <div className="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shadow-inner">
+                                <Lock size={32} />
                             </div>
-
-
-
-                            {story.oneAdvice && (
-                                <div className="relative group mb-8 sm:mb-12">
-                                    <div className="absolute -inset-0.5 sm:-inset-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-[1.5rem] sm:rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                                    <div className="relative bg-white dark:bg-amber-950/10 p-5 sm:p-10 rounded-[1.5rem] sm:rounded-[2.5rem] border border-amber-100 dark:border-amber-900/40">
-                                        <h3 className="text-amber-900 dark:text-amber-400 text-lg sm:text-2xl font-black mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4 tracking-tight">
-                                            <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-amber-100 dark:bg-amber-900/30">
-                                                <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
-                                            </div>
-                                            One Piece of Advice
-                                        </h3>
-                                        <p className="text-amber-800 dark:text-amber-300 font-bengali text-base sm:text-xl leading-relaxed italic">
-                                            &ldquo;{story.oneAdvice}&rdquo;
-                                        </p>
-                                    </div>
-                                </div>
+                            <div>
+                                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white">
+                                    {story.visibility === "private" ? "Private Story" : "Campus Restricted Story"}
+                                </h2>
+                                <p className="text-sm sm:text-base text-gray-300 max-w-lg mt-2 font-medium leading-relaxed">
+                                    {story.visibility === "private" 
+                                        ? "This story is private to the author."
+                                        : `This story is exclusively available to verified students & faculty of ${story.college}. Log in with your verified college account to read the full journey.`}
+                                </p>
+                            </div>
+                            {!user?.uid && (
+                                <Link
+                                    href="/login"
+                                    className="mt-4 px-8 py-3 rounded-full bg-gradient-to-r from-primary to-accent text-white text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-primary/25 flex items-center gap-2"
+                                >
+                                    <LogIn size={16} /> Log In with College Account
+                                </Link>
                             )}
                         </div>
-
-                        {/* Reactions Footer */}
-                        <div className="mt-10 sm:mt-20 pt-8 sm:pt-12 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-10">
-                            <div className="scale-100 sm:scale-125 origin-center sm:origin-left">
-                                <ReactionBtn 
-                                    contentId={story.id} 
-                                    contentType="story" 
-                                    reactions={story.reactions} 
-                                    reactedBy={story.reactedBy} 
-                                    currentUserId={user?.uid}
-                                />
-                            </div>
-
-                            <div className="flex flex-col items-center sm:items-end">
-                                <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 sm:mb-4">Engage with this journey</p>
-                                <div className="flex items-center gap-3 sm:gap-4">
-                                    <div className="flex -space-x-3">
-                                        {reactingUsers.length > 0 ? (
-                                            reactingUsers.map((u) => (
-                                                <div key={u.id} className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-900 overflow-hidden shadow-sm bg-gray-100 dark:bg-gray-800" title={u.displayName}>
-                                                    {u.photoURL ? (
-                                                        <Image src={u.photoURL} alt={u.displayName} fill className="object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
-                                                            {u.displayName?.substring(0, 2).toUpperCase() || "?"}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            [...Array(3)].map((_, i) => (
-                                                <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center">
-                                                    <User size={12} className="text-gray-350 dark:text-gray-600" />
-                                                </div>
-                                            ))
-                                        )}
+                    ) : (
+                        <>
+                            <div className="p-5 sm:p-14">
+                                <div className="prose prose-base sm:prose-xl dark:prose-invert max-w-none">
+                                    <h2 className="text-xl sm:text-3xl font-black mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 tracking-tight">
+                                        <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
+                                            <Footprints className="w-5 h-5 sm:w-7 sm:h-7" />
+                                        </div>
+                                        Their Journey
+                                    </h2>
+                                    <div className="text-gray-800 dark:text-gray-200 font-bengali leading-[1.8] text-lg sm:text-2xl whitespace-pre-wrap mb-10 sm:mb-20">
+                                        {story.fullStory}
                                     </div>
-                                    <span className="text-[10px] sm:text-xs font-black text-navy-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg sm:rounded-xl">
-                                        {(() => {
-                                            const total = Object.values(story.reactions || {}).reduce((a, b) => a + (b as number), 0);
-                                            return total === 0 ? "No reactions yet" : total === 1 ? "1 Reaction" : `${total} Reactions`;
-                                        })()}
-                                    </span>
+
+                                    {story.oneAdvice && (
+                                        <div className="relative group mb-8 sm:mb-12">
+                                            <div className="absolute -inset-0.5 sm:-inset-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-[1.5rem] sm:rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+                                            <div className="relative bg-white dark:bg-amber-950/10 p-5 sm:p-10 rounded-[1.5rem] sm:rounded-[2.5rem] border border-amber-100 dark:border-amber-900/40">
+                                                <h3 className="text-amber-900 dark:text-amber-400 text-lg sm:text-2xl font-black mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4 tracking-tight">
+                                                    <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-amber-100 dark:bg-amber-900/30">
+                                                        <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                                                    </div>
+                                                    One Piece of Advice
+                                                </h3>
+                                                <p className="text-amber-800 dark:text-amber-300 font-bengali text-base sm:text-xl leading-relaxed italic">
+                                                    &ldquo;{story.oneAdvice}&rdquo;
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Reactions Footer */}
+                                <div className="mt-10 sm:mt-20 pt-8 sm:pt-12 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-10">
+                                    <div className="scale-100 sm:scale-125 origin-center sm:origin-left">
+                                        <ReactionBtn 
+                                            contentId={story.id} 
+                                            contentType="story" 
+                                            reactions={story.reactions} 
+                                            reactedBy={story.reactedBy} 
+                                            currentUserId={user?.uid}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col items-center sm:items-end">
+                                        <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 sm:mb-4">Engage with this journey</p>
+                                        <div className="flex items-center gap-3 sm:gap-4">
+                                            <div className="flex -space-x-3">
+                                                {reactingUsers.length > 0 ? (
+                                                    reactingUsers.map((u) => (
+                                                        <div key={u.id} className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-900 overflow-hidden shadow-sm bg-gray-100 dark:bg-gray-800" title={u.displayName}>
+                                                            {u.photoURL ? (
+                                                                <Image src={u.photoURL} alt={u.displayName} fill className="object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
+                                                                    {u.displayName?.substring(0, 2).toUpperCase() || "?"}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    [...Array(3)].map((_, i) => (
+                                                        <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center">
+                                                            <User size={12} className="text-gray-350 dark:text-gray-600" />
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] sm:text-xs font-black text-navy-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5 rounded-lg sm:rounded-xl">
+                                                {(() => {
+                                                    const total = Object.values(story.reactions || {}).reduce((a, b) => a + (b as number), 0);
+                                                    return total === 0 ? "No reactions yet" : total === 1 ? "1 Reaction" : `${total} Reactions`;
+                                                })()}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        </>
+                    )}
                 </article>
 
                 {/* Comments Section */}
-                <div id="comments" className="mt-12 sm:mt-24">
-                    <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-2 sm:px-4">
-                        <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
-                            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                {!isContentRestrictedForUser(story, profile, user?.uid) && (
+                    <div id="comments" className="mt-12 sm:mt-24">
+                        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-10 px-2 sm:px-4">
+                            <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/10 text-primary">
+                                <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                            </div>
+                            <h2 className="text-xl sm:text-3xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
+                                Comments
+                            </h2>
                         </div>
-                        <h2 className="text-xl sm:text-3xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
-                            Comments
-                        </h2>
+                        <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-2xl shadow-navy-900/5">
+                            <CommentSystem 
+                                contentId={story.id} 
+                                contentType="story" 
+                            />
+                        </div>
                     </div>
-                    <div className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-2xl shadow-navy-900/5">
-                        <CommentSystem 
-                            contentId={story.id} 
-                            contentType="story" 
-                        />
-                    </div>
-                </div>
+                )}
 
                 {/* More from College Carousel */}
                 {moreStories.length > 0 && (

@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, History, Loader2, User, ArrowRight, Sparkles, MapPin, BookOpen, Clock, ShieldAlert, School } from "lucide-react";
+import { Search, History, Loader2, User, ArrowRight, Sparkles, MapPin, BookOpen, Clock, ShieldAlert, School, GraduationCap, Users, Globe, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,18 +10,23 @@ import PostCard from "@/components/PostCard";
 import StoryCard from "@/components/StoryCard";
 import { TimeAgo } from "@/components/Social/SocialUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { getDb } from "@/lib/firebase";
 import { 
     getAllUsers, 
     getApprovedPosts, 
     getApprovedStories, 
     getNotices,
+    getApprovedStudyPosts,
     FirestoreUser,
     FirestorePost,
     FirestoreStory,
-    FirestoreNotice
+    FirestoreNotice,
+    FirestoreStudyPost,
+    GroupDoc
 } from "@/lib/firestore";
+import { collection, query as fsQuery, where, getDocs } from "firebase/firestore";
 
-type TabType = "all" | "people" | "posts" | "stories" | "notices";
+type TabType = "all" | "people" | "posts" | "stories" | "notices" | "study" | "groups";
 
 function SearchContent() {
     const searchParams = useSearchParams();
@@ -37,6 +42,8 @@ function SearchContent() {
     const [posts, setPosts] = useState<(FirestorePost & { id: string })[]>([]);
     const [stories, setStories] = useState<(FirestoreStory & { id: string })[]>([]);
     const [notices, setNotices] = useState<(FirestoreNotice & { id: string })[]>([]);
+    const [studyMaterials, setStudyMaterials] = useState<(FirestoreStudyPost & { id: string })[]>([]);
+    const [groups, setGroups] = useState<(GroupDoc & { id: string })[]>([]);
 
     useEffect(() => {
         if (!q.trim()) {
@@ -45,45 +52,83 @@ function SearchContent() {
         }
 
         setLoading(true);
+        const fetchGroups = async () => {
+            try {
+                const db = getDb();
+                const qG = fsQuery(collection(db, "groups"), where("privacyType", "in", ["public", "private"]));
+                const snap = await getDocs(qG);
+                return snap.docs.map(d => ({ id: d.id, ...(d.data() as GroupDoc) }));
+            } catch (e) {
+                return [];
+            }
+        };
+
         Promise.all([
             getAllUsers().catch(() => []),
             getApprovedPosts().catch(() => []),
             getApprovedStories().catch(() => []),
-            getNotices().catch(() => [])
-        ]).then(([u, p, s, n]) => {
+            getNotices().catch(() => []),
+            getApprovedStudyPosts().catch(() => []),
+            fetchGroups()
+        ]).then(([u, p, s, n, sm, g]) => {
             setUsers(u as any);
-            setPosts(p as any);
-            setStories(s as any);
-            setNotices(n as any);
+            // Apply privacy filter: remove private items
+            setPosts((p as any[]).filter(post => post.visibility !== "private"));
+            setStories((s as any[]).filter(story => story.visibility !== "private"));
+            setNotices((n as any[]).filter(notice => notice.visibility !== "private"));
+            setStudyMaterials((sm as any[]).filter(study => study.visibility !== "private"));
+            setGroups(g as any);
         }).finally(() => {
             setLoading(false);
         });
     }, [q]);
 
-    const query = q.trim().toLowerCase();
+    const queryStr = q.trim().toLowerCase();
 
-    // Filters (People only filters name/username, others filter normally)
-    const filteredUsers = query ? users.filter(user => 
-        user.displayName?.toLowerCase().includes(query) ||
-        user.username?.toLowerCase().includes(query)
+    // Filters (Matching content text + author/creator names in true social media fashion)
+    const filteredUsers = queryStr ? users.filter(user => 
+        user.displayName?.toLowerCase().includes(queryStr) ||
+        user.username?.toLowerCase().includes(queryStr) ||
+        user.college?.toLowerCase().includes(queryStr) ||
+        (user as any).bio?.toLowerCase().includes(queryStr)
     ) : [];
 
-    const filteredPosts = query ? posts.filter(post => 
-        post.eventName?.toLowerCase().includes(query) ||
-        post.description?.toLowerCase().includes(query) ||
-        post.collegeName?.toLowerCase().includes(query)
+    const filteredPosts = queryStr ? posts.filter(post => 
+        post.eventName?.toLowerCase().includes(queryStr) ||
+        post.description?.toLowerCase().includes(queryStr) ||
+        post.collegeName?.toLowerCase().includes(queryStr) ||
+        post.createdBy?.name?.toLowerCase().includes(queryStr)
     ) : [];
 
-    const filteredStories = query ? stories.filter(story => 
-        story.title?.toLowerCase().includes(query) ||
-        story.preview?.toLowerCase().includes(query) ||
-        story.name?.toLowerCase().includes(query)
+    const filteredStories = queryStr ? stories.filter(story => 
+        story.title?.toLowerCase().includes(queryStr) ||
+        story.preview?.toLowerCase().includes(queryStr) ||
+        story.fullStory?.toLowerCase().includes(queryStr) ||
+        story.name?.toLowerCase().includes(queryStr) ||
+        story.college?.toLowerCase().includes(queryStr)
     ) : [];
 
-    const filteredNotices = query ? notices.filter(notice => 
-        notice.title?.toLowerCase().includes(query) ||
-        notice.body?.toLowerCase().includes(query) ||
-        notice.college?.toLowerCase().includes(query)
+    const filteredNotices = queryStr ? notices.filter(notice => 
+        notice.title?.toLowerCase().includes(queryStr) ||
+        notice.body?.toLowerCase().includes(queryStr) ||
+        notice.college?.toLowerCase().includes(queryStr) ||
+        notice.postedBy?.toLowerCase().includes(queryStr)
+    ) : [];
+
+    const filteredStudyMaterials = queryStr ? studyMaterials.filter(study => 
+        study.title?.toLowerCase().includes(queryStr) ||
+        study.content?.toLowerCase().includes(queryStr) ||
+        study.authorName?.toLowerCase().includes(queryStr) ||
+        study.category?.toLowerCase().includes(queryStr) ||
+        study.subType?.toLowerCase().includes(queryStr) ||
+        study.collegeName?.toLowerCase().includes(queryStr) ||
+        study.tags?.some((t: string) => t.toLowerCase().includes(queryStr))
+    ) : [];
+
+    const filteredGroups = queryStr ? groups.filter(group => 
+        group.name?.toLowerCase().includes(queryStr) ||
+        group.description?.toLowerCase().includes(queryStr) ||
+        group.creatorName?.toLowerCase().includes(queryStr)
     ) : [];
 
     const counts = {
@@ -91,18 +136,20 @@ function SearchContent() {
         posts: filteredPosts.length,
         stories: filteredStories.length,
         notices: filteredNotices.length,
+        study: filteredStudyMaterials.length,
+        groups: filteredGroups.length,
     };
     
-    const totalResults = counts.people + counts.posts + counts.stories + counts.notices;
+    const totalResults = counts.people + counts.posts + counts.stories + counts.notices + counts.study + counts.groups;
 
     // Highlight Helper
     const highlight = (text: string = "") => {
-        if (!query) return text;
-        const parts = text.split(new RegExp(`(${query})`, 'gi'));
+        if (!queryStr) return text;
+        const parts = text.split(new RegExp(`(${queryStr})`, 'gi'));
         return (
             <>
                 {parts.map((part, i) => 
-                    part.toLowerCase() === query.toLowerCase() ? (
+                    part.toLowerCase() === queryStr.toLowerCase() ? (
                         <span key={i} className="bg-primary/20 text-primary rounded-sm px-0.5">{part}</span>
                     ) : (
                         part
@@ -171,11 +218,102 @@ function SearchContent() {
                     {highlight(notice.body)}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400 font-bold uppercase tracking-wider">
-                    <span className="text-gray-600 dark:text-gray-300 truncate max-w-[200px]">{highlight(notice.college)}</span>
+                    <span className="text-gray-600 dark:text-gray-300 font-bold">{highlight(notice.postedBy)}</span>
+                    {notice.college && (
+                        <>
+                            <span>•</span>
+                            <span className="truncate max-w-[200px]">{highlight(notice.college)}</span>
+                        </>
+                    )}
                     <span>•</span>
                     <span><TimeAgo ts={notice.date} /></span>
                 </div>
             </div>
+        </Link>
+    );
+
+    const renderStudyCard = (study: FirestoreStudyPost & {id: string}) => (
+        <Link
+            key={study.id}
+            href={`/study?study=${study.id}`}
+            className="flex items-start gap-4 p-4 bg-white dark:bg-[#1a1b23] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:border-primary/50 transition-colors group"
+        >
+            <div className="w-12 h-12 rounded-xl flex-shrink-0 bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">
+                <GraduationCap size={24} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                        {study.category || study.type || "Resource"}
+                    </span>
+                    {study.yearRelevance && (
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+                            {study.yearRelevance}
+                        </span>
+                    )}
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 mb-1">
+                    {highlight(study.title)}
+                </h4>
+                <div className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
+                    {highlight(study.content)}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                    <span className="text-gray-600 dark:text-gray-300 font-bold">{highlight(study.authorName || "Anonymous")}</span>
+                    {study.collegeName && (
+                        <>
+                            <span>•</span>
+                            <span className="truncate max-w-[180px]">{highlight(study.collegeName)}</span>
+                        </>
+                    )}
+                    {study.createdAt && (
+                        <>
+                            <span>•</span>
+                            <span><TimeAgo ts={study.createdAt} /></span>
+                        </>
+                    )}
+                </div>
+            </div>
+        </Link>
+    );
+
+    const renderGroupCard = (group: GroupDoc & {id: string}) => (
+        <Link
+            key={group.id}
+            href={`/groups/${group.id}`}
+            className="flex items-center gap-4 p-4 bg-white dark:bg-[#1a1b23] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:border-primary/50 transition-colors group"
+        >
+            <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold relative">
+                {group.coverUrl ? (
+                    <Image src={group.coverUrl} alt={group.name} width={56} height={56} className="object-cover w-full h-full" />
+                ) : (
+                    <Users size={24} />
+                )}
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                        {highlight(group.name)}
+                    </h4>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                        group.privacyType === "public"
+                            ? "bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                            : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                    }`}>
+                        {group.privacyType === "public" ? <Globe size={10} /> : <Lock size={10} />}
+                        {group.privacyType}
+                    </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-1">
+                    {highlight(group.description)}
+                </p>
+                <div className="flex items-center gap-2 text-xs text-gray-400 font-medium">
+                    <span>Created by <strong className="text-gray-700 dark:text-gray-300">{highlight(group.creatorName)}</strong></span>
+                    <span>•</span>
+                    <span>{group.memberCount || 0} members</span>
+                </div>
+            </div>
+            <ArrowRight size={20} className="text-gray-300 group-hover:text-primary transition-colors flex-shrink-0" />
         </Link>
     );
 
@@ -196,7 +334,7 @@ function SearchContent() {
                         <Search size={32} className="text-gray-400" />
                     </div>
                     <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Search TTC Network</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Enter a query above to discover people, posts, stories, and notices.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Enter a query above to discover people, posts, stories, notices, study materials, and groups.</p>
                 </div>
             </div>
         );
@@ -228,7 +366,9 @@ function SearchContent() {
                         { id: "people", label: "People", count: counts.people },
                         { id: "posts", label: "Posts", count: counts.posts },
                         { id: "stories", label: "Stories", count: counts.stories },
-                        { id: "notices", label: "Notices", count: counts.notices }
+                        { id: "study", label: "Study Materials", count: counts.study },
+                        { id: "notices", label: "Notices", count: counts.notices },
+                        { id: "groups", label: "Groups", count: counts.groups }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -284,6 +424,23 @@ function SearchContent() {
                         </section>
                     )}
 
+                    {/* STUDY MATERIALS */}
+                    {(activeTab === "all" || activeTab === "study") && filteredStudyMaterials.length > 0 && (
+                        <section className="animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                                    <GraduationCap size={16} /> Study Materials & Resources
+                                </h3>
+                                {activeTab === "all" && filteredStudyMaterials.length > 4 && (
+                                    <button onClick={() => setActiveTab("study")} className="text-sm font-bold text-primary hover:underline">See All {filteredStudyMaterials.length} →</button>
+                                )}
+                            </div>
+                            <div className="space-y-4">
+                                {(activeTab === "all" ? filteredStudyMaterials.slice(0, 4) : filteredStudyMaterials).map(renderStudyCard)}
+                            </div>
+                        </section>
+                    )}
+
                     {/* POSTS */}
                     {(activeTab === "all" || activeTab === "posts") && filteredPosts.length > 0 && (
                         <section className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
@@ -335,6 +492,23 @@ function SearchContent() {
                             </div>
                             <div className="space-y-4">
                                 {(activeTab === "all" ? filteredNotices.slice(0, 4) : filteredNotices).map(renderNoticeCard)}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* GROUPS */}
+                    {(activeTab === "all" || activeTab === "groups") && filteredGroups.length > 0 && (
+                        <section className="animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                                    <Users size={16} /> Groups & Communities
+                                </h3>
+                                {activeTab === "all" && filteredGroups.length > 4 && (
+                                    <button onClick={() => setActiveTab("groups")} className="text-sm font-bold text-primary hover:underline">See All {filteredGroups.length} →</button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(activeTab === "all" ? filteredGroups.slice(0, 4) : filteredGroups).map(renderGroupCard)}
                             </div>
                         </section>
                     )}
