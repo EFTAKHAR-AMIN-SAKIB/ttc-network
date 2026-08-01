@@ -264,7 +264,6 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                 </div>
                                 <span className="text-[10px] font-black uppercase tracking-widest">{post.commentsCount || 0}</span>
                             </button>
-                            <div className="flex items-center gap-1.5">
                             <motion.button 
                                 type="button"
                                 onClick={handleDownload}
@@ -299,13 +298,6 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                                     <ExternalLink size={18} />
                                 )}
                             </motion.button>
-                            {(post.downloadCount !== undefined && post.downloadCount > 0) && (
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400" title={`${post.downloadCount} downloads`}>
-                                    {post.downloadCount >= 1000 ? `${(post.downloadCount / 1000).toFixed(1)}k` : post.downloadCount}
-                                </span>
-                            )}
-                            </div>
-
                         </div>
                     </div>
 
