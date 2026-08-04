@@ -528,6 +528,7 @@ function StudyPageContent() {
                     }} 
                     profile={profile} 
                     editPost={editingPost}
+                    existingCategories={uniqueCategories}
                     onSuccess={(msg) => {
                         showToast(msg, "success");
                     }}

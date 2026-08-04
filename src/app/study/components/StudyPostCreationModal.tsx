@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     X, Send, Link as LinkIcon, Globe, Lock, 
     BookOpen, Video, Calendar, Clock, Loader2, Sparkles,
     AlertTriangle, ChevronRight, FileText, Pencil, ImageIcon, School,
-    UploadCloud, Paperclip
+    UploadCloud, Paperclip, Tag, Check, Plus
 } from "lucide-react";
 import { createStudyPost, updateStudyPost, type FirestoreStudyPost } from "@/lib/firestore";
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
@@ -19,10 +19,11 @@ interface StudyPostCreationModalProps {
     onClose: () => void;
     profile: any;
     editPost?: (FirestoreStudyPost & { id: string }) | null;
+    existingCategories?: string[];
     onSuccess?: (message: string) => void;
 }
 
-export default function StudyPostCreationModal({ isOpen, onClose, profile, editPost, onSuccess }: StudyPostCreationModalProps) {
+export default function StudyPostCreationModal({ isOpen, onClose, profile, editPost, existingCategories = [], onSuccess }: StudyPostCreationModalProps) {
     const [step, setStep] = useState<1 | 2>(1);
     const [tab, setTab] = useState<"material" | "schedule">("material");
     
@@ -34,8 +35,32 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
     const [startTime, setStartTime] = useState("");
     const [privacy, setPrivacy] = useState<"public" | "campus">("public");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCategoryFocused, setIsCategoryFocused] = useState(false);
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
+
+    // Compute unique existing custom categories
+    const availableCustomCategories = useMemo(() => {
+        const standard = new Set(['notes', 'suggestion', 'books', 'question', 'other']);
+        const customList = (existingCategories || []).filter(c => c && !standard.has(c.trim().toLowerCase()));
+        const seen = new Set<string>();
+        const result: string[] = [];
+        for (const item of customList) {
+            const lower = item.trim().toLowerCase();
+            if (!seen.has(lower)) {
+                seen.add(lower);
+                result.push(item.trim());
+            }
+        }
+        return result;
+    }, [existingCategories]);
+
+    // Matching custom categories based ONLY on what the user enters (keyword search)
+    const matchingCustomCategories = useMemo(() => {
+        const query = category.trim().toLowerCase();
+        if (!query) return []; // Do NOT display all categories upfront
+        return availableCustomCategories.filter(cat => cat.toLowerCase().includes(query));
+    }, [category, availableCustomCategories]);
 
     useEffect(() => {
         if (isOpen) {
@@ -456,17 +481,65 @@ export default function StudyPostCreationModal({ isOpen, onClose, profile, editP
                                             </div>
                                             
                                             {!['notes', 'suggestion', 'books', 'question'].includes(category) && (
-                                                <div className="relative mt-2">
-                                                    <input 
-                                                        type="text"
-                                                        required={tab === 'material'}
-                                                        placeholder="Enter custom category name (e.g. English, Math)..."
-                                                        value={category}
-                                                        onChange={(e) => setCategory(e.target.value)}
-                                                        className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl px-6 py-4 text-xs font-bold outline-none transition-all shadow-inner"
-                                                    />
-                                                </div>
-                                            )}
+                                                 <div className="relative mt-2">
+                                                     <div className="relative flex items-center">
+                                                         <Tag size={16} className="absolute left-5 text-gray-400 pointer-events-none" />
+                                                         <input 
+                                                             type="text"
+                                                             required={tab === 'material'}
+                                                             placeholder="Type category (e.g. English, Bangla, Math)..."
+                                                             value={category}
+                                                             onFocus={() => setIsCategoryFocused(true)}
+                                                             onBlur={() => setTimeout(() => setIsCategoryFocused(false), 200)}
+                                                             onChange={(e) => {
+                                                                 setCategory(e.target.value);
+                                                                 setIsCategoryFocused(true);
+                                                             }}
+                                                             className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl pl-12 pr-6 py-4 text-xs font-bold outline-none transition-all shadow-inner"
+                                                         />
+                                                     </div>
+
+                                                     {/* Autocomplete Dropdown suggestions (only shown as user types matching keywords) */}
+                                                     <AnimatePresence>
+                                                         {isCategoryFocused && category.trim().length > 0 && (
+                                                             <motion.div
+                                                                 initial={{ opacity: 0, y: 5 }}
+                                                                 animate={{ opacity: 1, y: 0 }}
+                                                                 exit={{ opacity: 0, y: 5 }}
+                                                                 className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto p-1.5 space-y-1"
+                                                             >
+                                                                 {matchingCustomCategories.length > 0 ? (
+                                                                     <>
+                                                                         <div className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                                                             Matching Categories
+                                                                         </div>
+                                                                         {matchingCustomCategories.map((suggestion) => (
+                                                                             <button
+                                                                                 key={suggestion}
+                                                                                 type="button"
+                                                                                 onMouseDown={(e) => {
+                                                                                     e.preventDefault();
+                                                                                     setCategory(suggestion);
+                                                                                     setIsCategoryFocused(false);
+                                                                                 }}
+                                                                                 className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-between group"
+                                                                             >
+                                                                                 <span className="capitalize">{suggestion}</span>
+                                                                                 <Check size={14} className="opacity-0 group-hover:opacity-100 text-primary transition-opacity" />
+                                                                             </button>
+                                                                         ))}
+                                                                     </>
+                                                                 ) : (
+                                                                     <div className="px-4 py-3 flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl">
+                                                                         <Sparkles size={16} className="shrink-0 text-amber-500" />
+                                                                         <span>Create new category: <strong>&quot;{category.trim()}&quot;</strong></span>
+                                                                     </div>
+                                                                 )}
+                                                             </motion.div>
+                                                         )}
+                                                     </AnimatePresence>
+                                                 </div>
+                                             )}
                                         </div>
                                     </div>
                                 ) : (

@@ -3990,23 +3990,33 @@ export const deleteStudyPost = async (id: string) => {
     await deleteAllCommentsForContent(id);
 };
 
-/** Atomically increment the viewCount of a study post (for preview opens) */
+/** Session-level sets to prevent duplicate counting per page load */
+const _viewedPostIds = new Set<string>();
+const _downloadedPostIds = new Set<string>();
+
+/** Atomically increment the viewCount of a study post (once per session per post) */
 export const incrementStudyPostViewCount = async (postId: string) => {
+    if (_viewedPostIds.has(postId)) return;      // already counted this session
+    _viewedPostIds.add(postId);
     try {
         const postRef = doc(getDb(), "studyPosts", postId);
         await updateDoc(postRef, { viewCount: increment(1) });
-    } catch (err) {
-        console.warn("[Firestore] Could not increment viewCount for study post", postId, err);
+    } catch (err: any) {
+        _viewedPostIds.delete(postId);           // allow retry on failure
+        console.warn("[Firestore] Could not increment viewCount for study post", postId, err?.code || err);
     }
 };
 
-/** Atomically increment the downloadCount of a study post (for file downloads) */
+/** Atomically increment the downloadCount of a study post (once per session per post) */
 export const incrementStudyPostDownloadCount = async (postId: string) => {
+    if (_downloadedPostIds.has(postId)) return;  // already counted this session
+    _downloadedPostIds.add(postId);
     try {
         const postRef = doc(getDb(), "studyPosts", postId);
         await updateDoc(postRef, { downloadCount: increment(1) });
-    } catch (err) {
-        console.warn("[Firestore] Could not increment downloadCount for study post", postId, err);
+    } catch (err: any) {
+        _downloadedPostIds.delete(postId);       // allow retry on failure
+        console.warn("[Firestore] Could not increment downloadCount for study post", postId, err?.code || err);
     }
 };
 

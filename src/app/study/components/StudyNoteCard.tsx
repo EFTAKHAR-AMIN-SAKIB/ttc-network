@@ -41,7 +41,8 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
         const resourceUrl = post.fileUrl || post.link;
         if (!resourceUrl) return;
 
-        // Increment download count
+        // Count as both a view and a download (dedup is handled inside each function)
+        incrementStudyPostViewCount(post.id);
         incrementStudyPostDownloadCount(post.id);
 
         if (post.fileUrl) {

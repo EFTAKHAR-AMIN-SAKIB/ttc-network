@@ -6,7 +6,7 @@ import {
     X, Download, ExternalLink, FileText, BookOpen, Video,
     Loader2, Eye, AlertCircle, Maximize2, Minimize2
 } from "lucide-react";
-import { type FirestoreStudyPost, incrementStudyPostDownloadCount } from "@/lib/firestore";
+import { type FirestoreStudyPost, incrementStudyPostViewCount, incrementStudyPostDownloadCount } from "@/lib/firestore";
 
 interface StudyPreviewModalProps {
     isOpen: boolean;
@@ -139,7 +139,8 @@ export default function StudyPreviewModal({ isOpen, onClose, post }: StudyPrevie
         if (!resourceUrl) return;
         setIsDownloading(true);
 
-        // Increment download count
+        // Count as both a view and a download (dedup is handled inside each function)
+        incrementStudyPostViewCount(post.id);
         incrementStudyPostDownloadCount(post.id);
 
         if (fileUrl) {
@@ -157,17 +158,24 @@ export default function StudyPreviewModal({ isOpen, onClose, post }: StudyPrevie
     // Build the preview content
     const renderPreview = () => {
         switch (previewType) {
-            case "pdf":
+            case "pdf": {
+                // Ensure Cloudinary URLs don't force attachment disposition if fetched
+                let cleanPdfUrl = fileUrl;
+                if (cleanPdfUrl.includes("res.cloudinary.com") && cleanPdfUrl.includes("/raw/upload/")) {
+                    cleanPdfUrl = cleanPdfUrl.replace("/raw/upload/", "/raw/upload/fl_attachment:false/");
+                }
+                const pdfViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(cleanPdfUrl)}&embedded=true`;
+
                 return (
                     <div className="w-full h-full relative">
                         {isLoading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-[#0c0c10] z-10">
                                 <Loader2 size={32} className="text-primary animate-spin mb-3" />
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading PDF...</span>
+                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading PDF Viewer...</span>
                             </div>
                         )}
                         <iframe
-                            src={`${fileUrl}#toolbar=1&navpanes=0`}
+                            src={pdfViewerUrl}
                             className="w-full h-full border-0"
                             title={post.title}
                             onLoad={() => setIsLoading(false)}
@@ -175,6 +183,7 @@ export default function StudyPreviewModal({ isOpen, onClose, post }: StudyPrevie
                         />
                     </div>
                 );
+            }
 
             case "gdocs":
                 return (

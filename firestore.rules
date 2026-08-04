@@ -386,7 +386,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
         (isOwner(resource.data.authorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'authorId', 'collegeId'])) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy', 'viewCount', 'downloadCount'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.authorId);
     }
