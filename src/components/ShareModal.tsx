@@ -5,12 +5,18 @@ import { X, Copy, Check, Globe, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/contexts/ToastContext";
 
+import { getItemNumber } from "@/lib/itemNumberUtils";
+
 interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
     type?: "post" | "story" | "notice" | "study";
     post: {
         id: string;
+        itemNumber?: number;
+        itemNum?: string;
+        createdAt?: any;
+        timestamp?: any;
         eventName?: string;
         title?: string;
         description?: string;
@@ -42,18 +48,19 @@ export default function ShareModal({ isOpen, onClose, type = "post", post }: Sha
     useEffect(() => {
         if (typeof window !== "undefined") {
             let path = "/news-feed";
+            const numId = post.itemNum || getItemNumber(post as any);
             if (type === "story") {
-                path = `/story/${post.id}`;
+                path = `/story/${numId}`;
             } else if (type === "notice") {
-                path = `/notice?notice=${post.id}`;
+                path = `/notice?notice=${numId}`;
             } else if (type === "study") {
-                path = `/study?study=${post.id}`;
+                path = `/study?study=${numId}`;
             } else {
                 path = `/news-feed?post=${post.id}`;
             }
             setPostUrl(`${window.location.origin}${path}`);
         }
-    }, [post.id, type]);
+    }, [post.id, post.itemNum, post.itemNumber, type]);
 
     if (!isOpen) return null;
 

@@ -21,6 +21,7 @@ import StorySkeleton from "@/components/StorySkeleton";
 import StoryShareModal from "@/components/StoryShareModal";
 import ShareModal from "@/components/ShareModal";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
+import { findItemByNumericOrDocId } from "@/lib/itemNumberUtils";
 
 type Story = FirestoreStory & { id: string };
 
@@ -87,11 +88,12 @@ function StoryPageInner() {
 
     const searchParams = useSearchParams();
     
+
     useEffect(() => {
         const storyParam = searchParams.get('story');
         const editParam = searchParams.get('edit');
         if (storyParam && editParam === 'true' && stories.length > 0 && !showSubmitModal) {
-            const storyToEdit = stories.find(s => s.id === storyParam);
+            const storyToEdit = findItemByNumericOrDocId(storyParam, stories);
             if (storyToEdit) {
                 setEditingStory(storyToEdit);
                 setShowSubmitModal(true);

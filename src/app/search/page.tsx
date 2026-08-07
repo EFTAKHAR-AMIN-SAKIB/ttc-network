@@ -9,6 +9,7 @@ import Image from "next/image";
 import PostCard from "@/components/PostCard";
 import StoryCard from "@/components/StoryCard";
 import { TimeAgo } from "@/components/Social/SocialUtils";
+import { getItemNumber } from "@/lib/itemNumberUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDb } from "@/lib/firebase";
 import { 
@@ -235,7 +236,7 @@ function SearchContent() {
     const renderStudyCard = (study: FirestoreStudyPost & {id: string}) => (
         <Link
             key={study.id}
-            href={`/study?study=${study.id}`}
+            href={`/study?study=${getItemNumber(study)}`}
             className="flex items-start gap-4 p-4 bg-white dark:bg-[#1a1b23] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:border-primary/50 transition-colors group"
         >
             <div className="w-12 h-12 rounded-xl flex-shrink-0 bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">

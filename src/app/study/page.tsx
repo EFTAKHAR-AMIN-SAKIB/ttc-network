@@ -22,6 +22,7 @@ import {
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import { canEditStudyPost } from "@/lib/permissions";
 import { Save, Trash2, Pencil, CheckCircle2, Bookmark, Share2 } from "lucide-react";
+import { findItemByNumericOrDocId } from "@/lib/itemNumberUtils";
 import Link from "next/link";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -248,8 +249,10 @@ function StudyPageContent() {
         members: heroSettings?.membersCount || 1400
     };
 
+
     const effectiveStudyId = searchParams.get('study') || searchParams.get('commentPostId') || hashStudyId;
-    const isStudyPostMissing = !loading && effectiveStudyId && !posts.some(p => p.id === effectiveStudyId);
+    const targetPost = findItemByNumericOrDocId(effectiveStudyId, posts);
+    const isStudyPostMissing = !loading && effectiveStudyId && !targetPost;
 
     if (isStudyPostMissing) {
         return (

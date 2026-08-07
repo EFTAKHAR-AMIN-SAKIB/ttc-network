@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { TimeAgo } from "@/components/Social/SocialUtils";
 import { isContentRestrictedForUser } from "@/lib/permissions";
+import { getItemNumber } from "@/lib/itemNumberUtils";
 
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 
@@ -69,7 +70,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
         'bg-emerald-500'
       }`} />
 
-      <Link href={`/story/${story.id}`} className="block p-5 sm:p-7">
+      <Link href={`/story/${getItemNumber(story)}`} className="block p-5 sm:p-7">
         <div className="mb-4 sm:mb-5">
           {/* Top: Author + Actions */}
           <div className="flex items-start justify-between gap-2 mb-2">

@@ -37,6 +37,7 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 import { canEditNotice } from "@/lib/permissions";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
+import { findItemByNumericOrDocId } from "@/lib/itemNumberUtils";
 
 type Notice = FirestoreNotice & { id: string };
 
@@ -480,27 +481,30 @@ function NoticePageContent() {
 
     // Handle URL parameters (deep-linking)
     useEffect(() => {
-        const effectiveNoticeId = searchParams.get("notice") || hashNoticeId;
-        if (effectiveNoticeId && notices.length > 0) {
-            setTargetNoticeId(effectiveNoticeId);
-            const exists = notices.some((n) => n.id === effectiveNoticeId);
-            if (exists && hasScrolledRef.current !== effectiveNoticeId) {
-                hasScrolledRef.current = effectiveNoticeId;
+        const effectiveNoticeParam = searchParams.get("notice") || hashNoticeId;
+        if (effectiveNoticeParam && notices.length > 0) {
+            const matchedNotice = findItemByNumericOrDocId(effectiveNoticeParam, notices);
+            if (matchedNotice) {
+                const targetId = matchedNotice.id;
+                setTargetNoticeId(targetId);
+                if (hasScrolledRef.current !== targetId) {
+                    hasScrolledRef.current = targetId;
 
-                // Highlight temporary for 3 seconds
-                setTemporaryHighlightId(effectiveNoticeId);
-                const timer = setTimeout(() => {
-                    setTemporaryHighlightId(null);
-                }, 3000);
+                    // Highlight temporary for 3 seconds
+                    setTemporaryHighlightId(targetId);
+                    const timer = setTimeout(() => {
+                        setTemporaryHighlightId(null);
+                    }, 3000);
 
-                setTimeout(() => {
-                    const element = document.getElementById(`notice-${effectiveNoticeId}`);
-                    if (element) {
-                        element.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }
-                }, 400);
+                    setTimeout(() => {
+                        const element = document.getElementById(`notice-${targetId}`);
+                        if (element) {
+                            element.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }
+                    }, 400);
 
-                return () => clearTimeout(timer);
+                    return () => clearTimeout(timer);
+                }
             }
         }
     }, [searchParams, notices, hashNoticeId]);
