@@ -14,7 +14,6 @@ import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import ShareModal from "@/components/ShareModal";
 import { isContentRestrictedForUser } from "@/lib/permissions";
-import { findItemByNumericOrDocId } from "@/lib/itemNumberUtils";
 
 export default function StoryDetailPage() {
     const params = useParams();
@@ -31,15 +30,13 @@ export default function StoryDetailPage() {
     const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
     const [isShareOpen, setIsShareOpen] = useState(false);
 
-
     useEffect(() => {
         if (!id) return;
         
         setLoading(true);
-        const unsubscribeStories = subscribeStories((all) => {
-            const matched = findItemByNumericOrDocId(id, all);
-            if (matched) {
-                setStory(matched);
+        const unsubscribeStory = subscribeStory(id, (data) => {
+            if (data) {
+                setStory(data);
                 setError(null);
             } else {
                 setError("Story not found.");
@@ -47,7 +44,7 @@ export default function StoryDetailPage() {
             setLoading(false);
         });
 
-        return () => unsubscribeStories();
+        return () => unsubscribeStory();
     }, [id]);
 
     useEffect(() => {

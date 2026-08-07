@@ -12,8 +12,6 @@ import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import Link from "next/link";
 import StudyPreviewModal from "./StudyPreviewModal";
 
-import { findItemByNumericOrDocId } from "@/lib/itemNumberUtils";
-
 interface StudyNoteCardProps {
     post: FirestoreStudyPost & { id: string };
     currentUserId?: string;
@@ -71,15 +69,14 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
     const isAlreadyFresh = currentUserId ? currentReactionList.includes(currentUserId) : false;
     const isNoThumbnail = !post.thumbnailUrl;
 
+    // Auto-expand comments if the URL points to this post
     useEffect(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             const targetId = params.get("study") || params.get("post") || params.get("commentPostId");
             const hasCommentParam = params.get("comment");
             const hasCommentHash = window.location.hash.startsWith("#comment-");
-            
-            const isMatch = targetId === post.id || (targetId && findItemByNumericOrDocId(targetId, [post])?.id === post.id);
-            if (isMatch && (hasCommentParam || hasCommentHash || params.get("commentPostId"))) {
+            if (targetId === post.id && (hasCommentParam || hasCommentHash || params.get("commentPostId"))) {
                 setShowComments(true);
             }
         }

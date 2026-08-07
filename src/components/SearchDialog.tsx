@@ -14,7 +14,6 @@ import {
     FirestorePost, 
     FirestoreStory, 
 } from "@/lib/firestore";
-import { getItemNumber } from "@/lib/itemNumberUtils";
 
 
 interface SearchDialogProps {
@@ -351,10 +350,9 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                                         </h3>
                                         <div className="space-y-1">
                                             {filteredStories.slice(0, 2).map(story => (
-
                                                 <Link
                                                     key={story.id}
-                                                    href={`/story/${getItemNumber(story)}`}
+                                                    href={`/story/${story.id}`}
                                                     onClick={() => { saveRecentSearch(query); onClose(); }}
                                                     className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group cursor-pointer"
                                                 >

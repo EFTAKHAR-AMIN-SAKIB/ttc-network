@@ -221,12 +221,10 @@ export interface FirestoreStory {
     visibility: "public" | "campus" | "college_only" | "private";
     thumbnailUrl?: string; // Optional clickable thumbnail image
     isAuthorShadowBanned?: boolean;
-    itemNumber?: number;
 }
 
 export interface FirestoreNotice {
     id?: string;
-    itemNumber?: number;
     college: string;
     collegeId: string;
     collegeColor: string;
@@ -370,7 +368,6 @@ export interface FirestoreStudyPost {
     commentsCount?: number;
     viewCount?: number;
     downloadCount?: number;
-    itemNumber?: number;
     scheduleDetails?: {
         platform?: string;
         link?: string;
