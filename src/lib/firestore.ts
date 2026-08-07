@@ -3990,19 +3990,55 @@ export const deleteStudyPost = async (id: string) => {
     await deleteAllCommentsForContent(id);
 };
 
-/** Session-level sets to prevent duplicate counting per page load */
+/** In-memory caches (fast path within same page load) */
 const _viewedPostIds = new Set<string>();
 const _downloadedPostIds = new Set<string>();
 
-/** Atomically increment the viewCount of a study post (once per session per post) */
+/** localStorage key for persisted view dedup */
+const VIEWED_POSTS_STORAGE_KEY = "ttc_viewed_study_posts";
+
+/** Read viewed post IDs from localStorage (survives refreshes) */
+function _getPersistedViewedIds(): Set<string> {
+    try {
+        if (typeof window === "undefined") return new Set();
+        const stored = localStorage.getItem(VIEWED_POSTS_STORAGE_KEY);
+        return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch {
+        return new Set<string>();
+    }
+}
+
+/** Persist a post ID as viewed in localStorage */
+function _persistViewedId(postId: string): void {
+    try {
+        if (typeof window === "undefined") return;
+        const viewed = _getPersistedViewedIds();
+        viewed.add(postId);
+        localStorage.setItem(VIEWED_POSTS_STORAGE_KEY, JSON.stringify([...viewed]));
+    } catch {
+        // localStorage might be full or unavailable — silently ignore
+    }
+}
+
+/** Atomically increment the viewCount of a study post (once per browser per post) */
 export const incrementStudyPostViewCount = async (postId: string) => {
-    if (_viewedPostIds.has(postId)) return;      // already counted this session
+    // Fast path: already counted this page load
+    if (_viewedPostIds.has(postId)) return;
+
+    // Check localStorage for persistence across refreshes/reopens
+    const persisted = _getPersistedViewedIds();
+    if (persisted.has(postId)) {
+        _viewedPostIds.add(postId);   // sync in-memory cache
+        return;
+    }
+
     _viewedPostIds.add(postId);
     try {
         const postRef = doc(getDb(), "studyPosts", postId);
         await updateDoc(postRef, { viewCount: increment(1) });
+        _persistViewedId(postId);     // persist on success
     } catch (err: any) {
-        _viewedPostIds.delete(postId);           // allow retry on failure
+        _viewedPostIds.delete(postId); // allow retry on failure
         console.warn("[Firestore] Could not increment viewCount for study post", postId, err?.code || err);
     }
 };
