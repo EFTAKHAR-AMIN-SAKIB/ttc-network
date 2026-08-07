@@ -3231,6 +3231,55 @@ export async function syncUserProfileUpdates(
         });
     });
 
+    // 7. Group Posts
+    const groupPostsQ = query(collection(db, "groupPosts"), where("creatorId", "==", uid));
+    const groupPostsSnap = await getDocs(groupPostsQ);
+    groupPostsSnap.forEach(d => {
+        updates.push({
+            ref: d.ref,
+            data: { creatorName: displayName, creatorPhotoURL: photoURL, creatorRole: role }
+        });
+    });
+
+    // 8. Group Member records (use joinedGroups subcollection for efficiency)
+    try {
+        const joinedGroupsSnap = await getDocs(collection(db, "users", uid, "joinedGroups"));
+        joinedGroupsSnap.forEach(d => {
+            const groupId = d.id;
+            updates.push({
+                ref: doc(db, "groups", groupId, "members", uid),
+                data: { displayName: displayName, photoURL: photoURL }
+            });
+        });
+    } catch (err) {
+        console.error("syncUserProfileUpdates: failed to update group member records", err);
+    }
+
+    // 9. Club Member records (query clubs by user's college, then update member doc directly)
+    try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        const userCollegeId = userDoc.exists() ? userDoc.data()?.collegeId : null;
+        if (userCollegeId) {
+            const clubsQ = query(collection(db, "clubs"), where("collegeId", "==", userCollegeId));
+            const clubsSnap = await getDocs(clubsQ);
+            const memberChecks = await Promise.all(
+                clubsSnap.docs.map(clubDoc => 
+                    getDoc(doc(db, "clubs", clubDoc.id, "members", uid))
+                )
+            );
+            memberChecks.forEach((memberSnap) => {
+                if (memberSnap.exists()) {
+                    updates.push({
+                        ref: memberSnap.ref,
+                        data: { displayName: displayName, photoURL: photoURL }
+                    });
+                }
+            });
+        }
+    } catch (err) {
+        console.error("syncUserProfileUpdates: failed to update club member records", err);
+    }
+
     // Commit in chunks of 499 to stay under Firestore's 500-operation batch limit
     const MAX_BATCH = 499;
     for (let i = 0; i < updates.length; i += MAX_BATCH) {
@@ -4991,6 +5040,32 @@ export async function joinGroup(groupId: string): Promise<{ status: "joined" | "
             requestedAt: serverTimestamp(),
             status: "pending"
         });
+
+        // Notify admins and moderators
+        try {
+            const membersSnap = await getDocs(collection(db, "groups", groupId, "members"));
+            const modsAndAdmins = membersSnap.docs.filter(d => {
+                const data = d.data();
+                return data.role === "admin" || data.role === "moderator";
+            });
+            const notifyPromises = modsAndAdmins.map(modDoc => {
+                const modId = modDoc.id;
+                return createNotification(modId, {
+                    type: "group_join_request",
+                    message: `${profile.displayName || "Someone"} has requested to join "${group.name}".`,
+                    relatedId: groupId,
+                    relatedType: "group",
+                    targetUrl: `/groups/${groupId}`,
+                    senderId: profile.id,
+                    senderName: profile.displayName || "Anonymous",
+                    senderPhotoURL: profile.photoURL || ""
+                });
+            });
+            await Promise.all(notifyPromises);
+        } catch (err) {
+            console.error("Failed to notify moderators of group join request", err);
+        }
+
         return { status: "pending" };
     }
 }

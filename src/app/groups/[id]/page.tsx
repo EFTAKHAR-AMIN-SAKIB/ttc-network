@@ -12,7 +12,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { 
     subscribeGroupDetails, subscribeGroupPosts, subscribeGroupMember,
-    subscribeGroupRequest, joinGroup, joinSecretGroup, leaveGroup 
+    subscribeGroupRequest, subscribeGroupRequests, joinGroup, joinSecretGroup, leaveGroup 
 } from "@/lib/firestore";
 import GroupPostCard from "@/components/GroupPostCard";
 import GroupPostCreationModal from "@/components/GroupPostCreationModal";
@@ -44,6 +44,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     const [groupMissing, setGroupMissing] = useState(false);
     const [activeTab, setActiveTab] = useState<"posts" | "members" | "about">("posts");
     const [groupMembersList, setGroupMembersList] = useState<any[]>([]);
+    const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
     
     // Modals
     const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -139,6 +140,25 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
             unsubRequest();
         };
     }, [groupId, user?.uid]);
+
+    // Pending requests subscription for moderators
+    useEffect(() => {
+        if (!canModerate) {
+            setPendingRequestsCount(0);
+            return;
+        }
+        
+        let unsub = () => {};
+        import("@/lib/firestore").then(({ subscribeGroupRequests }) => {
+            unsub = subscribeGroupRequests(groupId, (requests) => {
+                setPendingRequestsCount(requests.length);
+            });
+        });
+        
+        return () => {
+            unsub();
+        };
+    }, [groupId, canModerate]);
 
     // Invite code handling (auto-join secret group)
     useEffect(() => {
@@ -384,9 +404,15 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                     {canModerate && (
                         <button
                             onClick={() => setIsModPanelOpen(true)}
-                            className="px-4 py-2 border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5"
+                            className="relative px-4 py-2 border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5"
                         >
                             <Shield size={14} className="stroke-[2.5]" /> Review Panel
+                            {pendingRequestsCount > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white dark:border-[#1a1b23]"></span>
+                                </span>
+                            )}
                         </button>
                     )}
                 </div>
