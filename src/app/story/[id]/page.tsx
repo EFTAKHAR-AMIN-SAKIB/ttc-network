@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User, Lock, LogIn } from "lucide-react";
-import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories, subscribeStory, getProfilesByIds, type FirestoreUser } from "@/lib/firestore";
+import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User, Lock, LogIn, Hash } from "lucide-react";
+import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories, subscribeStory, getProfilesByIds, type FirestoreUser, getStoryByNumber } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import StoryCard from "@/components/StoryCard";
+import StoryCard, { getStoryUrl } from "@/components/StoryCard";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import ShareModal from "@/components/ShareModal";
@@ -18,7 +18,7 @@ import { isContentRestrictedForUser } from "@/lib/permissions";
 export default function StoryDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const id = params.id as string;
+    const rawId = params.id as string;
     const { user, profile } = useAuth();
     const { showToast } = useToast();
 
@@ -30,33 +30,72 @@ export default function StoryDetailPage() {
     const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
     const [isShareOpen, setIsShareOpen] = useState(false);
 
+    // Determine if the URL param is a numeric storyNumber or a Firestore doc ID
+    const isNumericId = /^\d+$/.test(rawId);
+    const storyNumber = isNumericId ? parseInt(rawId, 10) : null;
+
     useEffect(() => {
-        if (!id) return;
+        if (!rawId) return;
         
         setLoading(true);
-        const unsubscribeStory = subscribeStory(id, (data) => {
-            if (data) {
-                setStory(data);
-                setError(null);
-            } else {
-                setError("Story not found.");
-            }
-            setLoading(false);
-        });
 
-        return () => unsubscribeStory();
-    }, [id]);
+        if (isNumericId && storyNumber !== null) {
+            // Numeric URL — look up by storyNumber, then subscribe by doc ID
+            getStoryByNumber(storyNumber).then((found) => {
+                if (found) {
+                    // Now subscribe to real-time updates on the actual doc
+                    const unsub = subscribeStory(found.id, (data) => {
+                        if (data) {
+                            setStory(data);
+                            setError(null);
+                        } else {
+                            setError("Story not found.");
+                        }
+                        setLoading(false);
+                    });
+                    // Store unsub for cleanup
+                    (window as any).__storyUnsub = unsub;
+                } else {
+                    setError("Story not found.");
+                    setLoading(false);
+                }
+            }).catch(() => {
+                setError("Story not found.");
+                setLoading(false);
+            });
+
+            return () => {
+                if ((window as any).__storyUnsub) {
+                    (window as any).__storyUnsub();
+                    delete (window as any).__storyUnsub;
+                }
+            };
+        } else {
+            // Firestore doc ID — direct subscribe (backward compatible)
+            const unsubscribeStory = subscribeStory(rawId, (data) => {
+                if (data) {
+                    setStory(data);
+                    setError(null);
+                } else {
+                    setError("Story not found.");
+                }
+                setLoading(false);
+            });
+
+            return () => unsubscribeStory();
+        }
+    }, [rawId, isNumericId, storyNumber]);
 
     useEffect(() => {
         if (!story?.collegeId) return;
         
         const unsubscribeMore = subscribeStories((all) => {
-            const filtered = all.filter(s => s.collegeId === story.collegeId && s.id !== id).slice(0, 3);
+            const filtered = all.filter(s => s.collegeId === story.collegeId && s.id !== story.id).slice(0, 3);
             setMoreStories(filtered);
         });
         
         return () => unsubscribeMore();
-    }, [story?.collegeId, id]);
+    }, [story?.collegeId, story?.id]);
 
     useEffect(() => {
         if (!story?.reactedBy) {
@@ -89,12 +128,13 @@ export default function StoryDetailPage() {
     }, [profile]);
 
     const handleSaveStory = async () => {
+        if (!story) return;
         if (!profile?.uid) {
             showToast("Please log in to bookmark stories.", "error");
             return;
         }
         try {
-            const isSaved = await toggleSaveStory(profile.uid, id);
+            const isSaved = await toggleSaveStory(profile.uid, story.id);
             if (isSaved) {
                 showToast("Story bookmarked!", "success");
             } else {
@@ -123,6 +163,8 @@ export default function StoryDetailPage() {
         </div>
     );
 
+    const storyId = story.id;
+
     return (
         <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pt-20 sm:pt-24 pb-12 sm:pb-20">
             <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -131,16 +173,25 @@ export default function StoryDetailPage() {
                         <ArrowLeft size={16} /> Back to Stories
                     </button>
                     <div className="flex items-center gap-2.5">
+                        {/* Story Number Badge */}
+                        {story.storyNumber && (
+                            <div className="px-3 py-2 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 flex items-center gap-1.5">
+                                <Hash size={14} className="text-primary" />
+                                <span className="text-xs font-black text-navy-900 dark:text-gray-100">
+                                    {story.storyNumber.toString().padStart(2, '0')}
+                                </span>
+                            </div>
+                        )}
                         <button 
                             onClick={handleSaveStory}
                             className={`p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border hover:scale-110 active:scale-95 transition-all duration-200 ${
-                                savedStoryIds.includes(id) 
+                                savedStoryIds.includes(storyId) 
                                     ? "text-primary border-primary/20 bg-primary/5" 
                                     : "text-gray-400 hover:text-primary border-gray-100 dark:border-gray-700"
                             }`}
-                            title={savedStoryIds.includes(id) ? "Remove Bookmark" : "Bookmark Story"}
+                            title={savedStoryIds.includes(storyId) ? "Remove Bookmark" : "Bookmark Story"}
                         >
-                            <Bookmark size={18} className={savedStoryIds.includes(id) ? "fill-primary" : ""} />
+                            <Bookmark size={18} className={savedStoryIds.includes(storyId) ? "fill-primary" : ""} />
                         </button>
                         <button 
                             onClick={() => setIsShareOpen(true)}
@@ -153,6 +204,18 @@ export default function StoryDetailPage() {
                 </div>
 
                 <article className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] shadow-2xl shadow-navy-900/5 overflow-hidden border border-gray-100 dark:border-gray-800">
+                    {/* ═══ COVER IMAGE HERO ═══ */}
+                    {story.thumbnailUrl && (
+                        <div className="relative w-full h-56 sm:h-72 md:h-96 overflow-hidden">
+                            <img 
+                                src={story.thumbnailUrl} 
+                                alt="" 
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                        </div>
+                    )}
+
                     {/* Hero Header */}
                     <header className="p-5 sm:p-14 border-b border-gray-50 dark:border-gray-800 bg-gray-50/20 dark:bg-gray-800/20">
                         <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 flex-wrap">
@@ -162,6 +225,11 @@ export default function StoryDetailPage() {
                             <span className="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">
                                 <Clock size={14} className="text-primary" /> {story.readingTimeMinutes} MIN READ
                             </span>
+                            {story.storyNumber && (
+                                <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full">
+                                    <Hash size={11} className="text-primary" /> Story {story.storyNumber.toString().padStart(2, '0')}
+                                </span>
+                            )}
                         </div>
                         <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-navy-900 dark:text-gray-100 leading-[1.15] sm:leading-[1.1] mb-6 sm:mb-10 font-bengali tracking-tight">
                             {story.title}
@@ -347,7 +415,7 @@ export default function StoryDetailPage() {
                         onClose={() => setIsShareOpen(false)} 
                         type="story"
                         post={{
-                            id: story.id,
+                            id: story.storyNumber ? story.storyNumber.toString().padStart(2, '0') : story.id,
                             title: story.title,
                             fullStory: story.fullStory,
                             authorName: story.name,

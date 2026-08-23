@@ -361,7 +361,7 @@ function StoryPageInner() {
                         }} 
                         type="story"
                         post={{
-                            id: shareStory.id,
+                            id: shareStory.storyNumber ? shareStory.storyNumber.toString().padStart(2, '0') : shareStory.id,
                             title: shareStory.title,
                             fullStory: shareStory.fullStory,
                             authorName: shareStory.name,

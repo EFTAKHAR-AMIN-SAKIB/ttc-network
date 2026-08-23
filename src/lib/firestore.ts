@@ -29,6 +29,7 @@ import {
     arrayRemove,
     arrayUnion,
     writeBatch,
+    runTransaction,
     getCountFromServer,
     type DocumentData,
     type QuerySnapshot,
@@ -219,6 +220,7 @@ export interface FirestoreStory {
     status: "pending" | "published" | "rejected";
     timestamp: Timestamp | null;
     visibility: "public" | "campus" | "college_only" | "private";
+    storyNumber?: number; // Sequential counter for clean URLs (/story/01, /story/02)
     thumbnailUrl?: string; // Optional clickable thumbnail image
     isAuthorShadowBanned?: boolean;
 }
@@ -1562,6 +1564,8 @@ export async function approveModerationItem(collectionName: string, id: string):
 
 /**
  * Unified rejection function.
+ * For stories: notifies the author, then FULLY DELETES (media + comments + bookmarks + doc).
+ * For other types: marks as rejected with review metadata.
  */
 export async function rejectModerationItem(collectionName: string, id: string, reason: string = ""): Promise<void> {
     const profile = await requireAdminOrManager();
@@ -1571,24 +1575,35 @@ export async function rejectModerationItem(collectionName: string, id: string, r
     if (!snap.exists()) return;
     const data = snap.data();
 
-    await updateDoc(docRef, { 
-        status: "rejected",
-        reviewedBy: profile.id,
-        reviewedByName: profile.displayName,
-        reviewedAt: serverTimestamp(),
-        rejectReason: reason
-    });
-
-    // Handle notifications
+    // Notify the author (best effort, before deletion)
     const creatorId = data.creatorId || data.authorId || data.userId;
     if (creatorId) {
         const title = data.eventName || data.title || data.name || "item";
+        const typeLabel = collectionName.slice(0, -1);
+        const msg = collectionName === 'stories'
+            ? `Your story "${title}" was rejected and has been removed.${reason ? ` Reason: ${reason}` : ""}`
+            : `Your ${typeLabel} "${title}" was not approved.${reason ? ` Reason: ${reason}` : ""}`;
         await createNotification(creatorId, {
-            type: `${collectionName.slice(0, -1)}_rejected` as any,
-            message: `Your ${collectionName.slice(0, -1)} "${title}" was not approved.${reason ? ` Reason: ${reason}` : ""}`,
-            relatedId: id,
-            relatedType: collectionName.slice(0, -1) as any
+            type: `${typeLabel}_rejected` as any,
+            message: msg,
+            relatedId: collectionName === 'stories' ? creatorId : id,
+            relatedType: typeLabel as any,
+            targetUrl: collectionName === 'stories' ? `/profile/${creatorId}` : undefined
         }).catch(e => console.warn("Mod notification failed:", e));
+    }
+
+    // Stories: fully purge from server (media + comments + bookmarks + document)
+    if (collectionName === 'stories') {
+        await _purgeStory(id, data as FirestoreStory);
+    } else {
+        // Other types: mark as rejected with review metadata
+        await updateDoc(docRef, { 
+            status: "rejected",
+            reviewedBy: profile.id,
+            reviewedByName: profile.displayName,
+            reviewedAt: serverTimestamp(),
+            rejectReason: reason
+        });
     }
 }
 
@@ -1628,11 +1643,40 @@ export async function deletePost(id: string): Promise<void> {
 //  STORIES
 // ═══════════════════════════════════════════════════
 
-export async function createStory(story: Omit<FirestoreStory, "timestamp" | "status" | "reactions" | "reactedBy" | "authorPhoto" | "name" | "college" | "collegeId" | "authorRole" | "role" | "authorId" | "collegeGradient" | "readingTimeMinutes">): Promise<void> {
+/**
+ * Atomically allocate the next story number.
+ * Calls the server-side API route which uses Firebase Admin SDK
+ * (bypasses Firestore security rules for the counters collection).
+ */
+async function getNextStoryNumber(): Promise<number> {
+    try {
+        const res = await fetch("/api/story-counter", { method: "POST" });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        return data.storyNumber;
+    } catch (err) {
+        console.error("[getNextStoryNumber] API call failed:", err);
+        throw err;
+    }
+}
+
+export async function createStory(story: Omit<FirestoreStory, "timestamp" | "status" | "reactions" | "reactedBy" | "authorPhoto" | "name" | "college" | "collegeId" | "authorRole" | "role" | "authorId" | "collegeGradient" | "readingTimeMinutes" | "storyNumber">): Promise<void> {
     const profile = await getCurrentUserProfile();
     if (!profile) throw new Error("Auth required");
 
     const college = await getDocById<FirestoreCollege>("colleges", profile.collegeId);
+
+    // Allocate a sequential story number (with fallback)
+    let storyNumber: number;
+    try {
+        storyNumber = await getNextStoryNumber();
+    } catch (numErr) {
+        console.warn("[createStory] Could not allocate story number, using fallback:", numErr);
+        storyNumber = Date.now() % 100000;
+    }
 
     const fullStory: Omit<FirestoreStory, "id"> = {
         ...story,
@@ -1651,34 +1695,33 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
         readingTimeMinutes: Math.max(1, Math.ceil((story.fullStory?.length || 0) / 1500)), 
         timestamp: serverTimestamp() as Timestamp,
         visibility: story.visibility || "public",
+        storyNumber,
         isAuthorShadowBanned: profile.isShadowBanned || false,
     };
 
     const docRef = await addDoc(collection(getDb(), "stories"), fullStory);
 
     // Handle Mentions in story content
-    await handleMentions(story.fullStory || "", `/story/${docRef.id}`, profile, docRef.id, "story");
+    await handleMentions(story.fullStory || "", `/story/${storyNumber.toString().padStart(2, '0')}`, profile, docRef.id, "story");
 }
 
-export function subscribeStories(callback: (data: (FirestoreStory & { id: string })[]) => void, isAdminOrManager: boolean = false) {
-    
-    // BUILD QUERY BASED ON PERMISSIONS
-    // This is critical: Firestore Security Rules require the query to match allowed documents.
-    // Rules (line 171) allow read if visibility == 'public' OR visibility == 'college_only' && user.collegeId == story.collegeId
-    
-    const conditions: QueryConstraint[] = [orderBy("timestamp", "desc")];
-    
-    if (!isAdminOrManager) {
-        // For public/normal users, we MUST filter in the query to avoid 'Missing Permissions'
-        // Since we can't easily do (visibility == 'public' OR (visibility == 'college_only' AND collegeId == X)) in one simple query without complex indexes,
-        // we normally query for 'public' and then merge. 
-        // For simplicity and rule compliance, we query published public stories.
-        conditions.unshift(where("status", "in", ["published", "approved"]));
-        
-        // Note: Authors can see their own stories even if not public, but that requires a separate query or different logic.
-    }
-    
-    const q = query(collection(getDb(), "stories"), ...conditions);
+/**
+ * Look up a story by its sequential storyNumber (for clean URLs like /story/01).
+ */
+export async function getStoryByNumber(num: number): Promise<(FirestoreStory & { id: string }) | null> {
+    const q = query(collection(getDb(), "stories"), where("storyNumber", "==", num), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...(d.data() as FirestoreStory) };
+}
+
+export function subscribeStories(callback: (data: (FirestoreStory & { id: string })[]) => void, _isAdminOrManager: boolean = false) {
+    const q = query(
+        collection(getDb(), "stories"),
+        where("status", "in", ["published", "approved"]),
+        orderBy("timestamp", "desc")
+    );
     
     return onSnapshot(q, (snap) => {
         const stories = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreStory) }));
@@ -1698,7 +1741,7 @@ export async function getPendingStories(): Promise<(FirestoreStory & { id: strin
 export async function getApprovedStories(): Promise<(FirestoreStory & { id: string })[]> {
     const q = query(
         collection(getDb(), "stories"), 
-        where("status", "==", "published"), 
+        where("status", "in", ["published", "approved"]), 
         orderBy("timestamp", "desc")
     );
     const snap = await getDocs(q);
@@ -1715,12 +1758,16 @@ export async function approveStory(id: string): Promise<void> {
     
     await updateDoc(doc(getDb(), "stories", id), { status: "published" });
 
+    const storyUrl = story.storyNumber 
+        ? `/story/${story.storyNumber.toString().padStart(2, '0')}` 
+        : `/story/${id}`;
+
     await createNotification(story.authorId, {
         type: "story_approved",
         message: `Your story "${story.title}" has been published.`,
         relatedId: id,
         relatedType: "story",
-        targetUrl: `/story/${id}`
+        targetUrl: storyUrl
     }).catch(e => console.error("Notification failed", e));
 }
 
@@ -1731,20 +1778,22 @@ export async function rejectStory(id: string, _reason: string): Promise<void> {
     if (!storySnap.exists()) return;
     const story = storySnap.data() as FirestoreStory;
 
-    await updateDoc(doc(getDb(), "stories", id), { status: "rejected" });
-
+    // Notify the author about rejection BEFORE deleting
     await createNotification(story.authorId, {
         type: "story_rejected",
-        message: `Your story "${story.title}" was rejected.`,
-        relatedId: id,
+        message: `Your story "${story.title}" was rejected and has been removed.`,
+        relatedId: story.authorId,
         relatedType: "story",
         targetUrl: `/profile/${story.authorId}`
     }).catch(e => console.error("Notification failed", e));
+
+    // Fully delete the story (document + media + comments)
+    await _purgeStory(id, story);
 }
 
 export async function updateStory(id: string, data: Partial<FirestoreStory>): Promise<void> {
     // Allowlist: prevent mutation of sensitive fields
-    const ALLOWED_STORY_FIELDS = ['title', 'content', 'fullStory', 'preview', 'coverMood', 'futureGoals', 'oneAdvice', 'readingTimeMinutes', 'mediaUrl', 'mediaType', 'visibility', 'tags'];
+    const ALLOWED_STORY_FIELDS = ['title', 'content', 'fullStory', 'preview', 'coverMood', 'futureGoals', 'oneAdvice', 'readingTimeMinutes', 'mediaUrl', 'mediaType', 'visibility', 'tags', 'thumbnailUrl'];
     const clean = Object.fromEntries(
         Object.entries(data).filter(([k]) => ALLOWED_STORY_FIELDS.includes(k))
     );
@@ -1752,21 +1801,43 @@ export async function updateStory(id: string, data: Partial<FirestoreStory>): Pr
     await updateDoc(doc(getDb(), "stories", id), clean);
 }
 
-export async function deleteStory(id: string): Promise<void> {
-    // Clean up thumbnail from Cloudinary before deleting
-    try {
-        const storySnap = await getDoc(doc(getDb(), "stories", id));
-        if (storySnap.exists()) {
-            const data = storySnap.data() as FirestoreStory;
-            if (data.thumbnailUrl) {
-                await deleteFromCloudinary(data.thumbnailUrl);
+/**
+ * Internal helper: Completely purge a story from the server.
+ * Instantly deletes the document and cleans up media and comments.
+ */
+async function _purgeStory(id: string, story?: FirestoreStory): Promise<void> {
+    const db = getDb();
+
+    // 1. Fetch story data if not provided (needed for media URLs)
+    if (!story) {
+        try {
+            const storySnap = await getDoc(doc(db, "stories", id));
+            if (storySnap.exists()) {
+                story = storySnap.data() as FirestoreStory;
             }
+        } catch (e) {
+            console.warn("[_purgeStory] Could not fetch story doc for media cleanup:", e);
         }
-    } catch (err) {
-        console.warn("[Firestore] Error cleaning up story thumbnail:", err);
     }
-    await deleteDoc(doc(getDb(), "stories", id));
-    await deleteAllCommentsForContent(id);
+
+    // 2. Delete the story document FIRST so it immediately vanishes from Firestore
+    await deleteDoc(doc(db, "stories", id));
+
+    // 3. Clean up cover image / thumbnail in storage (non-blocking)
+    if (story?.thumbnailUrl) {
+        deleteFromCloudinary(story.thumbnailUrl).catch(err =>
+            console.warn("[_purgeStory] Thumbnail cleanup error:", err)
+        );
+    }
+
+    // 4. Delete all comments on this story (non-blocking)
+    deleteAllCommentsForContent(id).catch(err =>
+        console.warn("[_purgeStory] Comments cleanup error:", err)
+    );
+}
+
+export async function deleteStory(id: string): Promise<void> {
+    await _purgeStory(id);
 }
 
 /**
@@ -1847,14 +1918,8 @@ export async function deleteOwnStory(storyId: string): Promise<void> {
     const data = storySnap.data() as FirestoreStory;
     if (data.authorId !== user.uid) throw new Error("You can only delete your own stories");
 
-    // Clean up thumbnail
-    try {
-        if (data.thumbnailUrl) await deleteFromCloudinary(data.thumbnailUrl);
-    } catch (err) {
-        console.warn("[Firestore] Thumbnail cleanup error:", err);
-    }
-    await deleteDoc(storyRef);
-    await deleteAllCommentsForContent(storyId);
+    // Full server-side purge (media + comments + bookmarks + document)
+    await _purgeStory(storyId, data);
 }
 
 /**

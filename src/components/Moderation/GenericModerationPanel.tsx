@@ -62,10 +62,12 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
 
     const handleApproveWithClose = async (id: string) => {
         setIsProcessing(id);
+        // Optimistically remove from pending list immediately
+        setPendingItems(prev => prev.filter(item => item.id !== id));
+        closePreview();
         try {
             await approveModerationItem(type, id);
-            showToast("Approved successfully!", "success");
-            closePreview();
+            showToast("Approved & published!", "success");
         } catch (err) {
             console.error(err);
             showToast("Approval failed.", "error");
@@ -77,10 +79,12 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
     const handleRejectWithClose = async (id: string) => {
         const reason = modalRejectReason;
         setIsProcessing(id);
+        // Optimistically remove from pending list immediately
+        setPendingItems(prev => prev.filter(item => item.id !== id));
+        closePreview();
         try {
             await rejectModerationItem(type, id, reason);
-            showToast("Rejected successfully!", "success");
-            closePreview();
+            showToast("Rejected & removed!", "success");
         } catch (err) {
             console.error(err);
             showToast("Rejection failed.", "error");
@@ -489,8 +493,11 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
 
     const handleApprove = async (id: string) => {
         setIsProcessing(id);
+        // Optimistically remove from pending list
+        setPendingItems(prev => prev.filter(item => item.id !== id));
         try {
             await approveModerationItem(type, id);
+            showToast("Approved & published!", "success");
         } catch (err) {
             console.error(err);
             showToast("Approval failed.", "error");
@@ -502,8 +509,11 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
     const handleReject = async (id: string) => {
         const reason = rejectReason[id];
         setIsProcessing(id);
+        // Optimistically remove from pending list
+        setPendingItems(prev => prev.filter(item => item.id !== id));
         try {
             await rejectModerationItem(type, id, reason);
+            showToast("Rejected & removed!", "success");
         } catch (err) {
             console.error(err);
             showToast("Rejection failed.", "error");

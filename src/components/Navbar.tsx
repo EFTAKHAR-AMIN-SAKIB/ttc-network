@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell, Users, Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Settings } from "lucide-react";
+import { LogIn, Sun, Moon, User, LogOut, ChevronDown, Shield, Search, Bell, Users, Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Settings, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
@@ -487,14 +487,59 @@ export default function Navbar() {
                                 </AnimatePresence>
                             </div>
                         ) : (
-                            /* Not Logged In — Login Button */
-                            <Link
-                                href="/login"
-                                className="flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 bg-accent text-white text-xs md:text-sm font-bold rounded-lg md:rounded-xl hover:bg-red-600 transition-all duration-200 shadow-md shadow-accent/20 hover:shadow-lg hover:shadow-accent/30"
+                            /* Not Logged In — Login Button with Motion Graphics */
+                            <motion.div
+                                whileHover={{ scale: 1.04, y: -1 }}
+                                whileTap={{ scale: 0.96 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                className="relative group"
                             >
-                                <LogIn size={16} />
-                                <span className="hidden sm:block">Login</span>
-                            </Link>
+                                {/* Animated Ambient Glowing Aura */}
+                                <motion.div
+                                    className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-500 rounded-xl blur-[3px] opacity-40 group-hover:opacity-85 transition-opacity duration-300 pointer-events-none"
+                                    animate={{
+                                        opacity: [0.35, 0.7, 0.35],
+                                        scale: [0.98, 1.02, 0.98],
+                                    }}
+                                    transition={{
+                                        duration: 3,
+                                        repeat: Infinity,
+                                        ease: "easeInOut",
+                                    }}
+                                />
+
+                                <Link
+                                    href="/login"
+                                    className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 hover:from-blue-600 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold rounded-lg md:rounded-xl shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/40 border border-white/20 dark:border-white/25 overflow-hidden transition-all duration-300"
+                                >
+                                    {/* Continuous Shimmer Light Beam */}
+                                    <motion.div
+                                        className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] pointer-events-none"
+                                        initial={{ x: "-150%" }}
+                                        animate={{ x: "250%" }}
+                                        transition={{
+                                            repeat: Infinity,
+                                            duration: 2.8,
+                                            ease: "easeInOut",
+                                            repeatDelay: 1.2,
+                                        }}
+                                    />
+
+                                    {/* Animated Login Icon */}
+                                    <div className="relative flex items-center justify-center">
+                                        <LogIn
+                                            size={15}
+                                            className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:scale-110"
+                                        />
+                                    </div>
+
+                                    {/* Text Label - clearly visible on mobile & desktop */}
+                                    <span className="tracking-tight">Login</span>
+
+                                    {/* Subtle glint sparkle for extra visual appeal */}
+                                    <Sparkles size={12} className="text-cyan-200 animate-pulse hidden sm:block ml-0.5 opacity-80 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-300" />
+                                </Link>
+                            </motion.div>
                         )}
 
                     </div>

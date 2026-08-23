@@ -274,16 +274,9 @@ function StudyPageContent() {
             />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                {/* Action Buttons Row */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
-                    <button 
-                        onClick={handleShareClick}
-                        className="w-full sm:w-auto px-6 py-3 sm:py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 group"
-                    >
-                        <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
-                        <span>Share Resource</span>
-                    </button>
-                    {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
+                {/* Moderation / Admin Action Row */}
+                {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
+                    <div className="flex items-center justify-start mb-6">
                         <button 
                             onClick={() => setShowModeration(true)}
                             className="relative flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm"
@@ -303,8 +296,8 @@ function StudyPageContent() {
                                 )}
                             </AnimatePresence>
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Tab Switcher — horizontally scrollable on mobile */}
                 <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar pb-0 mb-8 border-b border-gray-200 dark:border-gray-800" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>

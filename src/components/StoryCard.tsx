@@ -4,7 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn } from "lucide-react";
+import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash } from "lucide-react";
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -12,6 +12,14 @@ import { TimeAgo } from "@/components/Social/SocialUtils";
 import { isContentRestrictedForUser } from "@/lib/permissions";
 
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
+
+/** Build the clean URL for a story: /story/01 if storyNumber exists, else /story/{id} */
+function getStoryUrl(story: FirestoreStory & { id: string }): string {
+  if (story.storyNumber) {
+    return `/story/${story.storyNumber.toString().padStart(2, '0')}`;
+  }
+  return `/story/${story.id}`;
+}
 
 interface StoryCardProps {
   story: FirestoreStory & { id: string };
@@ -26,10 +34,6 @@ interface StoryCardProps {
 export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, onSave, onShare }: StoryCardProps) {
   const { user, profile } = useAuth();
   const permissions = React.useMemo(() => {
-    // We need canEditStory from permissions.ts, but let's just use the logic inlined if we don't want to import it everywhere,
-    // or better, import it. 
-    // Actually, canEditStory is imported in story/page.tsx. 
-    // For consistency with PostCard, let's just do the check here.
     const isAuthor = user?.uid === story.authorId;
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
     const isManagerSameCollege = profile?.role === "manager" && profile?.collegeId === story.collegeId;
@@ -54,6 +58,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
   const collegeShort = story.college.split(',')[0].trim();
 
   const isRestricted = isContentRestrictedForUser(story, profile, user?.uid);
+  const storyUrl = getStoryUrl(story);
 
   return (
     <motion.div
@@ -63,165 +68,195 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
       className={`group relative bg-white dark:bg-[#1a1b23] rounded-[2rem] overflow-hidden border-2 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 hover:border-primary/20 ${accentColor}`}
     >
       {/* Role Indicator Border (Left) */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-10 ${
         story.authorRole === 'student' ? 'bg-amber-500' : 
         story.authorRole === 'teacher' ? 'bg-blue-500' : 
         'bg-emerald-500'
       }`} />
 
-      <Link href={`/story/${story.id}`} className="block p-5 sm:p-7">
-        <div className="mb-4 sm:mb-5">
-          {/* Top: Author + Actions */}
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-               <div className="relative shrink-0">
-                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105 group-hover:rotate-2">
-                   {story.authorPhoto ? (
-                     <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
-                   ) : (
-                     <span className="text-base sm:text-lg font-black text-gray-400">{story.name?.[0]}</span>
-                   )}
+      <Link href={storyUrl} className="block">
+        {/* ═══ COVER IMAGE ═══ */}
+        {story.thumbnailUrl && (
+          <div className="relative overflow-hidden">
+            <img 
+              src={story.thumbnailUrl} 
+              alt="" 
+              className="w-full h-40 sm:h-48 object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+            {/* Story Number Badge on cover */}
+            {story.storyNumber && (
+              <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/10 flex items-center gap-1">
+                <Hash size={10} />
+                {story.storyNumber.toString().padStart(2, '0')}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="p-5 sm:p-7">
+          <div className="mb-4 sm:mb-5">
+            {/* Top: Author + Actions */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                 <div className="relative shrink-0">
+                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105 group-hover:rotate-2">
+                     {story.authorPhoto ? (
+                       <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
+                     ) : (
+                       <span className="text-base sm:text-lg font-black text-gray-400">{story.name?.[0]}</span>
+                     )}
+                   </div>
                  </div>
-               </div>
-               <div className="min-w-0">
-                 <h4 className="text-sm sm:text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
-                 <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 truncate">
-                   <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && (
-                     <>
-                       {" • "}
-                       <TimeAgo ts={story.timestamp} />
-                     </>
-                   )}
-                 </p>
-               </div>
-            </div>
-
-            {/* Edit/Delete — always visible at top-right */}
-            <div className="flex items-center gap-1 shrink-0">
-              {onEdit && permissions.canEdit && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onEdit(story);
-                  }}
-                  className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-primary rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
-                  title="Edit Story"
-                >
-                  <Pencil size={12} />
-                </button>
-              )}
-              {onDelete && permissions.canDelete && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDelete(story.id);
-                  }}
-                  className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-red-500 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
-                  title="Delete Story"
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Badges row — below author on mobile */}
-          <div className="flex items-center gap-1.5 flex-wrap pl-[52px] sm:pl-[64px]">
-            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-gray-100 dark:border-gray-700">
-              <Clock className="w-3 h-3 text-primary" />
-              {story.readingTimeMinutes} MIN
-            </div>
-            {(story.visibility === "campus" || story.visibility === "college_only") && (
-              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
-                <School className="w-3 h-3" />
-                Campus
+                 <div className="min-w-0">
+                   <h4 className="text-sm sm:text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
+                   <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 truncate">
+                     <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && (
+                       <>
+                         {" • "}
+                         <TimeAgo ts={story.timestamp} />
+                       </>
+                     )}
+                   </p>
+                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <h3 className="text-lg sm:text-xl font-black mb-2 sm:mb-3 line-clamp-2 leading-tight dark:text-gray-100 group-hover:text-primary transition-colors tracking-tight">
-          {story.title}
-        </h3>
-        
-        {isRestricted ? (
-          <div className="my-4 p-4 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
-              <Lock size={16} />
-            </div>
-            <p className="text-xs font-bold text-gray-200">
-              {story.visibility === "private" 
-                ? "Private Story" 
-                : "Campus Only Story — Log in with your verified college account to read full story."}
-            </p>
-            {!user?.uid && (
-              <span className="mt-1 px-4 py-1.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-md">
-                <LogIn size={12} /> Log In to Read
-              </span>
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 leading-relaxed font-bengali">
-              {story.preview}
-            </p>
-
-            <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-50 dark:border-gray-800">
-              <div onClick={(e) => e.preventDefault()}>
-                <ReactionBtn 
-                  contentId={story.id} 
-                  contentType="story" 
-                  reactions={story.reactions} 
-                  reactedBy={story.reactedBy} 
-                  currentUserId={user?.uid}
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {onSave && (
-                  <button 
+              {/* Edit/Delete — always visible at top-right */}
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Story Number Badge (when no cover image) */}
+                {story.storyNumber && !story.thumbnailUrl && (
+                  <span className="px-2 py-1 bg-gray-50 dark:bg-gray-800/50 text-gray-400 text-[9px] font-black rounded-lg border border-gray-100 dark:border-gray-700 flex items-center gap-0.5 mr-1">
+                    <Hash size={9} />
+                    {story.storyNumber.toString().padStart(2, '0')}
+                  </span>
+                )}
+                {onEdit && permissions.canEdit && (
+                  <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onSave(story.id);
+                      onEdit(story);
                     }}
-                    className={`p-2 rounded-xl border hover:scale-105 active:scale-95 duration-200 ${
-                      isSaved 
-                        ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
-                    }`}
-                    title={isSaved ? "Remove Bookmark" : "Bookmark Story"}
+                    className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-primary rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
+                    title="Edit Story"
                   >
-                    <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
+                    <Pencil size={12} />
                   </button>
                 )}
-                {onShare && (
-                  <button 
+                {onDelete && permissions.canDelete && (
+                  <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onShare(story);
+                      onDelete(story.id);
                     }}
-                    className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
-                    title="Share Story"
+                    className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-red-500 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
+                    title="Delete Story"
                   >
-                    <Share2 size={16} />
+                    <Trash2 size={12} />
                   </button>
                 )}
-                <div className="flex items-center gap-2 group/btn ml-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
-                  <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
-                    <BookOpen className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Badges row — below author on mobile */}
+            <div className="flex items-center gap-1.5 flex-wrap pl-[52px] sm:pl-[64px]">
+              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-gray-100 dark:border-gray-700">
+                <Clock className="w-3 h-3 text-primary" />
+                {story.readingTimeMinutes} MIN
+              </div>
+              {(story.visibility === "campus" || story.visibility === "college_only") && (
+                <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
+                  <School className="w-3 h-3" />
+                  Campus
+                </div>
+              )}
+            </div>
+          </div>
+
+          <h3 className="text-lg sm:text-xl font-black mb-2 sm:mb-3 line-clamp-2 leading-tight dark:text-gray-100 group-hover:text-primary transition-colors tracking-tight">
+            {story.title}
+          </h3>
+          
+          {isRestricted ? (
+            <div className="my-4 p-4 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                <Lock size={16} />
+              </div>
+              <p className="text-xs font-bold text-gray-200">
+                {story.visibility === "private" 
+                  ? "Private Story" 
+                  : "Campus Only Story — Log in with your verified college account to read full story."}
+              </p>
+              {!user?.uid && (
+                <span className="mt-1 px-4 py-1.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-md">
+                  <LogIn size={12} /> Log In to Read
+                </span>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 leading-relaxed font-bengali">
+                {story.preview}
+              </p>
+
+              <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-50 dark:border-gray-800">
+                <div onClick={(e) => e.preventDefault()}>
+                  <ReactionBtn 
+                    contentId={story.id} 
+                    contentType="story" 
+                    reactions={story.reactions} 
+                    reactedBy={story.reactedBy} 
+                    currentUserId={user?.uid}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {onSave && (
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSave(story.id);
+                      }}
+                      className={`p-2 rounded-xl border hover:scale-105 active:scale-95 duration-200 ${
+                        isSaved 
+                          ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
+                          : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                      }`}
+                      title={isSaved ? "Remove Bookmark" : "Bookmark Story"}
+                    >
+                      <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
+                    </button>
+                  )}
+                  {onShare && (
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onShare(story);
+                      }}
+                      className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
+                      title="Share Story"
+                    >
+                      <Share2 size={16} />
+                    </button>
+                  )}
+                  <div className="flex items-center gap-2 group/btn ml-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
+                    <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </Link>
     </motion.div>
   );
 }
 
+// Export the URL helper for use in other components
+export { getStoryUrl };

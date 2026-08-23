@@ -352,7 +352,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                                             {filteredStories.slice(0, 2).map(story => (
                                                 <Link
                                                     key={story.id}
-                                                    href={`/story/${story.id}`}
+                                                    href={story.storyNumber ? `/story/${story.storyNumber.toString().padStart(2, '0')}` : `/story/${story.id}`}
                                                     onClick={() => { saveRecentSearch(query); onClose(); }}
                                                     className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group cursor-pointer"
                                                 >

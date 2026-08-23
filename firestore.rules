@@ -391,6 +391,13 @@ service cloud.firestore {
       allow delete: if isAdminOrManager() || isOwner(resource.data.authorId);
     }
 
+    // ═══ COUNTERS (Story numbering, etc.) ═══
+    match /counters/{counterId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && isNotBanned();
+      allow delete: if isAdmin();
+    }
+
     // Default catch-all (safety first)
     match /{document=**} {
       allow read, write: if isAdmin();

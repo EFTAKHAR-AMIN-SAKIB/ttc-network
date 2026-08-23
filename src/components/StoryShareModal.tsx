@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { X, ArrowRight, ArrowLeft, Sparkles, MessageSquare, Shield, Globe, CheckCircle2, AlertTriangle, School } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { X, ArrowRight, ArrowLeft, Sparkles, MessageSquare, Shield, Globe, CheckCircle2, AlertTriangle, School, ImagePlus, Trash2, Upload, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createStory, updateStory } from "@/lib/firestore";
+import { uploadFile } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import StoryCard from "./StoryCard";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 interface StoryShareModalProps {
@@ -41,12 +41,21 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
   const [oneAdvice, setOneAdvice] = useState("");
   const [visibility, setVisibility] = useState<"public" | "campus">("public");
 
+  // Cover Image State
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (editStory) {
       setTitle(editStory.title || "");
       setContent(editStory.fullStory || "");
       setOneAdvice(editStory.oneAdvice || "");
       setVisibility(editStory.visibility || "public");
+      setCoverPreview(editStory.thumbnailUrl || "");
+      setCoverFile(null);
       setStep(1);
     } else {
       const draft = localStorage.getItem("ttc_story_draft");
@@ -58,7 +67,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
 
   const saveDraft = () => {
     if (editStory) return; // Don't save drafts when editing
-    const draft = { title, content, oneAdvice, visibility };
+    const draft = { title, content, oneAdvice, visibility, coverPreview: coverPreview && !coverFile ? coverPreview : "" };
     localStorage.setItem("ttc_story_draft", JSON.stringify(draft));
   };
 
@@ -70,6 +79,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
     // Map legacy values to new privacy model
     const restoredVis = draft.visibility || "public";
     setVisibility(restoredVis === "college_only" || restoredVis === "private" ? "campus" : "public");
+    if (draft.coverPreview) setCoverPreview(draft.coverPreview);
     setShowRestore(false);
     showToast("Draft restored!", "info");
   };
@@ -83,6 +93,56 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
     if (title || content) saveDraft();
   }, [title, content, oneAdvice, visibility]);
 
+  // ── Cover Image Handlers ───────────────────────
+  const handleFileSelect = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) {
+      showToast("Please select an image file (JPEG, PNG, WebP, GIF)", "error");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("Image must be under 10MB", "error");
+      return;
+    }
+    setCoverFile(file);
+    const url = URL.createObjectURL(file);
+    setCoverPreview(url);
+  }, [showToast]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  }, [handleFileSelect]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const removeCover = useCallback(() => {
+    if (coverPreview && coverFile) {
+      URL.revokeObjectURL(coverPreview);
+    }
+    setCoverFile(null);
+    setCoverPreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [coverPreview, coverFile]);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (coverPreview && coverFile) {
+        URL.revokeObjectURL(coverPreview);
+      }
+    };
+  }, []);
+
   const handleSubmit = async () => {
     if (!title || !content) {
       showToast("Please fill in the required fields", "error");
@@ -91,13 +151,26 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
 
     setLoading(true);
     try {
+      let thumbnailUrl = editStory?.thumbnailUrl || "";
 
-      const storyData = {
+      // Upload cover image if a new file was selected
+      if (coverFile) {
+        setUploadProgress("Uploading cover image...");
+        thumbnailUrl = await uploadFile("stories", coverFile);
+      } else if (!coverPreview && editStory?.thumbnailUrl) {
+        // User removed the cover image during edit
+        thumbnailUrl = "";
+      }
+
+      setUploadProgress("Saving story...");
+
+      const storyData: any = {
         title,
         fullStory: content,
         preview: content.slice(0, 200) + (content.length > 200 ? "..." : ""),
         oneAdvice,
         visibility,
+        thumbnailUrl,
       };
 
       if (editStory) {
@@ -109,11 +182,14 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
         discardDraft();
       }
       
+      setUploadProgress("");
       onClose();
-    } catch (err) {
-      showToast(editStory ? "Update failed" : "Submission failed", "error");
+    } catch (err: any) {
+      console.error("[StoryShareModal] Submit error:", err?.message || err, err);
+      showToast(editStory ? "Update failed" : `Submission failed: ${err?.message || "Unknown error"}`, "error");
     } finally {
       setLoading(false);
+      setUploadProgress("");
     }
   };
 
@@ -191,6 +267,86 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                       className="w-full text-3xl font-black border-none focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-600 bg-transparent"
                     />
                     <div className="h-1 bg-red-100 dark:bg-red-900/30 rounded-full w-24" />
+                </div>
+
+                {/* ═══ COVER IMAGE UPLOAD ═══ */}
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <ImagePlus className="w-4 h-4 text-primary" />
+                    Cover Image (Optional)
+                  </label>
+                  
+                  {coverPreview ? (
+                    <div className="relative group rounded-2xl overflow-hidden border-2 border-gray-100 dark:border-gray-800 shadow-sm">
+                      <img 
+                        src={coverPreview} 
+                        alt="Cover preview" 
+                        className="w-full h-48 sm:h-56 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-3 bg-white/90 text-gray-700 rounded-2xl shadow-lg hover:bg-white transition-all hover:scale-105 active:scale-95"
+                            title="Change image"
+                          >
+                            <Upload size={20} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={removeCover}
+                            className="p-3 bg-red-500/90 text-white rounded-2xl shadow-lg hover:bg-red-500 transition-all hover:scale-105 active:scale-95"
+                            title="Remove image"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                      {coverFile && (
+                        <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-black/60 text-white text-[10px] font-bold rounded-lg backdrop-blur-sm">
+                          {(coverFile.size / (1024 * 1024)).toFixed(1)} MB
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`relative cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-300 p-8 sm:p-10 flex flex-col items-center justify-center gap-3 text-center ${
+                        isDragging
+                          ? "border-primary bg-primary/5 scale-[1.01] shadow-lg shadow-primary/10"
+                          : "border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
+                      }`}
+                    >
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
+                        isDragging ? "bg-primary/10 text-primary" : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}>
+                        <ImagePlus className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-black transition-colors ${isDragging ? "text-primary" : "text-gray-500"}`}>
+                          {isDragging ? "Drop your image here" : "Drag & drop or click to upload"}
+                        </p>
+                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">
+                          JPEG, PNG, WebP, GIF • Max 10MB
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileSelect(file);
+                    }}
+                  />
                 </div>
 
                 {/* Audience / Visibility */}
@@ -273,21 +429,38 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
                       Feed Preview
                    </p>
-                   <div className="pointer-events-none scale-90 sm:scale-100 origin-top">
-                     {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-                     {/* @ts-ignore */}
-                     <StoryCard story={{
-                        id: 'preview',
-                        title,
-                        preview: content.slice(0, 150) + "...",
-                        fullStory: content,
-                        name: profile?.displayName || "You",
-                        authorPhoto: profile?.photoURL || "",
-                        authorRole: (profile?.role as "student" | "teacher" | "graduate") || "student",
-                        college: (profile as { college?: string })?.college || "Your College",
-                        readingTimeMinutes: Math.max(1, Math.ceil(content.length / 1500)),
-                        reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 }
-                     }} />
+                   {/* Custom compact preview card */}
+                   <div className="bg-white dark:bg-[#1a1b23] rounded-[2rem] overflow-hidden border-2 border-gray-100 dark:border-gray-800 shadow-lg">
+                     {/* Cover image banner */}
+                     {coverPreview && (
+                       <div className="relative h-32 sm:h-36 overflow-hidden">
+                         <img src={coverPreview} alt="" className="w-full h-full object-cover" />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                       </div>
+                     )}
+                     <div className="p-5">
+                       {/* Author row */}
+                       <div className="flex items-center gap-3 mb-3">
+                         <div className="w-9 h-9 rounded-xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 shrink-0">
+                           {profile?.photoURL ? (
+                             <img src={profile.photoURL} alt="" className="w-full h-full object-cover" />
+                           ) : (
+                             <span className="text-sm font-black text-gray-400">{profile?.displayName?.[0] || "?"}</span>
+                           )}
+                         </div>
+                         <div className="min-w-0">
+                           <p className="text-sm font-black truncate">{profile?.displayName || "You"}</p>
+                           <p className="text-[10px] text-gray-400 font-bold truncate">
+                             {(profile as any)?.college || "Your College"} • 1 MIN
+                           </p>
+                         </div>
+                       </div>
+                       {/* Title & preview */}
+                       <h3 className="text-base font-black mb-1.5 line-clamp-2 leading-tight">{title || "Story Title"}</h3>
+                       <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed font-bengali">
+                         {content.slice(0, 120)}{content.length > 120 ? "..." : ""}
+                       </p>
+                     </div>
                    </div>
                 </div>
 
@@ -305,6 +478,14 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                           {visibility === "campus" ? "Campus Only" : "Global"}
                         </span>
                       </div>
+                      {coverPreview && (
+                        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-white/60 dark:bg-black/20 border border-emerald-200/50 dark:border-emerald-800/30 w-fit">
+                          <ImagePlus size={14} className="text-emerald-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                            Cover Image Attached
+                          </span>
+                        </div>
+                      )}
                       <p className="text-sm text-emerald-700 dark:text-emerald-500 font-bold leading-relaxed">
                         {editStory
                           ? `Your changes will be saved to the ${visibility === "campus" ? "campus" : "global"} audience.`
@@ -320,9 +501,14 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                    <button
                     disabled={loading}
                     onClick={handleSubmit}
-                    className="w-full py-5 bg-primary text-white rounded-[2rem] font-black text-xl shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+                    className="w-full py-5 bg-primary text-white rounded-[2rem] font-black text-xl shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                    >
-                     {loading ? (editStory ? "Updating..." : "Submitting...") : (
+                     {loading ? (
+                       <>
+                         <Loader2 className="w-6 h-6 animate-spin" />
+                         {uploadProgress || "Processing..."}
+                       </>
+                     ) : (
                         <>
                           {editStory ? "Update Story" : "Share Everywhere"}
                           <ArrowRight />

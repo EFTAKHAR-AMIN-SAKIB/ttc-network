@@ -44,7 +44,7 @@ import {
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { ProfileCompletionCard, ProfileCompletionBar } from "./ProfileCompletionCard";
-import StoryCard from "@/components/StoryCard";
+import StoryCard, { getStoryUrl } from "@/components/StoryCard";
 import PostCard from "@/components/PostCard";
 import StudyNoteCard from "@/app/study/components/StudyNoteCard";
 import StudyScheduleCard from "@/app/study/components/StudyScheduleCard";
@@ -785,7 +785,7 @@ function AllTab({
                                 );
                             } else if (act.activityType === 'story') {
                                 return (
-                                    <div key={act.id} onClick={() => router.push(`/story/${act.id}`)} className="cursor-pointer">
+                                    <div key={act.id} onClick={() => router.push(getStoryUrl(act))} className="cursor-pointer">
                                         <StoryCard story={act} onDelete={isViewingAsOwner ? handleDeleteStory : undefined} onEdit={isViewingAsOwner ? handleEditStory : undefined} />
                                     </div>
                                 );
@@ -2045,7 +2045,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                             );
                                                         } else if (act.activityType === 'story') {
                                                             return (
-                                                                <div key={act.id} onClick={() => router.push(`/story/${act.id}`)} className="cursor-pointer">
+                                                                <div key={act.id} onClick={() => router.push(getStoryUrl(act))} className="cursor-pointer">
                                                                     <StoryCard story={act} onDelete={isViewingAsOwner ? handleDeleteStory : undefined} onEdit={isViewingAsOwner ? handleEditStory : undefined} />
                                                                 </div>
                                                             );
@@ -2110,7 +2110,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             {activeActivityTab === "stories" && filteredFeed.stories.length > 0 && (
                                                 <div className="grid gap-6">
                                                     {filteredFeed.stories.map(story => (
-                                                        <div key={story.id} onClick={() => router.push(`/story/${story.id}`)} className="cursor-pointer">
+                                                        <div key={story.id} onClick={() => router.push(getStoryUrl(story))} className="cursor-pointer">
                                                             <StoryCard story={story} onDelete={isViewingAsOwner ? handleDeleteStory : undefined} onEdit={isViewingAsOwner ? handleEditStory : undefined} />
                                                         </div>
                                                     ))}
