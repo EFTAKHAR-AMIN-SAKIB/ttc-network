@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const ALLOWED_DOMAINS = [
     "res.cloudinary.com",
     "r2.dev",
