@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
@@ -366,6 +367,7 @@ function CostBreakdownPanel({
 
 /* ─── MAIN PAGE ─── */
 export default function HomePage() {
+  const router = useRouter();
   const [qaCards, setQaCards] = useState<(FirestoreQACard & { id: string })[]>([]);
   const [loadingQA, setLoadingQA] = useState(true);
   const [admissionSteps, setAdmissionSteps] = useState<(FirestoreAdmissionStep & { id: string })[]>([]);
@@ -379,6 +381,17 @@ export default function HomePage() {
   const [showBuilderPopup, setShowBuilderPopup] = useState(false);
 
   useEffect(() => {
+    // Check if running in standalone mode (installed PWA) or entered via PWA start URL
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true ||
+      document.cookie.split("; ").some((c) => c === "pwa_mode=true");
+
+    if (isStandalone) {
+      router.replace("/news-feed");
+      return;
+    }
+
     getVisibleQACards()
       .then(setQaCards)
       .catch(console.error)

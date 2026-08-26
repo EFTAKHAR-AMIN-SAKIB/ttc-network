@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSectionUpdates } from "@/hooks/useSectionUpdates";
@@ -19,6 +20,21 @@ const dockLinks = [
 export default function MobileDock() {
     const pathname = usePathname();
     const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    useEffect(() => {
+        const isDisplayStandalone =
+            window.matchMedia("(display-mode: standalone)").matches ||
+            (window.navigator as any).standalone === true;
+        const hasPwaCookie = document.cookie
+            .split("; ")
+            .some((c) => c === "pwa_mode=true");
+        setIsStandalone(isDisplayStandalone || hasPwaCookie);
+    }, []);
+
+    const links = dockLinks.filter(
+        (link) => !(link.label === "Home" && isStandalone)
+    );
 
     const getSectionKey = (href: string) => {
         if (href === "/news-feed") return "news-feed";
@@ -45,7 +61,7 @@ export default function MobileDock() {
     return (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe">
             <div className="flex items-center justify-around px-2 py-2">
-                {dockLinks.map((link) => {
+                {links.map((link) => {
                     const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                     const Icon = link.icon;
                     return (

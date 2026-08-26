@@ -1469,24 +1469,25 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             )}
             
             {/* 1. HERO SECTION */}
-            <div className="relative">
-                {/* Banner */}
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 relative">
+                {/* Banner Frame */}
                 <div 
-                    className="h-44 sm:h-64 md:h-80 w-full relative group cursor-zoom-in"
-                    onClick={() => openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1544648151-1823eddfc5e3?auto=format&fit=crop&q=80&w=2071", "Profile Banner")}
+                    className="h-48 sm:h-64 md:h-80 lg:h-[350px] w-full relative group/banner cursor-zoom-in rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] overflow-hidden border border-slate-200/80 dark:border-gray-800 shadow-md sm:shadow-lg bg-slate-100 dark:bg-gray-900"
+                    onClick={() => openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2070", "Profile Banner")}
                 >
                     <Image 
-                        src={profileData.bannerURL || "https://images.unsplash.com/photo-1544648151-1823eddfc5e3?auto=format&fit=crop&q=80&w=2071"}
+                        src={profileData.bannerURL || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2070"}
                         alt="Banner"
                         fill
-                        className="object-cover"
+                        priority
+                        className="object-cover transition-transform duration-500 group-hover/banner:scale-[1.01]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-navy-900/40 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-navy-950/60 via-navy-900/10 to-transparent pointer-events-none" />
                     
                     {/* Facebook-style Edit Cover Photo button — always visible for own profile */}
                     {isViewingAsOwner && (
                         <div 
-                            className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20" 
+                            className="absolute bottom-3 right-3 sm:bottom-5 sm:right-5 z-20" 
                             ref={bannerMenuRef}
                             onClick={(e) => e.stopPropagation()}
                         >
@@ -1517,7 +1518,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setBannerMenuOpen(false);
-                                                openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1544648151-1823eddfc5e3?auto=format&fit=crop&q=80&w=2071", "Profile Banner");
+                                                openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2070", "Profile Banner");
                                             }}
                                             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
                                         >
@@ -1555,7 +1556,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
 
                 {/* Profile Identity Strip */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
+                <div className="px-2 sm:px-6 relative">
                     <div className="flex flex-col md:flex-row items-center md:items-end gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative z-10">
                         {/* Avatar */}
                         <div className="relative group/avatar">
@@ -1831,7 +1832,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
             {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
             {isViewingAsOwner && profileData && showProfileStrength && (
-                <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6 relative">
+                <div className="lg:hidden max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6 relative">
                     <button 
                         onClick={handleDismissProfileStrength} 
                         className="absolute top-3 right-6 z-20 p-1.5 rounded-full bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shadow-sm"
@@ -1846,8 +1847,47 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
             )}
 
-            {/* 2. STATS STRIP & TABS */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-12 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-12 items-start">
+            {/* 2. STICKY PROFILE NAVIGATION BAR */}
+            <div ref={tabsRef} className="sticky top-16 z-30 bg-[#FAFAF8]/95 dark:bg-[#0c0c10]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-gray-800/80 shadow-sm transition-all mt-4 sm:mt-6">
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                    <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar py-2.5">
+                        {[
+                            { id: "all", label: "All", icon: Sparkles },
+                            { id: "about", label: "About", icon: User },
+                            { id: "activity", label: "Activity", icon: Activity },
+                            { id: "skills", label: "Credentials", icon: Award },
+                            ...(isViewingAsOwner ? [{ id: "saved", label: "Saved", icon: Bookmark }] : [])
+                        ].map((tab) => {
+                            const isActive = activeTab === tab.id;
+                            const IconComponent = tab.icon;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`relative px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all shrink-0 font-black text-xs uppercase tracking-wider ${
+                                        isActive 
+                                            ? "text-primary bg-primary/10 dark:bg-primary/15 shadow-sm" 
+                                            : "text-gray-500 dark:text-gray-400 hover:text-navy-900 dark:hover:text-gray-200 hover:bg-slate-100/60 dark:hover:bg-gray-800/50"
+                                    }`}
+                                >
+                                    <IconComponent size={16} className={isActive ? "text-primary stroke-[2.5]" : "text-gray-400 stroke-2"} />
+                                    <span>{tab.label}</span>
+                                    {isActive && (
+                                        <motion.div 
+                                            layoutId="profileTabIndicator"
+                                            className="absolute -bottom-2.5 left-2 right-2 h-0.5 bg-primary rounded-full shadow-[0_2px_8px_rgba(26,86,219,0.4)]"
+                                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                        />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. STATS STRIP & TABS */}
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-6 sm:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 items-start">
                 
                 {/* LEFT SIDEBAR (L-SIDEBAR) — 3 cols */}
                 <div className="lg:col-span-3 space-y-8">
@@ -1942,37 +1982,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
 
                 {/* MAIN CONTENT (M-CONTENT) — 9 cols */}
-                <div className="lg:col-span-9 space-y-12 min-h-[600px]">
-                    
-                    {/* Sticky Tabs Navigation */}
-                    <div ref={tabsRef} className="sticky top-16 z-40 bg-[#FAFAF8] dark:bg-[#0c0c10] -mx-4 px-4 py-3 sm:py-4 rounded-b-2xl sm:rounded-b-3xl border-b border-slate-100 dark:border-gray-800 shadow-sm">
-                        <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar pb-1">
-                            {[
-                                { id: "all", label: "All", icon: Sparkles },
-                                { id: "about", label: "About", icon: Info },
-                                { id: "activity", label: "Activity", icon: Activity },
-                                { id: "skills", label: "Credentials", icon: Award },
-                                ...(isViewingAsOwner ? [{ id: "saved", label: "Saved", icon: Bookmark }] : [])
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`relative py-2 flex items-center gap-2 transition-all shrink-0`}
-                                >
-                                    <tab.icon size={16} className={activeTab === tab.id ? "text-primary" : "text-gray-400"} />
-                                    <span className={`text-xs font-black uppercase tracking-[0.1em] ${activeTab === tab.id ? "text-navy-900 dark:text-white" : "text-gray-400"}`}>
-                                        {tab.label}
-                                    </span>
-                                    {activeTab === tab.id && (
-                                        <motion.div 
-                                            layoutId="profileTabUnderline"
-                                            className="absolute -bottom-4 left-0 right-0 h-1 bg-primary rounded-full shadow-[0_4px_12px_rgba(26,86,219,0.3)]"
-                                        />
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                <div className="lg:col-span-9 space-y-8 min-h-[600px]">
 
                     {/* Tab Panels */}
                     <div className="relative">

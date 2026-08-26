@@ -1,3 +1,14 @@
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
+    swSrc: "src/app/sw.ts",
+    swDest: "public/sw.js",
+    disable: process.env.NODE_ENV === "development",
+    additionalPrecacheEntries: [
+        { url: "/offline", revision: Date.now().toString() },
+    ],
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     eslint: {
@@ -79,4 +90,4 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

@@ -54,6 +54,11 @@ export const metadata: Metadata = {
     "Education",
     "National University",
   ],
+  manifest: "/manifest.json",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#C0392B" },
+    { media: "(prefers-color-scheme: dark)", color: "#E74C3C" },
+  ],
   icons: {
     icon: [
       { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
@@ -62,6 +67,11 @@ export const metadata: Metadata = {
     apple: [
       { url: "/icon-192.png", sizes: "180x180", type: "image/png" },
     ],
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "mobile-web-app-capable": "yes",
   },
 };
 
