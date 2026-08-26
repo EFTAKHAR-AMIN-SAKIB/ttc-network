@@ -44,6 +44,7 @@ import {
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { ProfileCompletionCard, ProfileCompletionBar } from "./ProfileCompletionCard";
+import { FollowersModal } from "./FollowersModal";
 import StoryCard, { getStoryUrl } from "@/components/StoryCard";
 import PostCard from "@/components/PostCard";
 import StudyNoteCard from "@/app/study/components/StudyNoteCard";
@@ -953,6 +954,10 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [followersCount, setFollowersCount] = useState(0);
     const [followingCount, setFollowingCount] = useState(0);
 
+    // Followers / Following Modal State
+    const [followersModalOpen, setFollowersModalOpen] = useState(false);
+    const [followersModalTab, setFollowersModalTab] = useState<"followers" | "following">("followers");
+
     // Contact Popover State
     const [contactOpen, setContactOpen] = useState(false);
     const contactRef = useRef<HTMLDivElement>(null);
@@ -975,6 +980,28 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [viewAsGuest, setViewAsGuest] = useState(false);
     const isViewingAsOwner = isOwnProfile && !viewAsGuest;
     const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const handleShareProfile = async () => {
+        if (!profileData) return;
+        const profileHandle = profileData.username || uid;
+        const url = `${window.location.origin}/profile/${profileHandle}`;
+        if (typeof navigator !== "undefined" && navigator.share) {
+            try {
+                await navigator.share({
+                    title: `${profileData.displayName || "Profile"} | TTC Connect`,
+                    text: `Check out ${profileData.displayName || "this profile"}'s educational portfolio on TTC Connect.`,
+                    url
+                });
+                return;
+            } catch (err: any) {
+                if (err.name !== "AbortError") {
+                    copyText(url, "Profile link");
+                }
+                return;
+            }
+        }
+        copyText(url, "Profile link");
+    };
 
     useEffect(() => {
         if (!uid) return;
@@ -1660,15 +1687,15 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-3 md:pb-3">
+                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2.5 md:pb-2 w-full md:w-auto">
                             {isOwnProfile ? (
-                                <div className="flex items-center gap-2">
+                                <>
                                     {!viewAsGuest && (
                                         <button 
                                             onClick={() => setEditDrawerOpen(true)}
-                                            className="px-6 py-3 bg-primary text-white font-black text-sm uppercase tracking-wider rounded-[1.25rem] shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                                            className="px-4 sm:px-5 py-2.5 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/25 hover:shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
                                         >
-                                            <Pencil size={16} /> Edit Profile
+                                            <Pencil size={14} /> <span>Edit Profile</span>
                                         </button>
                                     )}
                                     <button 
@@ -1678,17 +1705,17 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             }
                                             setViewAsGuest(!viewAsGuest);
                                         }}
-                                        className={`px-4 py-3 border-2 font-black text-sm uppercase tracking-wider rounded-[1.25rem] transition-all flex items-center gap-2 shadow-lg active:scale-95 ${
+                                        className={`px-3.5 sm:px-4 py-2.5 border-2 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
                                             viewAsGuest 
                                                 ? "bg-slate-900 border-slate-950 text-white dark:bg-primary dark:border-primary" 
-                                                : "bg-white dark:bg-gray-800 border-slate-100 dark:border-gray-700 text-gray-500 hover:text-primary hover:border-primary/20"
+                                                : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary/20"
                                         }`}
                                         title={viewAsGuest ? "Exit guest preview mode" : "Preview how others see your profile"}
                                     >
-                                        {viewAsGuest ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        {viewAsGuest ? <EyeOff size={14} /> : <Eye size={14} />}
                                         <span>{viewAsGuest ? "Exit Preview" : "View as Guest"}</span>
                                     </button>
-                                </div>
+                                </>
                             ) : (
                                 <>
                                     {/* Follow / Following Button */}
@@ -1696,25 +1723,25 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                         onClick={handleFollowToggle}
                                         disabled={followLoading}
                                         whileTap={{ scale: 0.92 }}
-                                        className={`px-6 py-3 font-black text-sm uppercase tracking-wider rounded-[1.25rem] transition-all flex items-center gap-2 border-2 ${
+                                        className={`px-4 sm:px-5 py-2.5 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 border-2 ${
                                             isFollowing 
                                                 ? "bg-primary/5 border-primary/30 text-primary hover:bg-red-50 hover:border-red-300 hover:text-red-500 group" 
-                                                : "bg-white dark:bg-gray-800 border-slate-100 dark:border-gray-700 text-navy-900 dark:text-gray-100 hover:border-primary/40 hover:text-primary"
+                                                : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-navy-900 dark:text-gray-100 hover:border-primary/40 hover:text-primary"
                                         }`}
                                     >
                                         {followLoading ? (
-                                            <Loader2 size={16} className="animate-spin" />
+                                            <Loader2 size={14} className="animate-spin" />
                                         ) : isFollowing ? (
                                             <>
-                                                <UserCheck size={16} className="group-hover:hidden" />
-                                                <X size={16} className="hidden group-hover:block" />
+                                                <UserCheck size={14} className="group-hover:hidden" />
+                                                <X size={14} className="hidden group-hover:block" />
                                                 <span className="group-hover:hidden">Following</span>
                                                 <span className="hidden group-hover:block">Unfollow</span>
                                             </>
                                         ) : (
                                             <>
-                                                <UserPlus size={16} />
-                                                Follow
+                                                <UserPlus size={14} />
+                                                <span>Follow</span>
                                             </>
                                         )}
                                     </motion.button>
@@ -1724,13 +1751,13 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                         <motion.button 
                                             onClick={() => setContactOpen(!contactOpen)}
                                             whileTap={{ scale: 0.9 }}
-                                            className={`p-3.5 rounded-[1.25rem] shadow-xl transition-all ${
+                                            className={`p-2.5 rounded-xl shadow-md transition-all ${
                                                 contactOpen 
-                                                    ? "bg-primary text-white scale-110" 
-                                                    : "bg-navy-900 text-white hover:scale-110"
+                                                    ? "bg-primary text-white scale-105" 
+                                                    : "bg-navy-900 text-white hover:scale-105"
                                             }`}
                                         >
-                                            <MessageCircle size={18} />
+                                            <MessageCircle size={16} />
                                         </motion.button>
 
                                         {/* Contact Popover */}
@@ -1825,6 +1852,17 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     </div>
                                 </>
                             )}
+
+                            {/* Quick Share Profile Button */}
+                            <motion.button
+                                onClick={handleShareProfile}
+                                whileTap={{ scale: 0.92 }}
+                                className="px-3.5 py-2.5 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 hover:border-primary/30 hover:text-primary text-gray-600 dark:text-gray-300 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
+                                title="Share Profile"
+                            >
+                                <Share2 size={14} />
+                                <span className="hidden sm:inline">Share</span>
+                            </motion.button>
                         </div>
                     </div>
                 </div>
@@ -1890,7 +1928,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-6 sm:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 items-start">
                 
                 {/* LEFT SIDEBAR (L-SIDEBAR) — 3 cols */}
-                <div className="lg:col-span-3 space-y-8">
+                <div className="lg:col-span-3 space-y-8 lg:sticky lg:top-32 lg:self-start">
                     {/* Profile Completion Card — Desktop Only */}
                     {isViewingAsOwner && profileData && showProfileStrength && (
                         <div className="hidden lg:block relative">
@@ -1938,21 +1976,45 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     </div>
                                 </div>
                             )) : (
-                                <div className="text-xs text-gray-400 font-bold italic text-center py-4">No positions listed yet.</div>
+                                <div className="text-center py-6 px-2 space-y-3">
+                                    <div className="text-xs text-gray-400 font-bold italic">No positions listed yet.</div>
+                                    {isViewingAsOwner && (
+                                        <button
+                                            onClick={() => handleEditFromCompletion("positions-roles")}
+                                            className="px-3.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-black uppercase tracking-wider transition-all inline-flex items-center gap-1.5"
+                                        >
+                                            <Plus size={12} /> Add Position
+                                        </button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Quick Stats */}
+                    {/* Quick Stats — Clickable to view Followers / Following */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 p-6 rounded-[2rem] text-center shadow-sm">
-                            <div className="text-2xl font-black text-primary">{followersCount}</div>
-                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Followers</div>
-                        </div>
-                        <div className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 p-6 rounded-[2rem] text-center shadow-sm">
-                            <div className="text-2xl font-black text-navy-900 dark:text-gray-100">{followingCount}</div>
-                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Following</div>
-                        </div>
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                setFollowersModalTab("followers");
+                                setFollowersModalOpen(true);
+                            }}
+                            className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 hover:border-primary/40 dark:hover:border-primary/40 p-6 rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all active:scale-95 group cursor-pointer"
+                        >
+                            <div className="text-2xl font-black text-primary group-hover:scale-105 transition-transform">{followersCount}</div>
+                            <div className="text-[9px] font-black uppercase text-gray-400 group-hover:text-primary tracking-wider transition-colors mt-1">Followers</div>
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                setFollowersModalTab("following");
+                                setFollowersModalOpen(true);
+                            }}
+                            className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 hover:border-primary/40 dark:hover:border-primary/40 p-6 rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all active:scale-95 group cursor-pointer"
+                        >
+                            <div className="text-2xl font-black text-navy-900 dark:text-gray-100 group-hover:text-primary group-hover:scale-105 transition-all">{followingCount}</div>
+                            <div className="text-[9px] font-black uppercase text-gray-400 group-hover:text-primary tracking-wider transition-colors mt-1">Following</div>
+                        </button>
                     </div>
 
                     {/* Socials & Connectivity */}
@@ -2254,6 +2316,14 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                 <GraduationCap className="text-slate-200 dark:text-gray-800 mb-6" size={48} />
                                                 <h4 className="text-sm font-black text-gray-300 uppercase tracking-widest">No achievements listed</h4>
                                                 <p className="text-[10px] text-gray-400 mt-2 max-w-[200px]">Upload your certificates and awards to showcase your expertise.</p>
+                                                {isViewingAsOwner && (
+                                                    <button
+                                                        onClick={() => setShowAchievementModal(true)}
+                                                        className="mt-6 px-5 py-2.5 bg-primary text-white hover:opacity-90 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-primary/20 active:scale-95"
+                                                    >
+                                                        <Plus size={14} /> Add Achievement
+                                                    </button>
+                                                )}
                                             </div>
                                         )}
                                     </section>
@@ -2500,6 +2570,16 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 onClose={() => setShowAchievementModal(false)}
                 onUpload={handleAchievementUpload}
                 isUploading={isUploading}
+            />
+
+            {/* Followers / Following Modal */}
+            <FollowersModal
+                isOpen={followersModalOpen}
+                onClose={() => setFollowersModalOpen(false)}
+                userId={uid}
+                initialTab={followersModalTab}
+                followersCount={followersCount}
+                followingCount={followingCount}
             />
         </div>
     );

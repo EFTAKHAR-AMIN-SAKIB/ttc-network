@@ -176,7 +176,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-navy-900/40 backdrop-blur-sm z-[60]"
+                        className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm z-[110]"
                     />
 
                     {/* Drawer */}
@@ -185,13 +185,13 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                         animate={{ x: 0 }}
                         exit={{ x: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="fixed top-0 right-0 h-full w-full max-w-xl bg-[#FAFAF8] dark:bg-[#0c0c10] shadow-2xl z-[70] overflow-hidden flex flex-col"
+                        className="fixed top-0 right-0 h-full w-full max-w-xl bg-[#FAFAF8] dark:bg-[#0c0c10] shadow-2xl z-[120] overflow-hidden flex flex-col"
                     >
                         {/* Header */}
-                        <div className="p-6 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between sticky top-0 bg-[#FAFAF8]/80 dark:bg-[#0c0c10]/80 backdrop-blur-md z-10">
+                        <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between sticky top-0 bg-[#FAFAF8]/95 dark:bg-[#0c0c10]/95 backdrop-blur-md z-10 shrink-0">
                             <div>
-                                <h2 className="text-xl font-black text-navy-900 dark:text-gray-100 uppercase tracking-tight">Edit Your Narrative</h2>
-                                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">Refine how the community sees you</p>
+                                <h2 className="text-lg sm:text-xl font-black text-navy-900 dark:text-gray-100 uppercase tracking-tight">Edit Your Narrative</h2>
+                                <p className="text-[9px] sm:text-[10px] font-black uppercase text-gray-400 tracking-widest mt-0.5 sm:mt-1">Refine how the community sees you</p>
                             </div>
                             <button 
                                 onClick={onClose}
@@ -202,7 +202,7 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar pb-8">
                             
                             {/* 1. Basic Identity */}
                             <CollapsibleSection title="Basic Identity" icon={User} defaultOpen sectionId="basic-identity" forceOpen={focusSectionId === "basic-identity"} highlighted={focusSectionId === "basic-identity"}>
@@ -302,6 +302,22 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                                                 { label: "Extra Large / বিশাল", value: "2xl" }
                                             ]}
                                         />
+                                    </div>
+
+                                    {/* Live Bio Style Preview */}
+                                    <div className="p-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-[#0c0c10]/60 space-y-1.5 shadow-inner">
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
+                                            <Sparkles size={12} className="animate-pulse" /> Live Typography Preview
+                                        </div>
+                                        <p className={`text-sm leading-relaxed ${
+                                            formData.bioStyle === 'serif' ? 'font-serif text-slate-800 dark:text-slate-200' :
+                                            formData.bioStyle === 'sans' ? 'font-sans text-slate-800 dark:text-slate-200' :
+                                            formData.bioStyle === 'writer' ? 'font-handwritten text-blue-800 dark:text-amber-100 text-base' :
+                                            formData.bioStyle === 'glow' ? 'font-sans text-primary dark:text-white font-medium' :
+                                            'font-sans text-slate-700 dark:text-slate-300'
+                                        } line-clamp-2`}>
+                                            {formData.bio || "Every journey starts with a single step. An educator's impact is felt through every action."}
+                                        </p>
                                     </div>
                                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-gray-800">
                                         <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Favorite Quote & Attribution</h4>
@@ -577,13 +593,13 @@ export function ProfileEditDrawer({ isOpen, onClose, profile, focusField, onFocu
                         </div>
 
                         {/* Footer */}
-                        <div className="p-6 border-t border-slate-100 dark:border-gray-800 bg-[#FAFAF8]/95 dark:bg-[#0c0c10]/95 backdrop-blur-md sticky bottom-0 z-10">
+                        <div className="p-4 sm:p-6 pb-6 sm:pb-6 border-t border-slate-200/80 dark:border-gray-800 bg-[#FAFAF8] dark:bg-[#0c0c10] shadow-[0_-8px_20px_rgba(0,0,0,0.06)] shrink-0 z-20">
                             <button 
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="w-full py-4 bg-navy-900 dark:bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition-all"
+                                className="w-full py-3.5 sm:py-4 bg-navy-900 dark:bg-primary text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest shadow-xl flex items-center justify-center gap-2.5 disabled:opacity-50 hover:opacity-90 active:scale-98 transition-all"
                             >
-                                {saving ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
+                                {saving ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
                                 {saving ? "Saving Changes..." : "Publish Updates"}
                             </button>
                         </div>

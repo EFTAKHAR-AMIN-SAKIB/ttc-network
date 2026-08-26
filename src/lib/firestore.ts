@@ -3949,6 +3949,31 @@ export async function getFollowingUserIds(userId: string): Promise<string[]> {
     return snap.docs.map(doc => doc.id);
 }
 
+export async function getFollowerUserIds(userId: string): Promise<string[]> {
+    const db = getDb();
+    const snap = await getDocs(collection(db, "users", userId, "followers"));
+    return snap.docs.map(doc => doc.id);
+}
+
+/**
+ * Fetch full user profiles of people who follow this user.
+ */
+export async function getUserFollowers(userId: string): Promise<(FirestoreUser & { id: string })[]> {
+    const uids = await getFollowerUserIds(userId);
+    if (uids.length === 0) return [];
+    return await getProfilesByIds(uids);
+}
+
+/**
+ * Fetch full user profiles of people this user follows.
+ */
+export async function getUserFollowing(userId: string): Promise<(FirestoreUser & { id: string })[]> {
+    const uids = await getFollowingUserIds(userId);
+    if (uids.length === 0) return [];
+    return await getProfilesByIds(uids);
+}
+
+
 
 // ═══════════════════════════════════════════════════
 //  USERNAME AVAILABILITY

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Hind_Siliguri, Sora, Caveat } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -40,6 +40,13 @@ const caveat = Caveat({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#1A56DB" },
+    { media: "(prefers-color-scheme: dark)", color: "#1A56DB" },
+  ],
+};
+
 export const metadata: Metadata = {
   title: "TTC Network — One Platform. All Colleges. Every Story.",
   description:
@@ -55,10 +62,6 @@ export const metadata: Metadata = {
     "National University",
   ],
   manifest: "/manifest.json",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#C0392B" },
-    { media: "(prefers-color-scheme: dark)", color: "#E74C3C" },
-  ],
   icons: {
     icon: [
       { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
