@@ -41,36 +41,59 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
             return null;
         }
 
-        // 3. Get FCM Token
+        // 3. Get FCM Token with robust fallback
         const messaging = getMessagingInstance();
         if (!messaging) {
             console.warn("[FCM] Messaging instance could not be initialized.");
             return null;
         }
 
-        const token = await getToken(messaging, {
-            serviceWorkerRegistration: targetRegistration,
-            vapidKey: FIREBASE_VAPID_KEY,
-        });
+        let token: string | null = null;
+        let lastError: any = null;
+
+        // Try with service worker registration first
+        if (targetRegistration) {
+            try {
+                token = await getToken(messaging, {
+                    serviceWorkerRegistration: targetRegistration,
+                    vapidKey: FIREBASE_VAPID_KEY,
+                });
+            } catch (swErr: any) {
+                console.warn("[FCM] getToken with serviceWorkerRegistration failed, trying fallback:", swErr);
+                lastError = swErr;
+            }
+        }
+
+        // Fallback: try default without passing serviceWorkerRegistration
+        if (!token) {
+            try {
+                token = await getToken(messaging, {
+                    vapidKey: FIREBASE_VAPID_KEY,
+                });
+            } catch (defaultErr: any) {
+                console.error("[FCM] default getToken failed:", defaultErr);
+                lastError = defaultErr;
+            }
+        }
 
         if (token) {
             console.log("[FCM] Client FCM Token obtained successfully:", token.substring(0, 15) + "...");
             await registerFCMToken(uid, token);
             return token;
         } else {
-            console.warn("[FCM] No registration token available.");
-            return null;
+            console.warn("[FCM] No registration token available:", lastError);
+            throw new Error(lastError?.message || "Failed to generate FCM token from browser");
         }
-    } catch (err) {
+    } catch (err: any) {
         console.error("[FCM] Error setting up FCM:", err);
-        return null;
+        throw err;
     }
 }
 
 /**
  * Triggered from a user action (e.g. clicking Enable Notifications button)
  */
-export async function enablePushNotifications(uid: string): Promise<{ success: boolean; error?: string }> {
+export async function enablePushNotifications(uid: string): Promise<{ success: boolean; token?: string; error?: string }> {
     if (
         typeof window === "undefined" ||
         !("serviceWorker" in navigator) ||
@@ -99,7 +122,7 @@ export async function enablePushNotifications(uid: string): Promise<{ success: b
             return { success: false, error: "Failed to generate device token. Please refresh and try again." };
         }
 
-        return { success: true };
+        return { success: true, token };
     } catch (err: any) {
         console.error("[FCM] Error enabling push notifications:", err);
         return { success: false, error: err.message || "Failed to enable notifications" };
@@ -111,6 +134,25 @@ export async function enablePushNotifications(uid: string): Promise<{ success: b
  */
 export async function sendTestPushNotification(uid: string): Promise<{ success: boolean; message: string }> {
     try {
+        // 1. Ensure token is registered for this device first!
+        let token: string | null = null;
+        try {
+            token = await setupFCM(uid, false);
+        } catch (e: any) {
+            return {
+                success: false,
+                message: "Could not generate device token: " + (e.message || "Unknown error"),
+            };
+        }
+
+        if (!token) {
+            return {
+                success: false,
+                message: "Could not register push token for this device. Please verify notification permissions.",
+            };
+        }
+
+        // 2. Dispatch test push notification
         const res = await fetch("/api/send-push", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -123,7 +165,7 @@ export async function sendTestPushNotification(uid: string): Promise<{ success: 
         });
         const data = await res.json();
         if (res.ok && data.successCount > 0) {
-            return { success: true, message: "Test notification sent! Check your screen." };
+            return { success: true, message: "Test notification sent! Check your notification bar." };
         }
         return {
             success: false,

@@ -2685,13 +2685,32 @@ export async function markAllNotificationsRead(uid: string): Promise<void> {
  */
 export async function registerFCMToken(uid: string, token: string): Promise<void> {
     if (!uid || !token) return;
+
+    // 1. Register via Server Admin API (bypasses client security rules)
+    try {
+        if (typeof fetch !== "undefined") {
+            const res = await fetch("/api/register-push", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid, token }),
+            });
+            if (res.ok) {
+                console.log("[Firestore] FCM token successfully registered via Admin API for user:", uid);
+                return;
+            }
+        }
+    } catch (apiErr) {
+        console.warn("[Firestore] /api/register-push failed, trying client setDoc fallback:", apiErr);
+    }
+
+    // 2. Client Firestore fallback
     const db = getDb();
     try {
         const userRef = doc(db, "users", uid);
         await setDoc(userRef, {
             fcmTokens: arrayUnion(token)
         }, { merge: true });
-        console.log("[Firestore] FCM token successfully registered for user:", uid);
+        console.log("[Firestore] FCM token registered via client setDoc for user:", uid);
     } catch (e) {
         console.error("[Firestore] Failed to register FCM token:", e);
     }

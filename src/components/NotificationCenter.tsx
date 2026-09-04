@@ -133,7 +133,7 @@ export function NotificationCenter({
         try {
             const result = await sendTestPushNotification(user.uid);
             if (result.success) {
-                showToast("Test notification sent! Check your device notifications.", "success");
+                showToast("🎉 Test alert dispatched! Check your device notification bar.", "success");
             } else {
                 showToast(result.message, "error");
             }
