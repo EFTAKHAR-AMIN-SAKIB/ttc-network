@@ -2517,7 +2517,7 @@ export async function createNotification(recipientId: string, data: Omit<Firesto
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 recipientId,
-                title: "TTC Network",
+                title: "TTC NETWORK",
                 body: finalMessage,
                 targetUrl: data.targetUrl || "/"
             })
@@ -2688,9 +2688,10 @@ export async function registerFCMToken(uid: string, token: string): Promise<void
     const db = getDb();
     try {
         const userRef = doc(db, "users", uid);
-        await updateDoc(userRef, {
+        await setDoc(userRef, {
             fcmTokens: arrayUnion(token)
-        });
+        }, { merge: true });
+        console.log("[Firestore] FCM token successfully registered for user:", uid);
     } catch (e) {
         console.error("[Firestore] Failed to register FCM token:", e);
     }

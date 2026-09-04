@@ -12,7 +12,96 @@ declare global {
 
 declare const self: any;
 
-// ── Firebase Cloud Messaging Background Handler ─────────────────────
+// ── Native Background Push Notification Handler ────────────────────
+// Ensures alerts appear on user's device even when the app is completely closed.
+self.addEventListener("push", (event: any) => {
+  let title = "TTC NETWORK";
+  let body = "You have a new update.";
+  let clickAction = "/news-feed";
+  let icon = "/icon-192.png";
+  let badge = "/icon-192.png";
+  let tag = "ttc-alert-" + Date.now();
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+
+      // Handles both Firebase Admin FCM payloads and standard WebPush payloads
+      title =
+        payload.notification?.title ||
+        payload.data?.title ||
+        payload.title ||
+        title;
+
+      body =
+        payload.notification?.body ||
+        payload.data?.body ||
+        payload.body ||
+        body;
+
+      clickAction =
+        payload.data?.click_action ||
+        payload.data?.targetUrl ||
+        payload.fcmOptions?.link ||
+        payload.notification?.click_action ||
+        clickAction;
+
+      icon = payload.notification?.icon || payload.data?.icon || icon;
+      badge = payload.notification?.badge || payload.data?.badge || badge;
+      tag = payload.data?.tag || payload.notification?.tag || tag;
+    } catch {
+      try {
+        const text = event.data.text();
+        if (text) body = text;
+      } catch (err) {
+        console.warn("[SW] Could not parse push payload:", err);
+      }
+    }
+  }
+
+  const notificationOptions = {
+    body,
+    icon,
+    badge,
+    data: {
+      click_action: clickAction,
+    },
+    vibrate: [200, 100, 200],
+    tag,
+    renotify: true,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, notificationOptions)
+  );
+});
+
+// ── Notification Click Handler ──────────────────────────────────────
+self.addEventListener("notificationclick", (event: any) => {
+  event.notification.close();
+  const clickAction = event.notification.data?.click_action || "/news-feed";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients: any[]) => {
+      // Focus existing window if available
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if ("focus" in client) {
+          if ("navigate" in client && clickAction !== "/") {
+            client.navigate(clickAction);
+          }
+          return client.focus();
+        }
+      }
+      // If app is closed, launch a new window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(clickAction);
+      }
+    })
+  );
+});
+
+// ── Firebase Cloud Messaging Background Compat Handler ──────────────
 try {
   self.importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js");
   self.importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js");
@@ -44,26 +133,9 @@ try {
     });
   }
 } catch (err) {
-  console.warn("[SW] FCM background messaging initialization:", err);
+  // Graceful fallback - native push listener already handles alerts
+  console.log("[SW] FCM compat initialized with native fallback");
 }
-
-self.addEventListener("notificationclick", (event: any) => {
-  event.notification.close();
-  const clickAction = event.notification.data?.click_action || "/";
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients: any[]) => {
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
-        if (client.url.includes(clickAction) && "focus" in client) {
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(clickAction);
-      }
-    })
-  );
-});
 
 // ── Serwist PWA Caching & Offline Routing ────────────────────────────
 const serwist = new Serwist({

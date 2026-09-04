@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCircle, X, BookText, Globe, MessageSquare, Award, Heart, Scroll, UserPlus, Check, Trash2, Share2, FileText } from "lucide-react";
+import { Bell, CheckCircle, X, BookText, Globe, MessageSquare, Award, Heart, Scroll, UserPlus, Check, Trash2, Share2, FileText, BellRing } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FirestoreNotification } from "@/lib/firestore";
 import { useState, useEffect, type ComponentType } from "react";
@@ -9,6 +9,8 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useNotificationValidity } from "@/hooks/useNotificationValidity";
 import { useToast } from "@/contexts/ToastContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { enablePushNotifications, sendTestPushNotification, setupFCM } from "@/lib/fcm";
 
 const notifIcons: Record<string, ComponentType<{ size?: number | string; className?: string }>> = {
     comment: MessageSquare,
@@ -80,14 +82,126 @@ export function NotificationCenter({
     onDelete,
 }: NotificationCenterProps) {
     const router = useRouter();
+    const { user } = useAuth();
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState<"all" | "unread" | "social" | "system">("all");
+    const [pushPermission, setPushPermission] = useState<string>("default");
+    const [isEnablingPush, setIsEnablingPush] = useState(false);
+    const [isSendingTest, setIsSendingTest] = useState(false);
     const validityMap = useNotificationValidity(notifications);
     const { showToast } = useToast();
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+        if (typeof window !== "undefined" && "Notification" in window) {
+            setPushPermission(Notification.permission);
+            if (Notification.permission === "granted" && user?.uid) {
+                setupFCM(user.uid, false).catch(() => {});
+            }
+        } else {
+            setPushPermission("unsupported");
+        }
+    }, [user?.uid]);
+
+    const handleEnablePush = async () => {
+        if (!user?.uid) {
+            showToast("Please log in to enable notifications", "error");
+            return;
+        }
+        setIsEnablingPush(true);
+        try {
+            const success = await enablePushNotifications(user.uid);
+            if (success) {
+                setPushPermission("granted");
+                showToast("Push notifications enabled! You will now receive background alerts.", "success");
+            } else {
+                if (typeof window !== "undefined" && "Notification" in window) {
+                    setPushPermission(Notification.permission);
+                }
+                showToast("Notification permission was not granted.", "info");
+            }
+        } catch (err: any) {
+            showToast("Failed to enable notifications: " + (err.message || "Unknown error"), "error");
+        } finally {
+            setIsEnablingPush(false);
+        }
+    };
+
+    const handleTestPush = async () => {
+        if (!user?.uid) return;
+        setIsSendingTest(true);
+        try {
+            const result = await sendTestPushNotification(user.uid);
+            if (result.success) {
+                showToast("Test notification sent! Check your device notifications.", "success");
+            } else {
+                showToast(result.message, "error");
+            }
+        } catch (err: any) {
+            showToast("Failed to send test push: " + (err.message || "Unknown error"), "error");
+        } finally {
+            setIsSendingTest(false);
+        }
+    };
+
+    const PushBanner = () => {
+        if (pushPermission === "unsupported") return null;
+
+        if (pushPermission === "default") {
+            return (
+                <div className="mx-4 my-2.5 p-3 rounded-xl bg-gradient-to-r from-red-500/10 via-primary/5 to-transparent border border-primary/20 flex flex-col gap-2 shrink-0">
+                    <div className="flex items-start gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-primary text-white shrink-0 mt-0.5">
+                            <BellRing size={14} className="animate-pulse" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                                Turn on Device Push Alerts
+                            </h4>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+                                Receive alerts on your device even when TTC NETWORK is closed.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleEnablePush}
+                        disabled={isEnablingPush}
+                        className="w-full py-1.5 px-3 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+                    >
+                        {isEnablingPush ? "Enabling..." : "Enable Push Notifications"}
+                    </button>
+                </div>
+            );
+        }
+
+        if (pushPermission === "granted") {
+            return (
+                <div className="px-5 py-2 bg-emerald-50/80 dark:bg-emerald-950/20 border-b border-emerald-100 dark:border-emerald-800/40 flex items-center justify-between shrink-0">
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle size={12} className="stroke-[2.5]" />
+                        Device notifications active
+                    </span>
+                    <button
+                        onClick={handleTestPush}
+                        disabled={isSendingTest}
+                        className="text-[10px] font-black text-primary uppercase tracking-tight hover:underline flex items-center gap-1 disabled:opacity-50"
+                    >
+                        {isSendingTest ? "Sending..." : "Send Test Alert"}
+                    </button>
+                </div>
+            );
+        }
+
+        if (pushPermission === "denied") {
+            return (
+                <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-800/30 text-[10px] text-amber-700 dark:text-amber-400 font-medium shrink-0">
+                    ⚠️ Notifications are blocked in browser settings. Unblock in browser settings to receive background alerts.
+                </div>
+            );
+        }
+
+        return null;
+    };
 
     const formatTime = (ts: { seconds?: number } | null | undefined) => {
         if (!ts?.seconds) return "";
@@ -207,6 +321,9 @@ export function NotificationCenter({
                                 )}
                             </div>
 
+                            {/* Push Notification Controls */}
+                            <PushBanner />
+
                             {/* Filter Tabs */}
                             <FilterTabs />
 
@@ -318,6 +435,9 @@ export function NotificationCenter({
                                             </button>
                                         </div>
                                     )}
+
+                                    {/* Push Notification Controls */}
+                                    <PushBanner />
 
                                     {/* Mobile Filter Tabs */}
                                     <FilterTabs />

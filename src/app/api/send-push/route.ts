@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Construct multicast message payload
+        const clickUrl = targetUrl || "/news-feed";
         const message = {
             tokens: fcmTokens,
             notification: {
@@ -36,15 +37,33 @@ export async function POST(req: NextRequest) {
                 body,
             },
             data: {
-                click_action: targetUrl || "/",
-                title,
-                body,
+                click_action: clickUrl,
+                title: String(title),
+                body: String(body),
+                targetUrl: clickUrl,
             },
             webpush: {
+                headers: {
+                    Urgency: "high",
+                    TTL: "86400",
+                },
+                notification: {
+                    title,
+                    body,
+                    icon: "/icon-192.png",
+                    badge: "/icon-192.png",
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true,
+                    tag: `ttc-${Date.now()}`,
+                    renotify: true,
+                    data: {
+                        click_action: clickUrl,
+                    },
+                },
                 fcmOptions: {
-                    link: targetUrl || "/"
-                }
-            }
+                    link: clickUrl,
+                },
+            },
         };
 
         // Send push notifications via Firebase Admin Messaging SDK
