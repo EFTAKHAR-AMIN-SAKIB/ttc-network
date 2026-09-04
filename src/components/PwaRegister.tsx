@@ -13,6 +13,13 @@ export default function PwaRegister() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    if (isStandalone) {
+      document.title = "TTC NETWORK";
+    }
+
     // 1. If prompt was already captured by early head script, re-emit for components mounted after
     if (window.__ttcInstallPrompt) {
       window.dispatchEvent(new CustomEvent("ttc-install-prompt-ready", { detail: window.__ttcInstallPrompt }));

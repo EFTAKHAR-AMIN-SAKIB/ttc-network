@@ -38,6 +38,22 @@ export default function Navbar() {
     const [notifOpen, setNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState<(FirestoreNotification & { id: string })[]>([]);
     const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    useEffect(() => {
+        const isDisplayStandalone =
+            typeof window !== "undefined" &&
+            (window.matchMedia("(display-mode: standalone)").matches ||
+            (window.navigator as any).standalone === true);
+        setIsStandalone(isDisplayStandalone);
+        if (isDisplayStandalone && typeof document !== "undefined") {
+            document.title = "TTC NETWORK";
+        }
+    }, [pathname]);
+
+    const visibleNavLinks = navLinks.filter(
+        (link) => !(link.label === "Home" && isStandalone)
+    );
 
     const getSectionKey = (href: string) => {
         if (href === "/news-feed") return "news-feed";
@@ -233,11 +249,11 @@ export default function Navbar() {
         <nav className="sticky top-0 z-50 bg-white dark:bg-[#0f1117] border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
-                    <HumanLogo logoUrl={logoUrl} siteName={siteName} />
+                    <HumanLogo logoUrl={logoUrl} siteName={siteName} isStandalone={isStandalone} />
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-0.5 lg:gap-1">
-                        {navLinks.map((link) => {
+                        {visibleNavLinks.map((link) => {
                             const isActive = pathname === link.href;
                             const NavIcon = link.icon;
                             return (

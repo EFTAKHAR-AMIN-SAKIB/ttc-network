@@ -90,10 +90,17 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         return () => unsubscribe?.();
     }, []);
 
-    // Dynamically update the browser tab title
+    // Dynamically update the browser tab / window title
     useEffect(() => {
         if (typeof document !== "undefined") {
-            document.title = `${settings.siteName} — ${settings.siteTagline}`;
+            const isStandalone =
+                window.matchMedia("(display-mode: standalone)").matches ||
+                (window.navigator as any).standalone === true;
+            if (isStandalone) {
+                document.title = "TTC NETWORK";
+            } else {
+                document.title = `${settings.siteName} — ${settings.siteTagline}`;
+            }
         }
     }, [settings.siteName, settings.siteTagline]);
 

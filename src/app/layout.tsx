@@ -49,7 +49,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "TTC Network — One Platform. All Colleges. Every Story.",
+  title: {
+    default: "TTC NETWORK",
+    template: "%s | TTC NETWORK",
+  },
   description:
     "A unified, community-driven web platform serving all Government Teachers' Training Colleges (TTCs) of Bangladesh. Share stories, events, notices, and connect with your TTC community.",
   keywords: [
@@ -98,6 +101,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+                if (isStandalone) {
+                  document.title = 'TTC NETWORK';
+                }
                 window.__ttcInstallPrompt = null;
                 window.__ttcAppInstalled = false;
                 window.addEventListener('beforeinstallprompt', function(e) {

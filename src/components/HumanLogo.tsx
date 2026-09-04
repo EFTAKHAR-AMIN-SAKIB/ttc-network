@@ -7,15 +7,16 @@ import Link from "next/link";
 interface HumanLogoProps {
   logoUrl: string;
   siteName: string;
+  isStandalone?: boolean;
 }
 
-export default function HumanLogo({ logoUrl, siteName }: HumanLogoProps) {
+export default function HumanLogo({ logoUrl, siteName, isStandalone }: HumanLogoProps) {
   const nameWords = siteName.split(" ");
   const firstWord = nameWords[0] || "TTC";
   const restWords = nameWords.slice(1).join(" ") || "Network";
 
   return (
-    <Link href="/" className="flex items-center gap-3 group relative">
+    <Link href={isStandalone ? "/news-feed" : "/"} className="flex items-center gap-3 group relative">
       {/* Hand-Drawn Emblem Container */}
       <div className="relative flex-shrink-0">
         <motion.div
