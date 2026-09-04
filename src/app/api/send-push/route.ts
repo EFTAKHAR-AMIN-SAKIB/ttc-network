@@ -94,6 +94,15 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        if (response.successCount === 0 && response.failureCount > 0) {
+            const firstError = response.responses.find(r => !r.success)?.error?.message || "Delivery failed";
+            return NextResponse.json({
+                message: `Failed to deliver push: ${firstError}`,
+                successCount: 0,
+                failureCount: response.failureCount
+            }, { status: 200 });
+        }
+
         return NextResponse.json({
             message: "Push notifications processed",
             successCount: response.successCount,

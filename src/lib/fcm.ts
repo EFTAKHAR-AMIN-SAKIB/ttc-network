@@ -4,7 +4,7 @@ import { registerFCMToken } from "./firestore";
 
 export const FIREBASE_VAPID_KEY =
     process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ||
-    "BNS7wp8fO1t57Ogw3MV66_8WcSnVzKCoWwcTRG-BAAPCFcE13sdDpxS9m2UrGzk2YJWsydrj8vXhninTe6ooyl";
+    "BNS7wp8fO1t57Ogvv3MV66_8WcSnVzKCoWwcTRG-BAAPCFcE13sdDpxS9m2UrGzk2YJWsydrj8vXhninTe6ooyI";
 
 /**
  * Registers the service worker, checks notification permission,
@@ -27,7 +27,8 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
         if (!registration) {
             registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         }
-        await navigator.serviceWorker.ready;
+        const activeRegistration = await navigator.serviceWorker.ready;
+        const targetRegistration = activeRegistration || registration;
 
         // 2. Request Notification Permission only if explicitly prompted or already granted
         let permission = Notification.permission;
@@ -48,12 +49,12 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
         }
 
         const token = await getToken(messaging, {
-            serviceWorkerRegistration: registration,
+            serviceWorkerRegistration: targetRegistration,
             vapidKey: FIREBASE_VAPID_KEY,
         });
 
         if (token) {
-            console.log("[FCM] Client FCM Token obtained successfully.");
+            console.log("[FCM] Client FCM Token obtained successfully:", token.substring(0, 15) + "...");
             await registerFCMToken(uid, token);
             return token;
         } else {
@@ -69,9 +70,40 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
 /**
  * Triggered from a user action (e.g. clicking Enable Notifications button)
  */
-export async function enablePushNotifications(uid: string): Promise<boolean> {
-    const token = await setupFCM(uid, true);
-    return !!token;
+export async function enablePushNotifications(uid: string): Promise<{ success: boolean; error?: string }> {
+    if (
+        typeof window === "undefined" ||
+        !("serviceWorker" in navigator) ||
+        !("PushManager" in window) ||
+        !("Notification" in window)
+    ) {
+        return { success: false, error: "Push notifications are not supported by this browser." };
+    }
+
+    try {
+        let permission = Notification.permission;
+        if (permission === "default") {
+            permission = await Notification.requestPermission();
+        }
+
+        if (permission === "denied") {
+            return { success: false, error: "Notifications are blocked in your browser settings. Please allow them to continue." };
+        }
+
+        if (permission !== "granted") {
+            return { success: false, error: "Notification permission was not granted." };
+        }
+
+        const token = await setupFCM(uid, false);
+        if (!token) {
+            return { success: false, error: "Failed to generate device token. Please refresh and try again." };
+        }
+
+        return { success: true };
+    } catch (err: any) {
+        console.error("[FCM] Error enabling push notifications:", err);
+        return { success: false, error: err.message || "Failed to enable notifications" };
+    }
 }
 
 /**

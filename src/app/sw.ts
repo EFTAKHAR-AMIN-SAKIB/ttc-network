@@ -107,12 +107,12 @@ try {
   self.importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js");
 
   const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDfq-EOAzmInRp4QT_gH9w2DK4l9KOFTBM",
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "ttc-connect-2273e.firebaseapp.com",
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ttc-connect-2273e",
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "ttc-connect-2273e.firebasestorage.app",
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "523150908585",
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:523150908585:web:7605ff120912e66fde5db8",
   };
 
   if (firebaseConfig.apiKey && typeof self.firebase !== "undefined") {

@@ -110,15 +110,15 @@ export function NotificationCenter({
         }
         setIsEnablingPush(true);
         try {
-            const success = await enablePushNotifications(user.uid);
-            if (success) {
+            const result = await enablePushNotifications(user.uid);
+            if (result.success) {
                 setPushPermission("granted");
                 showToast("Push notifications enabled! You will now receive background alerts.", "success");
             } else {
                 if (typeof window !== "undefined" && "Notification" in window) {
                     setPushPermission(Notification.permission);
                 }
-                showToast("Notification permission was not granted.", "info");
+                showToast(result.error || "Failed to enable notifications.", "error");
             }
         } catch (err: any) {
             showToast("Failed to enable notifications: " + (err.message || "Unknown error"), "error");
