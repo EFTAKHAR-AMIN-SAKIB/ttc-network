@@ -1,0 +1,43 @@
+﻿import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "TTC NETWORK",
+    short_name: "TTC NETWORK",
+    description:
+      "A unified community platform for all Government Teachers' Training Colleges of Bangladesh.",
+    start_url: "/news-feed?source=pwa",
+    display: "standalone",
+    background_color: "#FFFFFF",
+    theme_color: "#C0392B",
+    orientation: "portrait",
+    id: "/",
+    scope: "/",
+    icons: [
+      {
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icon-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+  };
+}
