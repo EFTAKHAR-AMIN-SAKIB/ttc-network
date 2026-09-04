@@ -16,8 +16,8 @@ export async function setupFCM(uid: string): Promise<void> {
     }
 
     try {
-        // 1. Register service worker at custom dynamic route path
-        const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+        // 1. Register or get the unified service worker (/sw.js)
+        const registration = await navigator.serviceWorker.register("/sw.js", {
             scope: "/"
         });
         console.log("[FCM] Service Worker registered with scope:", registration.scope);

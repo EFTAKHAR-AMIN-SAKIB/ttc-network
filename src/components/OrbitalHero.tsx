@@ -339,8 +339,8 @@ export default function OrbitalHero() {
 
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [isAppInstalled, setIsAppInstalled] = useState(false);
-    const [showIosModal, setShowIosModal] = useState(false);
-    const [isIosSafari, setIsIosSafari] = useState(false);
+    const [showInstallGuide, setShowInstallGuide] = useState(false);
+    const [isIos, setIsIos] = useState(false);
 
     useEffect(() => {
         const unsub = subscribeColleges((data) => setFsColleges(data));
@@ -348,16 +348,14 @@ export default function OrbitalHero() {
         // Detect if already installed or in standalone mode
         const isStandalone =
             window.matchMedia("(display-mode: standalone)").matches ||
-            (window.navigator as any).standalone === true ||
-            document.cookie.split("; ").some((c) => c === "pwa_mode=true");
+            (window.navigator as any).standalone === true;
         setIsAppInstalled(isStandalone);
 
-        // Detect iOS Safari
+        // Detect iOS
         const userAgent = window.navigator.userAgent.toLowerCase();
         const isIpad = userAgent.includes("ipad");
         const isIphone = userAgent.includes("iphone");
-        const isSafari = userAgent.includes("safari") && !userAgent.includes("chrome") && !userAgent.includes("crios");
-        setIsIosSafari((isIpad || isIphone) && isSafari);
+        setIsIos(isIpad || isIphone);
 
         const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
@@ -367,6 +365,7 @@ export default function OrbitalHero() {
         const handleAppInstalled = () => {
             setIsAppInstalled(true);
             setInstallPrompt(null);
+            setShowInstallGuide(false);
         };
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -387,8 +386,8 @@ export default function OrbitalHero() {
                 setIsAppInstalled(true);
                 setInstallPrompt(null);
             }
-        } else if (isIosSafari) {
-            setShowIosModal(true);
+        } else {
+            setShowInstallGuide(true);
         }
     };
 
@@ -519,7 +518,7 @@ export default function OrbitalHero() {
                                     >
                                         <span>Study Portal</span>
                                     </Link>
-                                    {(installPrompt || isIosSafari) && !isAppInstalled && (
+                                    {!isAppInstalled && (
                                         <button
                                             onClick={handleInstallClick}
                                             className="flex items-center justify-center gap-2 px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-500/10 hover:shadow-xl hover:shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all duration-300 text-sm active:scale-95"
@@ -689,7 +688,7 @@ export default function OrbitalHero() {
                                         Study Portal
                                     </Link>
                                 </div>
-                                {(installPrompt || isIosSafari) && !isAppInstalled && (
+                                {!isAppInstalled && (
                                     <button
                                         onClick={handleInstallClick}
                                         className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold rounded-xl shadow-md text-sm active:scale-95 transition-transform"
@@ -718,18 +717,18 @@ export default function OrbitalHero() {
                 </div>
             </div>
 
-            {/* iOS Safari Install Guide Modal */}
-            {showIosModal && (
+            {/* Universal Install Guide Modal */}
+            {showInstallGuide && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white dark:bg-[#16181C] border border-gray-100 dark:border-white/5 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center relative max-h-[90vh] overflow-y-auto">
                         <button
-                            onClick={() => setShowIosModal(false)}
+                            onClick={() => setShowInstallGuide(false)}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                         >
                             <X size={20} />
                         </button>
                         
-                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto mb-5">
+                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto mb-4">
                             <Download size={26} />
                         </div>
                         
@@ -737,32 +736,52 @@ export default function OrbitalHero() {
                             Install TTC Network
                         </h3>
                         
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
-                            Install this app on your iPhone or iPad for the best native experience.
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
+                            Install the web app on your device for fast offline access and a native experience.
                         </p>
                         
-                        <div className="space-y-4 text-left">
-                            <div className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                                    1
+                        {isIos ? (
+                            <div className="space-y-4 text-left">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                                        1
+                                    </div>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
+                                        Tap the <span className="font-bold text-primary inline-flex items-center gap-1">Share <Share size={12} className="inline" /></span> button in Safari&apos;s bottom toolbar.
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                    Tap the <span className="font-bold text-primary inline-flex items-center gap-1">Share <Share size={12} className="inline" /></span> button in Safari&apos;s bottom toolbar.
-                                </p>
-                            </div>
-                            
-                            <div className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                                    2
+                                <div className="flex items-start gap-3">
+                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                                        2
+                                    </div>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
+                                        Scroll down and tap <span className="font-bold text-primary">Add to Home Screen</span>.
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                    Scroll down and select <span className="font-bold text-primary">Add to Home Screen</span>.
-                                </p>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="space-y-4 text-left">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                                        1
+                                    </div>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
+                                        Look for the <span className="font-bold text-primary">Install icon</span> in your browser address bar (top right).
+                                    </p>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
+                                        2
+                                    </div>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
+                                        Or click browser menu <span className="font-bold text-primary">(⋮)</span> and select <span className="font-bold text-primary">&quot;Install TTC Network&quot;</span>.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         
                         <button
-                            onClick={() => setShowIosModal(false)}
+                            onClick={() => setShowInstallGuide(false)}
                             className="mt-6 w-full py-2.5 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white font-bold rounded-xl text-xs transition-colors"
                         >
                             Got it
