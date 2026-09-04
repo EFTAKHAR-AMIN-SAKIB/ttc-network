@@ -341,6 +341,7 @@ export default function OrbitalHero() {
     const [isAppInstalled, setIsAppInstalled] = useState(false);
     const [showInstallGuide, setShowInstallGuide] = useState(false);
     const [isIos, setIsIos] = useState(false);
+    const [isInstalling, setIsInstalling] = useState(false);
 
     useEffect(() => {
         const unsub = subscribeColleges((data) => setFsColleges(data));
@@ -349,7 +350,16 @@ export default function OrbitalHero() {
         const isStandalone =
             window.matchMedia("(display-mode: standalone)").matches ||
             (window.navigator as any).standalone === true;
-        setIsAppInstalled(isStandalone);
+        
+        if (isStandalone) {
+            setIsAppInstalled(true);
+        } else if ("getInstalledRelatedApps" in navigator) {
+            (navigator as any).getInstalledRelatedApps().then((apps: any[]) => {
+                if (apps && apps.length > 0) {
+                    setIsAppInstalled(true);
+                }
+            }).catch(() => {});
+        }
 
         // Detect iOS
         const userAgent = window.navigator.userAgent.toLowerCase();
@@ -357,36 +367,94 @@ export default function OrbitalHero() {
         const isIphone = userAgent.includes("iphone");
         setIsIos(isIpad || isIphone);
 
+        // Check if head script or PwaRegister already captured the install prompt
+        if (typeof window !== "undefined" && window.__ttcInstallPrompt) {
+            setInstallPrompt(window.__ttcInstallPrompt);
+        }
+
         const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
             setInstallPrompt(e);
+            if (typeof window !== "undefined") window.__ttcInstallPrompt = e;
+        };
+
+        const handlePromptReady = (e: any) => {
+            const prompt = e.detail || (typeof window !== "undefined" ? window.__ttcInstallPrompt : null);
+            if (prompt) setInstallPrompt(prompt);
         };
 
         const handleAppInstalled = () => {
             setIsAppInstalled(true);
             setInstallPrompt(null);
             setShowInstallGuide(false);
+            if (typeof window !== "undefined") {
+                window.__ttcAppInstalled = true;
+                window.__ttcInstallPrompt = null;
+            }
         };
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
         window.addEventListener("appinstalled", handleAppInstalled);
+        window.addEventListener("ttc-install-prompt-ready", handlePromptReady);
+        window.addEventListener("ttc-app-installed", handleAppInstalled);
 
         return () => {
             unsub();
             window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
             window.removeEventListener("appinstalled", handleAppInstalled);
+            window.removeEventListener("ttc-install-prompt-ready", handlePromptReady);
+            window.removeEventListener("ttc-app-installed", handleAppInstalled);
         };
     }, []);
 
     const handleInstallClick = async () => {
-        if (installPrompt) {
-            installPrompt.prompt();
-            const { outcome } = await installPrompt.userChoice;
-            if (outcome === "accepted") {
-                setIsAppInstalled(true);
-                setInstallPrompt(null);
+        if (isAppInstalled) {
+            window.location.href = "/news-feed";
+            return;
+        }
+
+        setIsInstalling(true);
+
+        // 1. Get prompt from local state or window global
+        let promptEvent = installPrompt || (typeof window !== "undefined" ? window.__ttcInstallPrompt : null);
+
+        // 2. If not yet ready on a non-iOS browser, wait briefly up to 1000ms
+        if (!promptEvent && !isIos) {
+            promptEvent = await new Promise((resolve) => {
+                const timer = setTimeout(() => {
+                    window.removeEventListener("ttc-install-prompt-ready", onReady);
+                    resolve(null);
+                }, 1000);
+                const onReady = (e: any) => {
+                    clearTimeout(timer);
+                    window.removeEventListener("ttc-install-prompt-ready", onReady);
+                    resolve(e.detail || (typeof window !== "undefined" ? window.__ttcInstallPrompt : null));
+                };
+                window.addEventListener("ttc-install-prompt-ready", onReady);
+            });
+        }
+
+        setIsInstalling(false);
+
+        // 3. If prompt is available, trigger native browser install prompt
+        if (promptEvent) {
+            try {
+                await promptEvent.prompt();
+                const choiceResult = await promptEvent.userChoice;
+                if (choiceResult?.outcome === "accepted") {
+                    setIsAppInstalled(true);
+                    setInstallPrompt(null);
+                    if (typeof window !== "undefined") {
+                        window.__ttcInstallPrompt = null;
+                        window.__ttcAppInstalled = true;
+                    }
+                }
+            } catch (err) {
+                console.warn("[PWA] Prompt execution error:", err);
+                setShowInstallGuide(true);
             }
         } else {
+            // Fallback: only for iOS Safari or browsers without programmatic install
             setShowInstallGuide(true);
         }
     };
@@ -521,10 +589,11 @@ export default function OrbitalHero() {
                                     {!isAppInstalled && (
                                         <button
                                             onClick={handleInstallClick}
-                                            className="flex items-center justify-center gap-2 px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-500/10 hover:shadow-xl hover:shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all duration-300 text-sm active:scale-95"
+                                            disabled={isInstalling}
+                                            className="flex items-center justify-center gap-2 px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-500/10 hover:shadow-xl hover:shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all duration-300 text-sm active:scale-95 cursor-pointer disabled:opacity-75"
                                         >
-                                            <Download size={16} />
-                                            <span>Download App</span>
+                                            <Download size={16} className={isInstalling ? "animate-bounce" : ""} />
+                                            <span>{isInstalling ? "Opening..." : "Download App"}</span>
                                         </button>
                                     )}
                                 </motion.div>
@@ -691,10 +760,11 @@ export default function OrbitalHero() {
                                 {!isAppInstalled && (
                                     <button
                                         onClick={handleInstallClick}
-                                        className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold rounded-xl shadow-md text-sm active:scale-95 transition-transform"
+                                        disabled={isInstalling}
+                                        className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold rounded-xl shadow-md text-sm active:scale-95 transition-transform cursor-pointer disabled:opacity-75"
                                     >
-                                        <Download size={14} />
-                                        <span>Download App</span>
+                                        <Download size={14} className={isInstalling ? "animate-bounce" : ""} />
+                                        <span>{isInstalling ? "Opening..." : "Download App"}</span>
                                     </button>
                                 )}
                             </motion.div>
@@ -733,7 +803,7 @@ export default function OrbitalHero() {
                         </div>
                         
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                            Install TTC Network
+                            Install TTC NETWORK
                         </h3>
                         
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
@@ -774,7 +844,7 @@ export default function OrbitalHero() {
                                         2
                                     </div>
                                     <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                        Or click browser menu <span className="font-bold text-primary">(⋮)</span> and select <span className="font-bold text-primary">&quot;Install TTC Network&quot;</span>.
+                                        Or click browser menu <span className="font-bold text-primary">(⋮)</span> and select <span className="font-bold text-primary">&quot;Install TTC NETWORK&quot;</span>.
                                     </p>
                                 </div>
                             </div>

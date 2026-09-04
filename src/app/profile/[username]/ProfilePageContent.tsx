@@ -988,8 +988,8 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         if (typeof navigator !== "undefined" && navigator.share) {
             try {
                 await navigator.share({
-                    title: `${profileData.displayName || "Profile"} | TTC Connect`,
-                    text: `Check out ${profileData.displayName || "this profile"}'s educational portfolio on TTC Connect.`,
+                    title: `${profileData.displayName || "Profile"} | TTC NETWORK`,
+                    text: `Check out ${profileData.displayName || "this profile"}'s educational portfolio on TTC NETWORK.`,
                     url
                 });
                 return;

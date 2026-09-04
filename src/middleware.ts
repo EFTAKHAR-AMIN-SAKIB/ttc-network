@@ -26,26 +26,18 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
     const { pathname, searchParams } = request.nextUrl;
 
-    // Handle PWA root redirect
+    // Handle PWA root redirect: Only redirect when explicitly launched with source=pwa
     if (pathname === "/") {
         const isPwaSource = searchParams.get("source") === "pwa";
-        const hasPwaCookie = request.cookies.get("pwa_mode")?.value === "true";
 
-        if (isPwaSource || hasPwaCookie) {
+        if (isPwaSource) {
             const redirectUrl = new URL("/news-feed", request.url);
             searchParams.forEach((value, key) => {
                 if (key !== "source") {
                     redirectUrl.searchParams.set(key, value);
                 }
             });
-            const response = NextResponse.redirect(redirectUrl);
-            if (isPwaSource && !hasPwaCookie) {
-                response.cookies.set("pwa_mode", "true", {
-                    maxAge: 365 * 24 * 60 * 60, // 1 year
-                    path: "/",
-                });
-            }
-            return response;
+            return NextResponse.redirect(redirectUrl);
         }
     }
 

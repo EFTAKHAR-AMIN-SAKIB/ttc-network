@@ -26,10 +26,7 @@ export default function MobileDock() {
         const isDisplayStandalone =
             window.matchMedia("(display-mode: standalone)").matches ||
             (window.navigator as any).standalone === true;
-        const hasPwaCookie = document.cookie
-            .split("; ")
-            .some((c) => c === "pwa_mode=true");
-        setIsStandalone(isDisplayStandalone || hasPwaCookie);
+        setIsStandalone(isDisplayStandalone);
     }, []);
 
     const links = dockLinks.filter(

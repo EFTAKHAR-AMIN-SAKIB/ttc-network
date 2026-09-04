@@ -31,11 +31,11 @@ try {
     const messaging = self.firebase.messaging();
 
     messaging.onBackgroundMessage((payload: any) => {
-      const notificationTitle = payload.data?.title || payload.notification?.title || "TTC Network";
+      const notificationTitle = payload.data?.title || payload.notification?.title || "TTC NETWORK";
       const notificationOptions = {
         body: payload.data?.body || payload.notification?.body || "",
-        icon: "/icon.png",
-        badge: "/icon.png",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         data: {
           click_action: payload.data?.click_action || "/",
         },

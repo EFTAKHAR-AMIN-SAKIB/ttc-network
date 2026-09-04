@@ -11,6 +11,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import { VerificationProvider } from "@/contexts/VerificationContext";
 import VerificationBanner from "@/components/VerificationBanner";
+import PwaRegister from "@/components/PwaRegister";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -42,8 +43,8 @@ const caveat = Caveat({
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#1A56DB" },
-    { media: "(prefers-color-scheme: dark)", color: "#1A56DB" },
+    { media: "(prefers-color-scheme: light)", color: "#C0392B" },
+    { media: "(prefers-color-scheme: dark)", color: "#0C0C10" },
   ],
 };
 
@@ -61,6 +62,12 @@ export const metadata: Metadata = {
     "Education",
     "National University",
   ],
+  applicationName: "TTC NETWORK",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TTC NETWORK",
+  },
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -68,7 +75,8 @@ export const metadata: Metadata = {
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
     apple: [
-      { url: "/icon-192.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
   },
   other: {
@@ -85,7 +93,32 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${plusJakarta.variable} ${hindSiliguri.variable} ${sora.variable} ${caveat.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                window.__ttcInstallPrompt = null;
+                window.__ttcAppInstalled = false;
+                window.addEventListener('beforeinstallprompt', function(e) {
+                  e.preventDefault();
+                  window.__ttcInstallPrompt = e;
+                  window.dispatchEvent(new CustomEvent('ttc-install-prompt-ready', { detail: e }));
+                  console.log('[PWA] beforeinstallprompt captured early in head');
+                });
+                window.addEventListener('appinstalled', function() {
+                  window.__ttcAppInstalled = true;
+                  window.__ttcInstallPrompt = null;
+                  window.dispatchEvent(new CustomEvent('ttc-app-installed'));
+                  console.log('[PWA] TTC NETWORK app installed');
+                });
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased bg-[#FAFAFA] dark:bg-[#0C0C10] text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        <PwaRegister />
         <ThemeProvider>
           <AuthProvider>
             <VerificationProvider>
