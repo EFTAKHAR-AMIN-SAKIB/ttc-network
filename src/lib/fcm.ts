@@ -23,12 +23,41 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
 
     try {
         // 1. Get or register the service worker (/sw.js)
-        let registration = await navigator.serviceWorker.getRegistration("/");
+        let registration = await navigator.serviceWorker.getRegistration();
         if (!registration) {
             registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         }
         const activeRegistration = await navigator.serviceWorker.ready;
         const targetRegistration = activeRegistration || registration;
+
+        // Ensure service worker is fully activated
+        if (targetRegistration.installing || targetRegistration.waiting) {
+            console.log("[FCM] Waiting for service worker activation...");
+            await new Promise<void>((resolve) => {
+                const sw = targetRegistration.installing || targetRegistration.waiting;
+                if (!sw) {
+                    resolve();
+                    return;
+                }
+                sw.addEventListener("statechange", () => {
+                    if (sw.state === "activated") resolve();
+                });
+                setTimeout(resolve, 1500);
+            });
+        }
+
+        // Clear any stale push subscription from previous sessions/keys
+        if (targetRegistration && targetRegistration.pushManager) {
+            try {
+                const existingSub = await targetRegistration.pushManager.getSubscription();
+                if (existingSub) {
+                    console.log("[FCM] Clearing stale push subscription to refresh registration...");
+                    await existingSub.unsubscribe();
+                }
+            } catch (unsubErr) {
+                console.warn("[FCM] Could not unsubscribe stale subscription:", unsubErr);
+            }
+        }
 
         // 2. Request Notification Permission only if explicitly prompted or already granted
         let permission = Notification.permission;
@@ -82,10 +111,18 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
             return token;
         } else {
             console.warn("[FCM] No registration token available:", lastError);
+            const errStr = String(lastError?.message || "");
+            if (errStr.includes("push service error")) {
+                throw new Error("Push service error: If using Brave browser, enable 'Google services for push messaging' in Brave Settings. If on Xiaomi/MIUI, check Battery Saver settings.");
+            }
             throw new Error(lastError?.message || "Failed to generate FCM token from browser");
         }
     } catch (err: any) {
         console.error("[FCM] Error setting up FCM:", err);
+        const errStr = String(err?.message || "");
+        if (errStr.includes("push service error")) {
+            throw new Error("Push service error: If using Brave, enable 'Google services for push messaging' in Brave Settings. If on Xiaomi, check Battery Saver.");
+        }
         throw err;
     }
 }
