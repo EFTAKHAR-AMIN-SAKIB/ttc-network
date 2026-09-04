@@ -13,6 +13,7 @@ import { ReactionBtn } from "./ReactionSystem";
 import { ExpandableText, TimeAgo } from "./SocialUtils";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import Link from "next/link";
+import { useMentionAutosuggest, MentionDropdown } from "./MentionDropdown";
 
 /**
  * CommentItem Component
@@ -162,6 +163,12 @@ export function CommentSystem({
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const searchParams = useSearchParams();
 
+    const mention = useMentionAutosuggest({
+        value: text,
+        setValue: setText,
+        inputRef,
+    });
+
     const draftKey = `ttc_comment_draft_${contentType}_${contentId}`;
 
     // Load draft
@@ -245,7 +252,19 @@ export function CommentSystem({
             </div>
 
             {/* Input Wrapper */}
-            <div className="mb-8">
+            <div className="mb-8 relative">
+                {user && (
+                    <MentionDropdown
+                        isOpen={mention.isOpen}
+                        query={mention.query}
+                        suggestions={mention.suggestions}
+                        selectedIndex={mention.selectedIndex}
+                        setSelectedIndex={mention.setSelectedIndex}
+                        onSelect={mention.insertMention}
+                        onClose={() => mention.setIsOpen(false)}
+                        position="top"
+                    />
+                )}
                 <div className={`p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
                     isFocused 
                         ? 'border-primary/45 shadow-lg shadow-primary/5 dark:border-primary/30' 
@@ -286,12 +305,30 @@ export function CommentSystem({
                                         <textarea
                                             ref={inputRef}
                                             value={text}
-                                            onChange={(e) => setText(e.target.value)}
-                                            onFocus={() => setIsFocused(true)}
-                                            onBlur={() => setIsFocused(false)}
+                                            onChange={(e) => {
+                                                setText(e.target.value);
+                                                mention.checkMention();
+                                            }}
+                                            onKeyUp={(e) => {
+                                                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                                                    mention.checkMention();
+                                                }
+                                            }}
+                                            onClick={() => mention.checkMention()}
+                                            onFocus={() => {
+                                                setIsFocused(true);
+                                                mention.checkMention();
+                                            }}
+                                            onBlur={() => {
+                                                setIsFocused(false);
+                                                setTimeout(() => mention.setIsOpen(false), 200);
+                                            }}
                                             placeholder={placeholder}
                                             className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[200px] font-medium placeholder:text-gray-400 dark:text-gray-300"
                                             onKeyDown={(e) => {
+                                                if (mention.handleKeyDown(e)) {
+                                                    return;
+                                                }
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     if (window.innerWidth > 640) {
                                                         e.preventDefault();
@@ -438,6 +475,12 @@ export function CommentDrawer({
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const searchParams = useSearchParams();
+
+    const mention = useMentionAutosuggest({
+        value: text,
+        setValue: setText,
+        inputRef,
+    });
 
     const draftKey = `ttc_comment_draft_${contentType}_${contentId}`;
 
@@ -722,7 +765,19 @@ export function CommentDrawer({
                     </div>
 
                     {/* Fixed Input Form at bottom */}
-                    <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#16171f] shrink-0 pb-safe">
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#16171f] shrink-0 pb-safe relative">
+                        {user && (
+                            <MentionDropdown
+                                isOpen={mention.isOpen}
+                                query={mention.query}
+                                suggestions={mention.suggestions}
+                                selectedIndex={mention.selectedIndex}
+                                setSelectedIndex={mention.setSelectedIndex}
+                                onSelect={mention.insertMention}
+                                onClose={() => mention.setIsOpen(false)}
+                                position="top"
+                            />
+                        )}
                         <div className={`p-3.5 bg-gray-50 dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
                             isFocused 
                                 ? 'border-primary/45 shadow-lg shadow-primary/5 dark:border-primary/30' 
@@ -736,7 +791,7 @@ export function CommentDrawer({
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: 10 }}
-                                                className="flex items-center justify-between bg-white dark:bg-gray-800 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-700 mb-2"
+                                                className="flex items-center justify-between bg-white dark:bg-gray-850 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-700 mb-2"
                                             >
                                                 <div className="flex items-center gap-2 text-[10px] uppercase font-black text-gray-500">
                                                     <Reply size={12} className="text-primary" /> 
@@ -763,12 +818,30 @@ export function CommentDrawer({
                                                 <textarea
                                                     ref={inputRef}
                                                     value={text}
-                                                    onChange={(e) => setText(e.target.value)}
-                                                    onFocus={() => setIsFocused(true)}
-                                                    onBlur={() => setIsFocused(false)}
+                                                    onChange={(e) => {
+                                                        setText(e.target.value);
+                                                        mention.checkMention();
+                                                    }}
+                                                    onKeyUp={(e) => {
+                                                        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                                                            mention.checkMention();
+                                                        }
+                                                    }}
+                                                    onClick={() => mention.checkMention()}
+                                                    onFocus={() => {
+                                                        setIsFocused(true);
+                                                        mention.checkMention();
+                                                    }}
+                                                    onBlur={() => {
+                                                        setIsFocused(false);
+                                                        setTimeout(() => mention.setIsOpen(false), 200);
+                                                    }}
                                                     placeholder={placeholder}
                                                     className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm py-1.5 resize-none min-h-[40px] max-h-[120px] font-medium placeholder:text-gray-400 dark:text-gray-300"
                                                     onKeyDown={(e) => {
+                                                        if (mention.handleKeyDown(e)) {
+                                                            return;
+                                                        }
                                                         if (e.key === 'Enter' && !e.shiftKey) {
                                                             if (window.innerWidth > 640) {
                                                                 e.preventDefault();

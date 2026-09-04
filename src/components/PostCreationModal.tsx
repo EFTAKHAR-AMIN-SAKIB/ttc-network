@@ -12,6 +12,7 @@ import { uploadFile } from "@/lib/storage";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
+import { useMentionAutosuggest, MentionDropdown } from "@/components/Social/MentionDropdown";
 
 interface PostCreationModalProps {
     isOpen: boolean;
@@ -28,6 +29,13 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
+
+    const descInputRef = useRef<HTMLTextAreaElement>(null);
+    const mention = useMentionAutosuggest({
+        value: description,
+        setValue: setDescription,
+        inputRef: descInputRef,
+    });
 
     useEffect(() => {
         if (isOpen) {
@@ -257,12 +265,39 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
                         </div>
 
                         {/* Description */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Description</label>
+                            <MentionDropdown
+                                isOpen={mention.isOpen}
+                                query={mention.query}
+                                suggestions={mention.suggestions}
+                                selectedIndex={mention.selectedIndex}
+                                setSelectedIndex={mention.setSelectedIndex}
+                                onSelect={mention.insertMention}
+                                onClose={() => mention.setIsOpen(false)}
+                                position="bottom"
+                            />
                             <textarea 
+                                ref={descInputRef}
                                 rows={4}
                                 value={description}
-                                onChange={(e) => setDescription(e.target.value)}
+                                onChange={(e) => {
+                                    setDescription(e.target.value);
+                                    mention.checkMention();
+                                }}
+                                onKeyUp={(e) => {
+                                    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                                        mention.checkMention();
+                                    }
+                                }}
+                                onClick={() => mention.checkMention()}
+                                onFocus={() => mention.checkMention()}
+                                onBlur={() => {
+                                    setTimeout(() => mention.setIsOpen(false), 200);
+                                }}
+                                onKeyDown={(e) => {
+                                    mention.handleKeyDown(e);
+                                }}
                                 placeholder="Tell us more about it..."
                                 className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl px-6 py-4 text-base font-medium outline-none transition-all shadow-inner resize-none"
                             />
