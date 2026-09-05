@@ -39,7 +39,9 @@ import {
     toggleSaveNotice,
     getSavedNoticesFull,
     toggleSaveStudyPost,
-    getSavedStudyPostsFull
+    getSavedStudyPostsFull,
+    getFollowerUserIds,
+    getProfilesByIds
 } from "@/lib/firestore";
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
@@ -54,6 +56,17 @@ import ImageLightbox from "@/components/ImageLightbox";
 // ═══════════════════════════════════════════════════
 //  SUB-COMPONENTS & HELPERS
 // ═══════════════════════════════════════════════════
+
+const formatMetricCount = (num: number): string => {
+    if (!num || num === 0) return "0";
+    if (num >= 1_000_000) {
+        return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    }
+    if (num >= 1_000) {
+        return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    }
+    return num.toLocaleString();
+};
 
 const BadgeDot = ({ role }: { role: string }) => {
     const colors: Record<string, string> = {
@@ -602,32 +615,6 @@ function AllTab({
     router: any;
 }) {
     const college = colleges.find(c => c.id === profile.collegeId);
-    const bioStyle = profile.bioStyle || "serif";
-    const bioFontSize = profile.bioFontSize || "xl";
-    const fontSizes: Record<string, string> = {
-        sm: "text-sm",
-        base: "text-base",
-        lg: "text-lg",
-        xl: "text-xl",
-        "2xl": "text-2xl font-bold"
-    };
-    const sizeClass = fontSizes[bioFontSize] || fontSizes.xl;
-
-    const renderBioContent = () => {
-        if (!profile.bio) return null;
-        return (
-            <div className="relative p-6 sm:p-8 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border border-slate-200/60 dark:border-gray-800 rounded-[2.5rem] shadow-sm overflow-hidden">
-                <div className="absolute -top-12 -right-12 w-28 h-28 bg-primary/10 rounded-full blur-3xl opacity-60 pointer-events-none" />
-                <div className="flex gap-2 items-center mb-3">
-                    <Sparkles size={14} className="text-primary animate-pulse" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-primary">Interactive Narrative</span>
-                </div>
-                <p className={`${sizeClass} text-navy-900 dark:text-gray-100 leading-relaxed font-sans break-words pt-1`}>
-                    {profile.bio}
-                </p>
-            </div>
-        );
-    };
 
     return (
         <motion.div 
@@ -635,13 +622,6 @@ function AllTab({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
         >
-            {/* Bio/Narrative */}
-            {profile.bio && (
-                <section>
-                    {renderBioContent()}
-                </section>
-            )}
-
             {/* Academic & Professional Grid */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-6 sm:p-8 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2rem] shadow-sm flex flex-col justify-between">
@@ -869,7 +849,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         };
         resolve();
     }, [urlUid, router]);
-    const { user, profile: currentUserProfile } = useAuth();
+    const { user, profile: currentUserProfile, refreshProfile } = useAuth();
     const { showToast } = useToast();
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
 
@@ -954,9 +934,18 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [followersCount, setFollowersCount] = useState(0);
     const [followingCount, setFollowingCount] = useState(0);
 
+    // Follower Avatar Previews (Top 4)
+    const [followerPreviews, setFollowerPreviews] = useState<any[]>([]);
+
     // Followers / Following Modal State
     const [followersModalOpen, setFollowersModalOpen] = useState(false);
     const [followersModalTab, setFollowersModalTab] = useState<"followers" | "following">("followers");
+
+    // Inline Bio Editor State
+    const [isEditingBio, setIsEditingBio] = useState(false);
+    const [inlineBioText, setInlineBioText] = useState("");
+    const [savingBio, setSavingBio] = useState(false);
+    const [bioExpanded, setBioExpanded] = useState(false);
 
     // Contact Popover State
     const [contactOpen, setContactOpen] = useState(false);
@@ -1052,6 +1041,51 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             checkIsFollowing(user.uid, uid).then(setIsFollowing);
         }
     }, [user?.uid, uid]);
+
+    // Fetch follower preview avatars (up to 4) for the avatar stack
+    useEffect(() => {
+        if (!uid) return;
+        let isMounted = true;
+        const fetchPreviews = async () => {
+            try {
+                const uids = await getFollowerUserIds(uid);
+                if (uids.length > 0) {
+                    const sample = uids.slice(0, 4);
+                    const profiles = await getProfilesByIds(sample);
+                    if (isMounted) setFollowerPreviews(profiles);
+                } else {
+                    if (isMounted) setFollowerPreviews([]);
+                }
+            } catch (e) {
+                console.error("Failed to load follower previews:", e);
+            }
+        };
+        fetchPreviews();
+        return () => { isMounted = false; };
+    }, [uid, followersCount]);
+
+    // Save inline bio directly to Firestore
+    const handleSaveInlineBio = async () => {
+        if (!uid || !isViewingAsOwner) return;
+        setSavingBio(true);
+        try {
+            const db = getDb();
+            const userRef = doc(db, "users", uid);
+            await updateDoc(userRef, {
+                bio: inlineBioText.trim(),
+                updatedAt: serverTimestamp()
+            });
+            await refreshProfile();
+            setProfileData(prev => prev ? ({ ...prev, bio: inlineBioText.trim() }) : prev);
+            setIsEditingBio(false);
+            showToast("Bio updated successfully!", "success");
+        } catch (err) {
+            console.error("Failed to save bio:", err);
+            showToast("Failed to save bio. Please try again.", "error");
+        } finally {
+            setSavingBio(false);
+        }
+    };
 
     // Load saved posts/stories/notices/study posts when activeTab is "saved"
     useEffect(() => {
@@ -1584,9 +1618,9 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
                 {/* Profile Identity Strip */}
                 <div className="px-2 sm:px-6 relative">
-                    <div className="flex flex-col md:flex-row items-center md:items-end gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative z-10">
+                    <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative z-10">
                         {/* Avatar */}
-                        <div className="relative group/avatar">
+                        <div className="relative group/avatar shrink-0">
                             <div 
                                 className="w-24 h-24 sm:w-32 sm:h-32 md:w-44 md:h-44 rounded-[2rem] sm:rounded-[2.5rem] md:rounded-[3.5rem] bg-white border-[6px] sm:border-[10px] border-[#FAFAF8] dark:border-[#0c0c10] overflow-hidden shadow-2xl relative cursor-zoom-in"
                                 onClick={() => openLightbox(profileData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.displayName)}&background=1A56DB&color=fff&size=500`, profileData.displayName)}
@@ -1667,24 +1701,173 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                             </div>
                         </div>
 
-                        {/* Name & Basic Info */}
-                        <div className="flex-1 text-center md:text-left pb-2">
-                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
-                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
-                                    {profileData.displayName}
-                                </h1>
-                                {profileData.roleVerified && (
-                                    <div className="p-1 bg-primary/10 text-primary rounded-full" title="Verified Educator">
-                                        <CheckCircle size={18} fill="currentColor" stroke="white" strokeWidth={3} />
-                                    </div>
-                                )}
-                                <RoleTag role={profileData.role} />
+                        {/* Name & Basic Info & Bio & Actions Container */}
+                        <div className="flex-1 flex flex-col md:flex-row items-center md:items-start justify-between gap-4 w-full pt-3 sm:pt-4 md:pt-24 lg:pt-28">
+                            {/* Name, Handle, Followers & Bio Column */}
+                            <div className="flex-1 text-center md:text-left space-y-2 max-w-2xl min-w-0">
+                                {/* Name and Badges */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+                                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-navy-900 dark:text-gray-100 tracking-tight">
+                                        {profileData.displayName}
+                                    </h1>
+                                    {profileData.roleVerified && (
+                                        <div className="p-1 bg-primary/10 text-primary rounded-full" title="Verified Educator">
+                                            <CheckCircle size={18} fill="currentColor" stroke="white" strokeWidth={3} />
+                                        </div>
+                                    )}
+                                    <RoleTag role={profileData.role} />
+                                </div>
+
+                                {/* Handle and Location */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3.5 text-gray-400 font-bold text-xs uppercase tracking-widest">
+                                    <div className="flex items-center gap-1"><AtSign size={13} className="text-primary/50" /> {profileData.username}</div>
+                                    <div className="flex items-center gap-1"><MapPin size={13} className="text-primary/50" /> {profileData.location || "Bangladesh"}</div>
+                                </div>
+
+                                {/* Followers & Following Metric Line with Avatar Stack (Facebook Style) */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFollowersModalTab("followers");
+                                            setFollowersModalOpen(true);
+                                        }}
+                                        className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
+                                    >
+                                        <span className="font-black text-navy-900 dark:text-gray-100 group-hover:text-primary transition-colors">
+                                            {formatMetricCount(followersCount)}
+                                        </span>
+                                        <span className="group-hover:underline underline-offset-4">
+                                            {followersCount === 1 ? "follower" : "followers"}
+                                        </span>
+                                    </button>
+
+                                    <span className="text-gray-300 dark:text-gray-600 font-bold">•</span>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFollowersModalTab("following");
+                                            setFollowersModalOpen(true);
+                                        }}
+                                        className="group inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
+                                    >
+                                        <span className="font-black text-navy-900 dark:text-gray-100 group-hover:text-primary transition-colors">
+                                            {formatMetricCount(followingCount)}
+                                        </span>
+                                        <span className="group-hover:underline underline-offset-4">following</span>
+                                    </button>
+
+                                    {/* Follower Avatar Stack */}
+                                    {followerPreviews.length > 0 && (
+                                        <div 
+                                            onClick={() => {
+                                                setFollowersModalTab("followers");
+                                                setFollowersModalOpen(true);
+                                            }}
+                                            className="inline-flex items-center -space-x-2 overflow-hidden cursor-pointer ml-1 py-0.5 px-1 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
+                                            title="View followers"
+                                        >
+                                            {followerPreviews.map((f) => (
+                                                <div 
+                                                    key={f.id} 
+                                                    className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full ring-2 ring-white dark:ring-[#0c0c10] overflow-hidden bg-primary/10 shrink-0"
+                                                >
+                                                    <Image 
+                                                        src={f.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.displayName || 'User')}&background=1A56DB&color=fff&size=100`} 
+                                                        alt={f.displayName || 'Follower'} 
+                                                        fill 
+                                                        className="object-cover" 
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Bio Section with Inline Editing (Facebook Style) */}
+                                <div className="pt-1 text-center md:text-left">
+                                    {isViewingAsOwner && isEditingBio ? (
+                                        <div className="bg-slate-50 dark:bg-gray-800/60 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-gray-700 max-w-xl space-y-2.5 shadow-inner text-left">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black uppercase tracking-wider text-primary">Edit Bio</span>
+                                                <span className={`text-[10px] font-bold ${inlineBioText.length > 250 ? 'text-red-500' : 'text-gray-400'}`}>
+                                                    {inlineBioText.length} / 250
+                                                </span>
+                                            </div>
+                                            <textarea
+                                                value={inlineBioText}
+                                                onChange={(e) => setInlineBioText(e.target.value.slice(0, 250))}
+                                                placeholder="Describe who you are, your passion, or educational journey..."
+                                                rows={3}
+                                                className="w-full p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 text-xs sm:text-sm text-navy-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none leading-relaxed"
+                                                autoFocus
+                                            />
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsEditingBio(false)}
+                                                    disabled={savingBio}
+                                                    className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveInlineBio}
+                                                    disabled={savingBio}
+                                                    className="px-4 py-1.5 bg-primary text-white text-xs font-black rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm shadow-primary/20 cursor-pointer"
+                                                >
+                                                    {savingBio ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                                                    <span>Save</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : profileData.bio ? (
+                                        <div className="group/bio relative inline-block text-left max-w-xl">
+                                            <p className={`text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-normal whitespace-pre-line ${
+                                                !bioExpanded && profileData.bio.length > 160 ? "line-clamp-2" : ""
+                                            }`}>
+                                                {profileData.bio}
+                                            </p>
+                                            {profileData.bio.length > 160 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setBioExpanded(!bioExpanded)}
+                                                    className="text-primary hover:underline text-[11px] font-bold mt-0.5 inline-block cursor-pointer"
+                                                >
+                                                    {bioExpanded ? "See less" : "See more"}
+                                                </button>
+                                            )}
+                                            {isViewingAsOwner && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setInlineBioText(profileData.bio || "");
+                                                        setIsEditingBio(true);
+                                                    }}
+                                                    className="ml-2 text-gray-400 hover:text-primary transition-colors inline-flex items-center gap-1 text-[11px] font-bold opacity-80 md:opacity-0 group-hover/bio:opacity-100 cursor-pointer"
+                                                    title="Edit Bio"
+                                                >
+                                                    <Pencil size={11} /> <span>Edit bio</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : isViewingAsOwner ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setInlineBioText("");
+                                                setIsEditingBio(true);
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-primary/40 hover:border-primary bg-primary/5 hover:bg-primary/10 text-primary text-xs font-bold transition-all cursor-pointer"
+                                        >
+                                            <Plus size={13} />
+                                            <span>Add bio</span>
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
-                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-gray-400 font-bold text-xs uppercase tracking-widest">
-                                <div className="flex items-center gap-1.5"><AtSign size={14} className="text-primary/40" /> {profileData.username}</div>
-                                <div className="flex items-center gap-1.5"><MapPin size={14} className="text-primary/40" /> {profileData.location || "Bangladesh"}</div>
-                            </div>
-                        </div>
 
                         {/* Action Buttons */}
                         <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2.5 md:pb-2 w-full md:w-auto">
@@ -1867,6 +2050,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     </div>
                 </div>
             </div>
+        </div>
 
             {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
             {isViewingAsOwner && profileData && showProfileStrength && (
@@ -1991,31 +2175,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         </div>
                     </div>
 
-                    {/* Quick Stats — Clickable to view Followers / Following */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <button 
-                            type="button"
-                            onClick={() => {
-                                setFollowersModalTab("followers");
-                                setFollowersModalOpen(true);
-                            }}
-                            className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 hover:border-primary/40 dark:hover:border-primary/40 p-6 rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all active:scale-95 group cursor-pointer"
-                        >
-                            <div className="text-2xl font-black text-primary group-hover:scale-105 transition-transform">{followersCount}</div>
-                            <div className="text-[9px] font-black uppercase text-gray-400 group-hover:text-primary tracking-wider transition-colors mt-1">Followers</div>
-                        </button>
-                        <button 
-                            type="button"
-                            onClick={() => {
-                                setFollowersModalTab("following");
-                                setFollowersModalOpen(true);
-                            }}
-                            className="bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 hover:border-primary/40 dark:hover:border-primary/40 p-6 rounded-[2rem] text-center shadow-sm hover:shadow-md transition-all active:scale-95 group cursor-pointer"
-                        >
-                            <div className="text-2xl font-black text-navy-900 dark:text-gray-100 group-hover:text-primary group-hover:scale-105 transition-all">{followingCount}</div>
-                            <div className="text-[9px] font-black uppercase text-gray-400 group-hover:text-primary tracking-wider transition-colors mt-1">Following</div>
-                        </button>
-                    </div>
+
 
                     {/* Socials & Connectivity */}
                     <div className="space-y-4 px-2">
@@ -2576,7 +2736,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             <FollowersModal
                 isOpen={followersModalOpen}
                 onClose={() => setFollowersModalOpen(false)}
-                userId={uid}
+                userId={uid || ""}
                 initialTab={followersModalTab}
                 followersCount={followersCount}
                 followingCount={followingCount}

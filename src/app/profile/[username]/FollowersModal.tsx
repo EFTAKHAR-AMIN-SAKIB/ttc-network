@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, UserPlus, UserCheck, Loader2, AtSign, CheckCircle } from "lucide-react";
+import { X, Users, UserPlus, UserCheck, Loader2, AtSign, CheckCircle, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getUserFollowers, getUserFollowing, toggleFollowUser, checkIsFollowing, type FirestoreUser } from "@/lib/firestore";
@@ -32,12 +32,14 @@ export function FollowersModal({
     const [followers, setFollowers] = useState<(FirestoreUser & { id: string })[]>([]);
     const [following, setFollowing] = useState<(FirestoreUser & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
     const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
     const [togglingMap, setTogglingMap] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (isOpen) {
             setActiveTab(initialTab);
+            setSearchQuery("");
         }
     }, [isOpen, initialTab]);
 
@@ -106,9 +108,19 @@ export function FollowersModal({
         }
     };
 
-    if (!isOpen) return null;
+    const rawList = activeTab === "followers" ? followers : following;
 
-    const listToRender = activeTab === "followers" ? followers : following;
+    const listToRender = useMemo(() => {
+        if (!searchQuery.trim()) return rawList;
+        const q = searchQuery.toLowerCase().trim();
+        return rawList.filter(person => 
+            (person.displayName && person.displayName.toLowerCase().includes(q)) ||
+            (person.username && person.username.toLowerCase().includes(q)) ||
+            (person.role && person.role.toLowerCase().includes(q))
+        );
+    }, [rawList, searchQuery]);
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -122,7 +134,10 @@ export function FollowersModal({
                 <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setActiveTab("followers")}
+                            onClick={() => {
+                                setActiveTab("followers");
+                                setSearchQuery("");
+                            }}
                             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
                                 activeTab === "followers"
                                     ? "bg-primary text-white shadow-md shadow-primary/20"
@@ -132,7 +147,10 @@ export function FollowersModal({
                             Followers ({followersCount})
                         </button>
                         <button
-                            onClick={() => setActiveTab("following")}
+                            onClick={() => {
+                                setActiveTab("following");
+                                setSearchQuery("");
+                            }}
                             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
                                 activeTab === "following"
                                     ? "bg-primary text-white shadow-md shadow-primary/20"
@@ -150,6 +168,28 @@ export function FollowersModal({
                     </button>
                 </div>
 
+                {/* Search Bar */}
+                <div className="px-5 pt-3 pb-1">
+                    <div className="relative flex items-center">
+                        <Search size={15} className="absolute left-3.5 text-gray-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={`Search in ${activeTab}...`}
+                            className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-gray-800/60 border border-slate-200/80 dark:border-gray-700/80 rounded-xl text-xs font-medium text-navy-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-2.5 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 {/* List Content */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
                     {loading ? (
@@ -163,6 +203,7 @@ export function FollowersModal({
                             const isFollowedByMe = followingMap[person.id];
                             const isToggling = togglingMap[person.id];
                             const profileLink = person.username ? `/profile/${person.username}` : `/profile/${person.id}`;
+                            const isFollowBack = activeTab === "followers" && currentUser?.uid === userId && !isFollowedByMe;
 
                             return (
                                 <div
@@ -223,6 +264,11 @@ export function FollowersModal({
                                                     <UserCheck size={12} />
                                                     <span>Following</span>
                                                 </>
+                                            ) : isFollowBack ? (
+                                                <>
+                                                    <UserPlus size={12} />
+                                                    <span>Follow Back</span>
+                                                </>
                                             ) : (
                                                 <>
                                                     <UserPlus size={12} />
@@ -238,7 +284,9 @@ export function FollowersModal({
                         <div className="py-14 text-center space-y-2">
                             <Users size={32} className="mx-auto text-gray-300 dark:text-gray-700" />
                             <p className="text-xs font-black uppercase tracking-widest text-gray-400">
-                                {activeTab === "followers" ? "No followers yet" : "Not following anyone yet"}
+                                {searchQuery.trim() 
+                                    ? `No users found matching "${searchQuery}"`
+                                    : (activeTab === "followers" ? "No followers yet" : "Not following anyone yet")}
                             </p>
                         </div>
                     )}
