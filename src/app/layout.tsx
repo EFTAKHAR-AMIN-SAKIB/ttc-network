@@ -101,6 +101,20 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(regs) {
+                      for (var r of regs) {
+                        r.unregister();
+                      }
+                    });
+                  }
+                  if ('caches' in window) {
+                    caches.keys().then(function(keys) {
+                      for (var k of keys) caches.delete(k);
+                    });
+                  }
+                }
                 var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
                 if (isStandalone) {
                   document.title = 'TTC NETWORK';

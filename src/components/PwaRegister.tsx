@@ -42,16 +42,28 @@ export default function PwaRegister() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
-    // 2. Register Service Worker on all pages for all users (guests & authenticated)
+    // 2. Register Service Worker in production only; unregister in development to prevent stale caches
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js", { scope: "/" })
-        .then((reg) => {
-          console.log("[PWA] Service Worker registered globally with scope:", reg.scope);
-        })
-        .catch((err) => {
-          console.warn("[PWA] Service Worker global registration:", err);
+      if (process.env.NODE_ENV === "production") {
+        navigator.serviceWorker
+          .register("/sw.js", { scope: "/" })
+          .then((reg) => {
+            console.log("[PWA] Service Worker registered globally with scope:", reg.scope);
+          })
+          .catch((err) => {
+            console.warn("[PWA] Service Worker global registration:", err);
+          });
+      } else {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister().then((unregistered) => {
+              if (unregistered) {
+                console.log("[PWA] Dev mode: Unregistered active service worker:", registration.scope);
+              }
+            });
+          }
         });
+      }
     }
 
     return () => {

@@ -89,19 +89,46 @@ async function generateIco(outputPath) {
   console.log(`  ✓ ${outputPath} (ICO with ${sizes.join(", ")}px)`);
 }
 
+/**
+ * Generate maskable icon with safe zone padding (Android PWA adaptive icon)
+ */
+async function generateMaskablePng(size, outputPath) {
+  const innerSize = Math.round(size * 0.8);
+  const offset = Math.round((size - innerSize) / 2);
+
+  const innerBuf = await sharp(SOURCE)
+    .resize(innerSize, innerSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  await sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite([{ input: innerBuf, top: offset, left: offset }])
+    .png()
+    .toFile(outputPath);
+  console.log(`  ✓ ${outputPath} (${size}x${size} maskable)`);
+}
+
 async function main() {
-  console.log("🎨 Generating favicons from public/logo.png...\n");
+  console.log("🎨 Generating favicons and app icons from public/logo.png...\n");
 
-  // 1. favicon.ico → src/app/favicon.ico (Next.js auto-serves this)
+  // 1. favicon.ico → src/app/favicon.ico & public/favicon.ico
   await generateIco(join(APP_DIR, "favicon.ico"));
+  await generateIco(join(ROOT, "public", "favicon.ico"));
 
-  // 2. icon.png → src/app/icon.png (Next.js auto-serves as /icon.png)
-  //    192x192 is the standard web app icon size
+  // 2. icon.png → src/app/icon.png & public/icon.png
   await generatePng(192, join(APP_DIR, "icon.png"));
+  await generatePng(192, join(ROOT, "public", "icon.png"));
 
-  // 3. apple-icon.png → src/app/apple-icon.png (Next.js auto-serves as /apple-icon.png)
-  //    180x180 is the Apple standard
+  // 3. apple-icon.png → src/app/apple-icon.png & public/apple-touch-icon.png
   await generatePng(180, join(APP_DIR, "apple-icon.png"));
+  await generatePng(180, join(ROOT, "public", "apple-touch-icon.png"));
 
   // 4. Additional sizes for web manifest / PWA
   await generatePng(16, join(ROOT, "public", "icon-16.png"));
@@ -109,7 +136,13 @@ async function main() {
   await generatePng(192, join(ROOT, "public", "icon-192.png"));
   await generatePng(512, join(ROOT, "public", "icon-512.png"));
 
-  console.log("\n✅ All favicons generated successfully!");
+  // 5. Maskable icon for Android PWA
+  await generateMaskablePng(512, join(ROOT, "public", "icon-maskable-512.png"));
+
+  // 6. Navbar brand logo → public/logos/ttc network.png
+  await generatePng(512, join(ROOT, "public", "logos", "ttc network.png"));
+
+  console.log("\n✅ All favicons, PWA icons, and brand logos generated successfully!");
   console.log("\n📋 To update icons in the future:");
   console.log("   1. Replace public/logo.png with the new logo");
   console.log("   2. Run: npm run generate-favicons");

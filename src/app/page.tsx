@@ -36,6 +36,11 @@ import {
   MicOff,
   FileWarning,
   Book,
+  CheckCircle2,
+  ExternalLink,
+  ShieldCheck,
+  Receipt,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import OrbitalHero from "@/components/OrbitalHero";
@@ -79,12 +84,44 @@ const ICON_MAP: Record<string, LucideIcon> = {
   HelpCircle,
 };
 
-/* ─── Step Color Palette ─── */
-const STEP_COLORS = [
-  { gradient: "from-blue-500 to-indigo-600", bg: "rgba(59,130,246,0.08)", accent: "#3B82F6" },
-  { gradient: "from-amber-500 to-orange-600", bg: "rgba(245,158,11,0.08)", accent: "#F59E0B" },
-  { gradient: "from-emerald-500 to-teal-600", bg: "rgba(16,185,129,0.08)", accent: "#10B981" },
-  { gradient: "from-violet-500 to-purple-600", bg: "rgba(139,92,246,0.08)", accent: "#8B5CF6" },
+/* ─── Admission Step Themes & Bengali Badging ─── */
+const ADMISSION_STEP_THEMES = [
+  {
+    bengaliNum: "০১",
+    phaseTag: "প্রাথমিক পর্যায়",
+    nodeGradient: "from-blue-600 to-indigo-600",
+    ringCol: "ring-blue-500/20 dark:ring-blue-400/25",
+    pillBg: "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200/70 dark:border-blue-800/50",
+    topAccent: "from-blue-600 via-indigo-600 to-sky-500",
+    highlights: ["আবেদন ফি: ৩৫০/-", "পোর্টাল: app1.nu.edu.bd", "এসএসসি ও এইচএসসি তথ্য"],
+  },
+  {
+    bengaliNum: "০২",
+    phaseTag: "বাছাই ও ফলাফল",
+    nodeGradient: "from-teal-600 to-cyan-600",
+    ringCol: "ring-teal-500/20 dark:ring-teal-400/25",
+    pillBg: "bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-200/70 dark:border-teal-800/50",
+    topAccent: "from-teal-600 via-cyan-600 to-emerald-500",
+    highlights: ["জিপিএ ভিত্তিক মেধা তালিকা", "বিষয়/কলেজ মাইগ্রেশন সুবিধা", "১ম ও ২য় রিলিজ স্লিপ"],
+  },
+  {
+    bengaliNum: "০৩",
+    phaseTag: "কাগজপত্র যাচাই",
+    nodeGradient: "from-indigo-600 to-purple-600",
+    ringCol: "ring-indigo-500/20 dark:ring-indigo-400/25",
+    pillBg: "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200/70 dark:border-indigo-800/50",
+    topAccent: "from-indigo-600 via-purple-600 to-violet-500",
+    highlights: ["মূল মার্কশিট ও প্রশংসাপত্র", "রঙিন পাসপোর্ট সাইজ ছবি", "কলেজ অফিসে ভেরিফিকেশন"],
+  },
+  {
+    bengaliNum: "০৪",
+    phaseTag: "চূড়ান্ত ভর্তি",
+    nodeGradient: "from-emerald-600 to-teal-600",
+    ringCol: "ring-emerald-500/20 dark:ring-emerald-400/25",
+    pillBg: "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800/50",
+    topAccent: "from-emerald-600 via-teal-600 to-cyan-500",
+    highlights: ["কলেজ রোল ও আইডি কার্ড", "ক্লাস রুটিন ও ওরিয়েন্টেশন", "৪ বছর মেয়াদী সেমিস্টার শুরু"],
+  },
 ];
 
 /* ─── FAQ Styles ─── */
@@ -232,70 +269,86 @@ function FAQItem({
 function AdmissionStepCard({
   step,
   index,
+  isLast,
 }: {
   step: FirestoreAdmissionStep & { id: string };
   index: number;
+  isLast?: boolean;
 }) {
-  const colorSet = STEP_COLORS[index % STEP_COLORS.length];
+  const theme = ADMISSION_STEP_THEMES[index % ADMISSION_STEP_THEMES.length];
   const IconComponent = ICON_MAP[step.iconName] || GraduationCap;
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -30 }}
+      initial={{ opacity: 0, x: -16 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true }}
-      transition={{ delay: index * 0.12, duration: 0.5 }}
-      className="relative flex gap-5 sm:gap-7"
+      transition={{ delay: index * 0.1, duration: 0.4 }}
+      className="relative flex gap-3 sm:gap-5 items-stretch group"
     >
-      {/* Timeline Node */}
-      <div className="flex-shrink-0 flex flex-col items-center z-10">
-        <div className="admission-step-badge w-[60px] h-[60px] rounded-2xl flex items-center justify-center text-white font-extrabold text-xl relative">
-          <span className="relative z-10">{step.stepNumber}</span>
-          {/* Animated ring */}
-          <div className="absolute inset-[-4px] rounded-[20px] border-2 border-primary/20 dark:border-indigo-500/20 animate-pulse" />
+      {/* Timeline Node Column (Minimalist Circular Stepper) */}
+      <div className="flex-shrink-0 flex flex-col items-center pt-1 sm:pt-1.5">
+        <div
+          className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br ${theme.nodeGradient} text-white font-bold text-xs sm:text-sm shadow-sm ring-4 ${theme.ringCol} flex items-center justify-center flex-shrink-0 aspect-square select-none relative z-10 transition-transform duration-200 group-hover:scale-110`}
+        >
+          <span className="font-bengali leading-none">{theme.bengaliNum}</span>
         </div>
-        {/* Connector line (hidden on last) */}
-        <div className="flex-1 w-[3px] bg-gradient-to-b from-primary/30 to-transparent dark:from-indigo-500/20 min-h-[20px]" />
+        {!isLast && (
+          <div className="flex-1 w-[2px] my-1 sm:my-1.5 bg-gradient-to-b from-blue-500/30 via-teal-500/25 to-indigo-500/20 dark:from-sky-400/25 dark:via-teal-400/20 dark:to-indigo-400/15 rounded-full" />
+        )}
       </div>
 
-      {/* Step Card */}
-      <div className="admission-step-card flex-1 p-6 sm:p-7 mb-6 group">
-        {/* Top accent line */}
+      {/* Step Content Card */}
+      <div className="admission-step-card flex-1 p-4 sm:p-6 mb-4 sm:mb-6">
+        {/* Top Accent Line */}
         <div
-          className={`absolute top-0 left-0 right-0 h-[2px] rounded-t-[20px] bg-gradient-to-r ${colorSet.gradient} opacity-60 group-hover:opacity-100 transition-opacity duration-300`}
+          className={`absolute top-0 left-0 right-0 h-[2.5px] rounded-t-[16px] sm:rounded-t-[20px] bg-gradient-to-r ${theme.topAccent} opacity-80 group-hover:opacity-100 transition-opacity duration-300`}
         />
 
-        {/* Icon + Title Row */}
-        <div className="flex items-start gap-4">
-          <div
-            className={`flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br ${colorSet.gradient} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}
+        {/* Header Row: Icon + Title + Phase Badge */}
+        <div className="flex items-start justify-between gap-2.5 pb-3 border-b border-gray-100 dark:border-white/5">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div
+              className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${theme.nodeGradient} flex items-center justify-center text-white shadow-sm transition-transform duration-300 group-hover:scale-105 flex-shrink-0`}
+            >
+              <IconComponent size={18} className="sm:w-5 sm:h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white font-bengali leading-snug">
+                {step.title}
+              </h3>
+              <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 font-bengali mt-0.5 truncate">
+                {step.subtitle}
+              </p>
+            </div>
+          </div>
+
+          <span
+            className={`flex-shrink-0 inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold border ${theme.pillBg} font-bengali tracking-wide whitespace-nowrap`}
           >
-            <IconComponent size={22} className="text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white font-bengali leading-snug">
-              {step.title}
-            </h3>
-            <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mt-0.5 font-english tracking-wide">
-              {step.subtitle}
-            </p>
-          </div>
+            {theme.phaseTag}
+          </span>
         </div>
 
         {/* Description */}
-        <p className="mt-4 text-sm sm:text-[15px] text-gray-700 dark:text-gray-300 leading-relaxed font-bengali">
+        <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-bengali">
           {step.description}
         </p>
 
-        {/* Step indicator pill */}
-        <div className="mt-4 flex items-center gap-2">
-          <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-            style={{ background: colorSet.bg, color: colorSet.accent }}
-          >
-            ধাপ {step.stepNumber}
-          </span>
-        </div>
+        {/* Key Highlights Chips */}
+        {theme.highlights && theme.highlights.length > 0 && (
+          <div className="mt-3 sm:mt-4 pt-3 border-t border-dashed border-gray-100 dark:border-white/5 flex flex-wrap gap-1.5 sm:gap-2">
+            {theme.highlights.map((point, pIdx) => (
+              <span
+                key={pIdx}
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-medium bg-gray-50 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-white/5 font-bengali"
+              >
+                <CheckCircle2 size={11} className="text-teal-600 dark:text-teal-400 flex-shrink-0 sm:w-3 sm:h-3" />
+                <span>{point}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -311,54 +364,111 @@ function CostBreakdownPanel({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: 0.3 }}
-      className="admission-cost-panel p-6 sm:p-8"
+      transition={{ duration: 0.5, delay: 0.15 }}
+      className="admission-cost-panel p-4 sm:p-7"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
-          <Coins size={20} className="text-white" />
-        </div>
-        <div>
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-white font-bengali">
-            {title}
-          </h3>
-          <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-            সরকারি কলেজের ক্ষেত্রে প্রযোজ্য
-          </p>
+      {/* Header with Verified Shield */}
+      <div className="flex items-start justify-between gap-3 pb-4 sm:pb-5 border-b border-gray-100 dark:border-white/10">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+            <Coins size={18} className="sm:w-5 sm:h-5" />
+          </div>
+          <div>
+            <h3 className="text-base sm:text-xl font-extrabold text-gray-900 dark:text-white font-bengali">
+              {title}
+            </h3>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <ShieldCheck size={12} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <p className="text-[10px] sm:text-[11px] font-bold text-emerald-700 dark:text-emerald-400 tracking-wider font-bengali">
+                ১৪টি সরকারি টিটিসি-র জন্য প্রযোজ্য
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Cost Rows */}
-      <div className="space-y-2">
-        {costs.map((cost, i) => (
-          <motion.div
-            key={cost.id}
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.08 + 0.4, duration: 0.4 }}
-            className={cost.isHighlighted ? "admission-cost-row-highlight" : "admission-cost-row"}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className={`text-sm font-bengali ${cost.isHighlighted ? "font-extrabold text-primary dark:text-indigo-400" : "font-semibold text-gray-700 dark:text-gray-300"}`}>
-                {cost.label}
-              </span>
-              <span className={`text-sm font-bengali whitespace-nowrap ${cost.isHighlighted ? "font-extrabold text-primary dark:text-indigo-400" : "font-bold text-gray-900 dark:text-white"}`}>
+      {/* Affordability highlight alert */}
+      <div className="mt-3.5 sm:mt-4 p-3 sm:p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-[11px] sm:text-xs font-bengali text-blue-900 dark:text-blue-200 flex items-start gap-2 sm:gap-2.5 leading-relaxed">
+        <Info size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5 sm:w-4 sm:h-4" />
+        <span>
+          সরকারি টিচার্স ট্রেনিং কলেজে বি.এড (অনার্স) প্রোগ্রাম সম্পূর্ণ সরকারি অর্থায়নে পরিচালিত হওয়ায় খরচ দেশের যেকোনো গ্র্যাজুয়েশন কোর্সের তুলনায় অত্যন্ত সাশ্রয়ী।
+        </span>
+      </div>
+
+      {/* Cost List */}
+      <div className="mt-4 sm:mt-5 space-y-2 sm:space-y-2.5">
+        {costs.map((cost) => {
+          if (cost.isHighlighted) {
+            return (
+              <motion.div
+                key={cost.id}
+                initial={{ opacity: 0, scale: 0.96 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.25 }}
+                className="admission-cost-row-highlight mt-3 sm:mt-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-xs"
+              >
+                <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Receipt size={14} className="text-primary dark:text-sky-400 flex-shrink-0" />
+                      <span className="text-xs sm:text-[15px] font-extrabold text-gray-900 dark:text-white font-bengali">
+                        {cost.label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 font-bengali mt-0.5 pl-4 sm:pl-5">
+                      ৮টি সেমিস্টার ও পরীক্ষা ফি সহ আনুমানিক
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-block text-xs sm:text-base font-black text-primary dark:text-sky-400 font-bengali tracking-tight bg-white dark:bg-black/40 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-primary/20 dark:border-sky-400/20 shadow-xs whitespace-nowrap">
+                      {cost.amount}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          }
+
+          return (
+            <div
+              key={cost.id}
+              className="flex items-center justify-between gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-gray-50/70 dark:bg-white/[0.02] border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10 transition-colors"
+            >
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/60 dark:bg-sky-400/60 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 font-bengali truncate">
+                  {cost.label}
+                </span>
+              </div>
+              <span className="text-[11px] sm:text-xs font-bold text-gray-900 dark:text-white font-bengali whitespace-nowrap bg-white dark:bg-white/5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-gray-100 dark:border-white/5 flex-shrink-0">
                 {cost.amount}
               </span>
             </div>
-          </motion.div>
-        ))}
+          );
+        })}
+      </div>
+
+      {/* Official NU Portal CTA */}
+      <div className="mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-gray-100 dark:border-white/10">
+        <a
+          href="http://app1.nu.edu.bd"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all duration-200 font-bengali group"
+        >
+          <span>জাতীয় বিশ্ববিদ্যালয় ভর্তি পোর্টাল</span>
+          <ExternalLink size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+        </a>
       </div>
 
       {/* Footer note */}
-      <div className="mt-5 pt-4 border-t border-gray-100 dark:border-white/5">
-        <p className="text-[11px] text-gray-500 dark:text-gray-500 font-bengali leading-relaxed">
-          * উপরোক্ত খরচের পরিমাণ আনুমানিক এবং জাতীয় বিশ্ববিদ্যালয়ের নির্দেশনা অনুসারে পরিবর্তন হতে পারে।
+      <div className="mt-2.5 sm:mt-3 text-center">
+        <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 font-bengali leading-relaxed">
+          * কলেজ ও জাতীয় বিশ্ববিদ্যালয়ের নির্দেশিকা অনুসারে ফি সামান্য পরিবর্তিত হতে পারে।
         </p>
       </div>
     </motion.div>
@@ -478,7 +588,7 @@ export default function HomePage() {
       {admissionSettings?.isVisible !== false && (
         <section
           id="admission-guide"
-          className="py-16 sm:py-24 px-4 relative overflow-hidden"
+          className="py-12 sm:py-24 px-3 sm:px-4 relative overflow-hidden"
           style={{
             background: "linear-gradient(180deg, rgba(26,86,219,0.02) 0%, transparent 40%, rgba(139,92,246,0.02) 100%)",
           }}
@@ -494,21 +604,21 @@ export default function HomePage() {
               whileInView="visible"
               viewport={{ once: true, margin: "-60px" }}
               variants={containerVariants}
-              className="text-center mb-14"
+              className="text-center mb-10 sm:mb-14"
             >
               <motion.div
                 variants={itemVariants}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-5"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 bg-primary/10 rounded-full mb-4 sm:mb-5"
               >
                 <GraduationCap size={14} className="text-primary" />
-                <span className="text-xs font-bold text-primary tracking-wide uppercase">
+                <span className="text-[11px] sm:text-xs font-bold text-primary tracking-wide uppercase">
                   Admission Guide
                 </span>
               </motion.div>
 
               <motion.h2
                 variants={itemVariants}
-                className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white font-bengali leading-tight"
+                className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white font-bengali leading-tight"
               >
                 {admissionSettings?.sectionTitle || "বি.এড (অনার্স) ভর্তি প্রক্রিয়া"}
               </motion.h2>
@@ -519,6 +629,29 @@ export default function HomePage() {
               >
                 {admissionSettings?.sectionSubtitle || "সরকারি টিচার্স ট্রেনিং কলেজে ভর্তির সহজ ও পূর্ণাঙ্গ গাইডলাইন"}
               </motion.p>
+
+              {/* Quick Overview Badges */}
+              <motion.div
+                variants={itemVariants}
+                className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-3xl mx-auto mt-6"
+              >
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10 shadow-xs text-xs font-semibold text-gray-700 dark:text-gray-200 font-bengali">
+                  <School size={13} className="text-primary dark:text-sky-400" />
+                  <span>১৪টি সরকারি টিটিসি</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10 shadow-xs text-xs font-semibold text-gray-700 dark:text-gray-200 font-bengali">
+                  <Clock size={13} className="text-teal-600 dark:text-teal-400" />
+                  <span>কোর্স মেয়াদ: ৪ বছর (৮টি সেমিস্টার)</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10 shadow-xs text-xs font-semibold text-gray-700 dark:text-gray-200 font-bengali">
+                  <Award size={13} className="text-amber-600 dark:text-amber-400" />
+                  <span>ভর্তি পরীক্ষা নেই • জিপিএ ভিত্তিক মেধা</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10 shadow-xs text-xs font-semibold text-gray-700 dark:text-gray-200 font-bengali">
+                  <Coins size={13} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>সরকারি সাবসিডিপ্রাপ্ত স্বল্পতম খরচ</span>
+                </div>
+              </motion.div>
             </motion.div>
 
             {/* Content Grid: Timeline + Cost Panel */}
@@ -557,11 +690,16 @@ export default function HomePage() {
                 ভর্তি প্রক্রিয়ার তথ্য শীঘ্রই আপডেট করা হবে।
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-10 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-10 items-start">
                 {/* Timeline Steps */}
                 <div className="lg:col-span-3">
                   {admissionSteps.map((step, index) => (
-                    <AdmissionStepCard key={step.id} step={step} index={index} />
+                    <AdmissionStepCard
+                      key={step.id}
+                      step={step}
+                      index={index}
+                      isLast={index === admissionSteps.length - 1}
+                    />
                   ))}
                 </div>
 

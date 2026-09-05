@@ -17,50 +17,50 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 const admissionStepsData = [
-    {
-      title: "অনলাইনে প্রাথমিক আবেদন",
-      subtitle: "Online Primary Application",
-      description: "জাতীয় বিশ্ববিদ্যালয়ের ভর্তি বিষয়ক ওয়েবসাইট (app1.nu.edu.bd) থেকে অনলাইনে প্রাথমিক আবেদন ফরম পূরণ করতে হবে। আবেদন ফি বাবদ ৩০০/৩৫০ টাকা (নির্ধারিত) মোবাইল ব্যাংকিং বা সরাসরি কলেজে জমা দিতে হবে।",
-      iconName: "Monitor",
-      stepNumber: 1,
-      order: 1,
-      isVisible: true,
-    },
-    {
-      title: "মেধাতালিকা প্রকাশ",
-      subtitle: "Merit List Publication",
-      description: "আবেদনকারীদের এসএসসি ও এইচএসসি পরীক্ষার ফলাফলের ভিত্তিতে প্রথম, দ্বিতীয় ও কোটা মেধাতালিকা প্রকাশ করা হবে। এসএমএস বা ওয়েবসাইটের মাধ্যমে ফলাফল জানা যাবে।",
-      iconName: "Trophy",
-      stepNumber: 2,
-      order: 2,
-      isVisible: true,
-    },
-    {
-      title: "চূড়ান্ত ভর্তি ফরম পূরণ",
-      subtitle: "Final Admission Form",
-      description: "মেধাতালিকায় স্থান পেলে অনলাইনে চূড়ান্ত ভর্তি ফরম পূরণ করে প্রিন্ট নিতে হবে। এই ফরমে শিক্ষার্থীর সকল ব্যক্তিগত ও শিক্ষাগত তথ্য নির্ভুলভাবে থাকতে হবে।",
-      iconName: "FileCheck",
-      stepNumber: 3,
-      order: 3,
-      isVisible: true,
-    },
-    {
-      title: "কাগজপত্র ও ফি জমাদান",
-      subtitle: "Document & Fee Submission",
-      description: "চূড়ান্ত ভর্তি ফরম, মূল মার্কশিট, প্রশংসাপত্র, ছবি এবং ভর্তি ফি (প্রায় ৪০০০-৪৫০০ টাকা) সরাসরি কলেজের সংশ্লিষ্ট ডেস্কে জমা দিয়ে ভর্তি নিশ্চিত করতে হবে।",
-      iconName: "GraduationCap",
-      stepNumber: 4,
-      order: 4,
-      isVisible: true,
-    },
+  {
+    title: "অনলাইনে প্রাথমিক আবেদন",
+    subtitle: "Online Primary Application",
+    description: "জাতীয় বিশ্ববিদ্যালয়ের ভর্তি বিষয়ক ওয়েবসাইটে (app1.nu.edu.bd অথবা nu.ac.bd/admissions) প্রবেশ করে B.Ed (Honours) প্রফেশনাল কোর্সে প্রাথমিক আবেদন ফরম সঠিকভাবে পূরণ করতে হবে। আবেদন ফি বাবদ ৩৫০ টাকা (জাতীয় বিশ্ববিদ্যালয় নির্ধারিত) মোবাইল ব্যাংকিং বা সংশ্লিষ্ট কলেজের নির্দেশনা অনুযায়ী জমা দিয়ে রসিদ সংগ্রহ করতে হবে।",
+    iconName: "Monitor",
+    stepNumber: 1,
+    order: 1,
+    isVisible: true,
+  },
+  {
+    title: "মেধাতালিকা ও মাইগ্রেশন",
+    subtitle: "Merit List, Migration & Release Slip",
+    description: "আবেদনকারীদের এসএসসি ও এইচএসসি/সমমান পরীক্ষার জিপিএ (GPA)-এর ভিত্তিতে ১ম ও ২য় মেধাতালিকা প্রকাশ করা হয়। এছাড়া বিষয় বা কলেজ পরিবর্তনের জন্য অটো-মাইগ্রেশন সুবিধা থাকে। যারা সুযোগ পান না, তারা পরবর্তীতে ১ম ও ২য় রিলিজ স্লিপে (Release Slip) নতুন করে ৫টি কলেজে আবেদন করতে পারেন।",
+    iconName: "Trophy",
+    stepNumber: 2,
+    order: 2,
+    isVisible: true,
+  },
+  {
+    title: "চূড়ান্ত ভর্তি ফরম পূরণ",
+    subtitle: "Final Admission Form Fill-up",
+    description: "মেধাতালিকায় অথবা রিলিজ স্লিপে মনোনীত শিক্ষার্থীরা ভর্তি রোল ও পিন নম্বর ব্যবহার করে লগইন করবেন এবং 'Final Admission Form' পূরণ করবেন। ফরমে শিক্ষার্থীর সকল ব্যক্তিগত ও অভিভাবকের তথ্য নির্ভুলভাবে প্রদান করে ফরমটির ২ কপি রঙিন প্রিন্ট সংরক্ষণ করতে হবে।",
+    iconName: "FileCheck",
+    stepNumber: 3,
+    order: 3,
+    isVisible: true,
+  },
+  {
+    title: "কাগজপত্র যাচাই ও ভর্তি নিশ্চিতকরণ",
+    subtitle: "Document Verification & Final Enrollment",
+    description: "চূড়ান্ত ভর্তি ফরম, এসএসসি ও এইচএসসি পরীক্ষার মূল মার্কশিট/একাডেমিক ট্রান্সক্রিপ্ট ও সত্যায়িত ফটোকপি, মূল প্রশংসাপত্র (Testimonial), পাসপোর্ট সাইজের সত্যায়িত ছবি (৪-৬ কপি) এবং ১ম সেমিস্টারের নির্ধারিত সরকারি ভর্তি ফি সরাসরি কলেজের ভর্তি ডেস্কে জমা দিয়ে ভর্তি নিশ্চিত করতে হবে।",
+    iconName: "GraduationCap",
+    stepNumber: 4,
+    order: 4,
+    isVisible: true,
+  },
 ];
 
 const admissionCostsData = [
-  { label: "প্রাথমিক আবেদন ফি", amount: "৩০০ - ৩৫০ টাকা", order: 1, isVisible: true, isHighlighted: false },
-  { label: "ভর্তি ফি (জাতীয় বিশ্ববিদ্যালয় + কলেজ)", amount: "৩,৫০০ - ৪,০০০ টাকা", order: 2, isVisible: true, isHighlighted: false },
-  { label: "সিমিস্টার ফি (প্রতি বছর ২টি)", amount: "২,০০০ - ২,৫০০ টাকা", order: 3, isVisible: true, isHighlighted: false },
-  { label: "ফরম পূরণ ফি (প্রতি সিমিস্টার)", amount: "১,৫০০ - ২,০০০ টাকা", order: 4, isVisible: true, isHighlighted: false },
-  { label: "৪ বছরের মোট আনুমানিক খরচ", amount: "৩৫,০০০ - ৪২,০০০ টাকা*", order: 5, isVisible: true, isHighlighted: true },
+  { label: "প্রাথমিক আবেদন ফি", amount: "৩৫০ টাকা", order: 1, isVisible: true, isHighlighted: false },
+  { label: "ভর্তি ও ১ম সেমিস্টার ফি (কলেজ + জাবি রেজিস্ট্রেশন)", amount: "৪,০০০ - ৫,৫০০ টাকা", order: 2, isVisible: true, isHighlighted: false },
+  { label: "সেমিস্টার ফি (প্রতি বছর ২টি সেমিস্টার)", amount: "২,০০০ - ৩,০০০ টাকা", order: 3, isVisible: true, isHighlighted: false },
+  { label: "সেমিস্টার পরীক্ষা ফরম পূরণ ফি (প্রতি সেমিস্টার)", amount: "১,৫০০ - ২,৫০০ টাকা", order: 4, isVisible: true, isHighlighted: false },
+  { label: "৪ বছরের মোট আনুমানিক খরচ (৮টি সেমিস্টার)", amount: "৩৫,০০০ - ৪৫,০০০ টাকা*", order: 5, isVisible: true, isHighlighted: true },
 ];
 
 async function seed() {
