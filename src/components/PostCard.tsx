@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, ExternalLink, School, MapPin, 
     MoreHorizontal, Edit2, Trash2, MessageCircle, 
-    Share2, Bookmark, CheckCircle2, XCircle, Loader2,
-    ImageIcon, Lock, LogIn
+    Share2, Bookmark, Lock, LogIn
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
@@ -31,35 +30,8 @@ interface PostCardProps {
     // Bookmark/Save feature
     isSaved?: boolean;
     onSave?: (id: string) => void;
-    // ... other edit states
-    editEventName?: string;
-    setEditEventName?: (v: string) => void;
-    editDescription?: string;
-    setEditDescription?: (v: string) => void;
-    editShareLink?: string;
-    setEditShareLink?: (v: string) => void;
-    editType?: string;
-    setEditType?: (v: string) => void;
-    editVisibility?: string;
-    setEditVisibility?: (v: string) => void;
-    editThumbnailUrl?: string | null;
-    setEditThumbnailUrl?: (v: string | null) => void;
-    editThumbnailFile?: File | null;
-    setEditThumbnailFile?: (v: File | null) => void;
-    editThumbnailPreview?: string | null;
-    setEditThumbnailPreview?: (v: string | null) => void;
-    onSaveEdit?: () => void;
-    onCancelEdit?: () => void;
     hideManageOptions?: boolean;
-    editAttachClub?: boolean;
-    setEditAttachClub?: (v: boolean) => void;
-    editClubId?: string;
-    setEditClubId?: (v: string) => void;
-    editClubName?: string;
-    setEditClubName?: (v: string) => void;
-    myClubs?: any[];
-    editLinkPreview?: any;
-    isFetchingLink?: boolean;
+    [key: string]: any;
 }
 
 const roleColors: Record<string, string> = {
@@ -133,19 +105,7 @@ function LinkPreviewCard({ post }: { post: any }) {
 
 export default function PostCard({
     post, profile, onEdit, onDelete, onApprove, onReject,
-    editingId, isSaving, autoFocus, onTagClick,
-    isSaved, onSave,
-    editEventName, setEditEventName,
-    editDescription, setEditDescription,
-    editShareLink, setEditShareLink,
-    editType, setEditType,
-    editVisibility, setEditVisibility,
-    editThumbnailUrl, setEditThumbnailUrl,
-    editThumbnailFile, setEditThumbnailFile,
-    editThumbnailPreview, setEditThumbnailPreview,
-    onSaveEdit, onCancelEdit, hideManageOptions,
-    editAttachClub, setEditAttachClub, editClubId, setEditClubId,
-    editClubName, setEditClubName, myClubs, editLinkPreview, isFetchingLink
+    onTagClick, isSaved, onSave, hideManageOptions
 }: PostCardProps) {
     const [showComments, setShowComments] = useState(false);
     const [previewComments, setPreviewComments] = useState<any[]>([]);
@@ -173,14 +133,12 @@ export default function PostCard({
 
     const [showOptions, setShowOptions] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const isOwner = profile?.uid === post.creatorId;
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
     const canManage = !hideManageOptions && (isOwner || isAdmin || (profile?.role === "manager" && profile?.collegeId === post.collegeId));
     
     const isRestricted = isContentRestrictedForUser(post, profile, profile?.uid);
-    const isEditing = editingId === post.id;
     
     // Auto-expand comments if the URL hash or query points to a comment on this post
     useEffect(() => {
@@ -192,230 +150,34 @@ export default function PostCard({
         }
     }, [post.id, searchParams]);
 
-    if (isEditing) {
-        return (
-            <motion.div layout className="bg-white dark:bg-[#1a1b23] rounded-[2.5rem] p-8 border-2 border-primary/20 shadow-2xl shadow-primary/5 space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Edit Post</h3>
-                    <div className="flex gap-2">
-                         <button onClick={onCancelEdit} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><XCircle size={20} className="text-gray-400" /></button>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Event Name</label>
-                        <input 
-                            autoFocus={autoFocus}
-                            value={editEventName}
-                            onChange={(e) => setEditEventName?.(e.target.value)}
-                            className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Description</label>
-                        <textarea 
-                            value={editDescription}
-                            onChange={(e) => setEditDescription?.(e.target.value)}
-                            rows={4}
-                            className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-1.5">
-                            <ExternalLink size={10} className="text-primary" /> Share Link (Optional)
-                        </label>
-                        <div className="relative">
-                            <input 
-                                type="url"
-                                value={editShareLink}
-                                onChange={(e) => setEditShareLink?.(e.target.value)}
-                                placeholder="https://facebook.com/groups/..."
-                                className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
-                            />
-                            {isFetchingLink && (
-                                <Loader2 size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-primary animate-spin" />
-                            )}
-                        </div>
-                        {editLinkPreview && (
-                            <div className="mt-2 bg-gray-50 dark:bg-black/40 rounded-xl p-3 border border-gray-100 dark:border-gray-800 flex items-center gap-3">
-                                {editLinkPreview.thumbnail && (
-                                    <img src={editLinkPreview.thumbnail} className="w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200" alt="" />
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{editLinkPreview.title}</h4>
-                                    <p className="text-[10px] text-gray-500 truncate mt-0.5">{editLinkPreview.domain}</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Type</label>
-                            <select 
-                                value={editType}
-                                onChange={(e) => setEditType?.(e.target.value)}
-                                className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-bold outline-none appearance-none cursor-pointer"
-                            >
-                                <option value="event">Global Event</option>
-                                <option value="club">Club Thread</option>
-                            </select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Visibility</label>
-                            <select 
-                                value={editVisibility}
-                                onChange={(e) => setEditVisibility?.(e.target.value)}
-                                className="w-full px-5 py-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-gray-800 rounded-2xl text-sm font-bold outline-none appearance-none cursor-pointer"
-                            >
-                                <option value="public">🌍 Public (Global)</option>
-                                <option value="campus">🏫 Campus (Local)</option>
-                                <option value="private">🔒 Private (Me)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {editType === 'event' && myClubs && myClubs.length > 0 && (
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 dark:border-gray-800/30">
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Arrange by a Club?</span>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const newAttach = !editAttachClub;
-                                    setEditAttachClub?.(newAttach);
-                                    if (!newAttach) {
-                                        setEditClubId?.("");
-                                        setEditClubName?.("");
-                                    }
-                                }}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
-                                    editAttachClub
-                                        ? "bg-primary text-white border-primary shadow-sm"
-                                        : "bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                                }`}
-                            >
-                                {editAttachClub ? "Yes, Attached" : "No, Individual"}
-                            </button>
-                        </div>
-                    )}
-
-                    <AnimatePresence>
-                        {(editType === 'club' || (editType === 'event' && editAttachClub)) && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="pt-2 overflow-hidden">
-                                <select 
-                                    required
-                                    value={editClubId}
-                                    onChange={(e) => {
-                                        setEditClubId?.(e.target.value);
-                                        setEditClubName?.(e.target.options[e.target.selectedIndex].text);
-                                    }}
-                                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all dark:text-white"
-                                >
-                                    <option value="" disabled>Select your club...</option>
-                                    {myClubs?.map(club => (
-                                        <option key={club.id} value={club.id}>{club.name}</option>
-                                    ))}
-                                </select>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Media Edit */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Update Thumbnail(Optional)</label>
-                        <div className="relative group/media min-h-[160px] rounded-3xl border-2 border-dashed border-gray-100 dark:border-gray-800 hover:border-primary/50 transition-all flex items-center justify-center overflow-hidden bg-gray-50/50 dark:bg-white/5">
-                            {editThumbnailPreview ? (
-                                <div className="relative w-full h-full group">
-                                    <img src={editThumbnailPreview} className="w-full h-auto max-h-[300px] object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                                        <button 
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="px-4 py-2 bg-white text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
-                                        >
-                                            Replace
-                                        </button>
-                                        <button 
-                                            onClick={() => {
-                                                setEditThumbnailFile?.(null);
-                                                setEditThumbnailPreview?.(null);
-                                            }}
-                                            className="px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-primary transition-colors"
-                                >
-                                    <div className="p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                                        <ImageIcon size={24} />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Click to Upload Media</span>
-                                </button>
-                            )}
-                            <input 
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        setEditThumbnailFile?.(file);
-                                        setEditThumbnailPreview?.(URL.createObjectURL(file));
-                                    }
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <button onClick={onCancelEdit} className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
-                    <button 
-                        onClick={onSaveEdit}
-                        disabled={isSaving}
-                        className="px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 flex items-center gap-2"
-                    >
-                        {isSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} 
-                        Save Changes
-                    </button>
-                </div>
-            </motion.div>
-        );
-    }
-
     return (
         <motion.div 
             layout
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="group bg-white dark:bg-[#1a1b23] rounded-[2.5rem] p-6 sm:p-8 border border-gray-100 dark:border-gray-800 hover:border-primary/20 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all relative overflow-hidden"
+            className="group bg-white dark:bg-[#1a1b23] rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-gray-800 hover:border-primary/20 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all relative overflow-hidden"
         >
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 rounded-full group-hover:bg-primary/10 transition-colors" />
             
             {/* Top Bar: Author & Meta */}
-            <div className="flex items-start justify-between mb-6 relative z-20">
-                <div className="flex items-center gap-4">
-                    <Link href={`/profile/${post.creatorId}`} className="relative cursor-pointer group/author transition-transform active:scale-95">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-xl font-black text-gray-400 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm shadow-black/5 group-hover/author:border-primary/50 transition-colors">
+            <div className="flex items-start justify-between mb-4 sm:mb-6 relative z-20">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <Link href={`/profile/${post.creatorId}`} className="relative cursor-pointer group/author transition-transform active:scale-95 flex-shrink-0">
+                        <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-lg sm:text-xl font-black text-gray-400 border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm shadow-black/5 group-hover/author:border-primary/50 transition-colors">
                             {post.createdBy?.avatar ? (
                                 <img src={post.createdBy.avatar} className="w-full h-full object-cover" />
                             ) : (post.createdBy?.name?.charAt(0) || "?")}
                         </div>
                         {post.status === "pending" && (
-                            <div className="absolute -bottom-1 -right-1 p-1 bg-amber-500 text-white rounded-lg shadow-lg border-2 border-white dark:border-[#1a1b23] animate-pulse">
+                            <div className="absolute -bottom-1 -right-1 p-1 bg-amber-500 text-white rounded-lg shadow-lg border-2 border-white dark:border-[#1a1c24] animate-pulse">
                                 <Clock size={10} />
                             </div>
                         )}
                     </Link>
-                    <div>
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <Link href={`/profile/${post.creatorId}`} className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight hover:text-primary transition-colors">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                            <Link href={`/profile/${post.creatorId}`} className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight hover:text-primary transition-colors truncate">
                                 {post.createdBy?.name}
                             </Link>
                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${roleColors[post.createdBy?.role] || 'bg-gray-100 text-gray-500'}`}>
@@ -430,12 +192,20 @@ export default function PostCard({
                                 </Link>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                            <span className="flex items-center gap-1"><MapPin size={8} /> {post.collegeName}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                            <span className="flex items-center gap-1 min-w-0">
+                                <MapPin size={9} className="shrink-0" /> 
+                                <span className="truncate max-w-[160px] sm:max-w-none">{post.collegeName}</span>
+                            </span>
                             <span>•</span>
                             <span><TimeAgo ts={post.timestamp} /></span>
                             {post.visibility === "campus" && (
-                                <span className="flex items-center gap-1 text-primary"><School size={8} /> Campus Only</span>
+                                <>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center gap-1 text-primary font-black">
+                                        <School size={9} className="shrink-0" /> Campus Only
+                                    </span>
+                                </>
                             )}
                         </div>
                     </div>
@@ -492,7 +262,7 @@ export default function PostCard({
             {/* Post Content */}
             <div className="space-y-4 relative z-10">
                 <div className="flex items-center justify-between gap-4">
-                    <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight group-hover:text-primary transition-colors duration-500">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight group-hover:text-primary transition-colors duration-500">
                         {post.eventName}
                     </h2>
                 </div>

@@ -5,10 +5,12 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     X, Send, Link as LinkIcon, Globe, Lock, 
-    Sparkles, AlertTriangle, Loader2, ImageIcon, School
+    Sparkles, AlertTriangle, Loader2, ImageIcon, School,
+    Check, ChevronDown, Building2, ShieldCheck,
+    Trash2, ExternalLink, Pencil
 } from "lucide-react";
-import { createPost, getMyClubs, type FirestoreClub } from "@/lib/firestore";
-import { uploadFile } from "@/lib/storage";
+import { createPost, updatePost, getMyClubs, type FirestoreClub } from "@/lib/firestore";
+import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -18,19 +20,57 @@ interface PostCreationModalProps {
     isOpen: boolean;
     onClose: () => void;
     profile: any;
+    defaultType?: "event" | "club";
+    editPost?: any;
+    onPostUpdated?: (updatedPost: any) => void;
 }
 
-export default function PostCreationModal({ isOpen, onClose, profile }: PostCreationModalProps) {
+const VISIBILITY_OPTIONS = [
+    {
+        id: "public" as const,
+        label: "Global",
+        shortLabel: "Anyone / Global",
+        desc: "Visible to all colleges & public feed",
+        icon: Globe,
+        color: "text-blue-500 dark:text-blue-400",
+        badgeStyle: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
+    },
+    {
+        id: "campus" as const,
+        label: "Campus",
+        shortLabel: "Campus Only",
+        desc: "Only students from your college",
+        icon: School,
+        color: "text-amber-500 dark:text-amber-400",
+        badgeStyle: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"
+    },
+    {
+        id: "private" as const,
+        label: "Private",
+        shortLabel: "Only Me",
+        desc: "Only visible in your private feed",
+        icon: Lock,
+        color: "text-rose-500 dark:text-rose-400",
+        badgeStyle: "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30"
+    }
+];
+
+export default function PostCreationModal({ isOpen, onClose, profile, defaultType = "event", editPost, onPostUpdated }: PostCreationModalProps) {
     const [eventName, setEventName] = useState("");
     const [description, setDescription] = useState("");
     const [shareLink, setShareLink] = useState("");
+    const [showLinkInput, setShowLinkInput] = useState(false);
     const [visibility, setVisibility] = useState<"public" | "campus" | "private">("public");
-    const [type, setType] = useState<"event" | "club">("event");
+    const [isAudienceOpen, setIsAudienceOpen] = useState(false);
+    const [type, setType] = useState<"event" | "club">(defaultType);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
 
     const descInputRef = useRef<HTMLTextAreaElement>(null);
+    const titleInputRef = useRef<HTMLInputElement>(null);
+    const audienceMenuRef = useRef<HTMLDivElement>(null);
+
     const mention = useMentionAutosuggest({
         value: description,
         setValue: setDescription,
@@ -39,12 +79,23 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
 
     useEffect(() => {
         if (isOpen) {
-            const verified = requireVerification("share updates");
+            const verified = requireVerification(editPost ? "edit posts" : "share updates");
             if (!verified) {
                 onClose();
+                return;
             }
+            window.dispatchEvent(new CustomEvent("ttc-composer-toggle", { detail: { open: true } }));
+            const originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+            return () => {
+                window.dispatchEvent(new CustomEvent("ttc-composer-toggle", { detail: { open: false } }));
+                document.body.style.overflow = originalOverflow;
+            };
+        } else {
+            window.dispatchEvent(new CustomEvent("ttc-composer-toggle", { detail: { open: false } }));
         }
-    }, [isOpen]);
+    }, [isOpen, editPost]);
+
     const [linkPreview, setLinkPreview] = useState<any>(null);
     const [isFetchingLink, setIsFetchingLink] = useState(false);
 
@@ -56,12 +107,27 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     // Thumbnail state
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+    const [existingThumbnailUrl, setExistingThumbnailUrl] = useState<string | null>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
+    // Fetch user's clubs
     useEffect(() => {
         if (!profile?.uid || !profile?.collegeId) return;
         getMyClubs(profile.uid, profile.collegeId).then(setMyClubs).catch(console.error);
     }, [profile]);
+
+    // Close audience menu when clicked outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (audienceMenuRef.current && !audienceMenuRef.current.contains(e.target as Node)) {
+                setIsAudienceOpen(false);
+            }
+        };
+        if (isAudienceOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
+        }
+    }, [isAudienceOpen]);
 
     // Link preview effect
     useEffect(() => {
@@ -101,26 +167,65 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
     const removeThumbnail = () => {
         setThumbnailFile(null);
         setThumbnailPreview(null);
+        setExistingThumbnailUrl(null);
         if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
     };
 
-    // Reset state when modal closes
+    // Reset or populate state when modal closes or opens
     useEffect(() => {
         if (!isOpen) {
             setEventName("");
             setDescription("");
             setShareLink("");
+            setShowLinkInput(false);
             setVisibility("public");
-            setType("event");
+            setIsAudienceOpen(false);
+            setType(defaultType || "event");
             setSelectedClubId("");
             setSelectedClubName("");
             setAttachClub(false);
             setLinkPreview(null);
             setThumbnailFile(null);
             setThumbnailPreview(null);
+            setExistingThumbnailUrl(null);
             if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+        } else if (editPost) {
+            setEventName(editPost.eventName || editPost.title || "");
+            setDescription(editPost.description || editPost.content || "");
+            const link = editPost.shareLink || editPost.linkUrl || "";
+            setShareLink(link);
+            setShowLinkInput(!!link);
+            setVisibility(editPost.visibility || "public");
+            setType(editPost.type || "event");
+            setSelectedClubId(editPost.clubId || "");
+            setSelectedClubName(editPost.clubName || "");
+            setAttachClub(!!editPost.clubId && editPost.type === "event");
+            setLinkPreview(editPost.linkPreview || null);
+            setThumbnailFile(null);
+            setThumbnailPreview(editPost.thumbnailUrl || null);
+            setExistingThumbnailUrl(editPost.thumbnailUrl || null);
+            setTimeout(() => {
+                titleInputRef.current?.focus();
+            }, 100);
+        } else {
+            if (defaultType) setType(defaultType);
+            setExistingThumbnailUrl(null);
+            // Autofocus title on desktop after a brief delay
+            setTimeout(() => {
+                titleInputRef.current?.focus();
+            }, 100);
         }
-    }, [isOpen]);
+    }, [isOpen, defaultType, editPost]);
+
+    // Handle Cmd/Ctrl + Enter submission
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            if (eventName.trim() && !isSubmitting) {
+                handleSubmit(e as any);
+            }
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -128,40 +233,72 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
 
         setIsSubmitting(true);
         try {
-            // Upload thumbnail if selected
-            let thumbnailUrl = "";
-            if (thumbnailFile) {
-                const resultUrl = await uploadFile("thumbnails", thumbnailFile);
-                thumbnailUrl = resultUrl;
-            }
-
             const hasClub = type === "club" || (type === "event" && attachClub);
             const clubMeta = hasClub && selectedClubId 
                 ? { clubId: selectedClubId, clubName: selectedClubName } 
-                : {};
+                : { clubId: null, clubName: null };
 
-            await createPost({
-                type,
-                eventName: eventName.trim(),
-                description: description.trim(),
-                ...(shareLink.trim() ? { shareLink: shareLink.trim() } : {}),
-                visibility,
-                ...(linkPreview ? { linkPreview } : {}),
-                collegeId: profile?.collegeId,
-                ...(thumbnailUrl ? { thumbnailUrl } : {}),
-                ...clubMeta
-            } as any);
-            
-            // Reset and close
-            setEventName("");
-            setDescription("");
-            setShareLink("");
-            removeThumbnail();
-            showToast("Update shared successfully!", "success");
-            onClose();
+            if (editPost) {
+                // EDIT MODE
+                let finalThumbnailUrl: string | null = existingThumbnailUrl || null;
+
+                if (thumbnailFile) {
+                    const resultUrl = await uploadFile("thumbnails", thumbnailFile);
+                    finalThumbnailUrl = resultUrl;
+                    if (existingThumbnailUrl && existingThumbnailUrl !== resultUrl) {
+                        deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);
+                    }
+                } else if (!thumbnailPreview && existingThumbnailUrl) {
+                    deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);
+                    finalThumbnailUrl = null;
+                }
+
+                const updatedData: any = {
+                    eventName: eventName.trim(),
+                    description: description.trim(),
+                    shareLink: shareLink.trim() || "",
+                    visibility,
+                    type,
+                    thumbnailUrl: finalThumbnailUrl,
+                    linkPreview: shareLink.trim() ? (linkPreview || null) : null,
+                    ...clubMeta
+                };
+
+                await updatePost(editPost.id, updatedData);
+                showToast("Post updated successfully!", "success");
+                onPostUpdated?.({ id: editPost.id, ...updatedData });
+                onClose();
+            } else {
+                // CREATE MODE
+                let thumbnailUrl = "";
+                if (thumbnailFile) {
+                    const resultUrl = await uploadFile("thumbnails", thumbnailFile);
+                    thumbnailUrl = resultUrl;
+                }
+
+                await createPost({
+                    type,
+                    eventName: eventName.trim(),
+                    description: description.trim(),
+                    ...(shareLink.trim() ? { shareLink: shareLink.trim() } : {}),
+                    visibility,
+                    ...(linkPreview ? { linkPreview } : {}),
+                    collegeId: profile?.collegeId,
+                    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+                    ...(hasClub && selectedClubId ? { clubId: selectedClubId, clubName: selectedClubName } : {})
+                } as any);
+                
+                // Reset and close
+                setEventName("");
+                setDescription("");
+                setShareLink("");
+                removeThumbnail();
+                showToast("Update shared successfully!", "success");
+                onClose();
+            }
         } catch (err) {
             console.error(err);
-            showToast("Failed to share update. Please try again.", "error");
+            showToast(editPost ? "Failed to update post." : "Failed to share update. Please try again.", "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -169,301 +306,517 @@ export default function PostCreationModal({ isOpen, onClose, profile }: PostCrea
 
     if (!isOpen) return null;
 
+    const currentVis = VISIBILITY_OPTIONS.find(v => v.id === visibility) || VISIBILITY_OPTIONS[0];
+    const VisIcon = currentVis.icon;
+    const collegeName = colleges.find(c => c.id === profile?.collegeId)?.name || "Campus Community";
+    const userInitials = profile?.displayName ? profile.displayName.charAt(0).toUpperCase() : "U";
+
+    const isNonAdmin = profile?.role !== 'admin' && profile?.role !== 'super_manager' && profile?.role !== 'manager';
+
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+        <div 
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+        >
+            {/* Modal Card - Raised higher on mobile (h-[82dvh] / min-h-[72dvh]) */}
             <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white dark:bg-[#1a1b23] w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10 max-h-[90vh] overflow-y-auto"
+                initial={{ opacity: 0, y: "100%" }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="bg-white dark:bg-[#12141a] w-full sm:max-w-xl md:max-w-2xl rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl border-t sm:border border-gray-150 dark:border-white/10 flex flex-col h-[82dvh] sm:h-auto min-h-[70dvh] sm:min-h-0 max-h-[94dvh] sm:max-h-[88vh] overflow-hidden text-gray-900 dark:text-white"
+                onKeyDown={handleKeyDown}
             >
-                <div className="p-6 sm:p-8">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-2">
-                                <Sparkles className="text-primary" /> Share Update
-                            </h2>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Post to your campus community</p>
-                        </div>
-                        <button 
+                {/* Mobile Drawer Grabber */}
+                <div className="sm:hidden w-12 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
+
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-5 py-3 sm:px-6 sm:py-4 border-b border-gray-100 dark:border-white/5 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            type="button"
                             onClick={onClose}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400"
+                            className="p-1.5 -ml-1.5 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                            aria-label="Close"
                         >
-                            <X size={24} />
+                            <X size={20} />
                         </button>
+                        <div>
+                            <h2 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-1.5">
+                                {editPost ? (
+                                    <>
+                                        <Pencil size={18} className="text-primary" /> Edit Post
+                                        <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 ml-1">
+                                            Editing
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles size={18} className="text-primary" /> Create Update
+                                    </>
+                                )}
+                            </h2>
+                        </div>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Post Type & Club Selection */}
-                        <div className="space-y-4 bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Post Category</label>
-                            <div className="flex gap-2">
-                                <button type="button" onClick={() => { setType("event"); setSelectedClubId(""); setSelectedClubName(""); setAttachClub(false); }} className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all border ${type === 'event' ? 'bg-white dark:bg-gray-800 text-primary border-primary/20 shadow-sm' : 'border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Global Update</button>
-                                <button type="button" onClick={() => { setType("club"); setAttachClub(false); }} className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all border ${type === 'club' ? 'bg-white dark:bg-gray-800 text-primary border-primary/20 shadow-sm' : 'border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Club Update</button>
-                            </div>
+                    {/* Top Action Button (Primary CTA on mobile ONLY - hidden on desktop) */}
+                    <button 
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={!eventName.trim() || isSubmitting}
+                        className="sm:hidden flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary/90 text-white rounded-full text-xs font-black uppercase tracking-wider shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <span>{editPost ? "Saving" : "Posting"}</span>
+                                <Loader2 size={14} className="animate-spin" />
+                            </>
+                        ) : (
+                            <>
+                                <span>{editPost ? "Save" : "Post"}</span>
+                                {editPost ? <Check size={14} /> : <Send size={14} />}
+                            </>
+                        )}
+                    </button>
+                </div>
 
-                            {type === 'event' && myClubs.length > 0 && (
-                                <div className="flex items-center justify-between pt-2 border-t border-gray-100/50 dark:border-gray-850/30">
-                                    <span className="text-xs font-bold text-gray-750 dark:text-gray-300">Arrange by a Club?</span>
+                {/* Modal Scrollable Body (flex-1 to naturally fill height) */}
+                <div className="flex-1 flex flex-col overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
+                    {/* Author & Audience Meta Bar */}
+                    <div className="flex items-center justify-between gap-3 shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {/* Avatar */}
+                            {profile?.photoURL ? (
+                                <img 
+                                    src={profile.photoURL} 
+                                    alt={profile.displayName} 
+                                    className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/20 shrink-0" 
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-blue-400 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
+                                    {userInitials}
+                                </div>
+                            )}
+
+                            {/* Name & Audience Selector */}
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                    {profile?.displayName || "Campus Student"}
+                                </p>
+
+                                {/* Audience Selector Dropdown Pill */}
+                                <div className="relative inline-block mt-0.5" ref={audienceMenuRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAudienceOpen(!isAudienceOpen)}
+                                        className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-all ${currentVis.badgeStyle}`}
+                                    >
+                                        <VisIcon size={12} className={currentVis.color} />
+                                        <span>{currentVis.shortLabel}</span>
+                                        <ChevronDown size={12} className={`transition-transform duration-200 ${isAudienceOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {/* Audience Dropdown Menu */}
+                                    <AnimatePresence>
+                                        {isAudienceOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                                                transition={{ duration: 0.15 }}
+                                                className="absolute left-0 top-full mt-2 w-64 p-2 bg-white dark:bg-[#1a1b23] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 space-y-1"
+                                            >
+                                                <div className="px-3 py-1.5 border-b border-gray-100 dark:border-white/5">
+                                                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Choose Audience</p>
+                                                </div>
+                                                {VISIBILITY_OPTIONS.map((opt) => {
+                                                    const OptionIcon = opt.icon;
+                                                    const isSelected = visibility === opt.id;
+                                                    return (
+                                                        <button
+                                                            key={opt.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setVisibility(opt.id);
+                                                                setIsAudienceOpen(false);
+                                                            }}
+                                                            className={`w-full flex items-start gap-2.5 p-2.5 rounded-xl text-left transition-colors ${
+                                                                isSelected 
+                                                                    ? "bg-primary/10 text-primary" 
+                                                                    : "hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300"
+                                                            }`}
+                                                        >
+                                                            <OptionIcon size={16} className={`mt-0.5 shrink-0 ${opt.color}`} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs font-bold leading-none flex items-center justify-between">
+                                                                    <span>{opt.label}</span>
+                                                                    {isSelected && <Check size={14} className="text-primary" />}
+                                                                </p>
+                                                                <p className="text-[10px] text-gray-400 mt-1 leading-tight">{opt.desc}</p>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Segmented Category Pill (Global vs Club) */}
+                        <div className="inline-flex p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/60 dark:border-white/5 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => { setType("event"); setSelectedClubId(""); setSelectedClubName(""); setAttachClub(false); }}
+                                className={`px-2.5 sm:px-3 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                                    type === "event"
+                                        ? "bg-white dark:bg-gray-800 text-primary shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                }`}
+                            >
+                                Global
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setType("club"); setAttachClub(false); }}
+                                className={`px-2.5 sm:px-3 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                                    type === "club"
+                                        ? "bg-white dark:bg-gray-800 text-primary shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                }`}
+                            >
+                                Club
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Club Selector Bar (Smooth expansion when club type is active or attached) */}
+                    <AnimatePresence>
+                        {(type === 'club' || (type === 'event' && attachClub)) && (
+                            <motion.div 
+                                initial={{ height: 0, opacity: 0 }} 
+                                animate={{ height: 'auto', opacity: 1 }} 
+                                exit={{ height: 0, opacity: 0 }} 
+                                className="overflow-hidden shrink-0"
+                            >
+                                <div className="p-3 bg-gray-50 dark:bg-white/[0.03] rounded-2xl border border-gray-200/80 dark:border-white/5 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                            <Building2 size={13} className="text-primary" /> Associated Club
+                                        </span>
+                                        {type === 'event' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setAttachClub(false);
+                                                    setSelectedClubId("");
+                                                    setSelectedClubName("");
+                                                }}
+                                                className="text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase"
+                                            >
+                                                Detach
+                                            </button>
+                                        )}
+                                    </div>
+                                    <select 
+                                        required
+                                        value={selectedClubId}
+                                        onChange={(e) => {
+                                            setSelectedClubId(e.target.value);
+                                            setSelectedClubName(e.target.options[e.target.selectedIndex].text);
+                                        }}
+                                        className="w-full bg-white dark:bg-[#1a1b23] border border-gray-200 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-3.5 py-2.5 text-xs font-bold outline-none transition-all dark:text-white"
+                                    >
+                                        <option value="" disabled>Select your club...</option>
+                                        {myClubs.map(club => (
+                                            <option key={club.id} value={club.id}>{club.name}</option>
+                                        ))}
+                                    </select>
+                                    {myClubs.length === 0 && (
+                                        <p className="text-[10px] text-amber-500 font-semibold">
+                                            You haven&apos;t joined any clubs yet. Join a club first to post updates for it.
+                                        </p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Headline / Title Input */}
+                    <div className="shrink-0">
+                        <input 
+                            ref={titleInputRef}
+                            required
+                            type="text"
+                            value={eventName}
+                            onChange={(e) => setEventName(e.target.value)}
+                            placeholder="What's the highlight? (Title / Event name)"
+                            className="w-full bg-transparent text-base sm:text-lg font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-b border-gray-100 dark:border-white/5 pb-2 focus:outline-none focus:border-primary/50 transition-colors"
+                        />
+                    </div>
+
+                    {/* Description Textarea with Mention Support (Flex-1 to provide generous typing height) */}
+                    <div className="relative flex-1 flex flex-col min-h-[140px] sm:min-h-[110px]">
+                        <MentionDropdown
+                            isOpen={mention.isOpen}
+                            query={mention.query}
+                            suggestions={mention.suggestions}
+                            selectedIndex={mention.selectedIndex}
+                            setSelectedIndex={mention.setSelectedIndex}
+                            onSelect={mention.insertMention}
+                            onClose={() => mention.setIsOpen(false)}
+                            position="bottom"
+                        />
+                        <textarea 
+                            ref={descInputRef}
+                            rows={5}
+                            value={description}
+                            onChange={(e) => {
+                                setDescription(e.target.value);
+                                mention.checkMention();
+                            }}
+                            onKeyUp={(e) => {
+                                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                                    mention.checkMention();
+                                }
+                            }}
+                            onClick={() => mention.checkMention()}
+                            onFocus={() => mention.checkMention()}
+                            onBlur={() => {
+                                setTimeout(() => mention.setIsOpen(false), 200);
+                            }}
+                            onKeyDown={(e) => {
+                                mention.handleKeyDown(e);
+                            }}
+                            placeholder="Share what's happening... Use @mentions or #hashtags to connect with students"
+                            className="w-full flex-1 bg-transparent text-sm sm:text-base font-normal text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none resize-none leading-relaxed min-h-[130px]"
+                        />
+                    </div>
+
+                    {/* Photo / Image Preview Card */}
+                    <AnimatePresence>
+                        {thumbnailPreview && (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
+                                className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 group max-h-64 sm:max-h-80 bg-black/5 shrink-0"
+                            >
+                                <img 
+                                    src={thumbnailPreview} 
+                                    alt="Post attachment" 
+                                    className="w-full h-auto max-h-64 sm:max-h-80 object-cover"
+                                />
+                                
+                                {/* Overlay Top Controls */}
+                                <div className="absolute top-3 right-3 flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={removeThumbnail}
+                                        className="p-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
+                                        title="Remove photo"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+
+                                {thumbnailFile && (
+                                    <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-lg text-white text-[10px] font-semibold">
+                                        {(thumbnailFile.size / (1024 * 1024)).toFixed(1)} MB
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Link Input Row (Expandable) */}
+                    <AnimatePresence>
+                        {showLinkInput && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden shrink-0"
+                            >
+                                <div className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-xl">
+                                    <LinkIcon size={16} className="text-gray-400 shrink-0" />
+                                    <input 
+                                        type="url"
+                                        value={shareLink}
+                                        onChange={(e) => setShareLink(e.target.value)}
+                                        placeholder="Paste a link (e.g. https://...)"
+                                        className="w-full bg-transparent text-xs sm:text-sm font-medium outline-none text-gray-900 dark:text-white placeholder:text-gray-400"
+                                    />
+                                    {isFetchingLink && (
+                                        <Loader2 size={16} className="text-primary animate-spin shrink-0" />
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            const newAttach = !attachClub;
-                                            setAttachClub(newAttach);
-                                            if (!newAttach) {
-                                                setSelectedClubId("");
-                                                setSelectedClubName("");
-                                            }
+                                            setShareLink("");
+                                            setShowLinkInput(false);
+                                            setLinkPreview(null);
                                         }}
-                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
-                                            attachClub
-                                                ? "bg-primary text-white border-primary shadow-sm"
-                                                : "bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                                        }`}
-                                    >
-                                        {attachClub ? "Yes, Attached" : "No, Individual"}
-                                    </button>
-                                </div>
-                            )}
-
-                            <AnimatePresence>
-                                {(type === 'club' || (type === 'event' && attachClub)) && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="pt-2 overflow-hidden">
-                                        <select 
-                                            required
-                                            value={selectedClubId}
-                                            onChange={(e) => {
-                                                setSelectedClubId(e.target.value);
-                                                setSelectedClubName(e.target.options[e.target.selectedIndex].text);
-                                            }}
-                                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all dark:text-white"
-                                        >
-                                            <option value="" disabled>Select your club...</option>
-                                            {myClubs.map(club => (
-                                                <option key={club.id} value={club.id}>{club.name}</option>
-                                            ))}
-                                        </select>
-                                        {myClubs.length === 0 && type === 'club' && (
-                                            <p className="mt-2 text-[10px] text-red-500 font-bold uppercase tracking-widest">You have not joined any clubs.</p>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Title */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Title / Event Name</label>
-                            <input 
-                                required
-                                type="text"
-                                value={eventName}
-                                onChange={(e) => setEventName(e.target.value)}
-                                placeholder="What's the highlight?"
-                                className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl px-6 py-4 text-base font-bold outline-none transition-all shadow-inner"
-                            />
-                        </div>
-
-                        {/* Description */}
-                        <div className="space-y-2 relative">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Description</label>
-                            <MentionDropdown
-                                isOpen={mention.isOpen}
-                                query={mention.query}
-                                suggestions={mention.suggestions}
-                                selectedIndex={mention.selectedIndex}
-                                setSelectedIndex={mention.setSelectedIndex}
-                                onSelect={mention.insertMention}
-                                onClose={() => mention.setIsOpen(false)}
-                                position="bottom"
-                            />
-                            <textarea 
-                                ref={descInputRef}
-                                rows={4}
-                                value={description}
-                                onChange={(e) => {
-                                    setDescription(e.target.value);
-                                    mention.checkMention();
-                                }}
-                                onKeyUp={(e) => {
-                                    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
-                                        mention.checkMention();
-                                    }
-                                }}
-                                onClick={() => mention.checkMention()}
-                                onFocus={() => mention.checkMention()}
-                                onBlur={() => {
-                                    setTimeout(() => mention.setIsOpen(false), 200);
-                                }}
-                                onKeyDown={(e) => {
-                                    mention.handleKeyDown(e);
-                                }}
-                                placeholder="Tell us more about it..."
-                                className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl px-6 py-4 text-base font-medium outline-none transition-all shadow-inner resize-none"
-                            />
-                        </div>
-
-                        {/* Link */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Link (Optional)</label>
-                            <div className="relative">
-                                <LinkIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input 
-                                    type="url"
-                                    value={shareLink}
-                                    onChange={(e) => setShareLink(e.target.value)}
-                                    placeholder="https://facebook.com/share/..."
-                                    className="w-full bg-gray-50 dark:bg-black/20 border-2 border-transparent focus:border-primary/20 focus:bg-white dark:focus:bg-gray-900 rounded-2xl pl-14 pr-6 py-4 text-sm font-mono outline-none transition-all shadow-inner"
-                                />
-                                {isFetchingLink && (
-                                    <Loader2 size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-primary animate-spin" />
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Link Preview (Small) */}
-                        <AnimatePresence>
-                            {linkPreview && (
-                                <motion.div 
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="bg-gray-50 dark:bg-black/40 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 flex items-center gap-4 overflow-hidden"
-                                >
-                                    {linkPreview.thumbnail && (
-                                        <img src={linkPreview.thumbnail} className="w-16 h-16 rounded-xl object-cover shrink-0 bg-gray-200" alt="" />
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                        <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{linkPreview.title}</h4>
-                                        <p className="text-[10px] text-gray-500 truncate mt-0.5">{linkPreview.domain}</p>
-                                    </div>
-                                    <button 
-                                        type="button"
-                                        onClick={() => setShareLink("")}
-                                        className="p-1.5 text-gray-400 hover:text-red-500"
+                                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                                     >
                                         <X size={14} />
                                     </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Thumbnail Upload */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Add Thumbnail(Optional)</label>
-                            <input 
-                                ref={thumbnailInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleThumbnailChange}
-                                className="hidden"
-                                id="post-thumbnail-input"
-                            />
-                            {thumbnailPreview ? (
-                                <div className="relative group rounded-2xl overflow-hidden border-2 border-primary/20">
-                                    <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full h-40 object-cover" />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                                        <button
-                                            type="button"
-                                            onClick={removeThumbnail}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-red-500 text-white rounded-full shadow-lg"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    </div>
                                 </div>
-                            ) : (
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Rich Link Preview Card */}
+                    <AnimatePresence>
+                        {linkPreview && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                className="bg-gray-50 dark:bg-white/[0.03] rounded-2xl p-3 border border-gray-200 dark:border-white/10 flex items-center gap-3 overflow-hidden group shrink-0"
+                            >
+                                {linkPreview.thumbnail && (
+                                    <img 
+                                        src={linkPreview.thumbnail} 
+                                        className="w-14 h-14 rounded-xl object-cover shrink-0 bg-gray-200 dark:bg-gray-800" 
+                                        alt="" 
+                                    />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{linkPreview.title}</h4>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5 flex items-center gap-1">
+                                        <ExternalLink size={10} /> {linkPreview.domain}
+                                    </p>
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        setShareLink("");
+                                        setLinkPreview(null);
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                                    title="Remove link"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Hidden File Input for Thumbnail */}
+                <input 
+                    ref={thumbnailInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
+                    className="hidden"
+                    id="post-thumbnail-file-input"
+                />
+
+                {/* Bottom Native Action Toolbar (pb-6 for safe-area padding) */}
+                <div className="border-t border-gray-100 dark:border-white/5 px-4 sm:px-6 pt-3 pb-6 sm:pb-3.5 bg-gray-50/70 dark:bg-white/[0.02] shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                        {/* Media Action Buttons */}
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            {/* Photo / Image Button */}
+                            <button
+                                type="button"
+                                onClick={() => thumbnailInputRef.current?.click()}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                                    thumbnailPreview 
+                                        ? "bg-primary/10 text-primary border border-primary/20" 
+                                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                                }`}
+                                title="Attach photo"
+                            >
+                                <ImageIcon size={18} className={thumbnailPreview ? "text-primary" : "text-primary/80"} />
+                                <span className="hidden sm:inline">Photo</span>
+                            </button>
+
+                            {/* Link Attachment Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowLinkInput(!showLinkInput)}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                                    showLinkInput || shareLink
+                                        ? "bg-primary/10 text-primary border border-primary/20" 
+                                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                                }`}
+                                title="Attach link"
+                            >
+                                <LinkIcon size={18} className={shareLink ? "text-primary" : "text-blue-500"} />
+                                <span className="hidden sm:inline">Link</span>
+                            </button>
+
+                            {/* Club Attachment Button (if not already club update) */}
+                            {type === 'event' && myClubs.length > 0 && (
                                 <button
                                     type="button"
-                                    onClick={() => thumbnailInputRef.current?.click()}
-                                    className="w-full flex items-center justify-center gap-3 py-6 bg-gray-50 dark:bg-black/20 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-primary/30 rounded-2xl transition-all text-gray-400 hover:text-primary"
+                                    onClick={() => {
+                                        const newAttach = !attachClub;
+                                        setAttachClub(newAttach);
+                                        if (!newAttach) {
+                                            setSelectedClubId("");
+                                            setSelectedClubName("");
+                                        }
+                                    }}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                                        attachClub 
+                                            ? "bg-primary text-white shadow-sm" 
+                                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                                    }`}
+                                    title="Arrange with a club"
                                 >
-                                    <ImageIcon size={20} />
-                                    <span className="text-xs font-black uppercase tracking-widest">Click to add a thumbnail</span>
+                                    <Building2 size={18} className={attachClub ? "text-white" : "text-amber-500"} />
+                                    <span className="hidden sm:inline">Club Tag</span>
                                 </button>
                             )}
                         </div>
 
-                        {/* Visibility Section */}
-                        <div className="space-y-3 bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                                <Lock size={10} className="text-primary" /> Who can see this?
-                            </label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[
-                                    { id: "public" as const, icon: <Globe size={18} />, label: "Global", desc: "Everyone", color: "text-blue-500" },
-                                    { id: "campus" as const, icon: <School size={18} />, label: "Campus", desc: "Your college", color: "text-amber-500" },
-                                    { id: "private" as const, icon: <Lock size={18} />, label: "Private", desc: "Only you", color: "text-rose-500" },
-                                ].map((opt) => (
-                                    <button
-                                        key={opt.id}
-                                        type="button"
-                                        onClick={() => setVisibility(opt.id)}
-                                        className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200 group
-                                            ${visibility === opt.id
-                                                ? "bg-white dark:bg-gray-800 border-primary/30 shadow-md shadow-primary/5 scale-[1.02]"
-                                                : "border-transparent hover:bg-white/60 dark:hover:bg-gray-800/60 hover:border-gray-200 dark:hover:border-gray-700"
-                                            }`}
-                                    >
-                                        <div className={`transition-colors ${visibility === opt.id ? opt.color : "text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300"}`}>
-                                            {opt.icon}
-                                        </div>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${visibility === opt.id ? "text-gray-900 dark:text-white" : "text-gray-400"}`}>
-                                            {opt.label}
-                                        </span>
-                                        <span className={`text-[8px] font-bold transition-colors ${visibility === opt.id ? "text-gray-500" : "text-gray-300 dark:text-gray-600"}`}>
-                                            {opt.desc}
-                                        </span>
-                                        {visibility === opt.id && (
-                                            <motion.div layoutId="vis-indicator" className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
-                                                <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                            </motion.div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        {/* Right: Keyboard Shortcut Hint on Desktop & Char / Action */}
+                        <div className="flex items-center gap-3">
+                            <span className="hidden md:inline text-[11px] text-gray-400 font-medium">
+                                <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-150 dark:bg-white/10 rounded border border-gray-200 dark:border-white/10">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-150 dark:bg-white/10 rounded border border-gray-200 dark:border-white/10">Enter</kbd> to {editPost ? "save" : "post"}
+                            </span>
 
-                        <div className="flex items-center justify-end pt-2">
-                            <button 
-                                type="submit"
+                            {/* Share button on bottom (visible on desktop) */}
+                            <button
+                                type="button"
+                                onClick={handleSubmit}
                                 disabled={!eventName.trim() || isSubmitting}
-                                className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-primary text-white rounded-[1.25rem] text-sm font-black uppercase tracking-[0.15em] shadow-xl shadow-primary/20 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
+                                className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {isSubmitting ? (
-                                    <>Posting... <Loader2 size={18} className="animate-spin" /></>
+                                    <>
+                                        <span>{editPost ? "Saving Changes..." : "Posting..."}</span>
+                                        <Loader2 size={14} className="animate-spin" />
+                                    </>
                                 ) : (
-                                    <>Share Update <Send size={18} /></>
+                                    <>
+                                        <span>{editPost ? "Save Changes" : "Post"}</span>
+                                        {editPost ? <Check size={14} /> : <Send size={14} />}
+                                    </>
                                 )}
                             </button>
                         </div>
-                    </form>
-                    
-                    {profile?.role !== 'admin' && profile?.role !== 'super_manager' && profile?.role !== 'manager' && (
-                        <div className={`mt-6 p-4 border rounded-2xl flex items-start gap-3 ${
-                            visibility === 'private' 
-                                ? 'bg-rose-500/5 border-rose-500/10' 
-                                : visibility === 'campus' 
-                                    ? 'bg-blue-500/5 border-blue-500/10' 
-                                    : 'bg-amber-500/5 border-amber-500/10'
-                        }`}>
-                            <AlertTriangle size={16} className={`shrink-0 mt-0.5 ${
-                                visibility === 'private' ? 'text-rose-500' : visibility === 'campus' ? 'text-blue-500' : 'text-amber-500'
-                            }`} />
-                            <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed ${
-                                visibility === 'private' 
-                                    ? 'text-rose-600 dark:text-rose-400' 
-                                    : visibility === 'campus' 
-                                        ? 'text-blue-600 dark:text-blue-400' 
-                                        : 'text-amber-600 dark:text-amber-400'
-                            }`}>
+                    </div>
+
+                    {/* Moderation Advisory Note */}
+                    {isNonAdmin && (
+                        <div className="mt-2 pt-2 border-t border-gray-150/60 dark:border-white/5 flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-400">
+                            <ShieldCheck size={14} className="text-primary shrink-0" />
+                            <span className="truncate">
                                 {visibility === 'private' 
-                                    ? 'Note: This post will only be visible to you. No one else can see it.'
+                                    ? "Private post: Only you will be able to see this update." 
                                     : visibility === 'campus'
-                                        ? 'Note: Your post will be visible only to your campus community after it is reviewed by moderators.'
-                                        : 'Note: Your post will be visible to everyone across all campuses after it is reviewed by our community moderators.'
+                                        ? "Campus update: Reviewed by campus moderators before going live."
+                                        : "Global update: Reviewed by community moderators before going live."
                                 }
-                            </p>
+                            </span>
                         </div>
                     )}
                 </div>

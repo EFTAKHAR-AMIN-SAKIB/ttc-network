@@ -12,13 +12,14 @@ import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { SearchDialog } from "./SearchDialog";
 import { subscribeNotifications, subscribeUnreadNotificationsCount, markNotificationRead, markAllNotificationsRead, deleteNotification, subscribeUsersByCollege, pruneOldNotifications, type FirestoreNotification } from "@/lib/firestore";
 import { useSectionUpdates } from "@/hooks/useSectionUpdates";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 import { useToast } from "@/contexts/ToastContext";
 
 const navLinks = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/news-feed", label: "News Feed", icon: Rss },
+    { href: "/news-feed", label: "Feed", icon: Rss },
     { href: "/story", label: "Story", icon: BookOpen },
     { href: "/college-info", label: "College Info", icon: School },
     { href: "/notice", label: "Notice", icon: Megaphone },
@@ -38,7 +39,18 @@ export default function Navbar() {
     const [notifOpen, setNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState<(FirestoreNotification & { id: string })[]>([]);
     const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
+    const { isScrollingDown } = useScrollDirection();
     const [isStandalone, setIsStandalone] = useState(false);
+    const [isComposerOpen, setIsComposerOpen] = useState(false);
+
+    useEffect(() => {
+        const handleComposer = (e: Event) => {
+            const customEvent = e as CustomEvent<{ open: boolean }>;
+            setIsComposerOpen(!!customEvent.detail?.open);
+        };
+        window.addEventListener("ttc-composer-toggle", handleComposer);
+        return () => window.removeEventListener("ttc-composer-toggle", handleComposer);
+    }, []);
 
     useEffect(() => {
         const isDisplayStandalone =
@@ -246,7 +258,7 @@ export default function Navbar() {
     const { siteName, logoUrl } = useSiteSettings();
 
     return (
-        <nav className="sticky top-0 z-50 bg-white dark:bg-[#0f1117] border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+        <nav className={`sticky top-0 z-50 bg-white dark:bg-[#0f1117] border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "max-md:-translate-y-full max-md:pointer-events-none" : "max-md:translate-y-0"}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     <HumanLogo logoUrl={logoUrl} siteName={siteName} isStandalone={isStandalone} />

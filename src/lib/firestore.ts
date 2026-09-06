@@ -31,6 +31,7 @@ import {
     writeBatch,
     runTransaction,
     getCountFromServer,
+    startAfter,
     type DocumentData,
     type QuerySnapshot,
     type QueryConstraint
@@ -561,6 +562,8 @@ export interface FirestoreNotification {
     | "club_join_approved"
     | "club_join_rejected"
     | "group_join_approved"
+    | "group_join_rejected"
+    | "group_join_request"
     | "comment"
     | "reaction"
     | "follow"
@@ -579,6 +582,8 @@ export interface FirestoreNotification {
     senderId?: string;       // ID of the user initiating the action
     senderName?: string;     // Display name of the user
     senderPhotoURL?: string; // Profile picture of the user
+    senderAvatar?: string;   // Alias for profile picture
+    senderIds?: string[];    // Array of sender IDs for aggregated notifications
 }
 
 export interface PendingEdit {
@@ -3340,6 +3345,24 @@ export async function syncUserProfileUpdates(
         console.error("syncUserProfileUpdates: failed to update group member records", err);
     }
 
+    // 8b. Groups created by user (update creatorName and group member record)
+    try {
+        const groupsCreatedQ = query(collection(db, "groups"), where("creatorId", "==", uid));
+        const groupsCreatedSnap = await getDocs(groupsCreatedQ);
+        groupsCreatedSnap.forEach(d => {
+            updates.push({
+                ref: d.ref,
+                data: { creatorName: displayName }
+            });
+            updates.push({
+                ref: doc(db, "groups", d.id, "members", uid),
+                data: { displayName: displayName, photoURL: photoURL }
+            });
+        });
+    } catch (err) {
+        console.error("syncUserProfileUpdates: failed to update created groups", err);
+    }
+
     // 9. Club Member records (query clubs by user's college, then update member doc directly)
     try {
         const userDoc = await getDoc(doc(db, "users", uid));
@@ -3770,7 +3793,7 @@ export async function reactToComment(commentId: string, reaction: "love" | "rela
     const data = commentSnap.data() as FirestoreComment & { reactedBy?: Record<string, unknown>; likedBy?: string[] };
     
     // Support for both legacy and new structures
-    const reactedBy = data.reactedBy || { love: [], relatable: [], respect: [], cry: [], angry: [] };
+    const reactedBy: Record<string, any> = data.reactedBy || { love: [], relatable: [], respect: [], cry: [], angry: [] };
     
     // Backward compatibility for 'like' -> 'love'
     if (data.likedBy && !reactedBy.love) {
@@ -4173,7 +4196,7 @@ function _persistViewedId(postId: string): void {
         if (typeof window === "undefined") return;
         const viewed = _getPersistedViewedIds();
         viewed.add(postId);
-        localStorage.setItem(VIEWED_POSTS_STORAGE_KEY, JSON.stringify([...viewed]));
+        localStorage.setItem(VIEWED_POSTS_STORAGE_KEY, JSON.stringify(Array.from(viewed)));
     } catch {
         // localStorage might be full or unavailable — silently ignore
     }

@@ -236,68 +236,6 @@ function AchievementModal({ isOpen, onClose, onUpload, isUploading }: { isOpen: 
 
 function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boolean }) {
     const college = colleges.find(c => c.id === profile.collegeId);
-    
-    const bioStyle = profile.bioStyle || "serif";
-    const bioFontSize = profile.bioFontSize || "xl";
-
-    const fontSizes: Record<string, string> = {
-        sm: "text-sm sm:text-base",
-        base: "text-base sm:text-lg",
-        lg: "text-lg sm:text-xl",
-        xl: "text-xl sm:text-2xl",
-        "2xl": "text-2xl sm:text-3xl font-bold"
-    };
-
-    const sizeClass = fontSizes[bioFontSize] || fontSizes.xl;
-
-    const renderClassicBio = () => (
-        <div className="relative p-6 sm:p-8 bg-white dark:bg-gray-900 border-l-4 border-primary rounded-r-3xl rounded-l-md shadow-sm border border-slate-100 dark:border-gray-800/80 overflow-hidden">
-            <Quote className="absolute top-4 right-4 w-20 h-20 text-primary/5 pointer-events-none -rotate-6" />
-            <p className={`${sizeClass} font-serif text-navy-900 dark:text-gray-100 leading-relaxed font-bengali break-words`}>
-                {profile.bio || "Every journey starts with a single step. This educator hasn't written their story yet, but their impact is felt through every action."}
-            </p>
-        </div>
-    );
-
-    const renderModernBio = () => (
-        <div className="relative p-6 sm:p-8 bg-gradient-to-tr from-slate-50 to-slate-100/50 dark:from-gray-900 dark:to-gray-800/50 border border-slate-200/60 dark:border-gray-800 rounded-[2rem] shadow-sm overflow-hidden">
-            <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary/40 font-black text-xs">A</div>
-            <p className={`${sizeClass} font-sans text-slate-800 dark:text-slate-200 leading-relaxed tracking-tight font-bengali break-words pt-4`}>
-                {profile.bio || "Every journey starts with a single step. This educator hasn't written their story yet, but their impact is felt through every action."}
-            </p>
-        </div>
-    );
-
-    const renderHandwrittenBio = () => (
-        <div className="relative p-6 sm:p-8 notebook-paper border-2 border-slate-200 dark:border-gray-800 rounded-3xl shadow-md min-h-[160px] overflow-hidden noise-bg">
-            <div className="absolute left-[30px] top-0 bottom-0 w-0.5 bg-red-400/25 pointer-events-none" />
-            <p className={`${sizeClass} font-handwritten text-blue-800 dark:text-amber-100 leading-loose tracking-wide break-words pl-[25px]`}>
-                {profile.bio || "Every journey starts with a single step. This educator hasn't written their story yet, but their impact is felt through every action."}
-            </p>
-        </div>
-    );
-
-    const renderCyberBio = () => (
-        <div className="relative p-6 sm:p-8 bg-white/40 dark:bg-gray-950/40 backdrop-blur-md border border-primary/20 dark:border-primary/30 rounded-[2.5rem] shadow-xl overflow-hidden shadow-primary/5">
-            <div className="absolute -top-12 -right-12 w-28 h-28 bg-primary/20 rounded-full blur-3xl opacity-60 pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-28 h-28 bg-accent/20 rounded-full blur-3xl opacity-60 pointer-events-none" />
-            <div className="flex gap-2 items-center mb-4">
-                <Sparkles size={16} className="text-primary animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary/80">Interactive Narrative</span>
-            </div>
-            <p className={`${sizeClass} font-sans text-navy-900 dark:text-white leading-relaxed tracking-wide font-medium font-bengali break-words`}>
-                {profile.bio || "Every journey starts with a single step. This educator hasn't written their story yet, but their impact is felt through every action."}
-            </p>
-        </div>
-    );
-
-    const renderMinimalBio = () => (
-        <div className="relative py-6 px-8 border border-dashed border-slate-200 dark:border-gray-800 rounded-2xl bg-slate-50/30 dark:bg-[#0f1117]/30">
-            <p className={`${sizeClass} font-sans text-slate-700 dark:text-slate-300 leading-relaxed font-bengali break-words`}>
-                {profile.bio || "Every journey starts with a single step. This educator hasn't written their story yet, but their impact is felt through every action."}
-            </p>
-        </div>
-    );
 
     return (
         <motion.div 
@@ -305,14 +243,6 @@ function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boo
             animate={{ opacity: 1, y: 0 }}
             className="space-y-10"
         >
-            {/* Bio Section */}
-            <section className="relative group">
-                {bioStyle === "serif" && renderClassicBio()}
-                {bioStyle === "sans" && renderModernBio()}
-                {bioStyle === "writer" && renderHandwrittenBio()}
-                {bioStyle === "glow" && renderCyberBio()}
-                {bioStyle === "minimal" && renderMinimalBio()}
-            </section>
 
             {/* Favorite Quote Block */}
             {profile.favoriteQuote && (
@@ -1825,7 +1755,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                         </div>
                                     ) : profileData.bio ? (
                                         <div className="group/bio relative inline-block text-left max-w-xl">
-                                            <p className={`text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-normal whitespace-pre-line ${
+                                            <p className={`text-xs sm:text-sm text-navy-900 dark:text-gray-100 leading-relaxed font-bold whitespace-pre-line ${
                                                 !bioExpanded && profileData.bio.length > 160 ? "line-clamp-2" : ""
                                             }`}>
                                                 {profileData.bio}

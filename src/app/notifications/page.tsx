@@ -334,10 +334,10 @@ export default function NotificationsPage() {
 
                                         {/* Icon / Image */}
                                         <div className="flex-shrink-0">
-                                            {notif.senderAvatar ? (
+                                            {(notif.senderAvatar || notif.senderPhotoURL) ? (
                                                 <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 dark:border-gray-800">
                                                     <Image 
-                                                        src={notif.senderAvatar} 
+                                                        src={notif.senderAvatar || notif.senderPhotoURL!} 
                                                         alt={notif.senderName || "Sender"} 
                                                         width={40} 
                                                         height={40}

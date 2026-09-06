@@ -20,7 +20,10 @@ import {
     updateGroupPost, subscribeComments, type GroupPostDoc,
     subscribeGroupDetails
 } from "@/lib/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
+import { getDb } from "@/lib/firebase";
 import GroupPostCreationModal from "./GroupPostCreationModal";
+import SafeAvatar from "./SafeAvatar";
 
 const gradients = [
     "from-blue-600 to-indigo-600",
@@ -42,13 +45,37 @@ interface GroupPostCardProps {
 }
 
 export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPostCardProps) {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { confirm, setIsLoading, close } = useConfirm();
     const { showToast } = useToast();
     const [showComments, setShowComments] = useState(false);
     const [previewComments, setPreviewComments] = useState<any[]>([]);
     const searchParams = useSearchParams();
     const [isTarget, setIsTarget] = useState(false);
+    const [coverImgError, setCoverImgError] = useState(false);
+
+    // Live profile synchronization for post creator
+    const [liveCreatorPhoto, setLiveCreatorPhoto] = useState<string | null>(null);
+    const [liveCreatorName, setLiveCreatorName] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (post.isAnonymous || !post.creatorId) return;
+        // If post is created by active user, reflect currentUserPhoto immediately
+        if (user?.uid === post.creatorId && profile?.photoURL) {
+            setLiveCreatorPhoto(profile.photoURL);
+            if (profile.displayName) setLiveCreatorName(profile.displayName);
+            return;
+        }
+        const db = getDb();
+        const unsub = onSnapshot(doc(db, "users", post.creatorId), (snap) => {
+            if (snap.exists()) {
+                const uData = snap.data();
+                if (uData.photoURL !== undefined) setLiveCreatorPhoto(uData.photoURL);
+                if (uData.displayName) setLiveCreatorName(uData.displayName);
+            }
+        }, () => {});
+        return () => unsub();
+    }, [post.creatorId, post.isAnonymous, user?.uid, profile?.photoURL, profile?.displayName]);
 
     useEffect(() => {
         if (!post.id) return;
@@ -205,9 +232,9 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
         }
     };
 
-    // Anonymous display logic
-    const authorName = post.isAnonymous ? "Anonymous Member" : post.creatorName;
-    const authorPhoto = post.isAnonymous ? "" : post.creatorPhotoURL;
+    // Anonymous display logic with live real-time sync
+    const authorName = post.isAnonymous ? "Anonymous Member" : (liveCreatorName || post.creatorName);
+    const authorPhoto = post.isAnonymous ? "" : (liveCreatorPhoto !== null ? liveCreatorPhoto : (post.creatorPhotoURL || ""));
     const authorRole = post.isAnonymous ? "" : post.creatorRole;
 
     return (
@@ -242,8 +269,13 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                         {/* Group Cover Avatar */}
                         <Link href={`/groups/${post.groupId}`}>
                             <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 shadow-sm hover:scale-[1.03] transition-transform duration-300">
-                                {groupDetails?.coverUrl ? (
-                                    <img src={groupDetails.coverUrl} alt={groupDetails?.name || post.groupName} className="w-full h-full object-cover" />
+                                {groupDetails?.coverUrl && !coverImgError ? (
+                                    <img 
+                                        src={groupDetails.coverUrl} 
+                                        alt={groupDetails?.name || post.groupName} 
+                                        onError={() => setCoverImgError(true)}
+                                        className="w-full h-full object-cover" 
+                                    />
                                 ) : (
                                     <div className={`w-full h-full bg-gradient-to-br ${getGroupGradient(groupDetails?.name || post.groupName)} flex items-center justify-center text-xs font-black text-white uppercase`}>
                                         {(groupDetails?.name || post.groupName).slice(0, 2)}
@@ -261,15 +293,20 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                                 🎭
                             </div>
                         ) : (
-                            <Link href={`/profile/${post.creatorId}`}>
-                                <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-[#1a1b23] hover:scale-105 transition-transform duration-300 shadow-sm">
-                                    {authorPhoto ? (
-                                        <img src={authorPhoto} alt={authorName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-gray-500 bg-primary/10 text-primary">
-                                            {authorName[0]}
-                                        </div>
-                                    )}
+                            <Link 
+                                href={`/profile/${post.creatorId}`} 
+                                title={`View ${authorName}'s profile`}
+                                className="cursor-pointer"
+                            >
+                                <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-[#1a1b23] hover:scale-110 transition-transform duration-300 shadow-sm">
+                                    <SafeAvatar 
+                                        src={authorPhoto} 
+                                        alt={authorName} 
+                                        sizeClassName="w-full h-full"
+                                        textClassName="text-[8px] font-black"
+                                        fallbackBg="bg-primary/10"
+                                        fallbackColor="text-primary"
+                                    />
                                 </div>
                             </Link>
                         )}
@@ -294,7 +331,8 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                             ) : (
                                 <Link 
                                     href={`/profile/${post.creatorId}`} 
-                                    className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors truncate max-w-[120px] sm:max-w-[180px]"
+                                    title={`View ${authorName}'s profile`}
+                                    className="font-bold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors truncate max-w-[120px] sm:max-w-[180px] cursor-pointer"
                                 >
                                     {authorName}
                                 </Link>
@@ -505,7 +543,18 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                     <div className="space-y-1.5">
                         {previewComments.map(c => (
                             <div key={c.id} className="flex gap-2 text-[11px] leading-relaxed">
-                                <span className="font-black text-gray-900 dark:text-white shrink-0 uppercase tracking-tight">{c.userName}:</span>
+                                {c.userId ? (
+                                    <Link 
+                                        href={`/profile/${c.userId}`} 
+                                        onClick={(e) => e.stopPropagation()} 
+                                        className="font-black text-gray-900 dark:text-white shrink-0 uppercase tracking-tight hover:text-primary transition-colors cursor-pointer"
+                                        title={`View ${c.userName}'s profile`}
+                                    >
+                                        {c.userName}:
+                                    </Link>
+                                ) : (
+                                    <span className="font-black text-gray-900 dark:text-white shrink-0 uppercase tracking-tight">{c.userName}:</span>
+                                )}
                                 <span className="text-gray-600 dark:text-gray-300 line-clamp-1 break-all font-medium">{c.text}</span>
                             </div>
                         ))}

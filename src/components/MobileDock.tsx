@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSectionUpdates } from "@/hooks/useSectionUpdates";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 const dockLinks = [
     { href: "/", label: "Home", icon: Home },
@@ -20,7 +21,18 @@ const dockLinks = [
 export default function MobileDock() {
     const pathname = usePathname();
     const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
+    const { isScrollingDown } = useScrollDirection();
     const [isStandalone, setIsStandalone] = useState(false);
+    const [isComposerOpen, setIsComposerOpen] = useState(false);
+
+    useEffect(() => {
+        const handleComposer = (e: Event) => {
+            const customEvent = e as CustomEvent<{ open: boolean }>;
+            setIsComposerOpen(!!customEvent.detail?.open);
+        };
+        window.addEventListener("ttc-composer-toggle", handleComposer);
+        return () => window.removeEventListener("ttc-composer-toggle", handleComposer);
+    }, []);
 
     useEffect(() => {
         const isDisplayStandalone =
@@ -56,7 +68,7 @@ export default function MobileDock() {
     };
 
     return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/90 dark:bg-[#0f1117]/90 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe">
+        <div className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "translate-y-full pointer-events-none" : "translate-y-0"}`}>
             <div className="flex items-center justify-around px-2 py-2">
                 {links.map((link) => {
                     const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));

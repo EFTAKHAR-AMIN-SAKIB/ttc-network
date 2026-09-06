@@ -14,6 +14,7 @@ import { ExpandableText, TimeAgo } from "./SocialUtils";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import Link from "next/link";
 import { useMentionAutosuggest, MentionDropdown } from "./MentionDropdown";
+import SafeAvatar from "@/components/SafeAvatar";
 
 /**
  * CommentItem Component
@@ -69,15 +70,14 @@ export function CommentItem({
             animate={{ opacity: 1, x: 0 }}
             className={`flex gap-3 scroll-mt-24 ${comment.parentId ? 'ml-4 sm:ml-10 mt-3 pt-3 border-l-2 border-gray-100 dark:border-gray-800 pl-4' : 'mt-6'}`}
         >
-            <Link href={`/profile/${comment.userId}`} className="shrink-0">
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                    {comment.userAvatar ? (
-                        <img src={comment.userAvatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">
-                            {comment.userName?.[0]}
-                        </div>
-                    )}
+            <Link href={`/profile/${comment.userId}`} title={`View ${comment.userName}'s profile`} className="shrink-0 group cursor-pointer">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 group-hover:ring-2 group-hover:ring-primary/40 transition-all">
+                    <SafeAvatar 
+                        src={comment.userAvatar} 
+                        alt={comment.userName || "User"} 
+                        sizeClassName="w-full h-full"
+                        textClassName="text-xs font-black"
+                    />
                 </div>
             </Link>
             <div className="flex-1 min-w-0">
@@ -291,13 +291,12 @@ export function CommentSystem({
                             <div className="flex items-end gap-3">
                                 <div className="shrink-0 mb-1">
                                      <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
-                                         {profile?.photoURL || user?.photoURL ? (
-                                             <img src={profile?.photoURL || user?.photoURL || undefined} alt="" className="w-full h-full object-cover" />
-                                         ) : (
-                                             <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
-                                                 {profile?.displayName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
-                                             </div>
-                                         )}
+                                         <SafeAvatar
+                                             src={profile?.photoURL || user?.photoURL || undefined}
+                                             alt={profile?.displayName || user?.displayName || "?"}
+                                             sizeClassName="w-full h-full"
+                                             textClassName="text-xs font-black"
+                                         />
                                      </div>
                                 </div>
                                 <div className="flex-1 flex items-end gap-2">
@@ -804,13 +803,12 @@ export function CommentDrawer({
                                     <div className="flex items-end gap-3">
                                         <div className="shrink-0 mb-1">
                                              <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 overflow-hidden">
-                                                 {profile?.photoURL || user?.photoURL ? (
-                                                     <img src={profile?.photoURL || user?.photoURL || undefined} alt="" className="w-full h-full object-cover" />
-                                                 ) : (
-                                                     <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400 bg-slate-100 dark:bg-gray-850">
-                                                         {profile?.displayName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
-                                                     </div>
-                                                 )}
+                                                 <SafeAvatar
+                                                     src={profile?.photoURL || user?.photoURL || undefined}
+                                                     alt={profile?.displayName || user?.displayName || "?"}
+                                                     sizeClassName="w-full h-full"
+                                                     textClassName="text-xs font-black"
+                                                 />
                                              </div>
                                         </div>
                                         <div className="flex-1 flex items-end gap-2">
