@@ -4627,6 +4627,88 @@ export async function getFriendRecommendations(
     return recommendations.slice(0, limitCount);
 }
 
+export interface CategorizedRecommendations {
+    myCollege: (FirestoreUser & { id: string })[];
+    otherColleges: (FirestoreUser & { id: string })[];
+}
+
+/**
+ * Fetch friend recommendations divided into:
+ * 1. My College Peers (batchmates, same year/semester prioritized)
+ * 2. Other Colleges Peers (cross-campus peers, same year/semester prioritized)
+ */
+export async function getCategorizedFriendRecommendations(
+    currentUserId: string,
+    collegeId: string,
+    currentUserProfile?: {
+        yearSemester?: string;
+        programme?: string;
+        year?: string;
+        semester?: string;
+        role?: string;
+    } | null,
+    limitPerCategory: number = 24
+): Promise<CategorizedRecommendations> {
+    if (!currentUserId) return { myCollege: [], otherColleges: [] };
+
+    const db = getDb();
+
+    try {
+        // 1. Get UIDs of users already followed
+        const followingSnap = await getDocs(collection(db, "users", currentUserId, "following"));
+        const followedIds = new Set(followingSnap.docs.map(d => d.id));
+        followedIds.add(currentUserId); // exclude self
+
+        // 2. Fetch users across network (sample up to 150)
+        const qAll = query(collection(db, "users"), limit(150));
+        const snapAll = await getDocs(qAll);
+        const allUsers = snapAll.docs
+            .map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }))
+            .filter(u => !followedIds.has(u.id));
+
+        // Normalize year/semester helper
+        const cleanYearSem = (val?: string) => (val || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const myYearSem = cleanYearSem(
+            currentUserProfile?.yearSemester || 
+            (currentUserProfile?.year && currentUserProfile?.semester ? `${currentUserProfile.year} ${currentUserProfile.semester}` : currentUserProfile?.semester || currentUserProfile?.year)
+        );
+        const myProgramme = currentUserProfile?.programme;
+
+        // Relevance scoring function
+        const scoreUser = (u: FirestoreUser) => {
+            let score = 0;
+            const targetYearSem = cleanYearSem(u.yearSemester);
+
+            // Same year & semester gets top priority (batchmate match!)
+            if (myYearSem && targetYearSem && myYearSem === targetYearSem) {
+                score += 100;
+            } else if (myProgramme && u.programme && myProgramme === u.programme) {
+                score += 30;
+            }
+
+            if (u.role === "teacher") score += 25;
+            if (u.roleVerified) score += 15;
+            if (u.photoURL) score += 10;
+            if (u.bio) score += 5;
+            return score;
+        };
+
+        const myCollegeUsers = allUsers.filter(u => u.collegeId === collegeId);
+        const otherCollegesUsers = allUsers.filter(u => u.collegeId && u.collegeId !== collegeId);
+
+        myCollegeUsers.sort((a, b) => scoreUser(b) - scoreUser(a));
+        otherCollegesUsers.sort((a, b) => scoreUser(b) - scoreUser(a));
+
+        return {
+            myCollege: myCollegeUsers.slice(0, limitPerCategory),
+            otherColleges: otherCollegesUsers.slice(0, limitPerCategory),
+        };
+    } catch (err) {
+        console.error("[Firestore] getCategorizedFriendRecommendations failed:", err);
+        return { myCollege: [], otherColleges: [] };
+    }
+}
+
 /**
  * Real-time subscription to all users of a specific college.
  * Sorted in memory by createdAt descending.

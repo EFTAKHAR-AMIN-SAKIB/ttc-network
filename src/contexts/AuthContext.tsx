@@ -142,6 +142,7 @@ export interface UserProfile {
     // Legacy Basic Fields
     year: string;
     semester: string;
+    yearSemester?: string;
     bio: string;
     achievements: string;
     goals: string;
