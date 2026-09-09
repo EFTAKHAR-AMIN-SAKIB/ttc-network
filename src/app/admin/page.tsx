@@ -18,7 +18,7 @@ import {
     Star,
     BookOpen,
     Bell,
-    HelpCircle,
+    Globe,
     Plus,
     Trash2,
     /* Database — removed: was only used by Seed Data button */
@@ -558,7 +558,7 @@ const tabs: { id: TabId; label: string; icon: typeof Building2 }[] = [
     { id: "stories", label: "Stories", icon: BookOpen },
     { id: "study", label: "Study", icon: BookText },
     { id: "notices", label: "Notices", icon: Bell },
-    { id: "qa", label: "Homepage", icon: HelpCircle },
+    { id: "qa", label: "Homepage", icon: Globe },
     { id: "gifts", label: "Supporters", icon: Gift },
     { id: "users", label: "Users", icon: Users },
     { id: "settings", label: "Settings", icon: Settings },

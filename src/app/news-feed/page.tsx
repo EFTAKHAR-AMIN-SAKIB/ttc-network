@@ -9,11 +9,10 @@ import {
     Award, Globe, Users, Bookmark, Sparkles, Filter,
     CheckCircle2, Compass, School, ChevronRight, MessageSquare,
     ChevronLeft, ArrowRight, ExternalLink, BarChart2,
-    Menu, Bell, BookOpen
+    Menu, Bell, BookOpen, ChevronDown, Check
 } from "lucide-react";
 import NewsFeedLeftSidebar from "./components/NewsFeedLeftSidebar";
 import { colleges } from "@/data/colleges";
-import { LocationFilterButton } from "@/components/LocationIcons";
 import { 
     subscribePosts, subscribeModerationCount, deletePost,
     toggleSavePost, subscribeSavedPosts,
@@ -78,6 +77,17 @@ function NewsFeedInner() {
     const [selectedFilter, setSelectedFilter] = useState("all");
     const [loading, setLoading] = useState(true);
     const [isMobileLeftMenuOpen, setIsMobileLeftMenuOpen] = useState(false);
+    const [isMobileCampusDropdownOpen, setIsMobileCampusDropdownOpen] = useState(false);
+
+    // Auto-close mobile campus dropdown on scroll
+    useEffect(() => {
+        if (!isMobileCampusDropdownOpen) return;
+        const handleScroll = () => {
+            setIsMobileCampusDropdownOpen(false);
+        };
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, [isMobileCampusDropdownOpen]);
 
     // Sync tab param with activeTab state
     useEffect(() => {
@@ -293,18 +303,19 @@ function NewsFeedInner() {
         };
     }, [profile]);
 
-    const filterOptions = useMemo(
-        () => [
-            { id: "all", label: "All Colleges" },
-            ...colleges.map((c) => ({ id: c.id, label: c.city })),
-        ],
-        []
-    );
-
     const userCollege = useMemo(() => {
         if (!profile?.collegeId) return null;
         return colleges.find(c => c.id === profile.collegeId) || null;
     }, [profile?.collegeId]);
+
+    const selectedCollege = useMemo(() => colleges.find(c => c.id === selectedFilter), [selectedFilter]);
+    const currentFilterLabel = useMemo(() => {
+        if (selectedFilter === "all") return "All Colleges";
+        if (selectedFilter === profile?.collegeId) {
+            return `My Campus (${userCollege?.shortName || userCollege?.city || selectedCollege?.shortName || selectedCollege?.city || "Campus"})`;
+        }
+        return selectedCollege?.shortName || `${selectedCollege?.city || "Campus"} TTC`;
+    }, [selectedFilter, profile?.collegeId, userCollege, selectedCollege]);
 
     const userName = profile?.displayName || "";
     const rawFirstName = userName ? userName.split(" ")[0] : "";
@@ -508,14 +519,14 @@ function NewsFeedInner() {
         );
     }
 
-    const selectedCollegeName = colleges.find(c => c.id === selectedFilter)?.city;
+    const selectedCollegeName = colleges.find(c => c.id === selectedFilter)?.shortName || colleges.find(c => c.id === selectedFilter)?.city;
     const hasActiveFilters = selectedFilter !== "all" || searchQuery.trim() !== "" || selectedTag !== null || showOnlySaved;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0c10] text-gray-900 dark:text-gray-100 transition-colors">
             
             {/* ─── Sleek Sticky Control Bar ─── */}
-            <header className={`sticky top-0 md:top-16 z-30 bg-white/95 dark:bg-[#121319]/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-xs transition-transform duration-300 ease-in-out ${(isScrollingDown || isSharing) ? "max-md:-translate-y-full max-md:pointer-events-none" : "max-md:translate-y-0"}`}>
+            <header className={`sticky top-0 md:top-16 z-30 bg-white/95 dark:bg-[#121319]/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-xs transition-transform duration-300 ease-in-out ${(isScrollingDown || isSharing) && !isMobileCampusDropdownOpen ? "max-md:-translate-y-full max-md:pointer-events-none" : "max-md:translate-y-0"}`}>
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-4">
                     
                     {/* Left: Live Status & Feed Title */}
@@ -550,22 +561,154 @@ function NewsFeedInner() {
                     </div>
                 </div>
 
-                {/* Horizontal Campus Filter Strip (Shown on mobile/tablet, hidden on desktop where Left Sidebar has Select Campus) */}
-                <div className="lg:hidden border-t border-gray-100 dark:border-gray-800/60 bg-gray-50/50 dark:bg-[#151720]/50 py-2">
-                    <div className="max-w-6xl mx-auto px-4 sm:px-6">
-                        <div className="flex items-center gap-1.5 overflow-x-auto location-filter-strip no-scrollbar snap-x py-0.5">
-                            {filterOptions.map((opt) => (
-                                <LocationFilterButton
-                                    key={opt.id}
-                                    locationId={opt.id}
-                                    label={opt.label}
-                                    isActive={selectedFilter === opt.id}
-                                    onClick={() => {
-                                        setSelectedFilter(opt.id);
-                                    }}
+                {/* Mobile Campus Filter Dropdown (Matches Desktop/Drawer 'Select Campus' Dropdown) */}
+                <div className="lg:hidden border-t border-gray-100 dark:border-gray-800/60 bg-gray-50/70 dark:bg-[#151720]/70 px-4 sm:px-6 py-2 relative">
+                    <div className="max-w-md mx-auto relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsMobileCampusDropdownOpen(prev => !prev)}
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left group cursor-pointer border shadow-xs ${
+                                selectedFilter !== "all"
+                                    ? "bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-500/30"
+                                    : "bg-white dark:bg-[#161822] text-gray-700 dark:text-gray-200 border-gray-200/80 dark:border-gray-800/80 hover:bg-gray-100/80 dark:hover:bg-gray-800/70"
+                            }`}
+                        >
+                            <span className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <School size={16} className="text-amber-500 shrink-0" />
+                                <span className="truncate">Select Campus</span>
+                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full truncate max-w-[140px] ${
+                                    selectedFilter !== "all"
+                                        ? "bg-amber-500/20 text-amber-800 dark:text-amber-200"
+                                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                }`}>
+                                    {currentFilterLabel}
+                                </span>
+                                <ChevronDown 
+                                    size={14} 
+                                    className={`text-gray-400 transition-transform duration-200 ${isMobileCampusDropdownOpen ? "rotate-180 text-primary" : ""}`} 
                                 />
-                            ))}
-                        </div>
+                            </div>
+                        </button>
+
+                        {/* Expandable Dropdown List */}
+                        <AnimatePresence>
+                            {isMobileCampusDropdownOpen && (
+                                <>
+                                    {/* Backdrop for click outside dismissal */}
+                                    <div 
+                                        className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-[1px]"
+                                        onClick={() => setIsMobileCampusDropdownOpen(false)}
+                                    />
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-[#161822] rounded-2xl border border-gray-200/90 dark:border-gray-800 shadow-2xl overflow-hidden"
+                                    >
+                                        <div className="py-1.5 px-1 space-y-1 max-h-64 overflow-y-auto no-scrollbar shadow-inner">
+                                            {/* All Colleges Option */}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowOnlySaved(false);
+                                                    setSelectedFilter("all");
+                                                    setIsMobileCampusDropdownOpen(false);
+                                                }}
+                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                                                    selectedFilter === "all"
+                                                        ? "bg-primary text-white shadow-xs font-black"
+                                                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                                                }`}
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <Globe size={13} className={selectedFilter === "all" ? "text-white" : "text-gray-400"} />
+                                                    <span>All Colleges</span>
+                                                </span>
+                                                {selectedFilter === "all" && <Check size={14} className="shrink-0" />}
+                                            </button>
+
+                                            {/* My Campus (Pinned if available) */}
+                                            {profile?.collegeId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowOnlySaved(false);
+                                                        setSelectedFilter(profile.collegeId);
+                                                        setIsMobileCampusDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                                                        selectedFilter === profile.collegeId
+                                                            ? "bg-amber-500 text-white shadow-xs font-black"
+                                                            : "text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/15"
+                                                    }`}
+                                                >
+                                                    <span className="flex items-center gap-2 truncate">
+                                                        <School size={13} className={selectedFilter === profile.collegeId ? "text-white" : "text-amber-500"} />
+                                                        <span className="truncate">My Campus ({userCollege?.shortName || userCollege?.city || "Campus"})</span>
+                                                    </span>
+                                                    {selectedFilter === profile.collegeId && <Check size={14} className="shrink-0" />}
+                                                </button>
+                                            )}
+
+                                            {/* Divider */}
+                                            <div className="border-t border-gray-200/60 dark:border-gray-800 my-1 mx-2" />
+
+                                            {/* All 15 TTC Colleges */}
+                                            {colleges.map((col) => {
+                                                const isSelected = selectedFilter === col.id;
+                                                const isMyCollege = profile?.collegeId === col.id;
+                                                return (
+                                                    <button
+                                                        key={col.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowOnlySaved(false);
+                                                            setSelectedFilter(col.id);
+                                                            setIsMobileCampusDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                                                            isSelected
+                                                                ? "bg-primary text-white shadow-xs font-black"
+                                                                : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                                                        }`}
+                                                    >
+                                                        <span className="truncate flex items-center gap-2">
+                                                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-white" : "bg-gray-400"}`} />
+                                                            <span className="truncate">{col.shortName || `${col.city} TTC`}</span>
+                                                            {col.gender === "women" && (
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                                                                    isSelected ? "bg-white/25 text-white" : "bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/20"
+                                                                }`}>
+                                                                    Women
+                                                                </span>
+                                                            )}
+                                                            {col.gender === "men" && (
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                                                                    isSelected ? "bg-white/25 text-white" : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                                                                }`}>
+                                                                    Men
+                                                                </span>
+                                                            )}
+                                                            {isMyCollege && (
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                                                                    isSelected ? "bg-white/20 text-white" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                                                }`}>
+                                                                    My
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        {isSelected && <Check size={14} className="shrink-0" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             </header>

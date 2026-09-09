@@ -374,7 +374,7 @@ const collegesData: CollegeProfile[] = [
     {
         id: "mymensingh",
         name: "Govt. Women's Teachers' Training College, Mymensingh",
-        shortName: "Women's TTC Mymensingh",
+        shortName: "Mymensingh TTC (Women)",
         division: "Mymensingh",
         logo: "",
         hasLogo: false,
@@ -389,7 +389,7 @@ const collegesData: CollegeProfile[] = [
         classrooms: 18,
         hostel: true,
         description:
-            "Established in 1952, one of the few women-focused teacher training institutions in Bangladesh. Dedicated to empowering female educators across the country.",
+            "Established in 1952, the only dedicated women-focused teacher training college in Bangladesh. Dedicated to empowering female educators across the country.",
         achievements: ["Women Empowerment in Education Award 2024"],
         faculty: [],
         clubs: [],
@@ -400,8 +400,8 @@ const collegesData: CollegeProfile[] = [
     },
     {
         id: "mymensingh_coed",
-        name: "Govt. Teachers' Training College, Mymensingh",
-        shortName: "TTC Mymensingh",
+        name: "Govt. Teachers' Training College (Men), Mymensingh",
+        shortName: "Mymensingh TTC (Men)",
         division: "Mymensingh",
         logo: "",
         hasLogo: false,
@@ -415,7 +415,7 @@ const collegesData: CollegeProfile[] = [
         students: 0,
         classrooms: 0,
         hostel: false,
-        description: "Established in 1948.",
+        description: "Established in 1948. The primary general and men's Teachers' Training College in Mymensingh.",
         achievements: [],
         faculty: [],
         clubs: [],
@@ -863,14 +863,14 @@ function CollegeInfoInner() {
         <div className="min-h-screen bg-white dark:bg-black overflow-x-hidden">
             {/* Header */}
             <div className="bg-white dark:bg-[#16181C] border-b border-gray-100 dark:border-white/10">
-                <div className="max-w-7xl mx-auto px-4 py-4 sm:py-8">
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white font-english">College Information</h1>
-                    <p className="text-gray-700 dark:text-gray-400 text-xs sm:text-sm mt-1">Detailed profiles of all {collegesData.length} Government Teachers&apos; Training Colleges</p>
+                <div className="max-w-7xl mx-auto px-4 py-3 sm:py-8">
+                    <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 dark:text-white font-english">College Information</h1>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">Detailed profiles of all {collegesData.length} Government Teachers&apos; Training Colleges</p>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-3 lg:py-6">
-                <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-stretch lg:items-start">
+            <div className="max-w-7xl mx-auto px-4 pt-0 pb-3 lg:py-6">
+                <div className="flex flex-col lg:flex-row gap-0 lg:gap-8 items-stretch lg:items-start">
 
                     {/* ─── Desktop Sidebar ─── */}
                     <aside className="hidden lg:flex flex-col w-80 bg-white dark:bg-[#0C0C10] border border-gray-100 dark:border-gray-800/50 rounded-3xl sticky top-24 h-[calc(100vh-120px)] overflow-hidden shadow-sm dark:shadow-black/20">
@@ -956,9 +956,9 @@ function CollegeInfoInner() {
                     </aside>
 
                     {/* ─── Main Content ─── */}
-                    <main className="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden relative" ref={contentRef}>
+                    <div className="flex-1 w-full min-w-0">
                         {/* ─── Mobile Header & College Switcher Trigger ─── */}
-                        <div className="lg:hidden sticky top-[64px] z-[40] bg-white/90 dark:bg-black/90 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-3 mb-4 -mx-4 flex items-center justify-between">
+                        <div className="lg:hidden sticky top-[64px] z-[40] bg-white/95 dark:bg-[#16181C]/95 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-2.5 mb-3 -mx-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-[#161620] border border-gray-200 dark:border-gray-800 flex items-center justify-center shadow-sm overflow-hidden">
                                     {selectedCollege.hasLogo ? <Image src={selectedCollege.logo} alt="" width={24} height={24} className="object-contain" /> : <School size={16} className="text-gray-400" />}
@@ -1787,7 +1787,7 @@ function CollegeInfoInner() {
                                 </motion.div>
                             </AnimatePresence>
                         </div>
-                    </main>
+                    </div>
 
 
                 </div>

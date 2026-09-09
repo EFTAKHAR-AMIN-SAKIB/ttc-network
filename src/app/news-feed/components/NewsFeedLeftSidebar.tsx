@@ -84,8 +84,8 @@ export default function NewsFeedLeftSidebar({
     const currentFilterLabel = selectedFilter === "all" 
         ? "All Colleges" 
         : (selectedFilter === profile?.collegeId 
-            ? `My Campus (${userCollege?.city || selectedCollege?.city || "Campus"})` 
-            : `${selectedCollege?.city || "Campus"} TTC`);
+            ? `My Campus (${userCollege?.shortName || userCollege?.city || selectedCollege?.shortName || selectedCollege?.city || "Campus"})` 
+            : (selectedCollege?.shortName || `${selectedCollege?.city || "Campus"} TTC`));
 
     return (
         <div className="space-y-4">
@@ -275,7 +275,7 @@ export default function NewsFeedLeftSidebar({
                                         >
                                             <span className="flex items-center gap-2 truncate">
                                                 <School size={13} className={selectedFilter === profile.collegeId ? "text-white" : "text-amber-500"} />
-                                                <span className="truncate">My Campus ({userCollege?.city || "Campus"})</span>
+                                                <span className="truncate">My Campus ({userCollege?.shortName || userCollege?.city || "Campus"})</span>
                                             </span>
                                             {selectedFilter === profile.collegeId && <Check size={14} className="shrink-0" />}
                                         </button>
@@ -284,7 +284,7 @@ export default function NewsFeedLeftSidebar({
                                     {/* Divider */}
                                     <div className="border-t border-gray-200/60 dark:border-gray-800 my-1 mx-2" />
 
-                                    {/* All 14 TTC Colleges */}
+                                    {/* All 15 TTC Colleges */}
                                     {colleges.map((col) => {
                                         const isSelected = selectedFilter === col.id;
                                         const isMyCollege = profile?.collegeId === col.id;
@@ -305,9 +305,23 @@ export default function NewsFeedLeftSidebar({
                                             >
                                                 <span className="truncate flex items-center gap-2">
                                                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-white" : "bg-gray-400"}`} />
-                                                    <span className="truncate">{col.city} TTC</span>
+                                                    <span className="truncate">{col.shortName || `${col.city} TTC`}</span>
+                                                    {col.gender === "women" && (
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                                                            isSelected ? "bg-white/25 text-white" : "bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/20"
+                                                        }`}>
+                                                            Women
+                                                        </span>
+                                                    )}
+                                                    {col.gender === "men" && (
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${
+                                                            isSelected ? "bg-white/25 text-white" : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                                                        }`}>
+                                                            Men
+                                                        </span>
+                                                    )}
                                                     {isMyCollege && (
-                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${
                                                             isSelected ? "bg-white/20 text-white" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                                                         }`}>
                                                             My

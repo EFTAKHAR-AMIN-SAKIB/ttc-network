@@ -2916,9 +2916,9 @@ export async function getAdmissionSettings(): Promise<FirestoreAdmissionSettings
     return snap.exists() ? (snap.data() as FirestoreAdmissionSettings) : DEFAULT_ADMISSION_SETTINGS;
 }
 
-export async function updateAdmissionSettings(settings: FirestoreAdmissionSettings): Promise<void> {
+export async function updateAdmissionSettings(settings: Partial<FirestoreAdmissionSettings>): Promise<void> {
     await requireAdminOrManager();
-    await setDoc(doc(getDb(), "settings", "admission"), settings);
+    await setDoc(doc(getDb(), "settings", "admission"), settings, { merge: true });
 }
 
 // ═══════════════════════════════════════════════════
@@ -4652,6 +4652,30 @@ export function subscribeUsersByCollege(
         callback(users);
     }, (error) => {
         console.error("[Firestore] subscribeUsersByCollege failed:", error);
+    });
+}
+
+/**
+ * Real-time subscription to all users across all colleges (for admin / super_manager).
+ * Sorted in memory by createdAt descending.
+ */
+export function subscribeAllUsers(
+    callback: (users: (FirestoreUser & { id: string })[]) => void
+) {
+    const db = getDb();
+    const q = query(collection(db, "users"));
+    
+    return onSnapshot(q, (snap) => {
+        const users = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }));
+        // Sort in memory by createdAt descending
+        users.sort((a, b) => {
+            const tA = (a as any).createdAt?.seconds || 0;
+            const tB = (b as any).createdAt?.seconds || 0;
+            return tB - tA;
+        });
+        callback(users);
+    }, (error) => {
+        console.error("[Firestore] subscribeAllUsers failed:", error);
     });
 }
 

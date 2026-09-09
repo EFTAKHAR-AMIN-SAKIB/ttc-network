@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,7 +8,7 @@ import {
     Users, ShieldCheck, ShieldAlert, Check, X, Trash2,
     UserPlus, UserCheck, ChevronDown, ChevronUp, Loader2,
     Globe, Mail, BookOpen, ExternalLink, Shield, Compass, Heart, ArrowRight,
-    Search
+    Search, School, Filter
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import {
     getFriendRecommendations, 
     toggleFollowUser, 
     subscribeUsersByCollege,
+    subscribeAllUsers,
     checkIsFollowing,
     getFollowersList,
     getFollowingList,
@@ -37,9 +38,16 @@ export default function NetworkPage() {
     const { requireVerification } = useVerifiedAccess();
 
     const isManager = profile?.role === "manager" || profile?.role === "super_manager" || profile?.role === "admin";
+    const canViewAllColleges = profile?.role === "admin" || profile?.role === "super_manager";
     
     // Tab States: "auth" | "discover" | "my-network"
     const [activeTab, setActiveTab] = useState<"auth" | "discover" | "my-network">("discover");
+    
+    // Scope for admin & super_manager: "my_college" | "all_colleges"
+    const [authScope, setAuthScope] = useState<"my_college" | "all_colleges">("my_college");
+    const [selectedCollegeFilter, setSelectedCollegeFilter] = useState<string>("all");
+    const [authSearchQuery, setAuthSearchQuery] = useState("");
+    const [allUnverifiedUsers, setAllUnverifiedUsers] = useState<(FirestoreUser & { id: string })[]>([]);
     
     // Sub-tab under "My Network": "followers" | "following"
     const [networkTab, setNetworkTab] = useState<"followers" | "following">("following");
@@ -76,22 +84,72 @@ export default function NetworkPage() {
         }
     }, [loadingAuth, isManager, profile]);
 
-    // 1. Subscribe to College Users (Manager verification)
+    // 1. Subscribe to Users for Verification Center
     useEffect(() => {
-        if (!profile?.collegeId || !isManager) return;
+        if (!profile?.uid || !isManager) return;
 
-        const unsub = subscribeUsersByCollege(profile.collegeId, (users) => {
-            // Exclude self, users who have been dismissed/deleted from the moderation list by this manager, and already verified users
-            const filtered = users.filter(u => 
-                u.id !== profile.uid && 
-                !u.roleVerified && 
-                !(u.dismissedBy || []).includes(profile.uid)
+        if (canViewAllColleges) {
+            // Admin & Super Manager can see all users across all 14 colleges
+            const unsub = subscribeAllUsers((users) => {
+                const filtered = users.filter(u => 
+                    u.id !== profile.uid && 
+                    !u.roleVerified && 
+                    !(u.dismissedBy || []).includes(profile.uid)
+                );
+                setAllUnverifiedUsers(filtered);
+
+                // Also populate collegeUsers with the admin's own college
+                const myCollegeFiltered = filtered.filter(u => u.collegeId === profile.collegeId);
+                setCollegeUsers(myCollegeFiltered);
+            });
+            return () => unsub();
+        } else {
+            // Standard manager only subscribes to their own college
+            if (!profile.collegeId) return;
+            const unsub = subscribeUsersByCollege(profile.collegeId, (users) => {
+                const filtered = users.filter(u => 
+                    u.id !== profile.uid && 
+                    !u.roleVerified && 
+                    !(u.dismissedBy || []).includes(profile.uid)
+                );
+                setCollegeUsers(filtered);
+            });
+            return () => unsub();
+        }
+    }, [profile?.collegeId, profile?.uid, isManager, canViewAllColleges]);
+
+    // Compute displayed pending users based on scope, campus filter, and search query
+    const displayedAuthUsers = useMemo(() => {
+        let list = (canViewAllColleges && authScope === "all_colleges") 
+            ? allUnverifiedUsers 
+            : collegeUsers;
+
+        // If filtering by specific college
+        if (canViewAllColleges && authScope === "all_colleges" && selectedCollegeFilter !== "all") {
+            list = list.filter(u => u.collegeId === selectedCollegeFilter);
+        }
+
+        // If searching
+        if (authSearchQuery.trim()) {
+            const q = authSearchQuery.trim().toLowerCase();
+            list = list.filter(u => 
+                (u.displayName || "").toLowerCase().includes(q) ||
+                (u.email || "").toLowerCase().includes(q) ||
+                (u.username || "").toLowerCase().includes(q) ||
+                (u.programme || "").toLowerCase().includes(q) ||
+                getCollegeFullName(u.collegeId || "").toLowerCase().includes(q) ||
+                getCollegeCity(u.collegeId || "").toLowerCase().includes(q)
             );
-            setCollegeUsers(filtered);
-        });
+        }
 
-        return () => unsub();
-    }, [profile?.collegeId, profile?.uid, isManager]);
+        return list;
+    }, [canViewAllColleges, authScope, allUnverifiedUsers, collegeUsers, selectedCollegeFilter, authSearchQuery]);
+
+    const myCollegePendingCount = collegeUsers.length;
+    const allCollegesPendingCount = allUnverifiedUsers.length;
+    const authBadgeCount = canViewAllColleges && authScope === "all_colleges"
+        ? allCollegesPendingCount
+        : myCollegePendingCount;
 
     // 2. Fetch Social Network & Discover Recommendations
     const fetchSocialData = async () => {
@@ -143,7 +201,8 @@ export default function NetworkPage() {
         setProcessingVerify(prev => ({ ...prev, [userId]: true }));
         try {
             await updateUserRole(userId, targetUser.role, true);
-            showToast(`${targetUser.displayName}'s role verified successfully!`, "success");
+            const collegeName = getCollegeCity(targetUser.collegeId || "") + " TTC";
+            showToast(`✅ ${targetUser.displayName} (${collegeName}) verified successfully!`, "success");
         } catch (err: any) {
             showToast(err.message || "Failed to verify user.", "error");
         } finally {
@@ -383,11 +442,11 @@ export default function NetworkPage() {
                                 >
                                     <Shield size={16} />
                                     <span>Verification Center</span>
-                                    {collegeUsers.length > 0 && (
-                                        <span className={`ml-auto px-2 py-0.5 rounded-full text-[9px] ${
+                                    {authBadgeCount > 0 && (
+                                        <span className={`ml-auto px-2 py-0.5 rounded-full text-[9px] font-black ${
                                             activeTab === "auth" ? "bg-white text-primary" : "bg-primary text-white"
                                         }`}>
-                                            {collegeUsers.length}
+                                            {authBadgeCount}
                                         </span>
                                     )}
                                 </button>
@@ -424,36 +483,172 @@ export default function NetworkPage() {
                             {/* TAB 1: USER AUTHENTICATION (Managers Only) */}
                             {isManager && activeTab === "auth" && (
                                 <div className="p-6 sm:p-8">
+                                    {/* Header */}
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-6 mb-6 gap-4">
                                         <div>
-                                            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                                User Authentication list
-                                            </h2>
+                                            <div className="flex items-center gap-2.5 flex-wrap">
+                                                <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                    User Authentication list
+                                                </h2>
+                                                {canViewAllColleges && (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                                                        <Globe size={11} /> Master Access
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
-                                                Review and verify registrations for {getCollegeFullName(profile.collegeId)}.
+                                                {canViewAllColleges && authScope === "all_colleges"
+                                                    ? "Review and verify registrations across all 14 TTC Campuses."
+                                                    : `Review and verify registrations for ${getCollegeFullName(profile?.collegeId || "")}.`}
                                             </p>
                                         </div>
                                         <div className="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-amber-500/20 shadow-sm self-start">
                                             <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                                            {collegeUsers.length} Pending Verifications
+                                            {displayedAuthUsers.length} Pending {canViewAllColleges && authScope === "all_colleges" ? "(Network-Wide)" : "Verifications"}
                                         </div>
                                     </div>
 
-                                    {collegeUsers.length === 0 ? (
+                                    {/* Admin / Super Manager Network-Wide Controls Bar */}
+                                    {canViewAllColleges && (
+                                        <div className="mb-6 p-4 rounded-2xl bg-gray-50/80 dark:bg-white/[0.02] border border-gray-150 dark:border-gray-800/80 space-y-3.5">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                        Authentication Scope:
+                                                    </span>
+                                                </div>
+
+                                                {/* Scope Toggle: My College vs All Colleges */}
+                                                <div className="inline-flex p-1 bg-white dark:bg-[#12131a] rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setAuthScope("my_college");
+                                                            setSelectedCollegeFilter("all");
+                                                        }}
+                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                                                            authScope === "my_college"
+                                                                ? "bg-primary text-white shadow-sm"
+                                                                : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                        }`}
+                                                    >
+                                                        <School size={13} />
+                                                        <span>My College</span>
+                                                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] ${
+                                                            authScope === "my_college" ? "bg-white/20 text-white" : "bg-gray-150 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                                        }`}>
+                                                            {myCollegePendingCount}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAuthScope("all_colleges")}
+                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                                                            authScope === "all_colleges"
+                                                                ? "bg-primary text-white shadow-sm"
+                                                                : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                        }`}
+                                                    >
+                                                        <Globe size={13} />
+                                                        <span>Whole Network (14 Campuses)</span>
+                                                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] ${
+                                                            authScope === "all_colleges" ? "bg-white/20 text-white" : "bg-gray-150 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                                        }`}>
+                                                            {allCollegesPendingCount}
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Extra Filters when in All Colleges Scope */}
+                                            {authScope === "all_colleges" && (
+                                                <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {/* College Filter Dropdown */}
+                                                    <div className="relative">
+                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                                            <Filter size={14} />
+                                                        </div>
+                                                        <select
+                                                            value={selectedCollegeFilter}
+                                                            onChange={(e) => setSelectedCollegeFilter(e.target.value)}
+                                                            aria-label="Filter by College Campus"
+                                                            className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#15161f] border border-gray-200 dark:border-gray-700/80 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+                                                        >
+                                                            <option value="all">All 14 Campuses ({allCollegesPendingCount} pending)</option>
+                                                            {colleges.map((col) => {
+                                                                const count = allUnverifiedUsers.filter(u => u.collegeId === col.id).length;
+                                                                return (
+                                                                    <option key={col.id} value={col.id}>
+                                                                        {col.city} TTC ({col.name}) — {count} pending
+                                                                    </option>
+                                                                );
+                                                            })}
+                                                        </select>
+                                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                                                            <ChevronDown size={14} />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Quick Search */}
+                                                    <div className="relative">
+                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                                            <Search size={14} />
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={authSearchQuery}
+                                                            onChange={(e) => setAuthSearchQuery(e.target.value)}
+                                                            placeholder="Search by student name, email, roll..."
+                                                            className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#15161f] border border-gray-200 dark:border-gray-700/80 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                        {authSearchQuery && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setAuthSearchQuery("")}
+                                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Verification List or Empty State */}
+                                    {displayedAuthUsers.length === 0 ? (
                                         <div className="py-20 text-center select-none">
                                             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800/40 rounded-[35%] flex items-center justify-center mx-auto mb-6 text-gray-300 dark:text-gray-700">
                                                 <ShieldAlert size={36} />
                                             </div>
                                             <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                                Your verification list is empty
+                                                {authSearchQuery || selectedCollegeFilter !== "all" 
+                                                    ? "No matching users found" 
+                                                    : "Your verification list is empty"}
                                             </h3>
                                             <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
-                                                No members from your college are currently awaiting verification, or all entries have been cleared.
+                                                {authSearchQuery || selectedCollegeFilter !== "all"
+                                                    ? "Try clearing your search query or college campus filter to see more users."
+                                                    : (canViewAllColleges && authScope === "all_colleges"
+                                                        ? "No members across all 14 TTC campuses are currently awaiting verification."
+                                                        : "No members from your college are currently awaiting verification, or all entries have been cleared.")}
                                             </p>
+                                            {(authSearchQuery || selectedCollegeFilter !== "all") && (
+                                                <button
+                                                    onClick={() => {
+                                                        setAuthSearchQuery("");
+                                                        setSelectedCollegeFilter("all");
+                                                    }}
+                                                    className="mt-4 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                                                >
+                                                    Clear Filters
+                                                </button>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="space-y-4">
-                                            {collegeUsers.map((item) => {
+                                            {displayedAuthUsers.map((item) => {
                                                 const isExpanded = expandedUser === item.id;
                                                 return (
                                                     <div 
@@ -494,7 +689,7 @@ export default function NetworkPage() {
                                                                     </h3>
                                                                     {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                                                                 </div>
-                                                                <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider flex items-center gap-2 mt-0.5">
+                                                                <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider flex items-center gap-2 mt-0.5 flex-wrap">
                                                                     <span className="capitalize text-primary dark:text-[#1D9BF0]">{item.role}</span>
                                                                     {item.programme && (
                                                                         <>
@@ -502,6 +697,11 @@ export default function NetworkPage() {
                                                                             <span>{item.programme}</span>
                                                                         </>
                                                                     )}
+                                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                                                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-md border border-amber-200/50 dark:border-amber-900/40">
+                                                                        <School size={10} />
+                                                                        {getCollegeCity(item.collegeId || "")} TTC
+                                                                    </span>
                                                                 </p>
                                                             </div>
 
@@ -530,17 +730,21 @@ export default function NetworkPage() {
                                                                     className="overflow-hidden"
                                                                 >
                                                                     <div className="mt-4 p-4 bg-gray-50/70 dark:bg-black/25 border-l-[3px] border-primary/45 rounded-r-2xl space-y-4 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                                                                        <div className="grid grid-cols-2 gap-4 text-gray-500 dark:text-gray-400">
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-500 dark:text-gray-400">
                                                                             <div>
                                                                                 <span className="font-bold text-gray-800 dark:text-gray-200 block">Email Address</span>
                                                                                 {item.email}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-bold text-gray-800 dark:text-gray-200 block">College Campus</span>
+                                                                                <span className="text-primary font-bold">{getCollegeFullName(item.collegeId || "")}</span>
                                                                             </div>
                                                                             <div>
                                                                                 <span className="font-bold text-gray-800 dark:text-gray-200 block">Academic Year / Semester</span>
                                                                                 {item.yearSemester || ((item as any).year && (item as any).semester ? `Year ${(item as any).year}, Semester ${(item as any).semester}` : "N/A")}
                                                                             </div>
                                                                             {item.clubPosition && (
-                                                                                <div className="col-span-2">
+                                                                                <div>
                                                                                     <span className="font-bold text-gray-800 dark:text-gray-200 block">Club Affiliation</span>
                                                                                     {item.clubPosition}
                                                                                 </div>

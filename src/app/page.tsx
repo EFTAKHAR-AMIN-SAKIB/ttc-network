@@ -11,7 +11,6 @@ import {
   Sparkles,
   Code,
   ArrowRight,
-  ChevronDown,
   HelpCircle,
   GraduationCap,
   BookOpen,
@@ -44,17 +43,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import OrbitalHero from "@/components/OrbitalHero";
+import NetworkRoadmapShowcase from "@/components/NetworkRoadmapShowcase";
 import BuilderPopupModal from "@/components/BuilderPopupModal";
 import OfficialContactCard from "@/components/OfficialContactCard";
 import {
-  getVisibleQACards,
   getVisibleAdmissionSteps,
   getVisibleAdmissionCosts,
   getAdmissionSettings,
   getBuilderSettings,
   getOfficialSettings,
   getOriginStorySettings,
-  type FirestoreQACard,
   type FirestoreAdmissionStep,
   type FirestoreAdmissionCostItem,
   type FirestoreAdmissionSettings,
@@ -124,14 +122,6 @@ const ADMISSION_STEP_THEMES = [
   },
 ];
 
-/* ─── FAQ Styles ─── */
-const QA_STYLES = [
-  { icon: GraduationCap, color: "from-blue-500 to-indigo-600" },
-  { icon: BookOpen, color: "from-emerald-500 to-teal-600" },
-  { icon: ClipboardCheck, color: "from-orange-500 to-red-500" },
-  { icon: Clock, color: "from-violet-500 to-purple-600" },
-];
-
 /* ─── Story Timeline Data ─── */
 const STORY_TIMELINE = [
   {
@@ -185,85 +175,6 @@ const itemVariants = {
     transition: { duration: 0.6, ease: "easeOut" as const },
   },
 };
-
-/* ─── FAQ Accordion Item ─── */
-function FAQItem({
-  faq,
-  index,
-}: {
-  faq: FirestoreQACard & { id: string };
-  index: number;
-}) {
-  const [open, setOpen] = useState(false);
-  const style = QA_STYLES[index % QA_STYLES.length];
-  const Icon = style.icon;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.08, duration: 0.4 }}
-    >
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full group"
-      >
-        <div
-          className={`flex items-center gap-4 p-5 rounded-2xl bg-white dark:bg-[#16181C] border transition-all duration-300 ${open
-            ? "border-primary/20 shadow-lg shadow-primary/5"
-            : "border-gray-100 dark:border-white/10 shadow-sm hover:shadow-md hover:border-gray-200 dark:hover:border-white/20"
-            }`}
-        >
-          {/* Icon */}
-          <div
-            className={`flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br ${style.color} flex items-center justify-center transition-transform duration-300 ${open ? "scale-110" : "group-hover:scale-105"}`}
-          >
-            <Icon size={18} className="text-white" />
-          </div>
-
-          {/* Question */}
-          <h3 className="flex-1 text-left text-base sm:text-lg font-bold text-[#0F1419] dark:text-[#E7E9EA] font-bengali">
-            {faq.question}
-          </h3>
-
-          {/* Chevron */}
-          <ChevronDown
-            size={20}
-            className={`text-gray-400 transition-transform duration-300 ${open ? "rotate-180 text-primary" : ""
-              }`}
-          />
-        </div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="overflow-hidden"
-          >
-            <div
-              className="px-5 pb-5 pt-3 ml-14"
-              style={{
-                borderLeft: "3px solid #1A56DB",
-                background: "var(--faq-answer-bg, rgba(238,242,255,0.5))",
-                borderRadius: "0 0 14px 14px",
-                marginLeft: "3.5rem",
-              }}
-            >
-              <p className="text-sm sm:text-base text-[#0F1419] dark:text-[#E7E9EA] font-bengali leading-relaxed">
-                {faq.answer}
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
 
 /* ─── Admission Step Card ─── */
 function AdmissionStepCard({
@@ -478,8 +389,6 @@ function CostBreakdownPanel({
 /* ─── MAIN PAGE ─── */
 export default function HomePage() {
   const router = useRouter();
-  const [qaCards, setQaCards] = useState<(FirestoreQACard & { id: string })[]>([]);
-  const [loadingQA, setLoadingQA] = useState(true);
   const [admissionSteps, setAdmissionSteps] = useState<(FirestoreAdmissionStep & { id: string })[]>([]);
   const [admissionCosts, setAdmissionCosts] = useState<(FirestoreAdmissionCostItem & { id: string })[]>([]);
   const [admissionSettings, setAdmissionSettings] = useState<FirestoreAdmissionSettings | null>(null);
@@ -501,11 +410,6 @@ export default function HomePage() {
       router.replace("/news-feed");
       return;
     }
-
-    getVisibleQACards()
-      .then(setQaCards)
-      .catch(console.error)
-      .finally(() => setLoadingQA(false));
 
     Promise.all([
       getVisibleAdmissionSteps(),
@@ -530,59 +434,8 @@ export default function HomePage() {
       {/* ===== HERO SECTION (ORBITAL ANIMATION) ===== */}
       <OrbitalHero />
 
-      {/* ===== FAQ SECTION — Right after Hero ===== */}
-      <section className="py-16 sm:py-20 px-4">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            variants={containerVariants}
-            className="text-center mb-10"
-          >
-            <motion.div
-              variants={itemVariants}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-5"
-            >
-              <HelpCircle size={14} className="text-primary" />
-              <span className="text-xs font-bold text-primary tracking-wide uppercase">
-                Quick Answers
-              </span>
-            </motion.div>
-
-            <motion.h2
-              variants={itemVariants}
-              className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white font-english"
-            >
-              Everything About{" "}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                TTC
-              </span>
-            </motion.h2>
-
-            <motion.p
-              variants={itemVariants}
-              className="mt-3 text-[#536471] dark:text-[#71767B] text-sm max-w-lg mx-auto"
-            >
-              Common questions about Teachers&apos; Training College and the
-              B.Ed Honours &amp; M.Ed programmes.
-            </motion.p>
-          </motion.div>
-
-          {/* Accordion List */}
-          <div className="space-y-3">
-            {loadingQA ? (
-              <div className="text-center text-gray-400 text-sm py-4">Loading Quick Answers...</div>
-            ) : qaCards.length === 0 ? (
-              <div className="text-center text-gray-400 text-sm py-4">No Quick Answers available.</div>
-            ) : (
-              qaCards.map((faq, index) => (
-                <FAQItem key={faq.id} faq={faq} index={index} />
-              ))
-            )}
-          </div>
-        </div>
-      </section>
+      {/* ===== 3D MOBILE ROADMAP SHOWCASE ===== */}
+      <NetworkRoadmapShowcase />
 
       {/* ===== ADMISSION PROCESS GUIDE ===== */}
       {admissionSettings?.isVisible !== false && (
@@ -882,176 +735,7 @@ export default function HomePage() {
 
 
 
-      {/* ===== WHAT IT MEANS FOR EVERY TTCIAN (Emotional Narrative) ===== */}
-      <section className="py-24 sm:py-32 px-4 relative bg-[#FAFAFA] dark:bg-[#08080A]">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={containerVariants}
-            className="text-center mb-20"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-full mb-6 border border-primary/10">
-              <Users size={14} className="text-primary" />
-              <span className="text-xs font-bold text-primary tracking-widest uppercase text-center w-full">
-                For the Community
-              </span>
-            </div>
 
-            <h2 className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white font-sora tracking-tight leading-none">
-              A space for <span className="text-primary underline decoration-primary/10 underline-offset-[8px]">Every TTCian</span>
-            </h2>
-          </motion.div>
-
-          {/* Emotional Narrative Stack */}
-          <div className="grid grid-cols-1 gap-12 sm:gap-16">
-            {[
-              {
-                id: "student",
-                title: "Student",
-                hook: "You felt lost on your first day. Now you don't have to.",
-                benefit: "Access notes, subject groups, and senior stories from all 14 campuses. Find your direct path to success, together.",
-                symbol: School, // Symbolic of the start/campus
-                color: "text-primary dark:text-indigo-400",
-                rotate: "rotate-1"
-              },
-              {
-                id: "teacher",
-                title: "Teacher",
-                hook: "You've given so much — here's where your work gets remembered.",
-                benefit: "Share instructions, pedagogy tips, and departmental brilliance that reach every corner of the network instantly.",
-                symbol: ClipboardList, // Standard Lucide substitute for notice board
-                color: "text-accent dark:text-pink-500",
-                rotate: "-rotate-1"
-              },
-              {
-                id: "alumni",
-                title: "Alumni",
-                hook: "You left the campus, but TTC never left you.",
-                benefit: "Stay connected to your roots, mentor the next generation, and keep the batch identity alive forever.",
-                symbol: Landmark, // Symbolic of the institution/gate
-                color: "text-emerald-600 dark:text-emerald-400",
-                rotate: "rotate-2"
-              }
-            ].map((persona, idx) => {
-              const SymbolIcon = persona.symbol;
-              return (
-                <motion.div
-                  key={persona.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.2, duration: 0.8 }}
-                  className={`group relative max-w-4xl mx-auto w-full p-8 sm:p-12 notebook-paper rounded-3xl border border-black/5 dark:border-white/5 shadow-xl transition-all duration-500 hover:scale-[1.02] ${persona.rotate}`}
-                >
-                  <div className="absolute top-4 right-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <SymbolIcon size={120} strokeWidth={1} />
-                  </div>
-
-                  <div className="relative z-10 flex flex-col md:flex-row items-start gap-8 md:items-center">
-                    <div className={`flex-shrink-0 w-16 h-16 rounded-2xl bg-white dark:bg-[#1C1F25] flex items-center justify-center shadow-lg border border-black/5 dark:border-white/5 ${persona.color}`}>
-                      <SymbolIcon size={28} />
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="mb-4">
-                        <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${persona.color}`}>
-                          {persona.title}
-                        </span>
-                      </div>
-
-                      <h3 className="font-handwritten text-4xl sm:text-5xl lg:text-6xl text-gray-800 dark:text-white/90 leading-tight mb-6">
-                        {persona.hook}
-                      </h3>
-
-                      <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 font-medium max-w-2xl leading-relaxed">
-                        {persona.benefit}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Informal notation decoration */}
-                  <div className="absolute bottom-4 right-8 font-handwritten text-sm text-gray-400 dark:text-gray-500 opacity-50">
-                    p. {idx + 1}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.5 }}
-            className="text-center mt-16 text-base sm:text-xl font-bold text-primary max-w-2xl mx-auto"
-          >
-            For the first time, being part of TTC means being part of{" "}
-            <span className="text-accent">
-              something bigger than your own campus.
-            </span>
-          </motion.p>
-        </div>
-      </section>
-
-      {/* ===== THE MISSION (Living Statement Block) ===== */}
-      <section className="py-24 sm:py-32 px-4 relative overflow-hidden noise-bg">
-        <div className="max-w-5xl mx-auto relative text-center">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={containerVariants}
-          >
-            <motion.div variants={itemVariants} className="mb-16">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/5 dark:bg-accent/10 rounded-full border border-accent/10">
-                <Target size={14} className="text-accent" />
-                <span className="text-xs font-bold text-accent tracking-widest uppercase">
-                  Our Mission
-                </span>
-              </div>
-            </motion.div>
-
-            <div className="relative z-10 max-w-4xl mx-auto space-y-12">
-              <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-center gap-y-4 gap-x-6">
-                <span className="text-2xl sm:text-3xl font-medium text-gray-400 dark:text-gray-500 font-hindi leading-none">To connect every</span>
-                <span className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white font-sora tracking-tighter leading-none">Student,</span>
-                <span className="text-3xl sm:text-4xl font-bold text-primary dark:text-indigo-400 font-sora leading-none">Teacher,</span>
-                <span className="text-2xl sm:text-3xl font-medium text-gray-400 dark:text-gray-500 font-hindi leading-none">and</span>
-                <span className="text-4xl sm:text-5xl font-black text-accent font-sora tracking-tight leading-none">College</span>
-                <span className="text-2xl sm:text-3xl font-medium text-gray-400 dark:text-gray-500 font-hindi leading-none whitespace-nowrap">under one roof —</span>
-              </motion.div>
-
-              <motion.h2 variants={itemVariants} className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-900 dark:text-white leading-[1.1] mb-8 font-english max-w-4xl mx-auto">
-                so that{" "}
-                <span className="animate-variable-underline text-primary dark:text-indigo-400">
-                  knowledge travels freely
-                </span>,{" "}
-                <br className="hidden sm:block" />
-                stories{" "}
-                <span className="font-handwritten text-accent text-5xl sm:text-7xl lg:text-8xl inline-block -rotate-2 ml-2">
-                  inspire boldly
-                </span>, <br className="hidden sm:block" />
-                and no TTCian ever feels like they are <span className="text-lg sm:text-2xl font-medium text-gray-400 dark:text-gray-500 italic block sm:inline mt-4 sm:mt-0">figuring it all out alone.</span>
-              </motion.h2>
-
-              <motion.div variants={itemVariants} className="pt-12">
-                <div className="w-12 h-0.5 bg-gray-200 dark:bg-white/10 mx-auto mb-10" />
-                <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 font-black tracking-[0.4em] uppercase mb-4">
-                  TTC Network is not built for institutions.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <span className="text-2xl sm:text-3xl text-gray-900 dark:text-white font-light">It is built for</span>
-                  <span className="text-5xl sm:text-7xl font-handwritten text-primary dark:text-indigo-300 -rotate-3 hover:rotate-0 transition-transform duration-500 cursor-default">
-                    People.
-                  </span>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
       {/* ===== FOUNDER SPOTLIGHT (Built by One of Your Own) ===== */}
       {builderSettings?.isVisible !== false && (

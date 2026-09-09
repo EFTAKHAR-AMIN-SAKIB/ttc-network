@@ -203,7 +203,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     mymensingh: {
-        shortName: "Govt. Women's Teachers' Training College, Mymensingh",
+        shortName: "Mymensingh TTC (Women)",
         location: "Mymensingh, Bangladesh",
         principal: "To be updated",
         principalContact: "",
@@ -219,7 +219,7 @@ const collegeProfiles: Record<string, {
         clubs: [],
     },
     mymensingh_coed: {
-        shortName: "Govt. Teachers' Training College, Mymensingh",
+        shortName: "Mymensingh TTC (Men)",
         location: "Mymensingh, Bangladesh",
         principal: "To be updated",
         principalContact: "",

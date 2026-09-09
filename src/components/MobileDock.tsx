@@ -10,7 +10,7 @@ import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 const dockLinks = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/news-feed", label: "News", icon: Rss },
+    { href: "/news-feed", label: "Feed", icon: Rss },
     { href: "/story", label: "Story", icon: BookOpen },
     { href: "/college-info", label: "Colleges", icon: School },
     { href: "/notice", label: "Notice", icon: Megaphone },

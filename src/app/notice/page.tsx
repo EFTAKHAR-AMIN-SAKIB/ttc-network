@@ -63,21 +63,22 @@ interface CollegeFilterItem {
 }
 
 const collegeList: CollegeFilterItem[] = [
-    { id: "All", name: "All Colleges", shortName: "All 14 Govt. TTCs", city: "All", color: "#1e3a8a" },
-    { id: "Dhaka", name: "Govt. Teachers' Training College, Dhaka", shortName: "TTC Dhaka", city: "Dhaka", color: "#1a1a1a" },
-    { id: "Feni", name: "Govt. Teachers' Training College, Feni", shortName: "TTC Feni", city: "Feni", color: "#15803d" },
-    { id: "Rajshahi", name: "Govt. Teachers' Training College, Rajshahi", shortName: "TTC Rajshahi", city: "Rajshahi", color: "#b91c1c" },
-    { id: "Cumilla", name: "Govt. Teachers' Training College, Cumilla", shortName: "TTC Cumilla", city: "Cumilla", color: "#0369a1" },
-    { id: "Sylhet", name: "Govt. Teachers' Training College, Sylhet", shortName: "TTC Sylhet", city: "Sylhet", color: "#047857" },
-    { id: "Chattagram", name: "Govt. Teachers' Training College, Chattagram", shortName: "TTC Chattagram", city: "Chattagram", color: "#c2410c" },
-    { id: "Rangpur", name: "Govt. Teachers' Training College, Rangpur", shortName: "TTC Rangpur", city: "Rangpur", color: "#6d28d9" },
-    { id: "Khulna", name: "Govt. Teachers' Training College, Khulna", shortName: "TTC Khulna", city: "Khulna", color: "#0e7490" },
-    { id: "Mymensingh", name: "Govt. Teachers' Training College, Mymensingh", shortName: "TTC Mymensingh", city: "Mymensingh", color: "#be185d" },
-    { id: "Jashore", name: "Govt. Teachers' Training College, Jashore", shortName: "TTC Jashore", city: "Jashore", color: "#4d7c0f" },
-    { id: "Barishal", name: "Govt. Teachers' Training College, Barishal", shortName: "TTC Barishal", city: "Barishal", color: "#1d4ed8" },
-    { id: "Faridpur", name: "Govt. Teachers' Training College, Faridpur", shortName: "TTC Faridpur", city: "Faridpur", color: "#9333ea" },
-    { id: "Pabna", name: "Govt. Teachers' Training College, Pabna", shortName: "TTC Pabna", city: "Pabna", color: "#0f766e" },
-    { id: "Bogura", name: "Govt. Teachers' Training College, Bogura", shortName: "TTC Bogura", city: "Bogura", color: "#854d0e" },
+    { id: "All", name: "All Colleges", shortName: "All 15 Govt. TTCs", city: "All", color: "#1e3a8a" },
+    { id: "dhaka", name: "Govt. Teachers' Training College, Dhaka", shortName: "Dhaka TTC", city: "Dhaka", color: "#1a1a1a" },
+    { id: "feni", name: "Govt. Teachers' Training College, Feni", shortName: "Feni TTC", city: "Feni", color: "#15803d" },
+    { id: "rajshahi", name: "Govt. Teachers' Training College, Rajshahi", shortName: "Rajshahi TTC", city: "Rajshahi", color: "#b91c1c" },
+    { id: "cumilla", name: "Govt. Teachers' Training College, Cumilla", shortName: "Cumilla TTC", city: "Cumilla", color: "#0369a1" },
+    { id: "sylhet", name: "Govt. Teachers' Training College, Sylhet", shortName: "Sylhet TTC", city: "Sylhet", color: "#047857" },
+    { id: "chattagram", name: "Govt. Teachers' Training College, Chattagram", shortName: "Chattagram TTC", city: "Chattagram", color: "#c2410c" },
+    { id: "rangpur", name: "Govt. Teachers' Training College, Rangpur", shortName: "Rangpur TTC", city: "Rangpur", color: "#6d28d9" },
+    { id: "khulna", name: "Govt. Teachers' Training College, Khulna", shortName: "Khulna TTC", city: "Khulna", color: "#0e7490" },
+    { id: "mymensingh", name: "Govt. Women's Teachers' Training College, Mymensingh", shortName: "Mymensingh TTC (Women)", city: "Mymensingh", color: "#db2777" },
+    { id: "mymensingh_coed", name: "Govt. Teachers' Training College (Men), Mymensingh", shortName: "Mymensingh TTC (Men)", city: "Mymensingh", color: "#2563eb" },
+    { id: "jashore", name: "Govt. Teachers' Training College, Jashore", shortName: "Jashore TTC", city: "Jashore", color: "#4d7c0f" },
+    { id: "barishal", name: "Govt. Teachers' Training College, Barishal", shortName: "Barishal TTC", city: "Barishal", color: "#1d4ed8" },
+    { id: "faridpur", name: "Govt. Teachers' Training College, Faridpur", shortName: "Faridpur TTC", city: "Faridpur", color: "#9333ea" },
+    { id: "pabna", name: "Govt. Teachers' Training College, Pabna", shortName: "Pabna TTC", city: "Pabna", color: "#0f766e" },
+    { id: "bogura", name: "Govt. Teachers' Training College, Bogura", shortName: "Bogura TTC", city: "Bogura", color: "#854d0e" },
 ];
 
 const collegeFilter = collegeList.map((c) => c.id);
@@ -673,8 +674,19 @@ function NoticePageContent() {
                 else if (!profile?.collegeId || profile.collegeId !== n.collegeId) return false;
             }
 
-            if (selectedCollege !== "All" && !n.college.includes(selectedCollege))
-                return false;
+            if (selectedCollege !== "All") {
+                if (selectedCollege === "mymensingh") {
+                    const isWomen = n.collegeId === "mymensingh" || n.college.toLowerCase().includes("women");
+                    if (!isWomen) return false;
+                } else if (selectedCollege === "mymensingh_coed") {
+                    const isMen = n.collegeId === "mymensingh_coed" || (n.college.toLowerCase().includes("mymensingh") && !n.college.toLowerCase().includes("women"));
+                    if (!isMen) return false;
+                } else {
+                    const matchesId = n.collegeId?.toLowerCase() === selectedCollege.toLowerCase();
+                    const matchesName = n.college.toLowerCase().includes(selectedCollege.toLowerCase());
+                    if (!matchesId && !matchesName) return false;
+                }
+            }
             if (selectedProgramme !== "All" && n.programme !== selectedProgramme && n.programme !== "Both" && n.programme !== "All")
                 return false;
             if (

@@ -248,14 +248,33 @@ export default function AdmissionGuideManagerTab() {
         } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
     };
 
+    const [savingVisibility, setSavingVisibility] = useState(false);
+
     // ─── Settings Handler ───
     const handleSaveSettings = async () => {
         try {
             await updateAdmissionSettings(editSettings);
+            setSettings(editSettings);
             showToast("✅ Settings saved!", "success");
             setShowSettings(false);
             loadData();
         } catch (err) { showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error"); }
+    };
+
+    const handleToggleAdmissionVisibility = async () => {
+        if (!settings) return;
+        const newValue = !settings.isVisible;
+        setSavingVisibility(true);
+        try {
+            await updateAdmissionSettings({ isVisible: newValue });
+            setSettings(prev => prev ? { ...prev, isVisible: newValue } : null);
+            setEditSettings(prev => ({ ...prev, isVisible: newValue }));
+            showToast(newValue ? "✅ Admission Guide is now visible on Homepage." : "Admission Guide is now hidden from Homepage.", newValue ? "success" : "info");
+        } catch (err) {
+            showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
+        } finally {
+            setSavingVisibility(false);
+        }
     };
 
     if (loading) {
@@ -284,9 +303,50 @@ export default function AdmissionGuideManagerTab() {
                 <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
             </div>
 
+            {/* ─── Admission Guide Visibility Toggle Card ─── */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-primary flex items-center justify-center text-white shadow-sm">
+                            <GraduationCap size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">&quot;Admission Guide&quot; Section</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Toggle the Admission Guide section visibility on the homepage.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleToggleAdmissionVisibility}
+                        disabled={savingVisibility || !settings}
+                        className={`relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0 ${
+                            settings?.isVisible
+                                ? "bg-primary shadow-md shadow-primary/25"
+                                : "bg-gray-300 dark:bg-gray-600"
+                        } ${savingVisibility ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg"}`}
+                        title={settings?.isVisible ? "Click to hide from Homepage" : "Click to show on Homepage"}
+                    >
+                        <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${
+                            settings?.isVisible ? "left-[30px]" : "left-0.5"
+                        }`} />
+                    </button>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        settings?.isVisible
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                    }`}>
+                        {settings?.isVisible ? "Visible on Homepage" : "Hidden from Homepage"}
+                    </span>
+                    {!settings?.isVisible && (
+                        <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                            • Section is hidden from all visitors on the homepage
+                        </span>
+                    )}
+                </div>
+            </div>
 
-
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap pt-2">
                 <button onClick={() => setShowSettings(!showSettings)}
                     className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
                     <Settings size={14} /> Section Settings
