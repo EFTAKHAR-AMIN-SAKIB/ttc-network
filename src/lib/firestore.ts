@@ -432,7 +432,9 @@ export interface FirestoreUser {
     roleVerified: boolean;
     dismissedBy?: string[];
     bio: string;
-    coverUrl: string;
+    coverUrl?: string;
+    bannerURL?: string;
+    bannerUrl?: string;
     photoURL: string;
     yearSemester: string;
     achievement: string;

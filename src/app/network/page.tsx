@@ -439,6 +439,7 @@ export default function NetworkPage() {
         const isFollowing = !!followingStates[item.id];
         const isWorking = !!processingFollow[item.id];
         const reason = getSuggestionReason(item);
+        const bannerSrc = item.bannerURL || (item as any).bannerUrl || item.coverUrl;
 
         return (
             <motion.div
@@ -449,51 +450,51 @@ export default function NetworkPage() {
                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
                 className={`group bg-white dark:bg-[#161620] rounded-2xl border border-gray-150 dark:border-gray-800 hover:border-primary/40 dark:hover:border-primary/50 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden relative ${
                     discoverViewMode === "reel" 
-                        ? "w-[215px] sm:w-[235px] shrink-0 snap-start" 
+                        ? "w-[210px] sm:w-[225px] shrink-0 snap-start" 
                         : "w-full"
                 }`}
             >
                 {/* Top Cover Banner */}
-                <div className="relative h-20 w-full overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-primary">
-                    {item.coverUrl ? (
-                        <Image
-                            src={item.coverUrl}
+                <div className="relative h-24 sm:h-26 w-full overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-primary shrink-0">
+                    {bannerSrc ? (
+                        <img
+                            src={bannerSrc}
                             alt=""
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                     ) : (
                         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 via-indigo-600/90 to-primary/90">
-                            <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
+                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px]" />
                         </div>
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
 
                     {/* Dismiss Button (Facebook-style Remove X) */}
                     <button
                         type="button"
                         onClick={() => handleDismissSuggestion(item.id)}
                         title="Remove suggestion"
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 hover:bg-black/70 text-white/90 hover:text-white transition-all backdrop-blur-xs z-10 opacity-80 group-hover:opacity-100 cursor-pointer"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 hover:bg-black/75 text-white/90 hover:text-white transition-all backdrop-blur-xs z-20 opacity-80 group-hover:opacity-100 cursor-pointer shadow-sm"
                     >
                         <X size={13} />
                     </button>
                 </div>
 
                 {/* Avatar Row */}
-                <div className="relative -mt-10 px-4 flex justify-center z-10">
-                    <Link href={`/profile/${item.id}`} className="relative block group/avatar">
+                <div className="relative -mt-10 px-4 flex justify-center z-10 shrink-0">
+                    <Link href={`/profile/${item.username || item.id}`} className="relative block group/avatar">
                         {item.photoURL ? (
-                            <div className="w-18 h-18 rounded-2xl overflow-hidden border-3 border-white dark:border-[#161620] shadow-md bg-gray-100 dark:bg-gray-800">
-                                <Image
+                            <div className="w-[74px] h-[74px] rounded-2xl overflow-hidden ring-3 ring-white dark:ring-[#161620] shadow-md bg-gray-100 dark:bg-gray-800 shrink-0 relative">
+                                <img
                                     src={item.photoURL}
                                     alt={item.displayName}
-                                    width={72}
-                                    height={72}
-                                    className="w-full h-full object-cover group-hover/avatar:scale-105 transition-transform duration-300"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover object-center group-hover/avatar:scale-105 transition-transform duration-300"
                                 />
                             </div>
                         ) : (
-                            <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-lg font-black shadow-md border-3 border-white dark:border-[#161620]">
+                            <div className="w-[74px] h-[74px] rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-lg font-black shadow-md ring-3 ring-white dark:ring-[#161620] shrink-0">
                                 {getInitials(item.displayName)}
                             </div>
                         )}
@@ -509,24 +510,26 @@ export default function NetworkPage() {
                 </div>
 
                 {/* Profile Info */}
-                <div className="p-3.5 pt-2 text-center flex flex-col items-center flex-grow">
-                    <Link
-                        href={`/profile/${item.id}`}
-                        className="text-sm font-extrabold text-gray-900 dark:text-white hover:text-primary transition-colors truncate max-w-[190px] block leading-tight"
-                        title={item.displayName}
-                    >
-                        {item.displayName}
-                    </Link>
+                <div className="p-3 pt-2 text-center flex flex-col items-center flex-grow justify-between min-h-[96px]">
+                    <div className="w-full flex flex-col items-center">
+                        <Link
+                            href={`/profile/${item.username || item.id}`}
+                            className="text-sm font-extrabold text-gray-900 dark:text-white hover:text-primary transition-colors truncate max-w-[190px] block leading-snug"
+                            title={item.displayName}
+                        >
+                            {item.displayName}
+                        </Link>
 
-                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mt-1 truncate max-w-[190px]">
-                        <span className="truncate">TTC {getCollegeCity(item.collegeId || "")}</span>
-                        <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full shrink-0" />
-                        <span className="capitalize shrink-0">{item.role}</span>
-                    </p>
+                        <p className="text-[10.5px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center justify-center gap-1.5 mt-1 truncate max-w-[190px]">
+                            <span className="truncate">TTC {getCollegeCity(item.collegeId || "")}</span>
+                            <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full shrink-0" />
+                            <span className="capitalize shrink-0">{item.role}</span>
+                        </p>
+                    </div>
 
                     {/* Facebook-style Suggestion Reason Pill */}
-                    <div className="mt-2.5 w-full">
-                        <span className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border max-w-full truncate ${reason.color}`}>
+                    <div className="mt-2 w-full flex justify-center">
+                        <span className={`inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black border max-w-full truncate ${reason.color}`}>
                             {reason.type === "batch" && <Sparkles size={11} className="shrink-0" />}
                             {reason.type === "teacher" && <School size={11} className="shrink-0" />}
                             {reason.type === "programme" && <BookOpen size={11} className="shrink-0" />}
@@ -544,7 +547,7 @@ export default function NetworkPage() {
                             type="button"
                             onClick={() => handleFollowToggle(item.id, item.displayName)}
                             disabled={isWorking}
-                            className="w-full py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-red-500 hover:text-red-500 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            className="w-full py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-red-500 hover:text-red-500 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
                         >
                             <Check size={13} className="text-emerald-500" />
                             <span>Following</span>
@@ -611,58 +614,118 @@ export default function NetworkPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Left Panel: Profile Quick Summary Card */}
                     <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white dark:bg-[#1a1b23] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
-                            {/* Glassmorphic decorative card header */}
-                            <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-primary to-accent opacity-10" />
-                            
-                            <div className="relative flex flex-col items-center text-center mt-6">
-                                {/* Avatar */}
-                                {profile.photoURL ? (
-                                    <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white dark:border-[#1a1b23] shadow-lg bg-gray-100 mb-4">
-                                        <Image 
-                                            src={profile.photoURL} 
-                                            alt={profile.displayName} 
-                                            width={80} 
-                                            height={80} 
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
+                        <div className="bg-white dark:bg-[#1a1b23] rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden group">
+                            {/* Full-Bleed Profile Banner */}
+                            <div className="h-24 sm:h-28 w-full relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+                                {profile?.bannerURL ? (
+                                    <img 
+                                        src={profile.bannerURL} 
+                                        alt="Profile Banner" 
+                                        referrerPolicy="no-referrer"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                    />
                                 ) : (
-                                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-black shadow-lg mb-4">
-                                        {getInitials(profile.displayName)}
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-primary via-indigo-600 to-sky-500">
+                                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
+                                        <div className="absolute right-3 top-2 text-white/20 text-xl font-black uppercase tracking-tighter select-none pointer-events-none">
+                                            TTC NETWORK
+                                        </div>
                                     </div>
                                 )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                            </div>
+                            
+                            {/* Profile Details (Compact, No Blank Space) */}
+                            <div className="px-5 -mt-10 relative z-10 flex flex-col items-center text-center">
+                                {/* Overlapping Avatar */}
+                                <Link 
+                                    href={profile?.username ? `/profile/${profile.username}` : `/profile/${profile?.uid}`}
+                                    className="relative block group/avatar"
+                                >
+                                    {profile?.photoURL ? (
+                                        <div className="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-white dark:ring-[#1a1b23] shadow-md bg-white dark:bg-gray-800 group-hover/avatar:scale-105 transition-transform shrink-0 relative">
+                                            <img 
+                                                src={profile.photoURL} 
+                                                alt={profile.displayName} 
+                                                referrerPolicy="no-referrer"
+                                                className="w-full h-full object-cover object-center"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-black ring-4 ring-white dark:ring-[#1a1b23] shadow-md shrink-0">
+                                            {getInitials(profile?.displayName || "User")}
+                                        </div>
+                                    )}
+                                    {profile?.roleVerified && (
+                                        <span 
+                                            className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-[#1a1b23] rounded-full flex items-center justify-center shadow-xs" 
+                                            title="Verified TTC Member"
+                                        >
+                                            <Check className="text-white w-3 h-3 stroke-[3]" />
+                                        </span>
+                                    )}
+                                </Link>
 
-                                <h2 className="text-lg font-black text-gray-900 dark:text-white leading-tight">
-                                    {profile.displayName}
-                                </h2>
-                                <p className="text-xs text-gray-400 dark:text-gray-500 font-bold mt-1 uppercase tracking-wider">
-                                    TTC {getCollegeCity(profile.collegeId)}
-                                </p>
-                                <span className="mt-3 px-3 py-1 bg-primary/10 text-primary text-[9px] font-black rounded-full uppercase tracking-widest">
-                                    {profile.role}
-                                </span>
-
-                                <div className="w-full grid grid-cols-2 gap-4 mt-6 pt-5 border-t border-gray-100 dark:border-gray-800/60">
-                                    <button 
-                                        onClick={() => { setActiveTab("my-network"); setNetworkTab("followers"); }}
-                                        className="text-center group/stat"
+                                <div className="mt-2.5 w-full">
+                                    <Link
+                                        href={profile?.username ? `/profile/${profile.username}` : `/profile/${profile?.uid}`}
+                                        className="text-base font-black text-gray-900 dark:text-white leading-tight hover:text-primary transition-colors block truncate"
                                     >
-                                        <span className="block text-xl font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors">
+                                        {profile?.displayName}
+                                    </Link>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-bold mt-0.5 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                                        <span>TTC {getCollegeCity(profile?.collegeId || "")}</span>
+                                        {profile?.yearSemester && (
+                                            <>
+                                                <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                                                <span>{profile.yearSemester}</span>
+                                            </>
+                                        )}
+                                    </p>
+                                    <div className="mt-2 flex items-center justify-center gap-1.5">
+                                        <span className="px-2.5 py-0.5 bg-primary/10 text-primary border border-primary/20 text-[10px] font-black rounded-full uppercase tracking-wider">
+                                            {profile?.role}
+                                        </span>
+                                        {profile?.programme && (
+                                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[10px] font-bold rounded-full">
+                                                {profile.programme === "BEdHonours" ? "B.Ed Honours" : profile.programme}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Followers & Following Stats Bar */}
+                                <div className="w-full grid grid-cols-2 gap-2 mt-4 p-2 bg-gray-50 dark:bg-[#121319] rounded-2xl border border-gray-100 dark:border-gray-800/80">
+                                    <button 
+                                        type="button"
+                                        onClick={() => { setActiveTab("my-network"); setNetworkTab("followers"); }}
+                                        className="py-1.5 text-center group/stat rounded-xl hover:bg-white dark:hover:bg-white/5 transition-all cursor-pointer"
+                                    >
+                                        <span className="block text-lg font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors leading-tight">
                                             {followers.length}
                                         </span>
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Followers</span>
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Followers</span>
                                     </button>
                                     <button 
+                                        type="button"
                                         onClick={() => { setActiveTab("my-network"); setNetworkTab("following"); }}
-                                        className="text-center group/stat"
+                                        className="py-1.5 text-center group/stat rounded-xl hover:bg-white dark:hover:bg-white/5 transition-all cursor-pointer"
                                     >
-                                        <span className="block text-xl font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors">
+                                        <span className="block text-lg font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors leading-tight">
                                             {following.length}
                                         </span>
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Following</span>
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Following</span>
                                     </button>
                                 </div>
+
+                                {/* Direct View Profile Button */}
+                                <Link
+                                    href={profile?.username ? `/profile/${profile.username}` : `/profile/${profile?.uid}`}
+                                    className="mt-3 mb-4 w-full py-2 px-3 text-center rounded-xl bg-gray-100 hover:bg-primary hover:text-white dark:bg-gray-800 dark:hover:bg-primary text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest transition-all duration-200 border border-gray-200/60 dark:border-gray-700/60 hover:border-transparent active:scale-[0.98] flex items-center justify-center gap-1.5"
+                                >
+                                    <span>View Profile</span>
+                                    <ExternalLink size={12} />
+                                </Link>
                             </div>
                         </div>
 
