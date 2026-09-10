@@ -118,13 +118,11 @@ async function generateMaskablePng(size, outputPath) {
 async function main() {
   console.log("🎨 Generating favicons and app icons from public/logo.png...\n");
 
-  // 1. favicon.ico → src/app/favicon.ico & public/favicon.ico
+  // 1. favicon.ico → src/app/favicon.ico (Next.js App Router metadata convention)
   await generateIco(join(APP_DIR, "favicon.ico"));
-  await generateIco(join(ROOT, "public", "favicon.ico"));
 
-  // 2. icon.png → src/app/icon.png & public/icon.png
+  // 2. icon.png → src/app/icon.png (Next.js App Router metadata convention)
   await generatePng(192, join(APP_DIR, "icon.png"));
-  await generatePng(192, join(ROOT, "public", "icon.png"));
 
   // 3. apple-icon.png → src/app/apple-icon.png & public/apple-touch-icon.png
   await generatePng(180, join(APP_DIR, "apple-icon.png"));

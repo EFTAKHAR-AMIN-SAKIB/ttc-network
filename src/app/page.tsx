@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Heart,
   Users,
   Target,
-  Sparkles,
-  Code,
-  ArrowRight,
   HelpCircle,
   GraduationCap,
   BookOpen,
@@ -29,11 +25,6 @@ import {
   CheckSquare,
   Landmark,
   Coins,
-  Linkedin,
-  Mail,
-  Link2Off,
-  MicOff,
-  FileWarning,
   Book,
   CheckCircle2,
   ExternalLink,
@@ -754,19 +745,35 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col items-center text-center">
+                {/* Header (Eyebrow & Title) Above the Builder Image */}
+                <div className="max-w-4xl mx-auto mb-10 sm:mb-14 relative z-10 w-full px-2">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-gray-50 dark:bg-white/5 rounded-full border border-gray-100 dark:border-white/10 mb-5 sm:mb-6 shadow-2xs">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-[0.3em] uppercase">
+                      Founder & Builder
+                    </span>
+                  </div>
+
+                  <h2 className="text-2xl min-[380px]:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 dark:text-white tracking-tight sm:tracking-tighter leading-tight sm:leading-none sm:whitespace-nowrap">
+                    {builderSettings?.titlePrefix || "Built by "}
+                    <span className="text-primary dark:text-indigo-400 underline decoration-primary/20 decoration-wavy underline-offset-[8px] sm:underline-offset-[14px]">
+                      {builderSettings?.titleAccent || "One of Your Own"}
+                    </span>
+                  </h2>
+                </div>
+
                 {/* Avatar with Hand-Drawn Border */}
-                <div className="relative mb-12">
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 relative z-10">
+                <div className="relative mb-10 sm:mb-14">
+                  <div className="w-32 h-32 sm:w-40 sm:h-40 relative z-10 mx-auto">
                     <div className="absolute inset-0 hand-drawn-border text-primary dark:text-indigo-400 rotate-6" />
                     <div className="absolute inset-0 hand-drawn-border text-accent -rotate-3" />
 
-                    <div className="absolute inset-2 rounded-full overflow-hidden bg-gray-100 dark:bg-white/5">
+                    <div className="absolute inset-2 rounded-full overflow-hidden bg-gray-100 dark:bg-white/5 shadow-inner">
                       {builderSettings?.imageMode === 'image' && builderSettings?.imageUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           src={builderSettings.imageUrl}
                           alt={builderSettings.builderName}
-                          className="object-cover w-full h-full grayscale hover:grayscale-0 transition-all duration-700"
+                          className="object-cover w-full h-full grayscale hover:grayscale-0 transition-all duration-700 hover:scale-105"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-4xl font-black text-gray-300 dark:text-white/20">
@@ -777,59 +784,46 @@ export default function HomePage() {
                   </div>
 
                   {/* Persona Annotation */}
-                  <div className="absolute -right-12 top-1/2 -translate-y-1/2 rotate-12 font-handwritten text-xl text-accent dark:text-pink-500 whitespace-nowrap">
+                  <div className="absolute -right-8 sm:-right-16 top-1/2 -translate-y-1/2 rotate-12 font-handwritten text-lg sm:text-2xl text-accent dark:text-pink-500 whitespace-nowrap select-none pointer-events-none drop-shadow-xs">
                     built by a student.
                   </div>
                 </div>
 
-                {/* Editorial Info */}
+                {/* Description & Editorial Info Below the Builder Image */}
                 <div className="max-w-2xl mx-auto">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-white/5 rounded-full border border-gray-100 dark:border-white/10 mb-8">
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 tracking-[0.3em] uppercase">
-                      Founder & Builder
-                    </span>
-                  </div>
-
-                  <h2 className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white mb-8 tracking-tighter leading-none">
-                    {builderSettings?.titlePrefix || "Built by "}
-                    <span className="text-primary dark:text-indigo-400 underline decoration-primary/20 decoration-wavy underline-offset-[12px]">
-                      {builderSettings?.titleAccent || "One of Your Own"}
-                    </span>
-                  </h2>
-
-                  <div className="space-y-8 text-xl sm:text-2xl text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <div className="space-y-8 text-lg sm:text-2xl text-gray-600 dark:text-gray-400 leading-relaxed">
                     <p className="font-medium">
                       {builderSettings?.descriptionPara1 || "This platform was not designed in a corporate office. It was imagined by a student sitting inside Government Teachers' Training College, Feni."}
                     </p>
 
                     {/* The Centerpiece Quote */}
-                    <blockquote className="py-12 relative">
-                      <div className="text-6xl sm:text-8xl text-gray-100 dark:text-white/5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <blockquote className="py-8 sm:py-12 relative my-4">
+                      <div className="text-6xl sm:text-8xl text-gray-100 dark:text-white/5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none">
                         &ldquo;
                       </div>
-                      <p className="raw-italic text-4xl sm:text-6xl text-gray-900 dark:text-white relative z-10 leading-[1.1]">
+                      <p className="raw-italic text-3xl sm:text-5xl md:text-6xl text-gray-900 dark:text-white relative z-10 leading-[1.15] sm:leading-[1.1]">
                         {builderSettings?.descriptionPara2 || "Every pixel of this platform carries that intention."}
                       </p>
                     </blockquote>
                   </div>
 
                   {/* Builder Meta */}
-                  <div className="mt-12 flex flex-col items-center gap-6">
+                  <div className="mt-10 sm:mt-12 flex flex-col items-center gap-6">
                     <div className="text-center">
-                      <h3 className="text-3xl font-black text-gray-900 dark:text-white">
+                      <h3 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
                         {builderSettings?.builderName || "MD. Eftakhar Amin Sakib"}
                       </h3>
-                      <p className="text-sm font-bold text-accent uppercase tracking-widest mt-2 flex items-center justify-center gap-3">
+                      <p className="text-xs sm:text-sm font-bold text-accent uppercase tracking-widest mt-2 flex items-center justify-center gap-3">
                         <span className="w-8 h-[1px] bg-accent/30" />
                         {builderSettings?.builderTitle || "UI/UX Designer & Frontend Developer"}
                         <span className="w-8 h-[1px] bg-accent/30" />
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center justify-center gap-4">
                       <button
                         onClick={() => setShowBuilderPopup(true)}
-                        className="group flex items-center gap-3 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-black rounded-full text-sm font-black transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-1 active:scale-95"
+                        className="group flex items-center gap-3 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-black rounded-full text-xs sm:text-sm font-black transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-1 active:scale-95 cursor-pointer"
                       >
                         Say Hello 👋
                       </button>

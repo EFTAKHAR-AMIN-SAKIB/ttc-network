@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Users, ShieldCheck, ShieldAlert, Check, X, Trash2,
-    UserPlus, UserCheck, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2,
-    Globe, Mail, BookOpen, ExternalLink, Shield, Compass, Heart, ArrowRight,
-    Search, School, Filter, Sparkles, GraduationCap, LayoutGrid, Layers, UserX
+    UserPlus, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2,
+    Globe, BookOpen, ExternalLink, Shield, Compass, ArrowRight,
+    Search, School, Filter, Sparkles, GraduationCap, LayoutGrid, Layers
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,9 +17,7 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { 
     updateUserRole, 
     dismissUserVerification,
-    getFriendRecommendations, 
     getCategorizedFriendRecommendations,
-    type CategorizedRecommendations,
     toggleFollowUser, 
     subscribeUsersByCollege,
     subscribeAllUsers,
@@ -48,7 +46,6 @@ export default function NetworkPage() {
     // Scope for admin & super_manager: "my_college" | "all_colleges"
     const [authScope, setAuthScope] = useState<"my_college" | "all_colleges">("my_college");
     const [selectedCollegeFilter, setSelectedCollegeFilter] = useState<string>("all");
-    const [authSearchQuery, setAuthSearchQuery] = useState("");
     const [allUnverifiedUsers, setAllUnverifiedUsers] = useState<(FirestoreUser & { id: string })[]>([]);
     
     // Sub-tab under "My Network": "followers" | "following"
@@ -194,7 +191,7 @@ export default function NetworkPage() {
         }
     }, [profile?.collegeId, profile?.uid, isManager, canViewAllColleges]);
 
-    // Compute displayed pending users based on scope, campus filter, and search query
+    // Compute displayed pending users based on scope and campus filter
     const displayedAuthUsers = useMemo(() => {
         let list = (canViewAllColleges && authScope === "all_colleges") 
             ? allUnverifiedUsers 
@@ -205,21 +202,8 @@ export default function NetworkPage() {
             list = list.filter(u => u.collegeId === selectedCollegeFilter);
         }
 
-        // If searching
-        if (authSearchQuery.trim()) {
-            const q = authSearchQuery.trim().toLowerCase();
-            list = list.filter(u => 
-                (u.displayName || "").toLowerCase().includes(q) ||
-                (u.email || "").toLowerCase().includes(q) ||
-                (u.username || "").toLowerCase().includes(q) ||
-                (u.programme || "").toLowerCase().includes(q) ||
-                getCollegeFullName(u.collegeId || "").toLowerCase().includes(q) ||
-                getCollegeCity(u.collegeId || "").toLowerCase().includes(q)
-            );
-        }
-
         return list;
-    }, [canViewAllColleges, authScope, allUnverifiedUsers, collegeUsers, selectedCollegeFilter, authSearchQuery]);
+    }, [canViewAllColleges, authScope, allUnverifiedUsers, collegeUsers, selectedCollegeFilter]);
 
     const myCollegePendingCount = collegeUsers.length;
     const allCollegesPendingCount = allUnverifiedUsers.length;
@@ -435,11 +419,11 @@ export default function NetworkPage() {
             .toUpperCase();
     };
 
-    const renderUserCard = (item: FirestoreUser & { id: string }, isFromMyCollege: boolean) => {
+    const renderUserCard = (item: FirestoreUser & { id: string }, _isFromMyCollege?: boolean) => {
         const isFollowing = !!followingStates[item.id];
         const isWorking = !!processingFollow[item.id];
         const reason = getSuggestionReason(item);
-        const bannerSrc = item.bannerURL || (item as any).bannerUrl || item.coverUrl;
+        const banner = item.bannerURL || item.coverUrl;
 
         return (
             <motion.div
@@ -450,106 +434,109 @@ export default function NetworkPage() {
                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
                 className={`group bg-white dark:bg-[#161620] rounded-2xl border border-gray-150 dark:border-gray-800 hover:border-primary/40 dark:hover:border-primary/50 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between overflow-hidden relative ${
                     discoverViewMode === "reel" 
-                        ? "w-[210px] sm:w-[225px] shrink-0 snap-start" 
+                        ? "w-[190px] min-[390px]:w-[210px] sm:w-[230px] shrink-0 snap-start" 
                         : "w-full"
                 }`}
             >
                 {/* Top Cover Banner */}
-                <div className="relative h-24 sm:h-26 w-full overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-primary shrink-0">
-                    {bannerSrc ? (
-                        <img
-                            src={bannerSrc}
-                            alt=""
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
+                <div className="relative h-20 sm:h-24 w-full overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-primary shrink-0">
+                    {banner ? (
+                        <>
+                            <Image
+                                src={banner}
+                                alt=""
+                                fill
+                                sizes="(max-width: 640px) 210px, 230px"
+                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+                        </>
                     ) : (
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 via-indigo-600/90 to-primary/90">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-primary">
                             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px]" />
+                            <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full bg-white/10 blur-md pointer-events-none" />
                         </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
 
                     {/* Dismiss Button (Facebook-style Remove X) */}
                     <button
                         type="button"
                         onClick={() => handleDismissSuggestion(item.id)}
                         title="Remove suggestion"
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 hover:bg-black/75 text-white/90 hover:text-white transition-all backdrop-blur-xs z-20 opacity-80 group-hover:opacity-100 cursor-pointer shadow-sm"
+                        className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 p-1.5 rounded-full bg-black/40 hover:bg-black/70 text-white/90 hover:text-white transition-all backdrop-blur-xs z-10 opacity-90 group-hover:opacity-100 cursor-pointer shadow-xs active:scale-90"
                     >
-                        <X size={13} />
+                        <X size={12} />
                     </button>
                 </div>
 
-                {/* Avatar Row */}
-                <div className="relative -mt-10 px-4 flex justify-center z-10 shrink-0">
-                    <Link href={`/profile/${item.username || item.id}`} className="relative block group/avatar">
-                        {item.photoURL ? (
-                            <div className="w-[74px] h-[74px] rounded-2xl overflow-hidden ring-3 ring-white dark:ring-[#161620] shadow-md bg-gray-100 dark:bg-gray-800 shrink-0 relative">
-                                <img
+                {/* Avatar Row - Proportionate 64px on mobile, 80px on desktop */}
+                <div className="relative -mt-8 sm:-mt-10 px-3 sm:px-4 flex justify-center z-10">
+                    <Link href={`/profile/${item.id}`} className="relative block group/avatar">
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-3 border-white dark:border-[#161620] shadow-md bg-gray-100 dark:bg-gray-800 shrink-0 aspect-square">
+                            {item.photoURL ? (
+                                <Image
                                     src={item.photoURL}
                                     alt={item.displayName}
-                                    referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover object-center group-hover/avatar:scale-105 transition-transform duration-300"
+                                    fill
+                                    sizes="80px"
+                                    className="object-cover object-center group-hover/avatar:scale-105 transition-transform duration-300"
                                 />
-                            </div>
-                        ) : (
-                            <div className="w-[74px] h-[74px] rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-lg font-black shadow-md ring-3 ring-white dark:ring-[#161620] shrink-0">
-                                {getInitials(item.displayName)}
-                            </div>
-                        )}
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-base sm:text-lg font-black shadow-inner">
+                                    {getInitials(item.displayName)}
+                                </div>
+                            )}
+                        </div>
                         {item.roleVerified && (
                             <span 
-                                className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center shadow-xs" 
+                                className="absolute -bottom-1 -right-1 w-4.5 h-4.5 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center shadow-xs z-20" 
                                 title="Verified TTC Member"
                             >
-                                <Check className="text-white w-3 h-3 stroke-[3]" />
+                                <Check className="text-white w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
                             </span>
                         )}
                     </Link>
                 </div>
 
-                {/* Profile Info */}
-                <div className="p-3 pt-2 text-center flex flex-col items-center flex-grow justify-between min-h-[96px]">
-                    <div className="w-full flex flex-col items-center">
-                        <Link
-                            href={`/profile/${item.username || item.id}`}
-                            className="text-sm font-extrabold text-gray-900 dark:text-white hover:text-primary transition-colors truncate max-w-[190px] block leading-snug"
-                            title={item.displayName}
-                        >
-                            {item.displayName}
-                        </Link>
+                {/* Profile Info - Tight spacing without empty blank gap */}
+                <div className="px-2.5 sm:px-3.5 pt-1.5 sm:pt-2 pb-1 text-center flex flex-col items-center">
+                    <Link
+                        href={`/profile/${item.id}`}
+                        className="text-xs sm:text-sm font-black text-gray-900 dark:text-white hover:text-primary transition-colors truncate max-w-[150px] sm:max-w-[185px] block leading-snug"
+                        title={item.displayName}
+                    >
+                        {item.displayName}
+                    </Link>
 
-                        <p className="text-[10.5px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center justify-center gap-1.5 mt-1 truncate max-w-[190px]">
-                            <span className="truncate">TTC {getCollegeCity(item.collegeId || "")}</span>
-                            <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full shrink-0" />
-                            <span className="capitalize shrink-0">{item.role}</span>
-                        </p>
-                    </div>
+                    <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center justify-center gap-1 sm:gap-1.5 mt-0.5 truncate max-w-[150px] sm:max-w-[185px]">
+                        <span className="truncate">TTC {getCollegeCity(item.collegeId || "")}</span>
+                        <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full shrink-0" />
+                        <span className="capitalize shrink-0">{item.role}</span>
+                    </p>
 
                     {/* Facebook-style Suggestion Reason Pill */}
-                    <div className="mt-2 w-full flex justify-center">
-                        <span className={`inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black border max-w-full truncate ${reason.color}`}>
-                            {reason.type === "batch" && <Sparkles size={11} className="shrink-0" />}
-                            {reason.type === "teacher" && <School size={11} className="shrink-0" />}
-                            {reason.type === "programme" && <BookOpen size={11} className="shrink-0" />}
-                            {reason.type === "college" && <School size={11} className="shrink-0" />}
-                            {reason.type === "peer" && <Globe size={11} className="shrink-0" />}
+                    <div className="mt-1.5 sm:mt-2 w-full flex justify-center">
+                        <span className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black border max-w-full truncate ${reason.color}`}>
+                            {reason.type === "batch" && <Sparkles size={10} className="shrink-0" />}
+                            {reason.type === "teacher" && <School size={10} className="shrink-0" />}
+                            {reason.type === "programme" && <BookOpen size={10} className="shrink-0" />}
+                            {reason.type === "college" && <School size={10} className="shrink-0" />}
+                            {reason.type === "peer" && <Globe size={10} className="shrink-0" />}
                             <span className="truncate">{reason.label}</span>
                         </span>
                     </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="p-3 pt-0 flex flex-col gap-1.5 w-full mt-auto">
+                <div className="p-2.5 sm:p-3 pt-1.5 sm:pt-2 flex flex-col gap-1 sm:gap-1.5 w-full mt-1.5 sm:mt-2 border-t border-gray-50 dark:border-gray-850">
                     {isFollowing ? (
                         <button
                             type="button"
                             onClick={() => handleFollowToggle(item.id, item.displayName)}
                             disabled={isWorking}
-                            className="w-full py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-red-500 hover:text-red-500 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                            className="w-full py-1.5 sm:py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-red-500 hover:text-red-500 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
                         >
-                            <Check size={13} className="text-emerald-500" />
+                            <Check size={12} className="text-emerald-500" />
                             <span>Following</span>
                         </button>
                     ) : (
@@ -557,9 +544,9 @@ export default function NetworkPage() {
                             type="button"
                             onClick={() => handleFollowToggle(item.id, item.displayName)}
                             disabled={isWorking}
-                            className="w-full py-2 bg-primary hover:bg-primary-dark active:scale-[0.98] text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="w-full py-1.5 sm:py-2 bg-primary hover:bg-primary-dark active:scale-[0.98] text-white text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                         >
-                            <UserPlus size={13} className="stroke-[2.5]" />
+                            <UserPlus size={12} className="stroke-[2.5]" />
                             <span>Follow</span>
                         </button>
                     )}
@@ -567,7 +554,7 @@ export default function NetworkPage() {
                     <button
                         type="button"
                         onClick={() => handleDismissSuggestion(item.id)}
-                        className="w-full py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                        className="w-full py-1 sm:py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
                     >
                         Remove
                     </button>
@@ -593,16 +580,16 @@ export default function NetworkPage() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] transition-colors duration-300">
             {/* Page Header */}
-            <header className="bg-white dark:bg-[#1a1b23] border-b border-gray-100 dark:border-gray-800 pt-10 pb-8">
+            <header className="bg-white dark:bg-[#1a1b23] border-b border-gray-100 dark:border-gray-800 pt-6 pb-5 sm:pt-10 sm:pb-8">
                 <div className="max-w-6xl mx-auto px-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Users className="text-primary w-5 h-5" />
+                    <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                        <Users className="text-primary w-4 h-4 sm:w-5 sm:h-5" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Social Connections</span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">
+                    <h1 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">
                         TTC Network Hub
                     </h1>
-                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-2 opacity-70">
+                    <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1.5 sm:mt-2 opacity-70">
                         {isManager 
                             ? `Verify campus registrations and grow your professional teaching network.` 
                             : `Discover teacher trainees, connect with college cohorts, and build your community.`}
@@ -610,122 +597,193 @@ export default function NetworkPage() {
                 </div>
             </header>
 
-            <main className="max-w-6xl mx-auto px-4 py-8">
+            <main className="max-w-6xl mx-auto px-4 py-4 sm:py-8 pb-24 sm:pb-12">
+                {/* Mobile Sticky Tab Bar (lg:hidden) */}
+                <div className="lg:hidden sticky top-0 z-30 bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-md border-b border-gray-150 dark:border-gray-800/80 -mx-4 px-4 py-2.5 mb-4 flex items-center gap-2 overflow-x-auto no-scrollbar shadow-xs">
+                    {isManager && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("auth")}
+                            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                                activeTab === "auth"
+                                    ? "bg-primary text-white shadow-md shadow-primary/20"
+                                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400"
+                            }`}
+                        >
+                            <Shield size={14} />
+                            <span>Verification</span>
+                            {authBadgeCount > 0 && (
+                                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                                    activeTab === "auth" ? "bg-white text-primary" : "bg-amber-500 text-white"
+                                }`}>
+                                    {authBadgeCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("discover")}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                            activeTab === "discover"
+                                ? "bg-primary text-white shadow-md shadow-primary/20"
+                                : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400"
+                        }`}
+                    >
+                        <Compass size={14} />
+                        <span>Discover People</span>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                            activeTab === "discover" ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-500"
+                        }`}>
+                            {visibleMyCollege.length + filteredOtherColleges.length}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("my-network")}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                            activeTab === "my-network"
+                                ? "bg-primary text-white shadow-md shadow-primary/20"
+                                : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400"
+                        }`}
+                    >
+                        <Users size={14} />
+                        <span>My Network</span>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                            activeTab === "my-network" ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-500"
+                        }`}>
+                            {following.length}
+                        </span>
+                    </button>
+                </div>
+
+                {/* Mobile Compact Profile Pill (lg:hidden) */}
+                <div className="lg:hidden mb-4 p-3 bg-white dark:bg-[#1a1b23] rounded-2xl border border-gray-150 dark:border-gray-800 shadow-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-gray-150 dark:border-gray-800 shrink-0 bg-gray-100 dark:bg-gray-800">
+                            {profile.photoURL ? (
+                                <Image 
+                                    src={profile.photoURL} 
+                                    alt={profile.displayName} 
+                                    fill 
+                                    sizes="40px" 
+                                    className="object-cover" 
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-black">
+                                    {getInitials(profile.displayName)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="text-xs sm:text-sm font-black text-gray-900 dark:text-white truncate">
+                                {profile.displayName}
+                            </h2>
+                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate flex items-center gap-1.5 mt-0.5">
+                                <span>TTC {getCollegeCity(profile.collegeId)}</span>
+                                <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                                <span className="capitalize text-primary dark:text-[#1D9BF0]">{profile.role}</span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => { setActiveTab("my-network"); setNetworkTab("followers"); }}
+                            className="px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-center transition-all cursor-pointer"
+                        >
+                            <span className="block text-xs font-black text-gray-900 dark:text-white leading-tight">
+                                {followers.length}
+                            </span>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Followers</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setActiveTab("my-network"); setNetworkTab("following"); }}
+                            className="px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-center transition-all cursor-pointer"
+                        >
+                            <span className="block text-xs font-black text-gray-900 dark:text-white leading-tight">
+                                {following.length}
+                            </span>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Following</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* Left Panel: Profile Quick Summary Card */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white dark:bg-[#1a1b23] rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden group">
-                            {/* Full-Bleed Profile Banner */}
-                            <div className="h-24 sm:h-28 w-full relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-                                {profile?.bannerURL ? (
-                                    <img 
-                                        src={profile.bannerURL} 
-                                        alt="Profile Banner" 
-                                        referrerPolicy="no-referrer"
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                                    />
+                    {/* Left Panel: Profile Quick Summary Card (Desktop Only: hidden lg:block) */}
+                    <div className="hidden lg:block lg:col-span-1 space-y-6">
+                        <div className="bg-white dark:bg-[#1a1b23] rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
+                            {/* Cover Banner */}
+                            <div className="relative h-24 w-full overflow-hidden bg-gradient-to-r from-primary to-accent">
+                                {profile.bannerURL ? (
+                                    <>
+                                        <Image
+                                            src={profile.bannerURL}
+                                            alt=""
+                                            fill
+                                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10" />
+                                    </>
                                 ) : (
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-primary via-indigo-600 to-sky-500">
-                                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
-                                        <div className="absolute right-3 top-2 text-white/20 text-xl font-black uppercase tracking-tighter select-none pointer-events-none">
-                                            TTC NETWORK
-                                        </div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-25">
+                                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px]" />
                                     </div>
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                             </div>
                             
-                            {/* Profile Details (Compact, No Blank Space) */}
-                            <div className="px-5 -mt-10 relative z-10 flex flex-col items-center text-center">
-                                {/* Overlapping Avatar */}
-                                <Link 
-                                    href={profile?.username ? `/profile/${profile.username}` : `/profile/${profile?.uid}`}
-                                    className="relative block group/avatar"
-                                >
-                                    {profile?.photoURL ? (
-                                        <div className="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-white dark:ring-[#1a1b23] shadow-md bg-white dark:bg-gray-800 group-hover/avatar:scale-105 transition-transform shrink-0 relative">
-                                            <img 
+                            <div className="p-6 pt-0 relative flex flex-col items-center text-center">
+                                {/* Avatar */}
+                                <div className="relative -mt-10 mb-3 z-10">
+                                    {profile.photoURL ? (
+                                        <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white dark:border-[#1a1b23] shadow-lg bg-gray-100 relative">
+                                            <Image 
                                                 src={profile.photoURL} 
                                                 alt={profile.displayName} 
-                                                referrerPolicy="no-referrer"
-                                                className="w-full h-full object-cover object-center"
+                                                fill
+                                                sizes="80px"
+                                                className="w-full h-full object-cover"
                                             />
                                         </div>
                                     ) : (
-                                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-black ring-4 ring-white dark:ring-[#1a1b23] shadow-md shrink-0">
-                                            {getInitials(profile?.displayName || "User")}
+                                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-black shadow-lg border-4 border-white dark:border-[#1a1b23]">
+                                            {getInitials(profile.displayName)}
                                         </div>
                                     )}
-                                    {profile?.roleVerified && (
-                                        <span 
-                                            className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-[#1a1b23] rounded-full flex items-center justify-center shadow-xs" 
-                                            title="Verified TTC Member"
-                                        >
-                                            <Check className="text-white w-3 h-3 stroke-[3]" />
-                                        </span>
-                                    )}
-                                </Link>
-
-                                <div className="mt-2.5 w-full">
-                                    <Link
-                                        href={profile?.username ? `/profile/${profile.username}` : `/profile/${profile?.uid}`}
-                                        className="text-base font-black text-gray-900 dark:text-white leading-tight hover:text-primary transition-colors block truncate"
-                                    >
-                                        {profile?.displayName}
-                                    </Link>
-                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-bold mt-0.5 uppercase tracking-wider flex items-center justify-center gap-1.5">
-                                        <span>TTC {getCollegeCity(profile?.collegeId || "")}</span>
-                                        {profile?.yearSemester && (
-                                            <>
-                                                <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
-                                                <span>{profile.yearSemester}</span>
-                                            </>
-                                        )}
-                                    </p>
-                                    <div className="mt-2 flex items-center justify-center gap-1.5">
-                                        <span className="px-2.5 py-0.5 bg-primary/10 text-primary border border-primary/20 text-[10px] font-black rounded-full uppercase tracking-wider">
-                                            {profile?.role}
-                                        </span>
-                                        {profile?.programme && (
-                                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[10px] font-bold rounded-full">
-                                                {profile.programme === "BEdHonours" ? "B.Ed Honours" : profile.programme}
-                                            </span>
-                                        )}
-                                    </div>
                                 </div>
 
-                                {/* Followers & Following Stats Bar */}
-                                <div className="w-full grid grid-cols-2 gap-2 mt-4 p-2 bg-gray-50 dark:bg-[#121319] rounded-2xl border border-gray-100 dark:border-gray-800/80">
+                                <h2 className="text-lg font-black text-gray-900 dark:text-white leading-tight">
+                                    {profile.displayName}
+                                </h2>
+                                <p className="text-xs text-gray-400 dark:text-gray-500 font-bold mt-1 uppercase tracking-wider">
+                                    TTC {getCollegeCity(profile.collegeId)}
+                                </p>
+                                <span className="mt-2.5 px-3 py-0.5 bg-primary/10 text-primary text-[9px] font-black rounded-full uppercase tracking-widest">
+                                    {profile.role}
+                                </span>
+
+                                <div className="w-full grid grid-cols-2 gap-4 mt-6 pt-5 border-t border-gray-100 dark:border-gray-800/60">
                                     <button 
-                                        type="button"
                                         onClick={() => { setActiveTab("my-network"); setNetworkTab("followers"); }}
-                                        className="py-1.5 text-center group/stat rounded-xl hover:bg-white dark:hover:bg-white/5 transition-all cursor-pointer"
+                                        className="text-center group/stat"
                                     >
-                                        <span className="block text-lg font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors leading-tight">
+                                        <span className="block text-xl font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors">
                                             {followers.length}
                                         </span>
-                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Followers</span>
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Followers</span>
                                     </button>
                                     <button 
-                                        type="button"
                                         onClick={() => { setActiveTab("my-network"); setNetworkTab("following"); }}
-                                        className="py-1.5 text-center group/stat rounded-xl hover:bg-white dark:hover:bg-white/5 transition-all cursor-pointer"
+                                        className="text-center group/stat"
                                     >
-                                        <span className="block text-lg font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors leading-tight">
+                                        <span className="block text-xl font-black text-gray-900 dark:text-white group-hover/stat:text-primary transition-colors">
                                             {following.length}
                                         </span>
-                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Following</span>
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Following</span>
                                     </button>
                                 </div>
-
-                                {/* Direct View Profile Button */}
-                                <Link
-                                    href={profile?.username ? `/profile/${profile.username}` : `/profile/${profile?.uid}`}
-                                    className="mt-3 mb-4 w-full py-2 px-3 text-center rounded-xl bg-gray-100 hover:bg-primary hover:text-white dark:bg-gray-800 dark:hover:bg-primary text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest transition-all duration-200 border border-gray-200/60 dark:border-gray-700/60 hover:border-transparent active:scale-[0.98] flex items-center justify-center gap-1.5"
-                                >
-                                    <span>View Profile</span>
-                                    <ExternalLink size={12} />
-                                </Link>
                             </div>
                         </div>
 
@@ -782,27 +840,27 @@ export default function NetworkPage() {
                             
                             {/* TAB 1: USER AUTHENTICATION (Managers Only) */}
                             {isManager && activeTab === "auth" && (
-                                <div className="p-6 sm:p-8">
+                                <div className="p-4 sm:p-8">
                                     {/* Header */}
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-6 mb-6 gap-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-5 sm:pb-6 mb-5 sm:mb-6 gap-3 sm:gap-4">
                                         <div>
-                                            <div className="flex items-center gap-2.5 flex-wrap">
-                                                <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
                                                     User Authentication list
                                                 </h2>
                                                 {canViewAllColleges && (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                                                         <Globe size={11} /> Master Access
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                            <p className="text-[10px] sm:text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
                                                 {canViewAllColleges && authScope === "all_colleges"
                                                     ? "Review and verify registrations across all 14 TTC Campuses."
                                                     : `Review and verify registrations for ${getCollegeFullName(profile?.collegeId || "")}.`}
                                             </p>
                                         </div>
-                                        <div className="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-amber-500/20 shadow-sm self-start">
+                                        <div className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-amber-500/10 text-amber-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-amber-500/20 shadow-sm self-start">
                                             <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
                                             {displayedAuthUsers.length} Pending {canViewAllColleges && authScope === "all_colleges" ? "(Network-Wide)" : "Verifications"}
                                         </div>
@@ -810,7 +868,7 @@ export default function NetworkPage() {
 
                                     {/* Admin / Super Manager Network-Wide Controls Bar */}
                                     {canViewAllColleges && (
-                                        <div className="mb-6 p-4 rounded-2xl bg-gray-50/80 dark:bg-white/[0.02] border border-gray-150 dark:border-gray-800/80 space-y-3.5">
+                                        <div className="mb-6 p-3.5 sm:p-4 rounded-2xl bg-gray-50/80 dark:bg-white/[0.02] border border-gray-150 dark:border-gray-800/80 space-y-3.5">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
@@ -819,22 +877,22 @@ export default function NetworkPage() {
                                                 </div>
 
                                                 {/* Scope Toggle: My College vs All Colleges */}
-                                                <div className="inline-flex p-1 bg-white dark:bg-[#12131a] rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                                                <div className="grid grid-cols-2 sm:inline-flex p-1 bg-white dark:bg-[#12131a] rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm w-full sm:w-auto">
                                                     <button
                                                         type="button"
                                                         onClick={() => {
                                                             setAuthScope("my_college");
                                                             setSelectedCollegeFilter("all");
                                                         }}
-                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                                                        className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all ${
                                                             authScope === "my_college"
                                                                 ? "bg-primary text-white shadow-sm"
                                                                 : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                     >
-                                                        <School size={13} />
-                                                        <span>My College</span>
-                                                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] ${
+                                                        <School size={13} className="shrink-0" />
+                                                        <span className="truncate">My College</span>
+                                                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] shrink-0 ${
                                                             authScope === "my_college" ? "bg-white/20 text-white" : "bg-gray-150 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                                                         }`}>
                                                             {myCollegePendingCount}
@@ -843,15 +901,15 @@ export default function NetworkPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setAuthScope("all_colleges")}
-                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                                                        className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all ${
                                                             authScope === "all_colleges"
                                                                 ? "bg-primary text-white shadow-sm"
                                                                 : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                     >
-                                                        <Globe size={13} />
-                                                        <span>Whole Network (14 Campuses)</span>
-                                                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] ${
+                                                        <Globe size={13} className="shrink-0" />
+                                                        <span className="truncate">Whole Network</span>
+                                                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] shrink-0 ${
                                                             authScope === "all_colleges" ? "bg-white/20 text-white" : "bg-gray-150 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                                                         }`}>
                                                             {allCollegesPendingCount}
@@ -860,19 +918,21 @@ export default function NetworkPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Extra Filters when in All Colleges Scope */}
+                                            {/* Campus Filter when in All Colleges Scope */}
                                             {authScope === "all_colleges" && (
-                                                <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    {/* College Filter Dropdown */}
-                                                    <div className="relative">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                                            <Filter size={14} />
-                                                        </div>
+                                                <div className="pt-3 border-t border-gray-200/60 dark:border-gray-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Filter size={13} className="text-primary" />
+                                                        <span className="text-[11px] font-bold text-gray-600 dark:text-gray-400">
+                                                            Filter by Campus:
+                                                        </span>
+                                                    </div>
+                                                    <div className="relative w-full sm:w-80">
                                                         <select
                                                             value={selectedCollegeFilter}
                                                             onChange={(e) => setSelectedCollegeFilter(e.target.value)}
                                                             aria-label="Filter by College Campus"
-                                                            className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#15161f] border border-gray-200 dark:border-gray-700/80 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+                                                            className="w-full pl-3.5 pr-8 py-2 bg-white dark:bg-[#15161f] border border-gray-200 dark:border-gray-700/80 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer shadow-sm"
                                                         >
                                                             <option value="all">All 14 Campuses ({allCollegesPendingCount} pending)</option>
                                                             {colleges.map((col) => {
@@ -888,29 +948,6 @@ export default function NetworkPage() {
                                                             <ChevronDown size={14} />
                                                         </div>
                                                     </div>
-
-                                                    {/* Quick Search */}
-                                                    <div className="relative">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                                            <Search size={14} />
-                                                        </div>
-                                                        <input
-                                                            type="text"
-                                                            value={authSearchQuery}
-                                                            onChange={(e) => setAuthSearchQuery(e.target.value)}
-                                                            placeholder="Search by student name, email, roll..."
-                                                            className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#15161f] border border-gray-200 dark:border-gray-700/80 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                                        />
-                                                        {authSearchQuery && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setAuthSearchQuery("")}
-                                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -923,26 +960,25 @@ export default function NetworkPage() {
                                                 <ShieldAlert size={36} />
                                             </div>
                                             <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                                {authSearchQuery || selectedCollegeFilter !== "all" 
-                                                    ? "No matching users found" 
+                                                {selectedCollegeFilter !== "all" 
+                                                    ? "No matching users in this campus" 
                                                     : "Your verification list is empty"}
                                             </h3>
                                             <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
-                                                {authSearchQuery || selectedCollegeFilter !== "all"
-                                                    ? "Try clearing your search query or college campus filter to see more users."
+                                                {selectedCollegeFilter !== "all"
+                                                    ? "No unverified members found for this specific campus. Switch back to view all campuses."
                                                     : (canViewAllColleges && authScope === "all_colleges"
                                                         ? "No members across all 14 TTC campuses are currently awaiting verification."
                                                         : "No members from your college are currently awaiting verification, or all entries have been cleared.")}
                                             </p>
-                                            {(authSearchQuery || selectedCollegeFilter !== "all") && (
+                                            {selectedCollegeFilter !== "all" && (
                                                 <button
                                                     onClick={() => {
-                                                        setAuthSearchQuery("");
                                                         setSelectedCollegeFilter("all");
                                                     }}
                                                     className="mt-4 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-black uppercase tracking-wider rounded-xl transition-all"
                                                 >
-                                                    Clear Filters
+                                                    Show All Campuses
                                                 </button>
                                             )}
                                         </div>
@@ -1116,18 +1152,18 @@ export default function NetworkPage() {
 
                             {/* TAB 2: DISCOVER PEOPLE */}
                             {activeTab === "discover" && (
-                                <div className="p-6 sm:p-8">
+                                <div className="p-4 sm:p-8">
                                     {/* Header with Title & View Mode Toggle */}
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-6 mb-6 gap-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-5 sm:pb-6 mb-6 gap-4">
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <Sparkles className="text-amber-500 w-4 h-4" />
                                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">People You May Know</span>
                                             </div>
-                                            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                            <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
                                                 Discover Network Peers
                                             </h2>
-                                            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                            <p className="text-[10px] sm:text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
                                                 Smart suggestions based on your campus, year, semester, and teacher training programmes.
                                             </p>
                                         </div>
@@ -1137,7 +1173,7 @@ export default function NetworkPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setDiscoverViewMode("reel")}
-                                                className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                                                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
                                                     discoverViewMode === "reel"
                                                         ? "bg-white dark:bg-gray-800 text-primary shadow-xs"
                                                         : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
@@ -1150,7 +1186,7 @@ export default function NetworkPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setDiscoverViewMode("grid")}
-                                                className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                                                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
                                                     discoverViewMode === "grid"
                                                         ? "bg-white dark:bg-gray-800 text-primary shadow-xs"
                                                         : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
@@ -1164,18 +1200,18 @@ export default function NetworkPage() {
                                     </div>
 
                                     {/* Search Bar */}
-                                    <div className="mb-8">
-                                        <form onSubmit={handleSearch} className="flex gap-3">
+                                    <div className="mb-6 sm:mb-8">
+                                        <form onSubmit={handleSearch} className="flex gap-2 sm:gap-3">
                                             <div className="relative flex-grow">
-                                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                                                    <Search size={18} />
+                                                <div className="absolute inset-y-0 left-0 pl-3.5 sm:pl-4 flex items-center pointer-events-none text-gray-400">
+                                                    <Search size={16} />
                                                 </div>
                                                 <input
                                                     type="text"
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}
                                                     placeholder="Search people by name or username across TTC network..."
-                                                    className="w-full pl-11 pr-10 py-3.5 bg-gray-50 dark:bg-[#161620] border-2 border-gray-100 dark:border-gray-800 focus:border-primary dark:focus:border-primary rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-0 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                                    className="w-full pl-10 sm:pl-11 pr-9 sm:pr-10 py-3 sm:py-3.5 bg-gray-50 dark:bg-[#161620] border-2 border-gray-100 dark:border-gray-800 focus:border-primary dark:focus:border-primary rounded-2xl text-base sm:text-sm font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-0 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                                 />
                                                 {searchQuery && (
                                                     <button
@@ -1185,7 +1221,7 @@ export default function NetworkPage() {
                                                             setIsSearching(false);
                                                             setSearchResults([]);
                                                         }}
-                                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                                                        className="absolute inset-y-0 right-0 pr-3.5 sm:pr-4 flex items-center text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
                                                     >
                                                         <X size={16} />
                                                     </button>
@@ -1194,14 +1230,14 @@ export default function NetworkPage() {
                                             <button
                                                 type="submit"
                                                 disabled={searchingLoader}
-                                                className="px-6 py-3.5 bg-primary hover:bg-primary-dark text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-md shadow-primary/10 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shrink-0 cursor-pointer"
+                                                className="px-4 sm:px-6 py-3 sm:py-3.5 bg-primary hover:bg-primary-dark text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-md shadow-primary/10 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shrink-0 cursor-pointer"
                                             >
                                                 {searchingLoader ? (
                                                     <Loader2 className="animate-spin" size={14} />
                                                 ) : (
                                                     <Search size={14} className="stroke-[3]" />
                                                 )}
-                                                Search
+                                                <span className="hidden min-[400px]:inline">Search</span>
                                             </button>
                                         </form>
                                     </div>
@@ -1222,7 +1258,7 @@ export default function NetworkPage() {
                                                     No results found
                                                 </h3>
                                                 <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-2">
-                                                    We couldn't find anyone matching "{searchQuery}". Try another query or campus.
+                                                    We couldn&apos;t find anyone matching &ldquo;{searchQuery}&rdquo;. Try another query or campus.
                                                 </p>
                                                 <button
                                                     onClick={() => {
@@ -1252,7 +1288,7 @@ export default function NetworkPage() {
                                                         Clear Search
                                                     </button>
                                                 </div>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                                                     <AnimatePresence mode="popLayout">
                                                         {searchResults.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
                                                     </AnimatePresence>
@@ -1298,16 +1334,16 @@ export default function NetworkPage() {
                                                                         {visibleMyCollege.length}
                                                                     </span>
                                                                 </div>
-                                                                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                                                <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                                                                     TTC {getCollegeCity(profile?.collegeId || "")} • Classmates, batchmates & teachers you may know
                                                                 </p>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Reel Controls (Left / Right scroll buttons) */}
+                                                    {/* Reel Controls (Left / Right scroll buttons - Hidden on mobile) */}
                                                     {discoverViewMode === "reel" && visibleMyCollege.length > 0 && (
-                                                        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                                                        <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => scrollReel(myCollegeScrollRef, "left")}
@@ -1338,14 +1374,14 @@ export default function NetworkPage() {
                                                 ) : discoverViewMode === "reel" ? (
                                                     <div
                                                         ref={myCollegeScrollRef}
-                                                        className="flex gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-1 px-1"
+                                                        className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
                                                     >
                                                         <AnimatePresence mode="popLayout">
                                                             {visibleMyCollege.map((item) => renderUserCard(item, true))}
                                                         </AnimatePresence>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                                                         <AnimatePresence mode="popLayout">
                                                             {visibleMyCollege.map((item) => renderUserCard(item, true))}
                                                         </AnimatePresence>
@@ -1370,16 +1406,16 @@ export default function NetworkPage() {
                                                                         {filteredOtherColleges.length}
                                                                     </span>
                                                                 </div>
-                                                                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                                                <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                                                                     Expand your reach across teacher training colleges nationwide
                                                                 </p>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Reel Controls (Left / Right scroll buttons) */}
+                                                    {/* Reel Controls (Left / Right scroll buttons - Hidden on mobile) */}
                                                     {discoverViewMode === "reel" && filteredOtherColleges.length > 0 && (
-                                                        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                                                        <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => scrollReel(otherCollegesScrollRef, "left")}
@@ -1402,7 +1438,7 @@ export default function NetworkPage() {
 
                                                 {/* Campus Filter Pills */}
                                                 {otherCollegesRecs.length > 0 && (
-                                                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+                                                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 touch-pan-x">
                                                         <button
                                                             type="button"
                                                             onClick={() => setOtherCollegeFilter("all")}
@@ -1463,14 +1499,14 @@ export default function NetworkPage() {
                                                 ) : discoverViewMode === "reel" ? (
                                                     <div
                                                         ref={otherCollegesScrollRef}
-                                                        className="flex gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-1 px-1"
+                                                        className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
                                                     >
                                                         <AnimatePresence mode="popLayout">
                                                             {filteredOtherColleges.map((item) => renderUserCard(item, false))}
                                                         </AnimatePresence>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                                                         <AnimatePresence mode="popLayout">
                                                             {filteredOtherColleges.map((item) => renderUserCard(item, false))}
                                                         </AnimatePresence>
@@ -1484,22 +1520,22 @@ export default function NetworkPage() {
 
                             {/* TAB 3: MY NETWORK DIRECTORY (Followers / Following) */}
                             {activeTab === "my-network" && (
-                                <div className="p-6 sm:p-8">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-4 mb-6 gap-4">
+                                <div className="p-4 sm:p-8">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-850 pb-4 mb-6 gap-3 sm:gap-4">
                                         <div>
-                                            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                            <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
                                                 My Network Directory
                                             </h2>
-                                            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                            <p className="text-[10px] sm:text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
                                                 Browse all people you are following or who follow you.
                                             </p>
                                         </div>
                                         
                                         {/* Sub Tabs Selector */}
-                                        <div className="flex p-1 bg-gray-150/60 dark:bg-gray-800/40 rounded-xl border border-gray-200/20 shadow-inner self-start">
+                                        <div className="flex w-full sm:w-auto p-1 bg-gray-150/60 dark:bg-gray-800/40 rounded-xl border border-gray-200/20 shadow-inner self-start">
                                             <button
                                                 onClick={() => setNetworkTab("following")}
-                                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                                className={`flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                                                     networkTab === "following"
                                                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                                                         : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -1509,7 +1545,7 @@ export default function NetworkPage() {
                                             </button>
                                             <button
                                                 onClick={() => setNetworkTab("followers")}
-                                                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                                className={`flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                                                     networkTab === "followers"
                                                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                                                         : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -1541,18 +1577,18 @@ export default function NetworkPage() {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-in fade-in duration-300">
                                                 {following.map((item) => {
                                                     const isFollowing = !!followingStates[item.id];
                                                     const isWorking = !!processingFollow[item.id];
                                                     return (
                                                         <div 
                                                             key={item.id}
-                                                            className="flex items-center gap-4 p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all"
+                                                            className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all"
                                                         >
                                                             <Link href={`/profile/${item.id}`} className="shrink-0 relative group">
                                                                 {item.photoURL ? (
-                                                                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100 animate-in fade-in duration-300">
+                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100 animate-in fade-in duration-300">
                                                                         <Image 
                                                                             src={item.photoURL} 
                                                                             alt={item.displayName} 
@@ -1562,34 +1598,34 @@ export default function NetworkPage() {
                                                                         />
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
+                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs sm:text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
                                                                         {getInitials(item.displayName)}
                                                                     </div>
                                                                 )}
                                                                 {item.roleVerified && (
-                                                                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center">
-                                                                        <Check className="text-white w-3 h-3 stroke-[3]" />
+                                                                    <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center">
+                                                                        <Check className="text-white w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
                                                                     </span>
                                                                 )}
                                                             </Link>
                                                             <div className="flex-1 min-w-0">
                                                                 <Link 
                                                                     href={`/profile/${item.id}`}
-                                                                    className="text-base font-extrabold text-gray-900 dark:text-white truncate block hover:text-primary transition-colors"
+                                                                    className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white truncate block hover:text-primary transition-colors"
                                                                 >
                                                                     {item.displayName}
                                                                 </Link>
-                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mt-0.5 truncate">
                                                                     <span>TTC {getCollegeCity(item.collegeId)}</span>
-                                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
-                                                                    <span className="capitalize">{item.role}</span>
+                                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full shrink-0" />
+                                                                    <span className="capitalize shrink-0">{item.role}</span>
                                                                 </p>
                                                             </div>
                                                             <div className="shrink-0">
                                                                 <button
                                                                     onClick={() => handleFollowToggle(item.id, item.displayName)}
                                                                     disabled={isWorking}
-                                                                    className="px-4 py-2 border border-gray-250 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                                                    className="px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-250 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
                                                                 >
                                                                     {isFollowing ? "Following" : "Unfollowed"}
                                                                 </button>
@@ -1616,18 +1652,18 @@ export default function NetworkPage() {
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-in fade-in duration-300">
                                                 {followers.map((item) => {
                                                     const isFollowing = !!followingStates[item.id];
                                                     const isWorking = !!processingFollow[item.id];
                                                     return (
                                                         <div 
                                                             key={item.id}
-                                                            className="flex items-center gap-4 p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all animate-in fade-in duration-200"
+                                                            className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all animate-in fade-in duration-200"
                                                         >
                                                             <Link href={`/profile/${item.id}`} className="shrink-0 relative group">
                                                                 {item.photoURL ? (
-                                                                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100">
+                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100">
                                                                         <Image 
                                                                             src={item.photoURL} 
                                                                             alt={item.displayName} 
@@ -1637,27 +1673,27 @@ export default function NetworkPage() {
                                                                         />
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
+                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs sm:text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
                                                                         {getInitials(item.displayName)}
                                                                     </div>
                                                                 )}
                                                                 {item.roleVerified && (
-                                                                    <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center">
-                                                                        <Check className="text-white w-3 h-3 stroke-[3]" />
+                                                                    <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center">
+                                                                        <Check className="text-white w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
                                                                     </span>
                                                                 )}
                                                             </Link>
                                                             <div className="flex-1 min-w-0">
                                                                 <Link 
                                                                     href={`/profile/${item.id}`}
-                                                                    className="text-base font-extrabold text-gray-900 dark:text-white truncate block hover:text-primary transition-colors"
+                                                                    className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white truncate block hover:text-primary transition-colors"
                                                                 >
                                                                     {item.displayName}
                                                                 </Link>
-                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                                                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mt-0.5 truncate">
                                                                     <span>TTC {getCollegeCity(item.collegeId)}</span>
-                                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
-                                                                    <span className="capitalize">{item.role}</span>
+                                                                    <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full shrink-0" />
+                                                                    <span className="capitalize shrink-0">{item.role}</span>
                                                                 </p>
                                                             </div>
                                                             <div className="shrink-0">
@@ -1665,7 +1701,7 @@ export default function NetworkPage() {
                                                                     <button
                                                                         onClick={() => handleFollowToggle(item.id, item.displayName)}
                                                                         disabled={isWorking}
-                                                                        className="px-4 py-2 border border-gray-250 dark:border-gray-700 text-gray-500 dark:text-gray-450 hover:text-red-500 hover:border-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                                                        className="px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-250 dark:border-gray-700 text-gray-500 dark:text-gray-450 hover:text-red-500 hover:border-red-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
                                                                     >
                                                                         Following
                                                                     </button>
@@ -1673,7 +1709,7 @@ export default function NetworkPage() {
                                                                     <button
                                                                         onClick={() => handleFollowToggle(item.id, item.displayName)}
                                                                         disabled={isWorking}
-                                                                        className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-primary/10 flex items-center gap-1"
+                                                                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-primary hover:bg-primary-dark text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-primary/10 flex items-center gap-1"
                                                                     >
                                                                         <UserPlus size={12} className="stroke-[2.5]" /> Back
                                                                     </button>
