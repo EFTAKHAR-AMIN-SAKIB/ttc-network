@@ -68,8 +68,11 @@ export default function MobileDock() {
     };
 
     return (
-        <div className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] pb-safe transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "translate-y-full pointer-events-none" : "translate-y-0"}`}>
-            <div className="flex items-center justify-around px-2 py-2">
+        <div 
+            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))" }}
+            className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "translate-y-full pointer-events-none" : "translate-y-0"}`}
+        >
+            <div className="flex items-center justify-around px-1 pt-2 pb-1">
                 {links.map((link) => {
                     const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                     const Icon = link.icon;
@@ -81,9 +84,16 @@ export default function MobileDock() {
                                 const sectionKey = getSectionKey(link.href);
                                 if (sectionKey) markAsSeen(sectionKey);
                             }}
-                            className="relative flex flex-col items-center justify-center w-14 h-12"
+                            className="relative flex-1 flex flex-col items-center justify-center py-1 max-w-[64px]"
                         >
-                            <div className={`relative flex flex-col items-center justify-center w-full h-full transition-colors duration-300 ${isActive ? "text-primary dark:text-[#1D9BF0]" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"}`}>
+                            <div className={`relative flex flex-col items-center justify-center w-full transition-colors duration-300 ${isActive ? "text-primary dark:text-[#1D9BF0]" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"}`}>
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeDockIndicator"
+                                        className="absolute -top-2 left-1/2 w-7 h-1 bg-primary dark:bg-[#1D9BF0] rounded-full transform -translate-x-1/2 shadow-xs shadow-primary/50"
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                    />
+                                )}
                                 <div className="relative">
                                     <Icon size={isActive ? 22 : 20} className={`mb-1 transition-all duration-300 ${isActive ? "stroke-[2.5]" : "stroke-2"}`} />
                                     {(() => {
@@ -98,22 +108,15 @@ export default function MobileDock() {
                                         return null;
                                     })()}
                                 </div>
-                                <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive ? "opacity-100 scale-100" : "opacity-70 scale-95"}`}>
+                                <span className={`text-[9px] font-black uppercase tracking-wider transition-all duration-300 leading-tight ${isActive ? "opacity-100 scale-100 font-extrabold" : "opacity-75 scale-95"}`}>
                                     {link.label}
                                 </span>
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeDockIndicator"
-                                        className="absolute -bottom-2 left-1/2 w-8 h-1 bg-primary dark:bg-[#1D9BF0] rounded-t-full transform -translate-x-1/2"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                    />
-                                )}
                             </div>
                         </Link>
                     );
                 })}
             </div>
-            {/* Safe area padding for iOS devices with home indicator */}
+            {/* Safe area padding fallback */}
             <div className="h-[env(safe-area-inset-bottom)] w-full bg-transparent" />
         </div>
     );

@@ -1112,15 +1112,24 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         }
     };
 
-    // Close contact popover when clicking outside
+    // Close contact popover when clicking outside or scrolling
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
                 setContactOpen(false);
             }
         };
-        if (contactOpen) document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        const handleScroll = () => {
+            setContactOpen(false);
+        };
+        if (contactOpen) {
+            document.addEventListener("mousedown", handleClickOutside);
+            window.addEventListener("scroll", handleScroll, { passive: true });
+        }
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            window.removeEventListener("scroll", handleScroll);
+        };
     }, [contactOpen]);
 
     // Close banner/photo dropdown menus when clicking outside
@@ -1460,7 +1469,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             )}
             
             {/* 1. HERO SECTION */}
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 relative">
+            <div className={`max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 relative ${contactOpen || photoMenuOpen || bannerMenuOpen ? "z-40" : "z-10"}`}>
                 {/* Banner Frame */}
                 <div 
                     className="h-48 sm:h-64 md:h-80 lg:h-[350px] w-full relative group/banner cursor-zoom-in rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] overflow-hidden border border-slate-200/80 dark:border-gray-800 shadow-md sm:shadow-lg bg-slate-100 dark:bg-gray-900"
@@ -1547,8 +1556,8 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
 
                 {/* Profile Identity Strip */}
-                <div className="px-2 sm:px-6 relative">
-                    <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative z-10">
+                <div className={`px-2 sm:px-6 relative ${contactOpen || photoMenuOpen ? "z-40" : "z-10"}`}>
+                    <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative">
                         {/* Avatar */}
                         <div className="relative group/avatar shrink-0">
                             <div 
@@ -1801,48 +1810,55 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
                         {/* Action Buttons */}
                         <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2.5 md:pb-2 w-full md:w-auto">
-                            {isOwnProfile ? (
+                            {isViewingAsOwner ? (
                                 <>
-                                    {!viewAsGuest && (
-                                        <button 
-                                            onClick={() => setEditDrawerOpen(true)}
-                                            className="px-4 sm:px-5 py-2.5 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/25 hover:shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
-                                        >
-                                            <Pencil size={14} /> <span>Edit Profile</span>
-                                        </button>
-                                    )}
+                                    <button 
+                                        onClick={() => setEditDrawerOpen(true)}
+                                        className="px-4 sm:px-5 py-2.5 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/25 hover:shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
+                                    >
+                                        <Pencil size={14} /> <span>Edit Profile</span>
+                                    </button>
                                     <button 
                                         onClick={() => {
-                                            if (!viewAsGuest && activeTab === "saved") {
+                                            if (activeTab === "saved") {
                                                 setActiveTab("about");
                                             }
-                                            setViewAsGuest(!viewAsGuest);
+                                            setViewAsGuest(true);
                                         }}
-                                        className={`px-3.5 sm:px-4 py-2.5 border-2 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
-                                            viewAsGuest 
-                                                ? "bg-slate-900 border-slate-950 text-white dark:bg-primary dark:border-primary" 
-                                                : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary/20"
-                                        }`}
-                                        title={viewAsGuest ? "Exit guest preview mode" : "Preview how others see your profile"}
+                                        className="px-3.5 sm:px-4 py-2.5 border-2 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary/20"
+                                        title="Preview how others see your profile"
                                     >
-                                        {viewAsGuest ? <EyeOff size={14} /> : <Eye size={14} />}
-                                        <span>{viewAsGuest ? "Exit Preview" : "View as Guest"}</span>
+                                        <Eye size={14} />
+                                        <span>View as Guest</span>
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     {/* Follow / Following Button */}
                                     <motion.button 
-                                        onClick={handleFollowToggle}
-                                        disabled={followLoading}
+                                        onClick={() => {
+                                            if (viewAsGuest) {
+                                                showToast("Preview mode: Visitors can follow your profile with this button.", "info");
+                                                return;
+                                            }
+                                            handleFollowToggle();
+                                        }}
+                                        disabled={!viewAsGuest && followLoading}
                                         whileTap={{ scale: 0.92 }}
                                         className={`px-4 sm:px-5 py-2.5 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 border-2 ${
-                                            isFollowing 
-                                                ? "bg-primary/5 border-primary/30 text-primary hover:bg-red-50 hover:border-red-300 hover:text-red-500 group" 
-                                                : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-navy-900 dark:text-gray-100 hover:border-primary/40 hover:text-primary"
+                                            viewAsGuest
+                                                ? "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-navy-900 dark:text-gray-100 hover:border-primary/40 hover:text-primary"
+                                                : isFollowing 
+                                                    ? "bg-primary/5 border-primary/30 text-primary hover:bg-red-50 hover:border-red-300 hover:text-red-500 group" 
+                                                    : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-navy-900 dark:text-gray-100 hover:border-primary/40 hover:text-primary"
                                         }`}
                                     >
-                                        {followLoading ? (
+                                        {viewAsGuest ? (
+                                            <>
+                                                <UserPlus size={14} />
+                                                <span>Follow</span>
+                                            </>
+                                        ) : followLoading ? (
                                             <Loader2 size={14} className="animate-spin" />
                                         ) : isFollowing ? (
                                             <>
@@ -1860,7 +1876,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     </motion.button>
 
                                     {/* Contact Dropdown Button */}
-                                    <div className="relative" ref={contactRef}>
+                                    <div className={`relative ${contactOpen ? "z-50" : "z-10"}`} ref={contactRef}>
                                         <motion.button 
                                             onClick={() => setContactOpen(!contactOpen)}
                                             whileTap={{ scale: 0.9 }}
@@ -1881,7 +1897,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                                                     transition={{ duration: 0.15 }}
-                                                    className="absolute top-full right-0 mt-3 w-72 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[1.5rem] shadow-2xl overflow-hidden z-50"
+                                                    className="absolute top-full right-0 mt-3 w-72 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[1.5rem] shadow-2xl overflow-hidden z-50 ring-1 ring-black/5 dark:ring-white/10"
                                                 >
                                                     <div className="p-4 border-b border-slate-50 dark:border-gray-800">
                                                         <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Contact Info</div>
@@ -1963,6 +1979,18 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             )}
                                         </AnimatePresence>
                                     </div>
+
+                                    {/* Exit Preview Button (shown in preview mode) */}
+                                    {viewAsGuest && (
+                                        <button 
+                                            onClick={() => setViewAsGuest(false)}
+                                            className="px-3.5 sm:px-4 py-2.5 bg-slate-900 dark:bg-purple-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                                            title="Exit guest preview mode"
+                                        >
+                                            <EyeOff size={14} />
+                                            <span>Exit Preview</span>
+                                        </button>
+                                    )}
                                 </>
                             )}
 

@@ -265,7 +265,7 @@ function StudyPageContent() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pb-20">
+        <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pb-32">
             <StudyHero 
                 stats={stats} 
                 isVisible={heroSettings?.isVisible ?? false}
@@ -299,30 +299,60 @@ function StudyPageContent() {
                     </div>
                 )}
 
-                {/* Tab Switcher — horizontally scrollable on mobile */}
-                <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar pb-0 mb-8 border-b border-gray-200 dark:border-gray-800" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    <button 
-                        onClick={() => setActiveTab("materials")}
-                        className={`shrink-0 pb-3 sm:pb-4 text-xs sm:text-sm font-black uppercase tracking-widest relative transition-colors ${activeTab === 'materials' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                        <span className="flex items-center gap-2">
-                            <BookOpen size={16} className="sm:w-[18px] sm:h-[18px]" /> Resource Library
-                        </span>
-                        {activeTab === 'materials' && (
-                            <motion.div layoutId="activeTabStudy" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-                        )}
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab("schedule")}
-                        className={`shrink-0 pb-3 sm:pb-4 text-xs sm:text-sm font-black uppercase tracking-widest relative transition-colors ${activeTab === 'schedule' ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                        <span className="flex items-center gap-2">
-                            <Video size={16} className="sm:w-[18px] sm:h-[18px]" /> Live Prep Classes
-                        </span>
-                        {activeTab === 'schedule' && (
-                            <motion.div layoutId="activeTabStudy" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-                        )}
-                    </button>
+                {/* Tab Switcher — Segmented Control matching news-feed native style */}
+                <div className="bg-white dark:bg-[#161822] p-1.5 rounded-2xl border border-gray-200/70 dark:border-gray-800/80 shadow-xs mb-8 max-w-xl mx-auto sm:mx-0">
+                    <div className="flex items-center gap-1.5">
+                        <button 
+                            onClick={() => setActiveTab("materials")}
+                            className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider transition-colors cursor-pointer select-none ${
+                                activeTab === 'materials' 
+                                    ? 'text-white' 
+                                    : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+                            }`}
+                        >
+                            {activeTab === 'materials' && (
+                                <motion.div 
+                                    layoutId="activeStudyTabPill" 
+                                    className="absolute inset-0 bg-primary rounded-xl shadow-md shadow-primary/25" 
+                                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center gap-2 truncate">
+                                <BookOpen size={16} className={activeTab === 'materials' ? "text-white" : "text-gray-400"} />
+                                <span>Resource Library</span>
+                                <span className={`min-w-4 h-4 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                                    activeTab === 'materials' ? 'bg-white text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                }`}>
+                                    {filteredPosts.filter(p => p.type === 'material').length}
+                                </span>
+                            </span>
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab("schedule")}
+                            className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider transition-colors cursor-pointer select-none ${
+                                activeTab === 'schedule' 
+                                    ? 'text-white' 
+                                    : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
+                            }`}
+                        >
+                            {activeTab === 'schedule' && (
+                                <motion.div 
+                                    layoutId="activeStudyTabPill" 
+                                    className="absolute inset-0 bg-primary rounded-xl shadow-md shadow-primary/25" 
+                                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center gap-2 truncate">
+                                <Video size={16} className={activeTab === 'schedule' ? "text-white" : "text-gray-400"} />
+                                <span>Live Prep Classes</span>
+                                <span className={`min-w-4 h-4 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                                    activeTab === 'schedule' ? 'bg-white text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                }`}>
+                                    {filteredPosts.filter(p => p.type === 'schedule').length}
+                                </span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Main Content Area */}
