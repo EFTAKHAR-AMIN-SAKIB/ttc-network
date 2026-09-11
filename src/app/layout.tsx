@@ -98,8 +98,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${plusJakarta.variable} ${hindSiliguri.variable} ${sora.variable} ${caveat.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`bg-white dark:bg-[#0C0C10] ${plusJakarta.variable} ${hindSiliguri.variable} ${sora.variable} ${caveat.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#FFFFFF" id="ttc-default-theme-color" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -141,7 +142,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased bg-[#FAFAFA] dark:bg-[#0C0C10] text-gray-900 dark:text-gray-100 transition-colors duration-300">
+      <body className="antialiased bg-white dark:bg-[#0C0C10] text-gray-900 dark:text-gray-100 transition-colors duration-300">
         <PwaRegister />
         <ThemeProvider>
           <AuthProvider>

@@ -860,7 +860,7 @@ function CollegeInfoInner() {
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-black overflow-x-hidden">
+        <div className="min-h-screen bg-white dark:bg-[#0C0C10] overflow-x-clip">
             {/* Header */}
             <div className="bg-white dark:bg-[#16181C] border-b border-gray-100 dark:border-white/10">
                 <div className="max-w-7xl mx-auto px-4 py-3 sm:py-8">

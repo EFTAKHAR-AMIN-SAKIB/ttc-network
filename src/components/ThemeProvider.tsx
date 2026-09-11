@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 
 type Theme = "light" | "dark";
 
@@ -19,6 +20,7 @@ export function useTheme() {
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
     const [theme, setTheme] = useState<Theme>("light");
     const [mounted, setMounted] = useState(false);
 
@@ -44,7 +46,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
         });
     }, []);
 
-    // Dynamically synchronize the mobile status bar / browser chrome theme-color
+    // Dynamically synchronize the mobile status bar / browser chrome theme-color on theme & route change
     useEffect(() => {
         if (!mounted) return;
         const color = theme === "dark" ? "#0F1117" : "#FFFFFF";
@@ -57,7 +59,13 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
             meta.setAttribute("content", color);
             document.head.appendChild(meta);
         }
-    }, [theme, mounted]);
+
+        // Also ensure default static tag is always synchronized
+        const defaultTag = document.getElementById("ttc-default-theme-color");
+        if (defaultTag) {
+            defaultTag.setAttribute("content", color);
+        }
+    }, [theme, mounted, pathname]);
 
     return (
         <ThemeContext.Provider value={{ theme, toggleTheme }}>
