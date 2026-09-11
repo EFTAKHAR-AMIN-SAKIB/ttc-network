@@ -258,7 +258,10 @@ export default function Navbar() {
     const { siteName, logoUrl } = useSiteSettings();
 
     return (
-        <nav className={`sticky top-0 z-50 bg-white dark:bg-[#0f1117] border-t-0 ring-0 outline-none border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm transition-transform duration-300 ease-in-out before:content-[''] before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-white dark:before:bg-[#0f1117] before:pointer-events-none ${(isScrollingDown || isComposerOpen) ? "max-md:-translate-y-full max-md:pointer-events-none" : "max-md:translate-y-0"}`}>
+        <nav 
+            style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+            className={`sticky top-0 z-50 bg-white dark:bg-[#0f1117] select-none border-t-0 ring-0 outline-none border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm transition-transform duration-300 ease-in-out before:content-[''] before:absolute before:inset-x-0 before:-top-12 before:h-12 before:bg-white dark:before:bg-[#0f1117] before:pointer-events-none ${(isScrollingDown || isComposerOpen) ? "max-md:-translate-y-full max-md:pointer-events-none" : "max-md:translate-y-0"}`}
+        >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     <HumanLogo logoUrl={logoUrl} siteName={siteName} isStandalone={isStandalone} />

@@ -50,6 +50,7 @@ import ClubDetailsModal from "./components/ClubDetailsModal";
 import ClubManager from "./components/ClubManager";
 import { deleteFromCloudinary } from "@/lib/storage";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 /* ─── Types ─── */
 interface FacultyEntry {
@@ -584,6 +585,7 @@ function CollegeInfoInner() {
     const collegeParam = searchParams.get("college");
     const { profile } = useAuth();
     const { showToast } = useToast();
+    const { isScrollingDown } = useScrollDirection();
 
     const [fsColleges, setFsColleges] = useState<(FirestoreCollege & { id: string })[]>([]);
     const [clubs, setClubs] = useState<(FirestoreClub & { id: string })[]>([]);
@@ -958,7 +960,10 @@ function CollegeInfoInner() {
                     {/* ─── Main Content ─── */}
                     <div className="flex-1 w-full min-w-0">
                         {/* ─── Mobile Header & College Switcher Trigger ─── */}
-                        <div className="lg:hidden sticky top-[64px] z-[40] bg-white/95 dark:bg-[#16181C]/95 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-2.5 mb-3 -mx-4 flex items-center justify-between">
+                        <div 
+                            style={{ top: isScrollingDown ? "env(safe-area-inset-top, 0px)" : "calc(64px + env(safe-area-inset-top, 0px))" }}
+                            className="lg:hidden sticky z-[40] bg-white/95 dark:bg-[#16181C]/95 backdrop-blur-2xl border-b border-gray-100 dark:border-white/10 px-4 py-2.5 mb-3 -mx-4 flex items-center justify-between transition-all duration-300 shadow-xs"
+                        >
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-[#161620] border border-gray-200 dark:border-gray-800 flex items-center justify-center shadow-sm overflow-hidden">
                                     {selectedCollege.hasLogo ? <Image src={selectedCollege.logo} alt="" width={24} height={24} className="object-contain" /> : <School size={16} className="text-gray-400" />}
@@ -1090,7 +1095,10 @@ function CollegeInfoInner() {
                             </section>
 
                             {/* ─── Mobile Sticky Tab Navigation ─── */}
-                            <div className="lg:hidden sticky top-[124px] z-[39] bg-white/95 dark:bg-[#161620]/95 backdrop-blur-2xl border-y border-gray-100 dark:border-white/5 px-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)] -mx-4 overflow-x-auto no-scrollbar">
+                            <div 
+                                style={{ top: isScrollingDown ? "calc(52px + env(safe-area-inset-top, 0px))" : "calc(116px + env(safe-area-inset-top, 0px))" }}
+                                className="lg:hidden sticky z-[39] bg-white/95 dark:bg-[#161620]/95 backdrop-blur-2xl border-y border-gray-100 dark:border-white/5 px-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)] -mx-4 overflow-x-auto no-scrollbar transition-all duration-300"
+                            >
                                 <div className="flex items-center justify-around py-3 w-full px-2">
                                     {[
                                         { id: 'overview', label: 'Overview', icon: BookOpen },

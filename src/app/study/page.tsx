@@ -29,6 +29,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import ShareModal from "@/components/ShareModal";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 const safeDate = (val: any): Date => {
     if (!val) return new Date();
@@ -45,6 +46,7 @@ function StudyPageContent() {
     const searchParams = useSearchParams();
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
+    const { isScrollingDown } = useScrollDirection();
     const [activeTab, setActiveTab] = useState<"materials" | "schedule">("materials");
     const [searchTerm, setSearchTerm] = useState("");
     const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -1029,12 +1031,17 @@ function StudyPageContent() {
             <motion.button
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.92 }}
                 onClick={() => handleShareClick("material")}
-                className="fixed bottom-24 right-4 z-40 sm:hidden flex items-center gap-1.5 px-4 py-3 bg-primary text-white rounded-full shadow-lg shadow-primary/30 border-2 border-white dark:border-[#1a1b23] text-xs font-black uppercase tracking-wider cursor-pointer"
+                style={{
+                    bottom: isScrollingDown 
+                        ? "max(16px, env(safe-area-inset-bottom, 16px))" 
+                        : "calc(76px + env(safe-area-inset-bottom, 8px))"
+                }}
+                className="fixed right-4 z-40 sm:hidden flex items-center gap-1.5 px-4 py-3 bg-primary text-white rounded-full shadow-lg shadow-primary/30 border-2 border-white dark:border-[#1a1b23] text-xs font-black uppercase tracking-wider cursor-pointer transition-all duration-300 ease-out active:shadow-inner select-none"
                 title="Share Resource"
             >
-                <Plus size={16} />
+                <Plus size={16} strokeWidth={2.6} />
                 <span>Share</span>
             </motion.button>
 

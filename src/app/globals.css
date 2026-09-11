@@ -123,14 +123,28 @@
   box-sizing: border-box;
 }
 
-/* Global transition for interactive elements */
+/* Global transition & native touch ergonomics for interactive elements */
 button,
 a,
 input,
 select,
 textarea,
+[role="button"],
+.location-filter-btn,
 .card-hover {
   transition: all 0.25s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent accidental text selection and callouts on navigation and UI buttons */
+nav,
+.dev-strip,
+.badge,
+button,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 html {

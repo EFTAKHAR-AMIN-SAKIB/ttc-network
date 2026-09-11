@@ -1,104 +1,44 @@
 "use client";
 
-
+import { WifiOff, RotateCcw, Home } from "lucide-react";
+import Link from "next/link";
 
 export default function OfflinePage() {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "70vh",
-        padding: "2rem",
-        textAlign: "center",
-        fontFamily: "var(--font-plus-jakarta), sans-serif",
-      }}
-    >
-      {/* Offline Icon */}
-      <div
-        style={{
-          width: "80px",
-          height: "80px",
-          borderRadius: "50%",
-          background: "var(--primary-transparent, rgba(192, 57, 43, 0.1))",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <svg
-          width="40"
-          height="40"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--primary, #C0392B)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <line x1="1" y1="1" x2="23" y2="23" />
-          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-          <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
-          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-          <line x1="12" y1="20" x2="12.01" y2="20" />
-        </svg>
+    <div className="flex flex-col items-center justify-center min-h-[75vh] px-4 py-8 text-center select-none font-sans">
+      {/* Offline Icon Container */}
+      <div className="w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 flex items-center justify-center mb-6 text-primary dark:text-blue-400 shadow-lg shadow-blue-500/10">
+        <WifiOff size={38} strokeWidth={2.2} />
       </div>
 
-      <h1
-        style={{
-          fontSize: "1.75rem",
-          fontWeight: 700,
-          color: "var(--text-primary, #1A1A1A)",
-          marginBottom: "0.75rem",
-          lineHeight: 1.3,
-        }}
-      >
+      <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
         You&apos;re Offline
       </h1>
 
-      <p
-        style={{
-          fontSize: "1rem",
-          color: "var(--text-secondary, #4A4A4A)",
-          maxWidth: "400px",
-          lineHeight: 1.6,
-          marginBottom: "2rem",
-        }}
-      >
-        It looks like you&apos;ve lost your internet connection. Check your
-        Wi-Fi or mobile data and try again.
+      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 max-w-md leading-relaxed mb-8">
+        It looks like your internet connection dropped. Cached content is still accessible, or check your Wi-Fi/mobile data to reconnect.
       </p>
 
-      <button
-        onClick={() => window.location.reload()}
-        style={{
-          background: "var(--primary, #C0392B)",
-          color: "#FFFFFF",
-          border: "none",
-          borderRadius: "12px",
-          padding: "0.875rem 2rem",
-          fontSize: "0.9375rem",
-          fontWeight: 600,
-          cursor: "pointer",
-          transition: "opacity 0.2s ease",
-        }}
-      >
-        Try Again
-      </button>
+      <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-xs">
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary hover:bg-blue-700 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-primary/25 transition-all text-sm cursor-pointer"
+        >
+          <RotateCcw size={16} />
+          <span>Try Again</span>
+        </button>
 
-      <p
-        style={{
-          fontSize: "0.8125rem",
-          color: "var(--text-muted, #717171)",
-          marginTop: "1.5rem",
-        }}
-      >
-        TTC Network
+        <Link
+          href="/news-feed"
+          className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 text-gray-700 dark:text-gray-200 font-bold rounded-2xl transition-all text-sm"
+        >
+          <Home size={16} />
+          <span>Go to Feed</span>
+        </Link>
+      </div>
+
+      <p className="text-xs font-semibold text-gray-400 dark:text-gray-600 mt-10 tracking-wider uppercase">
+        TTC Network · Standalone PWA
       </p>
     </div>
   );

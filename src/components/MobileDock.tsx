@@ -69,8 +69,8 @@ export default function MobileDock() {
 
     return (
         <div 
-            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))" }}
-            className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "translate-y-full pointer-events-none" : "translate-y-0"}`}
+            style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}
+            className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] select-none bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "translate-y-full pointer-events-none" : "translate-y-0"}`}
         >
             <div className="flex items-center justify-around px-1 pt-2 pb-1">
                 {links.map((link) => {
@@ -84,7 +84,7 @@ export default function MobileDock() {
                                 const sectionKey = getSectionKey(link.href);
                                 if (sectionKey) markAsSeen(sectionKey);
                             }}
-                            className="relative flex-1 flex flex-col items-center justify-center py-1 max-w-[64px]"
+                            className="relative flex-1 flex flex-col items-center justify-center py-1 max-w-[64px] active:scale-95 transition-transform"
                         >
                             <div className={`relative flex flex-col items-center justify-center w-full transition-colors duration-300 ${isActive ? "text-primary dark:text-[#1D9BF0]" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"}`}>
                                 {isActive && (
@@ -116,8 +116,6 @@ export default function MobileDock() {
                     );
                 })}
             </div>
-            {/* Safe area padding fallback */}
-            <div className="h-[env(safe-area-inset-bottom)] w-full bg-transparent" />
         </div>
     );
 }

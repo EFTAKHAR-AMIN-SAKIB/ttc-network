@@ -51,6 +51,7 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
 import { canEditNotice } from "@/lib/permissions";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 type Notice = FirestoreNotice & { id: string };
 
@@ -468,6 +469,7 @@ function PostNoticeModal({
 function NoticePageContent() {
     const { profile } = useAuth();
     const { requireVerification } = useVerifiedAccess();
+    const { isScrollingDown } = useScrollDirection();
     const [selectedCollege, setSelectedCollege] = useState("All");
     const [selectedProgramme, setSelectedProgramme] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
@@ -2075,6 +2077,31 @@ function NoticePageContent() {
                 alt="Notice Attachment"
                 onClose={() => setSelectedImageForLightbox(null)}
             />
+
+            {/* Mobile Floating Action Button (FAB) */}
+            {canPost && (
+                <motion.button
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={() => {
+                        if (requireVerification("post notices")) {
+                            setShowPostModal(true);
+                        }
+                    }}
+                    style={{
+                        bottom: isScrollingDown 
+                            ? "max(16px, env(safe-area-inset-bottom, 16px))" 
+                            : "calc(76px + env(safe-area-inset-bottom, 8px))"
+                    }}
+                    className="fixed right-4 z-40 sm:hidden flex items-center gap-1.5 px-4 py-3 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full shadow-lg shadow-primary/30 border-2 border-white dark:border-[#1a1b23] text-xs font-black uppercase tracking-wider cursor-pointer transition-all duration-300 ease-out active:shadow-inner select-none"
+                    title="Post Notice"
+                    aria-label="Post Notice"
+                >
+                    <Plus size={16} strokeWidth={2.6} />
+                    <span>Post Notice</span>
+                </motion.button>
+            )}
         </div>
     );
 }

@@ -13,6 +13,37 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     id: "/",
     scope: "/",
+    categories: ["education", "social"],
+    shortcuts: [
+      {
+        name: "Feed & Discussions",
+        short_name: "Feed",
+        description: "View updates from your college and peers",
+        url: "/news-feed",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Official Notices",
+        short_name: "Notices",
+        description: "Check official notices and circulars",
+        url: "/notice",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Study Hub",
+        short_name: "Study",
+        description: "Access handouts, questions, and notes",
+        url: "/study",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "15 Govt. TTCs",
+        short_name: "Colleges",
+        description: "Explore all Teachers' Training Colleges",
+        url: "/college-info",
+        icons: [{ src: "/icon-192.png", sizes: "192x192" }],
+      },
+    ],
     icons: [
       {
         src: "/icon-192.png",

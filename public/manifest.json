@@ -6,6 +6,7 @@
   "start_url": "/news-feed?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
   "theme_color": "#FFFFFF",
   "background_color": "#FFFFFF",
@@ -35,6 +36,45 @@
       "purpose": "maskable"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Feed & Discussions",
+      "short_name": "Feed",
+      "description": "View updates from your college and peers",
+      "url": "/news-feed",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Official Notices",
+      "short_name": "Notices",
+      "description": "Check official notices and circulars",
+      "url": "/notice",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Study Hub",
+      "short_name": "Study",
+      "description": "Access handouts, questions, and notes",
+      "url": "/study",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "15 Govt. TTCs",
+      "short_name": "Colleges",
+      "description": "Explore all Teachers' Training Colleges",
+      "url": "/college-info",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/news-feed",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "categories": ["education", "social"],
   "lang": "en",
   "dir": "ltr",
