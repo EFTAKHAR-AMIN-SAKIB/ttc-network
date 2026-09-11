@@ -10,81 +10,93 @@ interface StudyHeroProps {
         members: number;
     };
     isVisible?: boolean;
+    searchValue?: string;
     onSearchChange: (val: string) => void;
     onShareClick: () => void;
 }
 
-export default function StudyHero({ stats, isVisible, onSearchChange, onShareClick }: StudyHeroProps) {
+export default function StudyHero({ stats, isVisible, searchValue = "", onSearchChange, onShareClick }: StudyHeroProps) {
     return (
-        <div className="relative pt-8 pb-12 sm:pt-12 sm:pb-20 overflow-hidden">
+        <div className="relative pt-4 pb-6 sm:pt-10 sm:pb-16 overflow-hidden">
             {/* Background elements */}
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -z-10 animate-pulse" />
-            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/5 rounded-full blur-[80px] -z-10" />
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -z-10 animate-pulse pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/5 rounded-full blur-[80px] -z-10 pointer-events-none" />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
+                    transition={{ duration: 0.5 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-primary/10 text-primary text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-4 sm:mb-6 border border-primary/20">
-                        <Sparkles size={14} /> Shared Knowledge Library
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-primary/10 text-primary text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-3 sm:mb-5 border border-primary/20">
+                        <Sparkles size={13} className="text-primary" /> Shared Knowledge Library
                     </div>
-                    <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-navy-900 dark:text-white leading-[1.1] sm:leading-[1.05] mb-6 sm:mb-8 tracking-tight">
-                        Power Up Your <br />
-                        <span className="text-primary italic">Learning</span> Journey.
+                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-navy-900 dark:text-white leading-[1.15] sm:leading-[1.08] mb-3 sm:mb-4 tracking-tight">
+                        Power Up Your <span className="text-primary italic">Learning</span> Journey.
                     </h1>
-                    <p className="max-w-2xl mx-auto text-sm sm:text-lg md:text-xl text-gray-500 font-bold mb-8 sm:mb-12 leading-relaxed">
-                        Access shared materials, attend live prep classes, and collaborate with TTC students across Bangladesh.
+                    <p className="max-w-xl mx-auto text-xs sm:text-base md:text-lg text-gray-500 dark:text-gray-400 font-medium mb-6 sm:mb-8 leading-relaxed">
+                        Access shared notes, download academic materials, and join live prep classes with TTC students across Bangladesh.
                     </p>
                 </motion.div>
 
-                {/* Stats Grid */}
+                {/* Stats Grid - 3 columns on all screens for clean horizontal compact layout */}
                 {isVisible !== false && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto mb-10 sm:mb-16">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-5 max-w-3xl mx-auto mb-6 sm:mb-10">
                         {[
-                            { icon: BookText, label: "Materials Shared", value: stats.materials, color: "text-blue-500 bg-blue-50 dark:bg-blue-900/20" },
-                        { icon: Video, label: "Schedules Posted", value: stats.liveSessions, color: "text-amber-500 bg-amber-50 dark:bg-amber-900/20" },
-                        { icon: Users, label: "Colleges Active", value: stats.members, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20" }
-                    ].map((stat, i) => (
-                        <motion.div
-                            key={stat.label}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 * (i + 1) }}
-                            className="bg-white dark:bg-[#1a1b23] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-navy-900/5 flex flex-col items-center group hover:scale-105 transition-transform"
-                        >
-                            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 ${stat.color} group-hover:rotate-6 transition-transform shadow-sm`}>
-                                <stat.icon className="w-6 h-6 sm:w-7 sm:h-7" />
-                            </div>
-                            <div className="text-2xl sm:text-3xl font-black text-navy-900 dark:text-white mb-0.5 sm:mb-1">{stat.value}+</div>
-                            <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-gray-400">{stat.label}</div>
-                        </motion.div>
+                            { icon: BookText, label: "Materials", value: stats.materials, color: "text-blue-500 bg-blue-50 dark:bg-blue-900/20" },
+                            { icon: Video, label: "Live Classes", value: stats.liveSessions, color: "text-amber-500 bg-amber-50 dark:bg-amber-900/20" },
+                            { icon: Users, label: "Active TTCs", value: stats.members, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20" }
+                        ].map((stat, i) => (
+                            <motion.div
+                                key={stat.label}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.08 * (i + 1) }}
+                                className="bg-white dark:bg-[#1a1b23] p-2.5 sm:p-5 rounded-2xl sm:rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm shadow-navy-900/5 flex flex-col items-center group hover:scale-[1.03] transition-transform"
+                            >
+                                <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center mb-1.5 sm:mb-2.5 ${stat.color} group-hover:rotate-6 transition-transform shadow-xs`}>
+                                    <stat.icon className="w-4 h-4 sm:w-6 sm:h-6" />
+                                </div>
+                                <div className="text-base sm:text-2xl font-black text-navy-900 dark:text-white mb-0.5">{stat.value}+</div>
+                                <div className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider text-gray-400 truncate max-w-full">{stat.label}</div>
+                            </motion.div>
                         ))}
                     </div>
                 )}
 
                 {/* Action Bar */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="flex flex-col md:flex-row items-center justify-center gap-4 max-w-3xl mx-auto"
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 max-w-2xl mx-auto"
                 >
-                    <div className="relative w-full md:flex-1 group">
-                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={20} />
+                    <div className="relative w-full sm:flex-1 group">
+                        <Search className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
                         <input 
                             type="text"
+                            value={searchValue}
                             onChange={(e) => onSearchChange(e.target.value)}
-                            placeholder="Find materials or live topics..."
-                            className="w-full bg-white dark:bg-[#1a1b23] border-2 border-transparent focus:border-primary/20 focus:ring-4 focus:ring-primary/5 rounded-[2rem] pl-16 pr-8 py-5 text-base font-bold outline-none transition-all shadow-xl shadow-navy-900/5 dark:shadow-none placeholder:text-gray-400"
+                            placeholder="Find materials, subjects or classes..."
+                            className="w-full bg-white dark:bg-[#1a1b23] border border-gray-200/80 dark:border-gray-800 focus:border-primary/40 focus:ring-4 focus:ring-primary/5 rounded-2xl pl-11 sm:pl-13 pr-9 sm:pr-10 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold outline-none transition-all shadow-sm placeholder:text-gray-400 text-gray-900 dark:text-white"
                         />
+                        {searchValue && (
+                            <button
+                                type="button"
+                                onClick={() => onSearchChange("")}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex items-center justify-center text-xs transition-colors"
+                                title="Clear search"
+                            >
+                                ×
+                            </button>
+                        )}
                     </div>
                     <button 
-                        onClick={onShareClick}
-                        className="w-full md:w-auto flex items-center justify-center gap-3 px-10 py-5 bg-primary text-white rounded-[2rem] text-sm font-black uppercase tracking-[0.15em] shadow-xl shadow-primary/20 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                        type="button"
+                        onClick={() => onShareClick()}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 bg-primary text-white rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md shadow-primary/20 hover:shadow-lg hover:brightness-105 active:scale-95 transition-all shrink-0 cursor-pointer"
                     >
-                        <Plus size={20} /> Share Something
+                        <Plus size={18} /> Share Resource
                     </button>
                 </motion.div>
             </div>

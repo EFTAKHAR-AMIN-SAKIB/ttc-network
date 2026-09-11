@@ -63,12 +63,16 @@ export default function HumanLogo({ logoUrl, siteName, isStandalone }: HumanLogo
           </svg>
 
           {/* Logo Image */}
-          <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border border-gray-100 dark:border-white/10 p-0.5 bg-white dark:bg-gray-800">
+          <div
+            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border border-gray-100 dark:border-white/10 p-0.5 bg-white dark:bg-gray-800 flex items-center justify-center flex-shrink-0"
+            style={{ width: '36px', height: '36px', maxWidth: '36px', maxHeight: '36px' }}
+          >
             <Image
               src={logoUrl}
               alt={siteName}
-              fill
-              className="object-contain"
+              width={36}
+              height={36}
+              className="object-contain w-full h-full rounded-full"
               priority
             />
           </div>
