@@ -1,4 +1,4 @@
-﻿import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/news-feed?source=pwa",
     display: "standalone",
     background_color: "#FFFFFF",
-    theme_color: "#C0392B",
+    theme_color: "#FFFFFF",
     orientation: "portrait",
     id: "/",
     scope: "/",

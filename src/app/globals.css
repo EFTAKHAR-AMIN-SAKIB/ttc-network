@@ -3,14 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --primary: #C0392B;
-  /* Warm Red - Updated to matched brand */
-  --primary-rgb: 192, 57, 43;
-  --primary-transparent: rgba(192, 57, 43, 0.1);
-  --primary-dark: #2C3E50;
+  --primary: #1A56DB;
+  /* Brand Sapphire Blue - aligned with Tailwind and Button themes */
+  --primary-rgb: 26, 86, 219;
+  --primary-transparent: rgba(26, 86, 219, 0.1);
+  --primary-dark: #1E40AF;
   /* Navy */
-  --accent: #E67E22;
-  /* Amber */
+  --accent: #E63946;
+  /* Coral Red Accent */
+  --accent-rgb: 230, 57, 70;
   --bg: #FFFFFF;
   --bg-warm: #FDF8F3;
   /* Warm Cream */

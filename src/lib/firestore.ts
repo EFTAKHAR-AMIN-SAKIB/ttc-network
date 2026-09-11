@@ -544,6 +544,29 @@ export interface FirestoreOfficialSettings {
     trustLine: string;
 }
 
+export interface FirestoreRoadmapFeature {
+    id: string;
+    number: string;
+    title: string;
+    subtitle: string;
+    tabLabel: string;
+    description: string;
+    mockupImage: string;
+    link: string;
+    linkText: string;
+    alt: string;
+}
+
+export interface FirestoreRoadmapSettings {
+    isVisible: boolean;
+    titlePrefix: string;
+    titleAccent: string;
+    subtitle: string;
+    downloadButtonText: string;
+    downloadSubtext: string;
+    features: FirestoreRoadmapFeature[];
+}
+
 export interface FirestoreOriginStorySettings {
     isVisible: boolean;
 }
@@ -2995,6 +3018,100 @@ export async function getOriginStorySettings(): Promise<FirestoreOriginStorySett
 export async function updateOriginStorySettings(settings: FirestoreOriginStorySettings): Promise<void> {
     await requireAdminOrManager();
     await setDoc(doc(getDb(), "settings", "originStory"), settings);
+}
+
+// ═══════════════════════════════════════════════════
+//  ROADMAP SHOWCASE (3D FEATURE PREVIEW) SETTINGS
+// ═══════════════════════════════════════════════════
+
+export const DEFAULT_ROADMAP_SETTINGS: FirestoreRoadmapSettings = {
+    isVisible: true,
+    titlePrefix: "A Network to Connect ",
+    titleAccent: "Every TTCian.",
+    subtitle: "Designed exclusively for teachers, trainees, and students across 14 Government Teachers' Training Colleges.",
+    downloadButtonText: "Download Web App",
+    downloadSubtext: "Join 14 campuses. Be part of something bigger.",
+    features: [
+        {
+            id: "updates",
+            number: "01",
+            title: "Stay Updated",
+            tabLabel: "Updates",
+            subtitle: "Live Multi-Campus Feed",
+            description: "Get the latest news, events and updates from your college and TTC community.",
+            mockupImage: "/showcase/screen-news.webp",
+            link: "/news-feed",
+            linkText: "লাইভ নিউজ ফিড দেখুন",
+            alt: "TTC News Feed, Events and Club Announcements Mockup",
+        },
+        {
+            id: "stories",
+            number: "02",
+            title: "Connect & Share Stories",
+            tabLabel: "Stories",
+            subtitle: "Community Driven Narratives",
+            description: "Share your journey, experiences and be a part of a supportive community.",
+            mockupImage: "/showcase/screen-story.webp",
+            link: "/story",
+            linkText: "গল্প ও অভিজ্ঞতা দেখুন",
+            alt: "One Platform. All Colleges. Every Story. - TTC Network Stories Mockup",
+        },
+        {
+            id: "colleges",
+            number: "03",
+            title: "Explore Your College",
+            tabLabel: "Colleges",
+            subtitle: "Campus Directory & Faculty",
+            description: "Get detailed information about your college, faculty, clubs and more — all in one place.",
+            mockupImage: "/showcase/screen-college.webp",
+            link: "/college-info",
+            linkText: "১৪টি কলেজ এক্সপ্লোর করুন",
+            alt: "Govt. Teachers Training College Overview and Campus Details Mockup",
+        },
+        {
+            id: "learn",
+            number: "04",
+            title: "Learn & Grow",
+            tabLabel: "Learn",
+            subtitle: "Shared Knowledge Library",
+            description: "Access study materials, join live classes and build your future together.",
+            mockupImage: "/showcase/screen-study.webp",
+            link: "/study",
+            linkText: "স্টাডি রিসোর্স অ্যাক্সেস করুন",
+            alt: "Power Up Your Learning Journey - Shared Resources and Study Mockup",
+        },
+    ],
+};
+
+export async function getRoadmapSettings(): Promise<FirestoreRoadmapSettings> {
+    try {
+        const snap = await getDoc(doc(getDb(), "settings", "roadmap_showcase"));
+        if (!snap.exists()) return DEFAULT_ROADMAP_SETTINGS;
+        const data = snap.data();
+        return {
+            ...DEFAULT_ROADMAP_SETTINGS,
+            ...data,
+            features: Array.isArray(data.features) && data.features.length > 0
+                ? DEFAULT_ROADMAP_SETTINGS.features.map((defFeat, idx) => {
+                    const item = data.features[idx] || {};
+                    const isLegacyR2 = typeof item.mockupImage === "string" && item.mockupImage.includes("pub-9172f31a1ae846ef8b20fc71e0cb1b17.r2.dev/branding/roadmap/preview_");
+                    return {
+                        ...defFeat,
+                        ...item,
+                        mockupImage: isLegacyR2 ? defFeat.mockupImage : (item.mockupImage || defFeat.mockupImage),
+                    };
+                })
+                : DEFAULT_ROADMAP_SETTINGS.features,
+        };
+    } catch (err) {
+        console.error("Error fetching roadmap settings:", err);
+        return DEFAULT_ROADMAP_SETTINGS;
+    }
+}
+
+export async function updateRoadmapSettings(settings: FirestoreRoadmapSettings): Promise<void> {
+    await requireAdminOrManager();
+    await setDoc(doc(getDb(), "settings", "roadmap_showcase"), settings);
 }
 
 // --- Study Hero Settings ---

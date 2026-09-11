@@ -44,6 +44,21 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
         });
     }, []);
 
+    // Dynamically synchronize the mobile status bar / browser chrome theme-color
+    useEffect(() => {
+        if (!mounted) return;
+        const color = theme === "dark" ? "#0F1117" : "#FFFFFF";
+        const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+        if (metaTags.length > 0) {
+            metaTags.forEach((tag) => tag.setAttribute("content", color));
+        } else {
+            const meta = document.createElement("meta");
+            meta.setAttribute("name", "theme-color");
+            meta.setAttribute("content", color);
+            document.head.appendChild(meta);
+        }
+    }, [theme, mounted]);
+
     return (
         <ThemeContext.Provider value={{ theme, toggleTheme }}>
             {children}
