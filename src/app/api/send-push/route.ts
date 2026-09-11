@@ -2,9 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminConfigured, adminDb } from "@/lib/firebase-admin";
 import { getMessaging } from "firebase-admin/messaging";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://ttcnetwork.xyz");
+
+function toAbsoluteUrl(url?: string, defaultPath: string = "/icon-192.png"): string {
+    if (!url || typeof url !== "string" || url.trim() === "") {
+        return `${APP_URL.replace(/\/$/, "")}/${defaultPath.replace(/^\//, "")}`;
+    }
+    const clean = url.trim();
+    if (clean.startsWith("http://") || clean.startsWith("https://")) {
+        return clean;
+    }
+    return `${APP_URL.replace(/\/$/, "")}/${clean.replace(/^\//, "")}`;
+}
+
 export async function POST(req: NextRequest) {
     try {
-        const { recipientId, title, body, targetUrl } = await req.json();
+        const {
+            recipientId,
+            title,
+            body,
+            targetUrl,
+            senderPhotoURL,
+            icon,
+            badge,
+            image,
+            actions,
+            tag,
+            actionTitle,
+        } = await req.json();
         
         if (!recipientId || !title || !body) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -28,19 +53,42 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: "No registered tokens found, push skipped" }, { status: 200 });
         }
 
-        // Construct multicast message payload
+        // Resolve absolute URLs for native display (prevents fallback grey letter circle)
+        const rawIcon = icon || senderPhotoURL;
+        const resolvedIcon = toAbsoluteUrl(rawIcon, "/icon-192.png");
+        const resolvedBadge = toAbsoluteUrl(badge, "/icon-192.png");
+        const resolvedImage = image ? toAbsoluteUrl(image, "") : undefined;
         const clickUrl = targetUrl || "/news-feed";
+        const finalTag = tag || `ttc-${Date.now()}`;
+
+        // Configure native action buttons (e.g. "View Profile" or "View")
+        const defaultActionTitle = actionTitle || "View";
+        const actionsList = Array.isArray(actions) && actions.length > 0
+            ? actions
+            : [
+                {
+                    action: "open_target",
+                    title: defaultActionTitle,
+                }
+            ];
+
+        // Construct multicast message payload with full native-grade WebPush attributes
         const message = {
             tokens: fcmTokens,
             notification: {
-                title,
-                body,
+                title: String(title),
+                body: String(body),
+                imageUrl: resolvedImage || resolvedIcon,
             },
             data: {
                 click_action: clickUrl,
                 title: String(title),
                 body: String(body),
                 targetUrl: clickUrl,
+                icon: resolvedIcon,
+                badge: resolvedBadge,
+                image: resolvedImage || "",
+                tag: finalTag,
             },
             webpush: {
                 headers: {
@@ -48,16 +96,19 @@ export async function POST(req: NextRequest) {
                     TTL: "86400",
                 },
                 notification: {
-                    title,
-                    body,
-                    icon: "/icon-192.png",
-                    badge: "/icon-192.png",
+                    title: String(title),
+                    body: String(body),
+                    icon: resolvedIcon,
+                    badge: resolvedBadge,
+                    ...(resolvedImage ? { image: resolvedImage } : {}),
                     vibrate: [200, 100, 200],
-                    requireInteraction: true,
-                    tag: `ttc-${Date.now()}`,
+                    requireInteraction: false,
+                    tag: finalTag,
                     renotify: true,
+                    actions: actionsList,
                     data: {
                         click_action: clickUrl,
+                        targetUrl: clickUrl,
                     },
                 },
                 fcmOptions: {

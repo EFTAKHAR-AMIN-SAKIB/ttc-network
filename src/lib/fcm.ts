@@ -198,6 +198,8 @@ export async function sendTestPushNotification(uid: string): Promise<{ success: 
                 title: "TTC NETWORK",
                 body: "🎉 Background push notifications are working! Alerts will appear even when the app is closed.",
                 targetUrl: "/news-feed",
+                actionTitle: "Explore Feed",
+                tag: "ttc-test-alert",
             }),
         });
         const data = await res.json();

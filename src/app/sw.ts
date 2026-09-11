@@ -20,7 +20,9 @@ self.addEventListener("push", (event: any) => {
   let clickAction = "/news-feed";
   let icon = "/icon-192.png";
   let badge = "/icon-192.png";
+  let image: string | undefined = undefined;
   let tag = "ttc-alert-" + Date.now();
+  let actions: any[] = [{ action: "open_target", title: "View" }];
 
   if (event.data) {
     try {
@@ -46,9 +48,15 @@ self.addEventListener("push", (event: any) => {
         payload.notification?.click_action ||
         clickAction;
 
-      icon = payload.notification?.icon || payload.data?.icon || icon;
+      icon = payload.notification?.icon || payload.data?.icon || payload.data?.senderPhotoURL || icon;
       badge = payload.notification?.badge || payload.data?.badge || badge;
+      image = payload.notification?.image || payload.data?.image || undefined;
       tag = payload.data?.tag || payload.notification?.tag || tag;
+      if (Array.isArray(payload.notification?.actions) && payload.notification.actions.length > 0) {
+        actions = payload.notification.actions;
+      } else if (Array.isArray(payload.data?.actions) && payload.data.actions.length > 0) {
+        actions = payload.data.actions;
+      }
     } catch {
       try {
         const text = event.data.text();
@@ -59,17 +67,30 @@ self.addEventListener("push", (event: any) => {
     }
   }
 
-  const notificationOptions = {
+  // Guarantee absolute URLs so Android/Chrome never drops them
+  const toAbsoluteUrl = (url?: string, defaultPath: string = "/icon-192.png") => {
+    const p = url || defaultPath;
+    if (p.startsWith("http://") || p.startsWith("https://")) return p;
+    return `${self.location.origin}${p.startsWith("/") ? "" : "/"}${p}`;
+  };
+
+  const notificationOptions: any = {
     body,
-    icon,
-    badge,
+    icon: toAbsoluteUrl(icon, "/icon-192.png"),
+    badge: toAbsoluteUrl(badge, "/icon-192.png"),
     data: {
       click_action: clickAction,
+      targetUrl: clickAction,
     },
     vibrate: [200, 100, 200],
     tag,
     renotify: true,
+    actions,
   };
+
+  if (image) {
+    notificationOptions.image = toAbsoluteUrl(image, "");
+  }
 
   event.waitUntil(
     self.registration.showNotification(title, notificationOptions)
@@ -79,7 +100,9 @@ self.addEventListener("push", (event: any) => {
 // ── Notification Click Handler ──────────────────────────────────────
 self.addEventListener("notificationclick", (event: any) => {
   event.notification.close();
-  const clickAction = event.notification.data?.click_action || "/news-feed";
+  if (event.action === "dismiss") return;
+
+  const clickAction = event.notification.data?.click_action || event.notification.data?.targetUrl || "/news-feed";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients: any[]) => {
@@ -121,12 +144,17 @@ try {
 
     messaging.onBackgroundMessage((payload: any) => {
       const notificationTitle = payload.data?.title || payload.notification?.title || "TTC NETWORK";
-      const notificationOptions = {
+      const rawIcon = payload.data?.icon || payload.notification?.icon || payload.data?.senderPhotoURL || "/icon-192.png";
+      const rawBadge = payload.data?.badge || payload.notification?.badge || "/icon-192.png";
+      const toAbsolute = (url?: string) => (url && url.startsWith("http")) ? url : `${self.location.origin}${url?.startsWith("/") ? "" : "/"}${url || "icon-192.png"}`;
+
+      const notificationOptions: any = {
         body: payload.data?.body || payload.notification?.body || "",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
+        icon: toAbsolute(rawIcon),
+        badge: toAbsolute(rawBadge),
+        actions: [{ action: "open_target", title: "View" }],
         data: {
-          click_action: payload.data?.click_action || "/",
+          click_action: payload.data?.click_action || payload.data?.targetUrl || "/",
         },
       };
       self.registration.showNotification(notificationTitle, notificationOptions);

@@ -2542,6 +2542,21 @@ export async function createNotification(recipientId: string, data: Omit<Firesto
 
     // Trigger push notification asynchronously (fire and forget)
     if (typeof fetch !== "undefined") {
+        // Determine tailored action button based on notification type
+        let actionTitle = "View";
+        if (data.type === "follow") {
+            actionTitle = "View Profile";
+        } else if (data.type === "comment" || data.type === "reply") {
+            actionTitle = "Reply";
+        } else if (data.type === "new_notice" || data.type === "urgent_notice") {
+            actionTitle = "Read Notice";
+        } else if (data.type === "group_invite" || data.type === "group_join_request") {
+            actionTitle = "View Group";
+        }
+
+        const senderAvatar = data.senderPhotoURL || data.senderAvatar || "";
+        const tag = `ttc-${data.type}-${data.relatedId || "alert"}`;
+
         fetch("/api/send-push", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2549,7 +2564,13 @@ export async function createNotification(recipientId: string, data: Omit<Firesto
                 recipientId,
                 title: "TTC NETWORK",
                 body: finalMessage,
-                targetUrl: data.targetUrl || "/"
+                targetUrl: data.targetUrl || "/",
+                senderPhotoURL: senderAvatar,
+                actionTitle,
+                tag,
+                actions: [
+                    { action: "open_target", title: actionTitle }
+                ]
             })
         }).catch(err => console.warn("[Firestore] Failed to trigger push notification:", err));
     }
