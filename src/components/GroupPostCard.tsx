@@ -570,6 +570,7 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                         onClose={() => setShowComments(false)}
                         contentId={post.id}
                         contentType="groupPost"
+                        groupId={post.groupId}
                         placeholder={isGroupMember ? "Share your perspective inside this group..." : "Join group to comment..."}
                     />
                 )}

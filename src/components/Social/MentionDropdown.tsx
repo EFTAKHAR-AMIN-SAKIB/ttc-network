@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, User as UserIcon } from "lucide-react";
-import { getAllUsers, getFollowingUserIds, type FirestoreUser } from "@/lib/firestore";
+import { getAllUsers, getFollowingUserIds, getGroupMemberUserIds, type FirestoreUser } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface MentionableUser extends FirestoreUser {
@@ -40,10 +40,12 @@ export function useMentionAutosuggest({
     value,
     setValue,
     inputRef,
+    groupId,
 }: {
     value: string;
     setValue: (val: string | ((prev: string) => string)) => void;
     inputRef: React.RefObject<HTMLTextAreaElement | HTMLInputElement | null>;
+    groupId?: string;
 }) {
     const { user, profile } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
@@ -51,23 +53,30 @@ export function useMentionAutosuggest({
     const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null);
     const [allUsers, setAllUsers] = useState<MentionableUser[]>([]);
     const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+    const [groupMemberIds, setGroupMemberIds] = useState<Set<string> | null>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Preload users and following IDs
+    // Preload users, following IDs, and group member IDs
     useEffect(() => {
         let isMounted = true;
         setIsLoading(true);
 
         const loadData = async () => {
             try {
-                const [users, following] = await Promise.all([
+                const [users, following, groupMembers] = await Promise.all([
                     fetchCachedUsers(),
                     user?.uid ? getFollowingUserIds(user.uid).catch(() => []) : Promise.resolve([]),
+                    groupId ? getGroupMemberUserIds(groupId).catch(() => []) : Promise.resolve([]),
                 ]);
                 if (isMounted) {
                     setAllUsers(users);
                     setFollowingIds(new Set(following));
+                    if (groupId) {
+                        setGroupMemberIds(new Set(groupMembers));
+                    } else {
+                        setGroupMemberIds(null);
+                    }
                 }
             } catch (e) {
                 console.error("[Mention] Data load error:", e);
@@ -80,7 +89,7 @@ export function useMentionAutosuggest({
         return () => {
             isMounted = false;
         };
-    }, [user?.uid]);
+    }, [user?.uid, groupId]);
 
     // Check mention trigger at current caret position
     const checkMention = useCallback(() => {
@@ -121,7 +130,12 @@ export function useMentionAutosuggest({
         const q = query.trim().toLowerCase();
 
         // Exclude current logged in user (cannot mention yourself)
-        const candidates = allUsers.filter(u => u.id !== currentUid && u.username);
+        let candidates = allUsers.filter(u => u.id !== currentUid && u.username);
+
+        // Strict group filtering: when in a group, only suggest members of that group!
+        if (groupMemberIds) {
+            candidates = candidates.filter(u => groupMemberIds.has(u.id));
+        }
 
         if (!q) {
             // Empty query right after typing "@" -> recommend followed, same college, verified
@@ -181,7 +195,7 @@ export function useMentionAutosuggest({
             .map(item => item.user);
 
         return scored;
-    }, [isOpen, allUsers, followingIds, query, user?.uid, profile?.collegeId]);
+    }, [isOpen, allUsers, followingIds, query, user?.uid, profile?.collegeId, groupMemberIds]);
 
     // Insert selected user as @username
     const insertMention = useCallback(
@@ -277,6 +291,7 @@ export function MentionDropdown({
     onSelect,
     onClose,
     position = "top",
+    isGroup = false,
 }: {
     isOpen: boolean;
     query: string;
@@ -286,6 +301,7 @@ export function MentionDropdown({
     onSelect: (user: MentionableUser) => void;
     onClose: () => void;
     position?: "top" | "bottom";
+    isGroup?: boolean;
 }) {
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -317,7 +333,11 @@ export function MentionDropdown({
                         <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
                             @
                         </span>
-                        <span>{query ? `Matching "${query}"` : "Suggested People"}</span>
+                        <span>
+                            {query 
+                                ? (isGroup ? `Matching "${query}" in Group` : `Matching "${query}"`) 
+                                : (isGroup ? "Suggested Group Members" : "Suggested People")}
+                        </span>
                     </div>
                     <span className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 hidden sm:inline">
                         ↑↓ Navigate • ↵ / Tab Select
@@ -335,7 +355,9 @@ export function MentionDropdown({
                                 <UserIcon size={16} />
                             </div>
                             <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">
-                                No profile found matching &ldquo;{query}&rdquo;
+                                {isGroup
+                                    ? `No group member found matching "${query}"`
+                                    : `No profile found matching "${query}"`}
                             </p>
                         </div>
                     ) : (

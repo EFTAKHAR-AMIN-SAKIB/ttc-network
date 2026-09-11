@@ -14,6 +14,7 @@ import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import ShareModal from "@/components/ShareModal";
 import { isContentRestrictedForUser } from "@/lib/permissions";
+import { RichText } from "@/components/Social/SocialUtils";
 
 export default function StoryDetailPage() {
     const params = useParams();
@@ -295,7 +296,7 @@ export default function StoryDetailPage() {
                                         Their Journey
                                     </h2>
                                     <div className="text-gray-800 dark:text-gray-200 font-bengali leading-[1.8] text-lg sm:text-2xl whitespace-pre-wrap mb-10 sm:mb-20">
-                                        {story.fullStory}
+                                        <RichText text={story.fullStory} />
                                     </div>
 
                                     {story.oneAdvice && (
@@ -309,7 +310,7 @@ export default function StoryDetailPage() {
                                                     One Piece of Advice
                                                 </h3>
                                                 <p className="text-amber-800 dark:text-amber-300 font-bengali text-base sm:text-xl leading-relaxed italic">
-                                                    &ldquo;{story.oneAdvice}&rdquo;
+                                                    &ldquo;<RichText text={story.oneAdvice} />&rdquo;
                                                 </p>
                                             </div>
                                         </div>

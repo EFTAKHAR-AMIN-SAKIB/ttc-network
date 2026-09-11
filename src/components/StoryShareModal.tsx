@@ -9,6 +9,7 @@ import { uploadFile } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
+import { useMentionAutosuggest, MentionDropdown } from "@/components/Social/MentionDropdown";
 
 interface StoryShareModalProps {
   isOpen: boolean;
@@ -40,6 +41,22 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
   const [content, setContent] = useState("");
   const [oneAdvice, setOneAdvice] = useState("");
   const [visibility, setVisibility] = useState<"public" | "campus">("public");
+
+  // Mention Autosuggest Hooks
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const contentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const titleMention = useMentionAutosuggest({
+    value: title,
+    setValue: setTitle,
+    inputRef: titleInputRef,
+  });
+
+  const storyMention = useMentionAutosuggest({
+    value: content,
+    setValue: setContent,
+    inputRef: contentInputRef,
+  });
 
   // Cover Image State
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -260,13 +277,44 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
               >
                 <div className="space-y-4">
                   <label className="text-sm font-black text-gray-500 uppercase tracking-widest">Story Title *</label>
+                  <div className="relative z-20">
+                    <MentionDropdown
+                      isOpen={titleMention.isOpen}
+                      query={titleMention.query}
+                      suggestions={titleMention.suggestions}
+                      selectedIndex={titleMention.selectedIndex}
+                      setSelectedIndex={titleMention.setSelectedIndex}
+                      onSelect={titleMention.insertMention}
+                      onClose={() => titleMention.setIsOpen(false)}
+                      position="bottom"
+                    />
                     <input 
+                      ref={titleInputRef}
                       value={title}
-                      onChange={(e) => setTitle(e.target.value)}
+                      onChange={(e) => {
+                        setTitle(e.target.value);
+                        titleMention.checkMention();
+                      }}
+                      onKeyUp={(e) => {
+                        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                          titleMention.checkMention();
+                        }
+                      }}
+                      onClick={() => titleMention.checkMention()}
+                      onFocus={() => titleMention.checkMention()}
+                      onBlur={() => {
+                        setTimeout(() => titleMention.setIsOpen(false), 200);
+                      }}
+                      onKeyDown={(e) => {
+                        if (titleMention.isOpen && titleMention.handleKeyDown(e)) {
+                          return;
+                        }
+                      }}
                       placeholder="Give your journey a name..."
                       className="w-full text-3xl font-black border-none focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-600 bg-transparent"
                     />
-                    <div className="h-1 bg-red-100 dark:bg-red-900/30 rounded-full w-24" />
+                  </div>
+                  <div className="h-1 bg-red-100 dark:bg-red-900/30 rounded-full w-24" />
                 </div>
 
                 {/* ═══ COVER IMAGE UPLOAD ═══ */}
@@ -394,12 +442,43 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                     <label className="text-sm font-black text-gray-500 uppercase tracking-widest">The Narrative *</label>
                     <span className="text-[10px] font-bold text-gray-400">{(content.match(/\w+/g) || []).length} words</span>
                   </div>
-                  <textarea 
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Where did it all start? What hurdles did you jump? What victory are you celebrating today?"
-                    className="w-full min-h-[250px] text-lg font-medium leading-relaxed font-bengali border-2 border-gray-100 dark:border-gray-800 focus:border-primary p-6 rounded-[2rem] transition-all bg-white dark:bg-gray-800/10 shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                  />
+                  <div className="relative z-10">
+                    <MentionDropdown
+                      isOpen={storyMention.isOpen}
+                      query={storyMention.query}
+                      suggestions={storyMention.suggestions}
+                      selectedIndex={storyMention.selectedIndex}
+                      setSelectedIndex={storyMention.setSelectedIndex}
+                      onSelect={storyMention.insertMention}
+                      onClose={() => storyMention.setIsOpen(false)}
+                      position="top"
+                    />
+                    <textarea 
+                      ref={contentInputRef}
+                      value={content}
+                      onChange={(e) => {
+                        setContent(e.target.value);
+                        storyMention.checkMention();
+                      }}
+                      onKeyUp={(e) => {
+                        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                          storyMention.checkMention();
+                        }
+                      }}
+                      onClick={() => storyMention.checkMention()}
+                      onFocus={() => storyMention.checkMention()}
+                      onBlur={() => {
+                        setTimeout(() => storyMention.setIsOpen(false), 200);
+                      }}
+                      onKeyDown={(e) => {
+                        if (storyMention.isOpen && storyMention.handleKeyDown(e)) {
+                          return;
+                        }
+                      }}
+                      placeholder="Where did it all start? What hurdles did you jump? What victory are you celebrating today?"
+                      className="w-full min-h-[250px] text-lg font-medium leading-relaxed font-bengali border-2 border-gray-100 dark:border-gray-800 focus:border-primary p-6 rounded-[2rem] transition-all bg-white dark:bg-gray-800/10 shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-4">

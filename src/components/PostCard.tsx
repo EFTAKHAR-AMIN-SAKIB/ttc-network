@@ -12,7 +12,7 @@ import Link from "next/link";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { subscribeComments } from "@/lib/firestore";
-import { ExpandableText, TimeAgo } from "@/components/Social/SocialUtils";
+import { ExpandableText, RichText, TimeAgo } from "@/components/Social/SocialUtils";
 import ShareModal from "@/components/ShareModal";
 import { isContentRestrictedForUser } from "@/lib/permissions";
 
@@ -263,7 +263,7 @@ export default function PostCard({
             <div className="space-y-4 relative z-10">
                 <div className="flex items-center justify-between gap-4">
                     <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight group-hover:text-primary transition-colors duration-500">
-                        {post.eventName}
+                        <RichText text={post.eventName} onTagClick={onTagClick || undefined} />
                     </h2>
                 </div>
 

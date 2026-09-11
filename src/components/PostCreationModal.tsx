@@ -71,7 +71,13 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
     const titleInputRef = useRef<HTMLInputElement>(null);
     const audienceMenuRef = useRef<HTMLDivElement>(null);
 
-    const mention = useMentionAutosuggest({
+    const titleMention = useMentionAutosuggest({
+        value: eventName,
+        setValue: setEventName,
+        inputRef: titleInputRef,
+    });
+
+    const descMention = useMentionAutosuggest({
         value: description,
         setValue: setDescription,
         inputRef: descInputRef,
@@ -221,7 +227,7 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
             e.preventDefault();
-            if (eventName.trim() && !isSubmitting) {
+            if ((eventName.trim() || description.trim()) && !isSubmitting) {
                 handleSubmit(e as any);
             }
         }
@@ -229,7 +235,9 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!eventName.trim() || isSubmitting) return;
+        const trimmedEventName = eventName.trim();
+        const trimmedDescription = description.trim();
+        if ((!trimmedEventName && !trimmedDescription) || isSubmitting) return;
 
         setIsSubmitting(true);
         try {
@@ -237,6 +245,9 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
             const clubMeta = hasClub && selectedClubId 
                 ? { clubId: selectedClubId, clubName: selectedClubName } 
                 : { clubId: null, clubName: null };
+
+            const finalTitle = trimmedEventName || (trimmedDescription.length > 60 ? `${trimmedDescription.slice(0, 57)}...` : trimmedDescription);
+            const finalDesc = trimmedDescription;
 
             if (editPost) {
                 // EDIT MODE
@@ -254,8 +265,8 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
                 }
 
                 const updatedData: any = {
-                    eventName: eventName.trim(),
-                    description: description.trim(),
+                    eventName: finalTitle,
+                    description: finalDesc,
                     shareLink: shareLink.trim() || "",
                     visibility,
                     type,
@@ -278,8 +289,8 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
 
                 await createPost({
                     type,
-                    eventName: eventName.trim(),
-                    description: description.trim(),
+                    eventName: finalTitle,
+                    description: finalDesc,
                     ...(shareLink.trim() ? { shareLink: shareLink.trim() } : {}),
                     visibility,
                     ...(linkPreview ? { linkPreview } : {}),
@@ -365,7 +376,7 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
                     <button 
                         type="button"
                         onClick={handleSubmit}
-                        disabled={!eventName.trim() || isSubmitting}
+                        disabled={(!eventName.trim() && !description.trim()) || isSubmitting}
                         className="sm:hidden flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary/90 text-white rounded-full text-xs font-black uppercase tracking-wider shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                         {isSubmitting ? (
@@ -545,30 +556,58 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
                         )}
                     </AnimatePresence>
 
-                    {/* Headline / Title Input */}
-                    <div className="shrink-0">
+                    {/* Headline / Title Input with Mention Support */}
+                    <div className="relative shrink-0 z-20">
+                        <MentionDropdown
+                            isOpen={titleMention.isOpen}
+                            query={titleMention.query}
+                            suggestions={titleMention.suggestions}
+                            selectedIndex={titleMention.selectedIndex}
+                            setSelectedIndex={titleMention.setSelectedIndex}
+                            onSelect={titleMention.insertMention}
+                            onClose={() => titleMention.setIsOpen(false)}
+                            position="bottom"
+                        />
                         <input 
                             ref={titleInputRef}
-                            required
                             type="text"
                             value={eventName}
-                            onChange={(e) => setEventName(e.target.value)}
+                            onChange={(e) => {
+                                setEventName(e.target.value);
+                                titleMention.checkMention();
+                            }}
+                            onKeyUp={(e) => {
+                                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                                    titleMention.checkMention();
+                                }
+                            }}
+                            onClick={() => titleMention.checkMention()}
+                            onFocus={() => titleMention.checkMention()}
+                            onBlur={() => {
+                                setTimeout(() => titleMention.setIsOpen(false), 200);
+                            }}
+                            onKeyDown={(e) => {
+                                if (titleMention.isOpen && titleMention.handleKeyDown(e)) {
+                                    return;
+                                }
+                                handleKeyDown(e);
+                            }}
                             placeholder="What's the highlight? (Title / Event name)"
                             className="w-full bg-transparent text-base sm:text-lg font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-b border-gray-100 dark:border-white/5 pb-2 focus:outline-none focus:border-primary/50 transition-colors"
                         />
                     </div>
 
                     {/* Description Textarea with Mention Support (Flex-1 to provide generous typing height) */}
-                    <div className="relative flex-1 flex flex-col min-h-[140px] sm:min-h-[110px]">
+                    <div className="relative flex-1 flex flex-col min-h-[140px] sm:min-h-[110px] z-10">
                         <MentionDropdown
-                            isOpen={mention.isOpen}
-                            query={mention.query}
-                            suggestions={mention.suggestions}
-                            selectedIndex={mention.selectedIndex}
-                            setSelectedIndex={mention.setSelectedIndex}
-                            onSelect={mention.insertMention}
-                            onClose={() => mention.setIsOpen(false)}
-                            position="bottom"
+                            isOpen={descMention.isOpen}
+                            query={descMention.query}
+                            suggestions={descMention.suggestions}
+                            selectedIndex={descMention.selectedIndex}
+                            setSelectedIndex={descMention.setSelectedIndex}
+                            onSelect={descMention.insertMention}
+                            onClose={() => descMention.setIsOpen(false)}
+                            position="top"
                         />
                         <textarea 
                             ref={descInputRef}
@@ -576,20 +615,23 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
                             value={description}
                             onChange={(e) => {
                                 setDescription(e.target.value);
-                                mention.checkMention();
+                                descMention.checkMention();
                             }}
                             onKeyUp={(e) => {
                                 if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
-                                    mention.checkMention();
+                                    descMention.checkMention();
                                 }
                             }}
-                            onClick={() => mention.checkMention()}
-                            onFocus={() => mention.checkMention()}
+                            onClick={() => descMention.checkMention()}
+                            onFocus={() => descMention.checkMention()}
                             onBlur={() => {
-                                setTimeout(() => mention.setIsOpen(false), 200);
+                                setTimeout(() => descMention.setIsOpen(false), 200);
                             }}
                             onKeyDown={(e) => {
-                                mention.handleKeyDown(e);
+                                if (descMention.isOpen && descMention.handleKeyDown(e)) {
+                                    return;
+                                }
+                                handleKeyDown(e);
                             }}
                             placeholder="Share what's happening... Use @mentions or #hashtags to connect with students"
                             className="w-full flex-1 bg-transparent text-sm sm:text-base font-normal text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none resize-none leading-relaxed min-h-[130px]"
@@ -787,7 +829,7 @@ export default function PostCreationModal({ isOpen, onClose, profile, defaultTyp
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                disabled={!eventName.trim() || isSubmitting}
+                                disabled={(!eventName.trim() && !description.trim()) || isSubmitting}
                                 className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {isSubmitting ? (

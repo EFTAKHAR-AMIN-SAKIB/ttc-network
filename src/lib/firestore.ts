@@ -1281,8 +1281,8 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
         );
     }
 
-    // Handle Mentions in post description
-    await handleMentions(post.description || "", `/news-feed?post=${docRef.id}`, profile, docRef.id, "post");
+    // Handle Mentions in post title and description
+    await handleMentions(`${post.eventName || ""} ${post.description || ""}`, `/news-feed?post=${docRef.id}`, profile, docRef.id, "post");
 }
 
 export function subscribePosts(callback: (data: (FirestorePost & { id: string })[]) => void) {
@@ -1650,6 +1650,21 @@ export async function updatePost(id: string, data: Partial<FirestorePost>): Prom
     );
     if (Object.keys(clean).length === 0) return;
     await updateDoc(doc(getDb(), "posts", id), clean);
+
+    const profile = await getCurrentUserProfile();
+    if (profile && (data.eventName || data.description)) {
+        try {
+            await handleMentions(
+                `${data.eventName || ""} ${data.description || ""}`,
+                `/news-feed?post=${id}`,
+                profile,
+                id,
+                "post"
+            );
+        } catch (e) {
+            console.warn("[updatePost] Failed to dispatch mentions:", e);
+        }
+    }
 }
 
 export async function deletePost(id: string): Promise<void> {
@@ -1731,8 +1746,8 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
 
     const docRef = await addDoc(collection(getDb(), "stories"), fullStory);
 
-    // Handle Mentions in story content
-    await handleMentions(story.fullStory || "", `/story/${storyNumber.toString().padStart(2, '0')}`, profile, docRef.id, "story");
+    // Handle Mentions in story title, content, and advice
+    await handleMentions(`${story.title || ""} ${story.fullStory || ""} ${story.oneAdvice || ""}`, `/story/${storyNumber.toString().padStart(2, '0')}`, profile, docRef.id, "story");
 }
 
 /**
@@ -1829,6 +1844,24 @@ export async function updateStory(id: string, data: Partial<FirestoreStory>): Pr
     );
     if (Object.keys(clean).length === 0) return;
     await updateDoc(doc(getDb(), "stories", id), clean);
+
+    const profile = await getCurrentUserProfile();
+    if (profile && (data.fullStory || data.title || data.oneAdvice)) {
+        try {
+            const storySnap = await getDoc(doc(getDb(), "stories", id));
+            const storyData = storySnap.data() as FirestoreStory | undefined;
+            const sNum = storyData?.storyNumber ? storyData.storyNumber.toString().padStart(2, '0') : id;
+            await handleMentions(
+                `${data.title || ""} ${data.fullStory || ""} ${data.oneAdvice || ""}`,
+                `/story/${sNum}`,
+                profile,
+                id,
+                "story"
+            );
+        } catch (e) {
+            console.warn("[updateStory] Failed to dispatch mentions:", e);
+        }
+    }
 }
 
 /**
@@ -3653,32 +3686,75 @@ export function subscribeSiteSettings(callback: (settings: SiteSettingsDoc | nul
         }
     });
 }
-async function handleMentions(text: string, targetUrl: string, profile: any, relatedId: string, relatedType: string, excludeUserIds: string[] = []) {
+async function handleMentions(
+    text: string, 
+    targetUrl: string, 
+    profile: any, 
+    relatedId: string, 
+    relatedType: string, 
+    excludeUserIds: string[] = [],
+    groupId?: string
+) {
     if (!text) return;
-    const mentions = text.match(/@(\w+)/g);
+    const mentions = text.match(/@([a-zA-Z0-9_.]+)/g);
     if (!mentions) return;
 
     const uniqueUsernames = Array.from(new Set(mentions.map(m => m.slice(1).toLowerCase())));
-    
+    const db = getDb();
+
+    // If in a group, load member IDs so ONLY actual members of this group are notified
+    let groupMemberIds: Set<string> | null = null;
+    if (groupId) {
+        try {
+            const membersSnap = await getDocs(collection(db, "groups", groupId, "members"));
+            groupMemberIds = new Set(membersSnap.docs.map(d => d.id));
+        } catch (err) {
+            console.warn("[handleMentions] Failed to fetch group members for mention check:", err);
+        }
+    }
+
     for (const username of uniqueUsernames) {
         if (username === profile.username?.toLowerCase()) continue;
         
-        const users = await getAllUsersByUsername(username);
-        if (users.length > 0) {
-            const targetUser = users[0];
-            if (targetUser.id && excludeUserIds.includes(targetUser.id)) continue;
-            
-            await createNotification(targetUser.id!, {
-                type: "mention",
-                message: `${profile.displayName} mentioned you: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
-                relatedId,
-                relatedType,
-                targetUrl,
-                senderId: profile.id,
-                senderName: profile.displayName,
-                senderPhotoURL: profile.photoURL || "",
-            }).catch(e => console.warn(`Mention notification to ${username} failed`, e));
+        let targetUid: string | null = null;
+
+        // 1. Direct O(1) lookup in usernames/{username}
+        try {
+            const uDoc = await getDoc(doc(db, "usernames", username));
+            if (uDoc.exists() && uDoc.data()?.uid) {
+                targetUid = uDoc.data()!.uid;
+            }
+        } catch (e) {}
+
+        // 2. Fallback lookup via users collection query
+        if (!targetUid) {
+            try {
+                const users = await getAllUsersByUsername(username);
+                if (users.length > 0 && users[0].id) {
+                    targetUid = users[0].id;
+                }
+            } catch (e) {}
         }
+
+        if (!targetUid) continue;
+        if (excludeUserIds.includes(targetUid)) continue;
+
+        // 3. Strict group isolation: verify user is a member of the group
+        if (groupMemberIds && !groupMemberIds.has(targetUid)) {
+            console.log(`[handleMentions] User ${username} (${targetUid}) is not a member of group ${groupId}. Skipping notification.`);
+            continue;
+        }
+
+        await createNotification(targetUid, {
+            type: "mention",
+            message: `${profile.displayName || "Someone"} mentioned you: "${text.slice(0, 30)}${text.length > 30 ? "..." : ""}"`,
+            relatedId,
+            relatedType,
+            targetUrl,
+            senderId: profile.id,
+            senderName: profile.displayName || "Someone",
+            senderPhotoURL: profile.photoURL || "",
+        }).catch(e => console.warn(`Mention notification to ${username} failed`, e));
     }
 }
 
@@ -3806,7 +3882,7 @@ export async function addComment(
             else if (contentType === "story") mentionUrl = `/story/${contentId}?comment=${docRef.id}`;
             else if (contentType === "study") mentionUrl = `/study?study=${contentId}&comment=${docRef.id}`;
             else if (contentType === "groupPost") mentionUrl = `/groups/${parentData.groupId}?postId=${contentId}&comment=${docRef.id}`;
-            await handleMentions(text, mentionUrl, profile, contentId, contentType, notifiedIds);
+            await handleMentions(text, mentionUrl, profile, contentId, contentType, notifiedIds, contentType === "groupPost" ? parentData.groupId : undefined);
         }
     } catch (err) {
         console.warn(`Could not update commentsCount or notify for ${contentType} ${contentId}`, err);
@@ -5602,6 +5678,17 @@ export async function createGroupPost(
     // Increment postCount on group
     await updateDoc(doc(db, "groups", groupId), { postCount: increment(1) }).catch(console.error);
 
+    // Trigger mentions notification for group post (restricted to group members)
+    await handleMentions(
+        content,
+        `/groups/${groupId}?postId=${docRef.id}`,
+        profile,
+        docRef.id,
+        "groupPost",
+        [profile.id],
+        groupId
+    ).catch(e => console.warn("[createGroupPost] Mentions failed:", e));
+
     return docRef.id;
 }
 
@@ -5626,6 +5713,42 @@ export async function deleteGroupPost(postId: string, groupId: string): Promise<
 export async function updateGroupPost(postId: string, updates: Partial<GroupPostDoc>): Promise<void> {
     const db = getDb();
     await updateDoc(doc(db, "groupPosts", postId), updates);
+
+    // If content was updated, trigger mentions
+    if (updates.content) {
+        try {
+            const profile = await getCurrentUserProfile();
+            if (profile) {
+                const postSnap = await getDoc(doc(db, "groupPosts", postId));
+                if (postSnap.exists()) {
+                    const postData = postSnap.data() as GroupPostDoc;
+                    await handleMentions(
+                        updates.content,
+                        `/groups/${postData.groupId}?postId=${postId}`,
+                        profile,
+                        postId,
+                        "groupPost",
+                        [profile.id],
+                        postData.groupId
+                    );
+                }
+            }
+        } catch (e) {
+            console.warn("[updateGroupPost] Mentions failed:", e);
+        }
+    }
+}
+
+export async function getGroupMemberUserIds(groupId: string): Promise<string[]> {
+    if (!groupId) return [];
+    try {
+        const db = getDb();
+        const snap = await getDocs(collection(db, "groups", groupId, "members"));
+        return snap.docs.map(d => d.id);
+    } catch (err) {
+        console.warn("[getGroupMemberUserIds] Failed:", err);
+        return [];
+    }
 }
 
 // 12.6. Subscribe to Group Feed (posts from joined groups)

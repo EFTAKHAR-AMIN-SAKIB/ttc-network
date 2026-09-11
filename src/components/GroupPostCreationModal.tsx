@@ -15,6 +15,7 @@ import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteField } from "firebase/firestore";
+import { useMentionAutosuggest, MentionDropdown } from "@/components/Social/MentionDropdown";
 
 interface GroupPostCreationModalProps {
     isOpen: boolean;
@@ -36,6 +37,14 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
     const [content, setContent] = useState("");
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const mention = useMentionAutosuggest({
+        value: content,
+        setValue: setContent,
+        inputRef: contentTextareaRef,
+        groupId,
+    });
 
     // Group & Membership context
     const [group, setGroup] = useState<any>(null);
@@ -358,14 +367,44 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
 
                         {/* Content Area */}
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
-                            {/* Text Input */}
-                            <textarea
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                placeholder="What's on your mind? Share updates, ask questions, or announce events..."
-                                className="w-full min-h-[120px] bg-transparent text-sm text-gray-800 dark:text-gray-200 outline-none resize-none placeholder-gray-400 font-medium"
-                                disabled={isSubmitting}
-                            />
+                            {/* Text Input with Group Mention Support */}
+                            <div className="relative">
+                                <MentionDropdown
+                                    isOpen={mention.isOpen}
+                                    query={mention.query}
+                                    suggestions={mention.suggestions}
+                                    selectedIndex={mention.selectedIndex}
+                                    setSelectedIndex={mention.setSelectedIndex}
+                                    onSelect={mention.insertMention}
+                                    onClose={() => mention.setIsOpen(false)}
+                                    position="bottom"
+                                    isGroup={true}
+                                />
+                                <textarea
+                                    ref={contentTextareaRef}
+                                    value={content}
+                                    onChange={(e) => {
+                                        setContent(e.target.value);
+                                        mention.checkMention();
+                                    }}
+                                    onKeyUp={(e) => {
+                                        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== 'Tab') {
+                                            mention.checkMention();
+                                        }
+                                    }}
+                                    onClick={() => mention.checkMention()}
+                                    onFocus={() => mention.checkMention()}
+                                    onBlur={() => {
+                                        setTimeout(() => mention.setIsOpen(false), 200);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        mention.handleKeyDown(e);
+                                    }}
+                                    placeholder="What's on your mind? Share updates, ask questions, or announce events... (Type @ to mention group members)"
+                                    className="w-full min-h-[120px] bg-transparent text-sm text-gray-800 dark:text-gray-200 outline-none resize-none placeholder-gray-400 font-medium"
+                                    disabled={isSubmitting}
+                                />
+                            </div>
 
                             {/* Image Preview */}
                             {imagePreview && (

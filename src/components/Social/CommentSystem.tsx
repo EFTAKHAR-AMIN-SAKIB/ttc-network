@@ -145,12 +145,14 @@ export function CommentSystem({
     contentId,
     contentType,
     accentColor = "text-primary",
-    placeholder = "Share your thoughts..."
+    placeholder = "Share your thoughts...",
+    groupId,
 }: {
     contentId: string;
     contentType: "post" | "story" | "study" | "groupPost";
     accentColor?: string;
     placeholder?: string;
+    groupId?: string;
 }) {
     const { user, profile } = useAuth();
     const { showToast } = useToast();
@@ -167,6 +169,7 @@ export function CommentSystem({
         value: text,
         setValue: setText,
         inputRef,
+        groupId,
     });
 
     const draftKey = `ttc_comment_draft_${contentType}_${contentId}`;
@@ -263,6 +266,7 @@ export function CommentSystem({
                         onSelect={mention.insertMention}
                         onClose={() => mention.setIsOpen(false)}
                         position="top"
+                        isGroup={Boolean(groupId || contentType === "groupPost")}
                     />
                 )}
                 <div className={`p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
@@ -447,7 +451,8 @@ export function CommentDrawer({
     contentId,
     contentType,
     accentColor = "text-primary",
-    placeholder = "Share your thoughts..."
+    placeholder = "Share your thoughts...",
+    groupId,
 }: {
     isOpen: boolean;
     onClose: () => void;
@@ -455,6 +460,7 @@ export function CommentDrawer({
     contentType: "post" | "story" | "study" | "groupPost";
     accentColor?: string;
     placeholder?: string;
+    groupId?: string;
 }) {
     const { user, profile } = useAuth();
     const { showToast } = useToast();
@@ -479,6 +485,7 @@ export function CommentDrawer({
         value: text,
         setValue: setText,
         inputRef,
+        groupId,
     });
 
     const draftKey = `ttc_comment_draft_${contentType}_${contentId}`;
@@ -775,6 +782,7 @@ export function CommentDrawer({
                                 onSelect={mention.insertMention}
                                 onClose={() => mention.setIsOpen(false)}
                                 position="top"
+                                isGroup={Boolean(groupId || contentType === "groupPost")}
                             />
                         )}
                         <div className={`p-3.5 bg-gray-50 dark:bg-gray-900 border-2 rounded-[1.8rem] shadow-sm transition-all duration-300 ${
