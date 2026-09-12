@@ -16,6 +16,8 @@ import { useScrollDirection } from "@/hooks/useScrollDirection";
 import { NotificationCenter } from "./NotificationCenter";
 import HumanLogo from "./HumanLogo";
 import { useToast } from "@/contexts/ToastContext";
+import { useForegroundNotification } from "@/hooks/useForegroundNotification";
+import { NotificationToast } from "./NotificationToast";
 
 const navLinks = [
     { href: "/", label: "Home", icon: Home },
@@ -42,6 +44,7 @@ export default function Navbar() {
     const { isScrollingDown } = useScrollDirection();
     const [isStandalone, setIsStandalone] = useState(false);
     const [isComposerOpen, setIsComposerOpen] = useState(false);
+    const { notifications: foregroundNotifs, dismiss: dismissToast } = useForegroundNotification();
 
     useEffect(() => {
         const handleComposer = (e: Event) => {
@@ -581,6 +584,10 @@ export default function Navbar() {
             </div>
             
             <SearchDialog isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+            <NotificationToast
+                notifications={foregroundNotifs}
+                onDismiss={dismissToast}
+            />
         </nav>
     );
 }

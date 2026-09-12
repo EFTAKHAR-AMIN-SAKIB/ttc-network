@@ -115,6 +115,20 @@ export async function POST(req: NextRequest) {
                     link: clickUrl,
                 },
             },
+            android: {
+                priority: "high" as const,
+                notification: {
+                    channelId: "ttc_notifications_channel",
+                    title: String(title),
+                    body: String(body),
+                    icon: "ic_notification",
+                    color: "#DC2626",
+                    sound: "default",
+                    defaultVibrateTimings: true,
+                    clickAction: clickUrl,
+                    tag: finalTag,
+                },
+            },
         };
 
         // Send push notifications via Firebase Admin Messaging SDK

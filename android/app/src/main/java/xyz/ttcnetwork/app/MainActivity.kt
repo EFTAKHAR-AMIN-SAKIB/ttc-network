@@ -32,12 +32,87 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import android.webkit.JavascriptInterface
+import com.google.firebase.messaging.FirebaseMessaging
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
 
     companion object {
         const val BASE_URL = "https://ttcnetwork.xyz/news-feed?source=app"
         const val NOTIFICATION_CHANNEL_ID = "ttc_notifications_channel"
+    }
+
+    /**
+     * JavaScript interface to bridge native FCM token to the web app.
+     * The web app calls window.TTCNative.getFCMToken() or registerToken(uid)
+     */
+    inner class TTCNativeBridge {
+
+        @JavascriptInterface
+        fun getFCMToken(): String {
+            return TTCFirebaseMessagingService.getStoredToken(this@MainActivity) ?: ""
+        }
+
+        @JavascriptInterface
+        fun registerToken(uid: String) {
+            if (uid.isBlank()) return
+
+            val stored = TTCFirebaseMessagingService.getStoredToken(this@MainActivity)
+            if (!stored.isNullOrBlank()) {
+                sendTokenToApi(uid, stored)
+            } else {
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful && !task.result.isNullOrBlank()) {
+                        val token = task.result
+                        TTCFirebaseMessagingService.storeToken(this@MainActivity, token)
+                        sendTokenToApi(uid, token)
+                    }
+                }
+            }
+        }
+
+        private fun sendTokenToApi(uid: String, token: String) {
+            thread {
+                try {
+                    val url = URL("https://ttcnetwork.xyz/api/register-push")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.doOutput = true
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 15000
+
+                    val json = JSONObject().apply {
+                        put("uid", uid)
+                        put("token", token)
+                    }
+
+                    OutputStreamWriter(conn.outputStream).use {
+                        it.write(json.toString())
+                        it.flush()
+                    }
+
+                    val responseCode = conn.responseCode
+                    android.util.Log.d("TTCNativeBridge", "Token registered for $uid: HTTP $responseCode")
+                    if (responseCode in 200..299) {
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "🔔 Notifications connected!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    conn.disconnect()
+                } catch (e: Exception) {
+                    android.util.Log.e("TTCNativeBridge", "Failed to register token for $uid", e)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun isNativeApp(): Boolean = true
     }
 
     private lateinit var webView: WebView
@@ -152,6 +227,20 @@ class MainActivity : ComponentActivity() {
         val currentUa = settings.userAgentString
         settings.userAgentString = "$currentUa TTCNetworkApp/1.0.0 (Android)"
 
+        // Add native bridge for FCM token exchange
+        webView.addJavascriptInterface(TTCNativeBridge(), "TTCNative")
+
+        // Ensure we have a fresh native FCM token and persist it
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                if (!token.isNullOrBlank()) {
+                    TTCFirebaseMessagingService.storeToken(this@MainActivity, token)
+                    android.util.Log.d("MainActivity", "Native FCM token stored: ${token.take(15)}...")
+                }
+            }
+        }
+
         // Inject PWA mode cookie so the web app recognizes the native client
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
@@ -227,6 +316,7 @@ class MainActivity : ComponentActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 injectNativeStandaloneMode(view)
+                injectNativeFCMToken(view)
                 hideSplash()
             }
 
@@ -368,6 +458,85 @@ class MainActivity : ComponentActivity() {
         view?.evaluateJavascript(script, null)
     }
 
+    /**
+     * Injects the native FCM token into the web app so it can register it with Firestore.
+     * This bridges the gap since WebView doesn't support Web Push API.
+     */
+    private fun injectNativeFCMToken(view: WebView?) {
+        val script = """
+            (function() {
+                function syncUserWithNative() {
+                    if (typeof TTCNative === 'undefined') return;
+
+                    // 1. Try Firebase Auth IndexedDB (Default for Firebase Web SDK)
+                    try {
+                        var idb = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB;
+                        if (idb) {
+                            var req = idb.open('firebaseLocalStorageDb');
+                            req.onsuccess = function(e) {
+                                try {
+                                    var db = e.target.result;
+                                    if (db.objectStoreNames.contains('firebaseLocalStorage')) {
+                                        var tx = db.transaction('firebaseLocalStorage', 'readonly');
+                                        var store = tx.objectStore('firebaseLocalStorage');
+                                        var cursorReq = store.openCursor();
+                                        cursorReq.onsuccess = function(ev) {
+                                            var cursor = ev.target.result;
+                                            if (cursor) {
+                                                var val = cursor.value;
+                                                var uid = (val && val.value && val.value.uid) || (val && val.uid);
+                                                if (uid && typeof TTCNative !== 'undefined') {
+                                                    TTCNative.registerToken(uid);
+                                                    return;
+                                                }
+                                                cursor.continue();
+                                            }
+                                        };
+                                    }
+                                } catch(err) {}
+                            };
+                        }
+                    } catch(e) {}
+
+                    // 2. Try localStorage fallback
+                    try {
+                        for (var i = 0; i < localStorage.length; i++) {
+                            var k = localStorage.key(i);
+                            if (k && (k.indexOf('authUser') !== -1 || k.indexOf('firebase') !== -1)) {
+                                var raw = localStorage.getItem(k);
+                                if (raw) {
+                                    var parsed = JSON.parse(raw);
+                                    var uid = (parsed && parsed.uid) || (parsed && parsed.value && parsed.value.uid);
+                                    if (uid && typeof TTCNative !== 'undefined') {
+                                        TTCNative.registerToken(uid);
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    } catch(e) {}
+
+                    // 3. Try global object
+                    try {
+                        if (window.__ttcUser && window.__ttcUser.uid && typeof TTCNative !== 'undefined') {
+                            TTCNative.registerToken(window.__ttcUser.uid);
+                            return;
+                        }
+                    } catch(e) {}
+                }
+
+                syncUserWithNative();
+                setTimeout(syncUserWithNative, 1500);
+                setTimeout(syncUserWithNative, 4000);
+
+                window.dispatchEvent(new CustomEvent('ttc-native-fcm-ready', {
+                    detail: { hasToken: typeof TTCNative !== 'undefined' && TTCNative.getFCMToken() !== '' }
+                }));
+            })();
+        """.trimIndent()
+        view?.evaluateJavascript(script, null)
+    }
+
     private fun hideSplash() {
         if (splashOverlay.visibility == View.VISIBLE) {
             splashOverlay.animate()
@@ -387,6 +556,21 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         webView.onPause()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        // Handle notification click deep link
+        val targetUrl = intent.getStringExtra("targetUrl")
+        if (!targetUrl.isNullOrBlank()) {
+            val fullUrl = if (targetUrl.startsWith("http")) targetUrl 
+                          else "https://ttcnetwork.xyz${if (targetUrl.startsWith("/")) targetUrl else "/$targetUrl"}"
+            webView.loadUrl(fullUrl)
+        } else {
+            intent.dataString?.let { webView.loadUrl(it) }
+        }
     }
 
     override fun onDestroy() {

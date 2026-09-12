@@ -7,12 +7,79 @@ export const FIREBASE_VAPID_KEY =
     "BNS7wp8fO1t57Ogvv3MV66_8WcSnVzKCoWwcTRG-BAAPCFcE13sdDpxS9m2UrGzk2YJWsydrj8vXhninTe6ooyI";
 
 /**
+ * Detect if we're running inside the TTC Network Android WebView wrapper.
+ * The native app appends 'TTCNetworkApp' to the User-Agent string.
+ */
+function isNativeAndroidApp(): boolean {
+    if (typeof window === "undefined" || !navigator?.userAgent) return false;
+    return navigator.userAgent.includes("TTCNetworkApp");
+}
+
+/**
+ * Retrieve the native FCM token from the Android WebView bridge.
+ * Returns null if not running in the native app or if no token is available.
+ */
+function getNativeToken(): string | null {
+    try {
+        if (typeof window !== "undefined" && (window as any).TTCNative) {
+            const token = (window as any).TTCNative.getFCMToken();
+            return token && token.length > 0 ? token : null;
+        }
+    } catch (e) {
+        console.warn("[FCM] Could not get native token:", e);
+    }
+    return null;
+}
+
+/**
  * Registers the service worker, checks notification permission,
  * retrieves the client's FCM token, and saves it to Firestore.
  */
 export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean = false): Promise<string | null> {
+    if (typeof window === "undefined") return null;
+
+    // ─── Native Android WebView path ───
+    // WebView doesn't support Web Push API (PushManager), so we use
+    // the native FCM token provided by the Android wrapper via JS bridge.
+    if (isNativeAndroidApp()) {
+        console.log("[FCM] Native Android app detected — using native FCM token bridge.");
+        const nativeToken = getNativeToken();
+        if (nativeToken) {
+            console.log("[FCM] Native token obtained:", nativeToken.substring(0, 15) + "...");
+            await registerFCMToken(uid, nativeToken);
+            // Also tell the native side to register the token server-side
+            try {
+                (window as any).TTCNative?.registerToken(uid);
+            } catch (e) {
+                console.warn("[FCM] Native registerToken call failed:", e);
+            }
+            return nativeToken;
+        } else {
+            console.warn("[FCM] Native app detected but no FCM token available yet.");
+            // Listen for token ready event from native injection
+            return new Promise<string | null>((resolve) => {
+                const handler = () => {
+                    window.removeEventListener("ttc-native-fcm-ready", handler);
+                    const token = getNativeToken();
+                    if (token) {
+                        registerFCMToken(uid, token).then(() => resolve(token));
+                        try { (window as any).TTCNative?.registerToken(uid); } catch (_) {}
+                    } else {
+                        resolve(null);
+                    }
+                };
+                window.addEventListener("ttc-native-fcm-ready", handler);
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    window.removeEventListener("ttc-native-fcm-ready", handler);
+                    resolve(null);
+                }, 5000);
+            });
+        }
+    }
+
+    // ─── Standard Web Push path (browsers) ───
     if (
-        typeof window === "undefined" ||
         !("serviceWorker" in navigator) ||
         !("PushManager" in window) ||
         !("Notification" in window)
@@ -131,8 +198,24 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
  * Triggered from a user action (e.g. clicking Enable Notifications button)
  */
 export async function enablePushNotifications(uid: string): Promise<{ success: boolean; token?: string; error?: string }> {
+    if (typeof window === "undefined") {
+        return { success: false, error: "Push notifications are not supported by this browser." };
+    }
+
+    // For native Android app, skip web-specific checks
+    if (isNativeAndroidApp()) {
+        try {
+            const token = await setupFCM(uid, false);
+            if (!token) {
+                return { success: false, error: "Failed to get native device token. Please restart the app." };
+            }
+            return { success: true, token };
+        } catch (err: any) {
+            return { success: false, error: err.message || "Failed to enable native notifications" };
+        }
+    }
+
     if (
-        typeof window === "undefined" ||
         !("serviceWorker" in navigator) ||
         !("PushManager" in window) ||
         !("Notification" in window)

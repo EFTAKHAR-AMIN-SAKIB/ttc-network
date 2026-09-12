@@ -1,5 +1,6 @@
-﻿plugins {
+plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -34,4 +35,8 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.webkit:webkit:1.12.1")
+
+    // Firebase Cloud Messaging for native push notifications
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 }
