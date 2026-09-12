@@ -125,7 +125,6 @@ export async function POST(req: NextRequest) {
                     color: "#DC2626",
                     sound: "default",
                     defaultVibrateTimings: true,
-                    clickAction: clickUrl,
                     tag: finalTag,
                 },
             },

@@ -99,11 +99,6 @@ class MainActivity : ComponentActivity() {
 
                     val responseCode = conn.responseCode
                     android.util.Log.d("TTCNativeBridge", "Token registered for $uid: HTTP $responseCode")
-                    if (responseCode in 200..299) {
-                        runOnUiThread {
-                            Toast.makeText(this@MainActivity, "🔔 Notifications connected!", Toast.LENGTH_SHORT).show()
-                        }
-                    }
                     conn.disconnect()
                 } catch (e: Exception) {
                     android.util.Log.e("TTCNativeBridge", "Failed to register token for $uid", e)
@@ -207,7 +202,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Handle initial load or deep-link intent
-        val targetUrl = intent?.dataString ?: BASE_URL
+        val targetUrl = getTargetUrlFromIntent(intent) ?: BASE_URL
         webView.loadUrl(targetUrl)
     }
 
@@ -376,8 +371,8 @@ class MainActivity : ComponentActivity() {
         swipeRefresh.setOnRefreshListener {
             webView.reload()
         }
-        swipeRefresh.viewTreeObserver.addOnScrollChangedListener {
-            swipeRefresh.isEnabled = webView.scrollY == 0
+        swipeRefresh.setOnChildScrollUpCallback { _, _ ->
+            webView.scrollY > 0
         }
     }
 
@@ -477,7 +472,7 @@ class MainActivity : ComponentActivity() {
         val script = """
             (function() {
                 function syncUserWithNative() {
-                    if (typeof TTCNative === 'undefined') return;
+                    if (typeof TTCNative === 'undefined' || window.__ttcSyncDone) return;
 
                     // 1. Try Firebase Auth IndexedDB (Default for Firebase Web SDK)
                     try {
@@ -497,6 +492,7 @@ class MainActivity : ComponentActivity() {
                                                 var val = cursor.value;
                                                 var uid = (val && val.value && val.value.uid) || (val && val.uid);
                                                 if (uid && typeof TTCNative !== 'undefined') {
+                                                    window.__ttcSyncDone = true;
                                                     TTCNative.registerToken(uid);
                                                     return;
                                                 }
@@ -519,6 +515,7 @@ class MainActivity : ComponentActivity() {
                                     var parsed = JSON.parse(raw);
                                     var uid = (parsed && parsed.uid) || (parsed && parsed.value && parsed.value.uid);
                                     if (uid && typeof TTCNative !== 'undefined') {
+                                        window.__ttcSyncDone = true;
                                         TTCNative.registerToken(uid);
                                         return;
                                     }
@@ -530,6 +527,7 @@ class MainActivity : ComponentActivity() {
                     // 3. Try global object
                     try {
                         if (window.__ttcUser && window.__ttcUser.uid && typeof TTCNative !== 'undefined') {
+                            window.__ttcSyncDone = true;
                             TTCNative.registerToken(window.__ttcUser.uid);
                             return;
                         }
@@ -569,18 +567,41 @@ class MainActivity : ComponentActivity() {
         webView.onPause()
     }
 
+    private fun getTargetUrlFromIntent(intent: Intent?): String? {
+        if (intent == null) return null
+
+        // 1. Direct URI
+        val dataStr = intent.dataString
+        if (!dataStr.isNullOrBlank() && (dataStr.startsWith("http://") || dataStr.startsWith("https://"))) {
+            return dataStr
+        }
+
+        // 2. Notification extras (FCM puts data payload in extras when tapped)
+        val extras = intent.extras
+        if (extras != null) {
+            val target = extras.getString("targetUrl")
+                ?: extras.getString("click_action")
+                ?: extras.getString("url")
+                ?: extras.getString("link")
+
+            if (!target.isNullOrBlank() && !target.startsWith("android.intent")) {
+                return if (target.startsWith("http://") || target.startsWith("https://")) target
+                else "https://ttcnetwork.xyz${if (target.startsWith("/")) target else "/$target"}"
+            }
+        }
+
+        return null
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        
+
         // Handle notification click deep link
-        val targetUrl = intent.getStringExtra("targetUrl")
+        val targetUrl = getTargetUrlFromIntent(intent)
         if (!targetUrl.isNullOrBlank()) {
-            val fullUrl = if (targetUrl.startsWith("http")) targetUrl 
-                          else "https://ttcnetwork.xyz${if (targetUrl.startsWith("/")) targetUrl else "/$targetUrl"}"
-            webView.loadUrl(fullUrl)
-        } else {
-            intent.dataString?.let { webView.loadUrl(it) }
+            android.util.Log.d("MainActivity", "Navigating to deep link: $targetUrl")
+            webView.loadUrl(targetUrl)
         }
     }
 
