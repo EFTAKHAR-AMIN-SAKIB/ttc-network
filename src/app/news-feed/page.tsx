@@ -71,11 +71,27 @@ function NewsFeedInner() {
     const { profile, loading: loadingAuth } = useAuth();
     const { requireVerification } = useVerifiedAccess();
     const { isScrollingDown } = useScrollDirection();
-    const [posts, setPosts] = useState<Post[]>([]);
+    const [posts, setPosts] = useState<Post[]>(() => {
+        if (typeof window === "undefined") return [];
+        try {
+            const cached = localStorage.getItem("ttc_cached_feed_posts");
+            return cached ? JSON.parse(cached) : [];
+        } catch {
+            return [];
+        }
+    });
     const [activeTab, setActiveTab] = useState<FeedTab>("event");
     const [tabDirection, setTabDirection] = useState<number>(0);
     const [selectedFilter, setSelectedFilter] = useState("all");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => {
+        if (typeof window === "undefined") return true;
+        try {
+            const cached = localStorage.getItem("ttc_cached_feed_posts");
+            return !cached || JSON.parse(cached).length === 0;
+        } catch {
+            return true;
+        }
+    });
     const [isMobileLeftMenuOpen, setIsMobileLeftMenuOpen] = useState(false);
     const [isMobileCampusDropdownOpen, setIsMobileCampusDropdownOpen] = useState(false);
 
@@ -276,8 +292,14 @@ function NewsFeedInner() {
 
     useEffect(() => {
         const unsubPosts = subscribePosts((data) => {
-            setPosts(data as (FirestorePost & { id: string })[]);
+            const postsList = data as (FirestorePost & { id: string })[];
+            setPosts(postsList);
             setLoading(false);
+            if (typeof window !== "undefined") {
+                try {
+                    localStorage.setItem("ttc_cached_feed_posts", JSON.stringify(postsList.slice(0, 25)));
+                } catch {}
+            }
         });
 
         const unsubCount = subscribeModerationCount(

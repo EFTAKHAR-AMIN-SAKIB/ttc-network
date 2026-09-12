@@ -21,9 +21,14 @@ function isNativeAndroidApp(): boolean {
  */
 function getNativeToken(): string | null {
     try {
-        if (typeof window !== "undefined" && (window as any).TTCNative) {
-            const token = (window as any).TTCNative.getFCMToken();
-            return token && token.length > 0 ? token : null;
+        if (typeof window !== "undefined") {
+            const injectedToken = (window as any).__ttcNativeFcmToken;
+            if (injectedToken && injectedToken.length > 0) return injectedToken;
+
+            if ((window as any).TTCNative) {
+                const token = (window as any).TTCNative.getFCMToken();
+                return token && token.length > 0 ? token : null;
+            }
         }
     } catch (e) {
         console.warn("[FCM] Could not get native token:", e);

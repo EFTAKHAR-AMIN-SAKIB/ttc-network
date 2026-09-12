@@ -197,8 +197,23 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState<UserProfile | null>(() => {
+        if (typeof window === "undefined") return null;
+        try {
+            const cached = localStorage.getItem("ttc_cached_profile");
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    });
+    const [loading, setLoading] = useState(() => {
+        if (typeof window === "undefined") return true;
+        try {
+            return !localStorage.getItem("ttc_cached_profile");
+        } catch {
+            return true;
+        }
+    });
 
     // Fetch or create user profile document in Firestore
     const fetchOrCreateProfile = async (firebaseUser: User): Promise<UserProfile | null> => {
@@ -277,6 +292,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await signOut(auth);
             setUser(null);
             setProfile(null);
+            if (typeof window !== "undefined") {
+                try {
+                    localStorage.removeItem("ttc_cached_profile");
+                    localStorage.removeItem("ttc_cached_feed_posts");
+                    delete (window as any).__ttcUser;
+                } catch {}
+            }
             // Clear server session cookie via API
             await fetch("/api/session", { method: "DELETE" }).catch(() => {});
             // Clear role cookie
@@ -293,6 +315,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(firebaseUser);
                 const p = await fetchOrCreateProfile(firebaseUser);
                 setProfile(p);
+                if (typeof window !== "undefined" && p) {
+                    try {
+                        localStorage.setItem("ttc_cached_profile", JSON.stringify(p));
+                        (window as any).__ttcUser = p;
+                    } catch {}
+                }
                 
                 // Initialize FCM push notifications
                 setupFCM(firebaseUser.uid).catch(err => console.error("[FCM] Auth setup failed:", err));
@@ -315,6 +343,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
                 setUser(null);
                 setProfile(null);
+                if (typeof window !== "undefined") {
+                    try {
+                        localStorage.removeItem("ttc_cached_profile");
+                        delete (window as any).__ttcUser;
+                    } catch {}
+                }
                 await fetch("/api/session", { method: "DELETE" }).catch(() => {});
                 document.cookie = "ttc_role=; path=/; max-age=0";
             }

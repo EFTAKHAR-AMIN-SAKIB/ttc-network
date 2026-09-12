@@ -237,6 +237,17 @@ class MainActivity : ComponentActivity() {
                 if (!token.isNullOrBlank()) {
                     TTCFirebaseMessagingService.storeToken(this@MainActivity, token)
                     android.util.Log.d("MainActivity", "Native FCM token stored: ${token.take(15)}...")
+                    runOnUiThread {
+                        val js = """
+                            (function() {
+                                window.__ttcNativeFcmToken = '$token';
+                                window.dispatchEvent(new CustomEvent('ttc-native-fcm-ready', {
+                                    detail: { hasToken: true, token: '$token' }
+                                }));
+                            })();
+                        """.trimIndent()
+                        webView.evaluateJavascript(js, null)
+                    }
                 }
             }
         }
