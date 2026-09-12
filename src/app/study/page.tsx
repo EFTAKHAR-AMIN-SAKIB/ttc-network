@@ -456,11 +456,11 @@ function StudyPageContent() {
                 )}
 
                 {/* Tab Switcher — Segmented Control matching news-feed native style */}
-                <div className="bg-white dark:bg-[#161822] p-1.5 rounded-2xl border border-gray-200/70 dark:border-gray-800/80 shadow-xs mb-6 max-w-xl mx-auto sm:mx-0">
-                    <div className="flex items-center gap-1.5">
+                <div className="bg-white dark:bg-[#161822] p-1.5 rounded-2xl border border-gray-200/70 dark:border-gray-800/80 shadow-xs mb-4 sm:mb-6 max-w-xl mx-auto sm:mx-0">
+                    <div className="flex items-center gap-1 sm:gap-1.5">
                         <button 
                             onClick={() => setActiveTab("materials")}
-                            className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider transition-colors cursor-pointer select-none ${
+                            className={`relative flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-tight sm:tracking-wider transition-colors cursor-pointer select-none ${
                                 activeTab === 'materials' 
                                     ? 'text-white' 
                                     : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
@@ -473,10 +473,13 @@ function StudyPageContent() {
                                     transition={{ type: "spring", stiffness: 450, damping: 35 }}
                                 />
                             )}
-                            <span className="relative z-10 flex items-center gap-2 truncate">
-                                <BookOpen size={16} className={activeTab === 'materials' ? "text-white" : "text-gray-400"} />
-                                <span>Resource Library</span>
-                                <span className={`min-w-4 h-4 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                            <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 min-w-0">
+                                <BookOpen size={15} className={`shrink-0 ${activeTab === 'materials' ? "text-white" : "text-gray-400"}`} />
+                                <span className="truncate">
+                                    <span className="inline sm:hidden">Library</span>
+                                    <span className="hidden sm:inline">Resource Library</span>
+                                </span>
+                                <span className={`min-w-4 h-4 px-1.5 rounded-full text-[9px] sm:text-[10px] font-black flex items-center justify-center shrink-0 ${
                                     activeTab === 'materials' ? 'bg-white text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                                 }`}>
                                     {filteredPosts.filter(p => p.type === 'material').length}
@@ -485,7 +488,7 @@ function StudyPageContent() {
                         </button>
                         <button 
                             onClick={() => setActiveTab("schedule")}
-                            className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider transition-colors cursor-pointer select-none ${
+                            className={`relative flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-black uppercase tracking-tight sm:tracking-wider transition-colors cursor-pointer select-none ${
                                 activeTab === 'schedule' 
                                     ? 'text-white' 
                                     : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
@@ -498,10 +501,13 @@ function StudyPageContent() {
                                     transition={{ type: "spring", stiffness: 450, damping: 35 }}
                                 />
                             )}
-                            <span className="relative z-10 flex items-center gap-2 truncate">
-                                <Video size={16} className={activeTab === 'schedule' ? "text-white" : "text-gray-400"} />
-                                <span>Live Prep Classes</span>
-                                <span className={`min-w-4 h-4 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                            <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 min-w-0">
+                                <Video size={15} className={`shrink-0 ${activeTab === 'schedule' ? "text-white" : "text-gray-400"}`} />
+                                <span className="truncate">
+                                    <span className="inline sm:hidden">Live Classes</span>
+                                    <span className="hidden sm:inline">Live Prep Classes</span>
+                                </span>
+                                <span className={`min-w-4 h-4 px-1.5 rounded-full text-[9px] sm:text-[10px] font-black flex items-center justify-center shrink-0 ${
                                     activeTab === 'schedule' ? 'bg-white text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                                 }`}>
                                     {filteredPosts.filter(p => p.type === 'schedule').length}
@@ -513,7 +519,7 @@ function StudyPageContent() {
 
                 {/* Active Filter Tags Ribbon */}
                 {(searchTerm || activeCategory !== "all" || selectedProgramme !== "all" || campusScope !== "all") && (
-                    <div className="flex items-center gap-2 mb-6 text-xs font-bold text-gray-500 flex-wrap">
+                    <div className="flex items-center gap-2 mb-4 sm:mb-6 text-xs font-bold text-gray-500 flex-wrap">
                         <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Active Filters:</span>
                         {searchTerm && (
                             <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1.5 font-bold text-[11px]">
@@ -563,28 +569,28 @@ function StudyPageContent() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -10 }}
-                                    className="space-y-8"
+                                    className="space-y-6 sm:space-y-8"
                                 >
                                     {/* Unified Filter Toolbar */}
-                                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white dark:bg-[#161822] p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 shadow-2xs">
-                                        {/* Left Group: Category Dropdown & Programme Selector */}
-                                        <div className="flex flex-wrap items-center gap-2">
+                                    <div className="bg-white dark:bg-[#161822] p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 shadow-2xs space-y-2.5 lg:space-y-0 lg:flex lg:items-center lg:justify-between lg:gap-3">
+                                        {/* Mobile Row 1 / Desktop Left Group */}
+                                        <div className="flex items-center gap-2 justify-between lg:justify-start flex-1 min-w-0">
                                             {/* Category Dropdown */}
-                                            <div className="relative" ref={categoryDropdownRef}>
+                                            <div className="relative flex-1 lg:flex-initial" ref={categoryDropdownRef}>
                                                 <button
                                                     type="button"
                                                     onClick={() => setIsCategoryDropdownOpen(prev => !prev)}
-                                                    className={`flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer min-w-[190px] sm:min-w-[210px] ${
+                                                    className={`w-full lg:w-auto flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer lg:min-w-[190px] ${
                                                         activeCategory !== "all"
                                                             ? "bg-primary/10 border-primary text-primary font-black shadow-2xs"
                                                             : "bg-gray-50 dark:bg-gray-800/80 border-gray-200/80 dark:border-gray-700/80 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                                                     }`}
                                                 >
-                                                    <span className="flex items-center gap-2 truncate">
-                                                        <span className="text-base leading-none">{getCategoryEmoji(activeCategory)}</span>
+                                                    <span className="flex items-center gap-1.5 truncate">
+                                                        <span className="text-base leading-none shrink-0">{getCategoryEmoji(activeCategory)}</span>
                                                         <span className="truncate">{getCategoryLabel(activeCategory)}</span>
                                                     </span>
-                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                    <div className="flex items-center gap-1 shrink-0 ml-1">
                                                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
                                                             activeCategory !== "all" 
                                                                 ? "bg-primary text-white" 
@@ -744,67 +750,70 @@ function StudyPageContent() {
                                                 </AnimatePresence>
                                             </div>
 
-                                            {/* Programme Filters */}
-                                            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-                                                {[
-                                                    { id: 'all', label: 'All' },
-                                                    { id: 'bed_hons', label: '🎓 B.Ed Honours' },
-                                                    { id: 'bed', label: '📖 B.Ed General' },
-                                                    { id: 'med', label: '🏛️ M.Ed' }
-                                                ].map((prog) => (
-                                                    <button
-                                                        key={prog.id}
-                                                        type="button"
-                                                        onClick={() => setSelectedProgramme(prog.id)}
-                                                        className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                                                            selectedProgramme === prog.id
-                                                                ? "bg-primary/10 text-primary font-black border border-primary/25 shadow-2xs"
-                                                                : "bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200/50 dark:border-gray-700/50"
-                                                        }`}
-                                                    >
-                                                        {prog.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Right Group: Campus Scope Toggle & Sort Dropdown */}
-                                        <div className="flex items-center gap-2 justify-between lg:justify-end shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-100 dark:border-gray-800">
-                                            {profile?.collegeId && (
-                                                <div className="flex p-0.5 bg-gray-100 dark:bg-gray-800 rounded-xl">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setCampusScope("all")}
-                                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                                            campusScope === "all" ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-2xs" : "text-gray-400"
-                                                        }`}
-                                                    >
-                                                        All TTCs
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setCampusScope("campus")}
-                                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                                            campusScope === "campus" ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-2xs" : "text-gray-400"
-                                                        }`}
-                                                    >
-                                                        My College
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 hidden xs:inline">Sort:</span>
+                                            {/* Mobile Sort Selector */}
+                                            <div className="flex lg:hidden items-center gap-1 shrink-0">
                                                 <select
                                                     value={sortBy}
                                                     onChange={(e) => setSortBy(e.target.value as any)}
-                                                    className="bg-gray-50 dark:bg-gray-800/90 border border-gray-200/70 dark:border-gray-700/80 rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
+                                                    className="bg-gray-50 dark:bg-gray-800/90 border border-gray-200/70 dark:border-gray-700/80 rounded-xl px-2.5 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
                                                 >
                                                     <option value="latest">⚡ Latest</option>
-                                                    <option value="views">👁️ Most Viewed</option>
-                                                    <option value="comments">💬 Most Discussed</option>
+                                                    <option value="views">👁️ Views</option>
+                                                    <option value="comments">💬 Discussed</option>
                                                 </select>
                                             </div>
+                                        </div>
+
+                                        {/* Programme Filters & Campus Scope */}
+                                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5 lg:mx-0 lg:px-0">
+                                            {[
+                                                { id: 'all', label: 'All' },
+                                                { id: 'bed_hons', label: '🎓 B.Ed Honours' },
+                                                { id: 'bed', label: '📖 B.Ed General' },
+                                                { id: 'med', label: '🏛️ M.Ed' }
+                                            ].map((prog) => (
+                                                <button
+                                                    key={prog.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedProgramme(prog.id)}
+                                                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                                                        selectedProgramme === prog.id
+                                                            ? "bg-primary/10 text-primary font-black border border-primary/25 shadow-2xs"
+                                                            : "bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200/50 dark:border-gray-700/50"
+                                                    }`}
+                                                >
+                                                    {prog.label}
+                                                </button>
+                                            ))}
+
+                                            {profile?.collegeId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCampusScope(campusScope === "campus" ? "all" : "campus")}
+                                                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                                                        campusScope === "campus"
+                                                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-black shadow-2xs"
+                                                            : "bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 border border-gray-200/50 dark:border-gray-700/50"
+                                                    }`}
+                                                >
+                                                    <span>🏫</span>
+                                                    <span>My College</span>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Desktop Sort Selector */}
+                                        <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Sort:</span>
+                                            <select
+                                                value={sortBy}
+                                                onChange={(e) => setSortBy(e.target.value as any)}
+                                                className="bg-gray-50 dark:bg-gray-800/90 border border-gray-200/70 dark:border-gray-700/80 rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
+                                            >
+                                                <option value="latest">⚡ Latest</option>
+                                                <option value="views">👁️ Most Viewed</option>
+                                                <option value="comments">💬 Most Discussed</option>
+                                            </select>
                                         </div>
                                     </div>
 
@@ -1027,23 +1036,27 @@ function StudyPageContent() {
                 </div>
             </div>
 
-            {/* Mobile Floating Action Button */}
-            <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => handleShareClick("material")}
-                style={{
-                    bottom: isScrollingDown 
-                        ? "max(16px, env(safe-area-inset-bottom, 16px))" 
-                        : "calc(76px + env(safe-area-inset-bottom, 8px))"
-                }}
-                className="fixed right-4 z-40 sm:hidden flex items-center gap-1.5 px-4 py-3 bg-primary text-white rounded-full shadow-lg shadow-primary/30 border-2 border-white dark:border-[#1a1b23] text-xs font-black uppercase tracking-wider cursor-pointer transition-all duration-300 ease-out active:shadow-inner select-none"
-                title="Share Resource"
+            {/* Mobile Floating Action Button (FAB) matching news-feed / native app standard */}
+            <div 
+                className={`sm:hidden fixed right-4 z-40 transition-all duration-300 ease-out ${
+                    isModalOpen ? "opacity-0 pointer-events-none scale-75" : "opacity-100 scale-100"
+                } ${
+                    isScrollingDown 
+                        ? "bottom-5" 
+                        : "bottom-[74px]"
+                }`}
             >
-                <Plus size={16} strokeWidth={2.6} />
-                <span>Share</span>
-            </motion.button>
+                <motion.button
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={() => handleShareClick(activeTab === "schedule" ? "schedule" : "material")}
+                    className="w-14 h-14 rounded-full bg-primary text-white shadow-[0_8px_25px_rgba(26,86,219,0.35)] flex items-center justify-center border-2 border-white dark:border-[#161822] cursor-pointer select-none active:shadow-inner"
+                    aria-label={activeTab === "schedule" ? "Schedule Class" : "Share Resource"}
+                    title={activeTab === "schedule" ? "Schedule Class" : "Share Resource"}
+                >
+                    <Plus size={26} strokeWidth={2.6} className="text-white" />
+                </motion.button>
+            </div>
 
             {/* Creation Modal */}
             {user && (

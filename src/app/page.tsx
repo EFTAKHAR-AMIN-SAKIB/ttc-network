@@ -5,13 +5,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Heart,
-  Users,
-  Target,
   HelpCircle,
   GraduationCap,
   BookOpen,
   ClipboardCheck,
-  ClipboardList,
   Clock,
   Monitor,
   Trophy,
@@ -25,7 +22,6 @@ import {
   CheckSquare,
   Landmark,
   Coins,
-  Book,
   CheckCircle2,
   ExternalLink,
   ShieldCheck,
@@ -43,13 +39,11 @@ import {
   getAdmissionSettings,
   getBuilderSettings,
   getOfficialSettings,
-  getOriginStorySettings,
   type FirestoreAdmissionStep,
   type FirestoreAdmissionCostItem,
   type FirestoreAdmissionSettings,
   type FirestoreBuilderSettings,
   type FirestoreOfficialSettings,
-  type FirestoreOriginStorySettings,
 } from "@/lib/firestore";
 
 /* ─── Icon Map (resolves Firestore iconName → Lucide component) ─── */
@@ -110,40 +104,6 @@ const ADMISSION_STEP_THEMES = [
     pillBg: "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800/50",
     topAccent: "from-emerald-600 via-teal-600 to-cyan-500",
     highlights: ["কলেজ রোল ও আইডি কার্ড", "ক্লাস রুটিন ও ওরিয়েন্টেশন", "৪ বছর মেয়াদী সেমিস্টার শুরু"],
-  },
-];
-
-/* ─── Story Timeline Data ─── */
-const STORY_TIMELINE = [
-  {
-    id: "identity",
-    title: "TTC Exists. But No One Really Knows It.",
-    icon: Landmark,
-    story: "B.Ed Honours is a real bachelor's degree and M.Ed is a respected master's. But ask anyone outside the teacher community — they'll just say 'oh, that's the teacher training place.' There's no single space to showcase what TTC truly is — its teachers, students, programmes, and achievements. TTC deserved a proper identity. It never had one.",
-  },
-  {
-    id: "bridge",
-    title: "Teachers and Students — In the Same System, But Worlds Apart.",
-    icon: Users,
-    story: "A teacher in Feni has no idea what a brilliant teacher in Dhaka is doing. A student finishing their first year has no way to reach a senior who already walked that path. The TTC community is scattered — and there was no bridge.",
-  },
-  {
-    id: "meaning",
-    title: "What Am I Even Doing Here?",
-    icon: Target,
-    story: "Most TTC students enter without a clear picture of what this journey means or where it leads. No platform existed where they could ask real questions, share their confusion, explore ideas, or understand what it truly means to build a career as a TTCian.",
-  },
-  {
-    id: "information",
-    title: "The Notice Was There. You Just Missed It.",
-    icon: ClipboardList,
-    story: "Important updates buried in group chats. Notice boards with faded ink. A new student trying to decide whether to enrol in B.Ed Honours — with nowhere reliable to look. Information existed, but it was never organized for the people who needed it most.",
-  },
-  {
-    id: "knowledge",
-    title: "The Study Material Vanished With the Batch.",
-    icon: Book,
-    story: "A teacher shares a resource in class. A student needs it three months later — it's gone. Teachers re-share the same material batch after batch with no central home. Students scramble when it matters most. Knowledge existed — it just had nowhere to live.",
   },
 ];
 
@@ -387,7 +347,6 @@ export default function HomePage() {
 
   const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
   const [officialSettings, setOfficialSettings] = useState<FirestoreOfficialSettings | null>(null);
-  const [originStorySettings, setOriginStorySettings] = useState<FirestoreOriginStorySettings | null>(null);
   const [showBuilderPopup, setShowBuilderPopup] = useState(false);
 
   useEffect(() => {
@@ -395,7 +354,9 @@ export default function HomePage() {
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true ||
-      document.cookie.split("; ").some((c) => c === "pwa_mode=true");
+      document.cookie.split("; ").some((c) => c === "pwa_mode=true") ||
+      (typeof navigator !== "undefined" && navigator.userAgent.includes("TTCNetworkApp")) ||
+      new URLSearchParams(window.location.search).get("source") === "app";
 
     if (isStandalone) {
       router.replace("/news-feed");
@@ -417,7 +378,6 @@ export default function HomePage() {
 
     getBuilderSettings().then(setBuilderSettings).catch(console.error);
     getOfficialSettings().then(setOfficialSettings).catch(console.error);
-    getOriginStorySettings().then(setOriginStorySettings).catch(console.error);
   }, []);
 
   return (
@@ -561,173 +521,6 @@ export default function HomePage() {
           </div>
         </section>
       )}
-
-      {/* ===== WHY TTC NETWORK EXISTS (Card-Based Storytelling) ===== */}
-      {originStorySettings?.isVisible !== false && (
-      <section className="py-24 sm:py-32 px-4 relative overflow-hidden bg-white dark:bg-[#050505] transition-colors duration-500">
-        <div className="max-w-6xl mx-auto relative z-10">
-
-          {/* Header */}
-          <div className="text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 rounded-full mb-6 border border-red-500/10"
-            >
-              <Heart size={14} className="text-red-500" />
-              <span className="text-[10px] font-black tracking-widest uppercase text-red-500">
-                The Origin Story
-              </span>
-            </motion.div>
-
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white mb-6 font-sora tracking-tight"
-            >
-              Why TTC Network <span className="text-red-500">Exists</span>
-            </motion.h2>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-slate-600 dark:text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed font-medium"
-            >
-              Every TTC student and teacher deserves better. Here&apos;s what we kept seeing — and couldn&apos;t ignore.
-            </motion.p>
-          </div>
-
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* 01. Identity (Full Width Top Card) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="md:col-span-2 relative group overflow-hidden p-8 sm:p-12 rounded-[2rem] border border-slate-200 dark:border-amber-500/20 bg-white dark:bg-amber-500/[0.03] hover:bg-slate-50 dark:hover:bg-amber-500/[0.06] shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-              <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
-                <div className="w-16 h-16 shrink-0 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                  <Landmark size={32} />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-6 leading-tight transition-colors">
-                    {STORY_TIMELINE[0].title}
-                  </h3>
-                  <p className="text-slate-600 dark:text-gray-400 text-base sm:text-lg leading-relaxed max-w-3xl transition-colors">
-                    {STORY_TIMELINE[0].story}
-                  </p>
-                </div>
-              </div>
-
-              {/* Large decorative icon in background */}
-              <Landmark size={200} className="absolute -bottom-10 -right-10 text-amber-500/5 rotate-12 pointer-events-none group-hover:scale-110 transition-transform duration-700" />
-            </motion.div>
-
-            {/* 02. Bridge (Blue) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-slate-200 dark:border-blue-500/20 bg-white dark:bg-blue-500/[0.03] hover:bg-slate-50 dark:hover:bg-blue-500/[0.06] shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-              <div className="relative z-10">
-                <div className="w-12 h-12 shrink-0 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 mb-8">
-                  <Users size={24} />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-6 leading-snug transition-colors">
-                  {STORY_TIMELINE[1].title}
-                </h3>
-                <p className="text-slate-600 dark:text-gray-400 text-sm sm:text-base leading-relaxed transition-colors">
-                  {STORY_TIMELINE[1].story}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* 03. Meaning (Purple) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-slate-200 dark:border-purple-500/20 bg-white dark:bg-purple-500/[0.03] hover:bg-slate-50 dark:hover:bg-purple-500/[0.06] shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-              <div className="relative z-10">
-                <div className="w-12 h-12 shrink-0 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 mb-8">
-                  <Target size={24} />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-6 leading-snug transition-colors">
-                  {STORY_TIMELINE[2].title}
-                </h3>
-                <p className="text-slate-600 dark:text-gray-400 text-sm sm:text-base leading-relaxed transition-colors">
-                  {STORY_TIMELINE[2].story}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* 04. Information (Green) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-slate-200 dark:border-emerald-500/20 bg-white dark:bg-emerald-500/[0.03] hover:bg-slate-50 dark:hover:bg-emerald-500/[0.06] shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-              <div className="relative z-10">
-                <div className="w-12 h-12 shrink-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 mb-8">
-                  <ClipboardList size={24} />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-6 leading-snug transition-colors">
-                  {STORY_TIMELINE[3].title}
-                </h3>
-                <p className="text-slate-600 dark:text-gray-400 text-sm sm:text-base leading-relaxed transition-colors">
-                  {STORY_TIMELINE[3].story}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* 05. Knowledge (Red) */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.4 }}
-              className="relative group overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-slate-200 dark:border-red-500/20 bg-white dark:bg-red-500/[0.03] hover:bg-slate-50 dark:hover:bg-red-500/[0.06] shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-              <div className="relative z-10">
-                <div className="w-12 h-12 shrink-0 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-8">
-                  <Book size={24} />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-6 leading-snug transition-colors">
-                  {STORY_TIMELINE[4].title}
-                </h3>
-                <p className="text-slate-600 dark:text-gray-400 text-sm sm:text-base leading-relaxed transition-colors">
-                  {STORY_TIMELINE[4].story}
-                </p>
-              </div>
-            </motion.div>
-
-          </div>
-        </div>
-
-        {/* Background Gradients */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-500/5 dark:bg-red-500/5 blur-[120px] rounded-full" />
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-500/5 dark:bg-amber-500/5 blur-[120px] rounded-full" />
-        </div>
-      </section>
-      )}
-
-
-
-
-
       {/* ===== FOUNDER SPOTLIGHT (Built by One of Your Own) ===== */}
       {builderSettings?.isVisible !== false && (
         <section className="py-24 sm:py-32 px-4 relative overflow-hidden bg-white dark:bg-[#0C0C10]">

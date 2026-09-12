@@ -37,8 +37,11 @@ export default function MobileDock() {
     useEffect(() => {
         const isDisplayStandalone =
             window.matchMedia("(display-mode: standalone)").matches ||
-            (window.navigator as any).standalone === true;
-        setIsStandalone(isDisplayStandalone);
+            (window.navigator as any).standalone === true ||
+            (typeof navigator !== "undefined" && navigator.userAgent.includes("TTCNetworkApp")) ||
+            (typeof document !== "undefined" && document.cookie.includes("pwa_mode=true")) ||
+            (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("source") === "app");
+        setIsStandalone(!!isDisplayStandalone);
     }, []);
 
     const links = dockLinks.filter(
@@ -80,6 +83,7 @@ export default function MobileDock() {
                         <Link
                             key={link.href}
                             href={link.href}
+                            data-dock-link={link.label.toLowerCase()}
                             onClick={() => {
                                 const sectionKey = getSectionKey(link.href);
                                 if (sectionKey) markAsSeen(sectionKey);

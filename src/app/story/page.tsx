@@ -160,7 +160,7 @@ function StoryPageInner() {
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-[#0c0c10]">
             {/* ═══════════ HERO ═══════════ */}
-            <div className="relative overflow-hidden pt-8 pb-12 sm:pt-12 sm:pb-20 warm-textured-hero border-b-4 border-primary">
+            <div className="relative overflow-hidden pt-[max(2rem,env(safe-area-inset-top,2rem))] pb-12 sm:pt-12 sm:pb-20 warm-textured-hero border-b-4 border-primary">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-8 md:gap-12">
                   <div className="flex-1 text-center md:text-left">

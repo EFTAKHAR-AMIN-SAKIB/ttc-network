@@ -567,10 +567,6 @@ export interface FirestoreRoadmapSettings {
     features: FirestoreRoadmapFeature[];
 }
 
-export interface FirestoreOriginStorySettings {
-    isVisible: boolean;
-}
-
 export interface FirestoreNotification {
     id?: string;
     recipientId: string;
@@ -3054,24 +3050,6 @@ export async function getOfficialSettings(): Promise<FirestoreOfficialSettings> 
 export async function updateOfficialSettings(settings: FirestoreOfficialSettings): Promise<void> {
     await requireAdminOrManager();
     await setDoc(doc(getDb(), "settings", "official"), settings);
-}
-
-// ═══════════════════════════════════════════════════
-//  ORIGIN STORY SECTION SETTINGS
-// ═══════════════════════════════════════════════════
-
-const DEFAULT_ORIGIN_STORY_SETTINGS: FirestoreOriginStorySettings = {
-    isVisible: true,
-};
-
-export async function getOriginStorySettings(): Promise<FirestoreOriginStorySettings> {
-    const snap = await getDoc(doc(getDb(), "settings", "originStory"));
-    return snap.exists() ? (snap.data() as FirestoreOriginStorySettings) : DEFAULT_ORIGIN_STORY_SETTINGS;
-}
-
-export async function updateOriginStorySettings(settings: FirestoreOriginStorySettings): Promise<void> {
-    await requireAdminOrManager();
-    await setDoc(doc(getDb(), "settings", "originStory"), settings);
 }
 
 // ═══════════════════════════════════════════════════

@@ -56,8 +56,11 @@ export default function Navbar() {
         const isDisplayStandalone =
             typeof window !== "undefined" &&
             (window.matchMedia("(display-mode: standalone)").matches ||
-            (window.navigator as any).standalone === true);
-        setIsStandalone(isDisplayStandalone);
+            (window.navigator as any).standalone === true ||
+            (typeof navigator !== "undefined" && navigator.userAgent.includes("TTCNetworkApp")) ||
+            (typeof document !== "undefined" && document.cookie.includes("pwa_mode=true")) ||
+            new URLSearchParams(window.location.search).get("source") === "app");
+        setIsStandalone(!!isDisplayStandalone);
         if (isDisplayStandalone && typeof document !== "undefined") {
             document.title = "TTC NETWORK";
         }
