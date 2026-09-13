@@ -29,6 +29,7 @@ export function useSwipeGesture<T extends HTMLElement = HTMLDivElement>(
     const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
     const isVerticalScrollRef = useRef(false);
     const isSwipingRef = useRef(false);
+    const justSwipedRef = useRef(false);
 
     // Keep callbacks in refs so event listeners don't re-bind continuously
     const onSwipeLeftRef = useRef(onSwipeLeft);
@@ -53,6 +54,11 @@ export function useSwipeGesture<T extends HTMLElement = HTMLDivElement>(
     // Check if touch target should be ignored
     const shouldIgnoreTouch = (target: EventTarget | null): boolean => {
         if (!target || !(target instanceof HTMLElement)) return false;
+
+        // Elements explicitly opting into swipe gesture (tab bars, pills, carousels)
+        if (target.closest("[data-allow-swipe='true'], [role='tab'], .allow-swipe")) {
+            return false;
+        }
 
         // Ignore inside inputs, textareas, buttons, links, or elements with no-swipe attributes
         if (
@@ -97,16 +103,24 @@ export function useSwipeGesture<T extends HTMLElement = HTMLDivElement>(
             const absX = Math.abs(deltaX);
             const absY = Math.abs(deltaY);
 
-            // If vertical movement dominates and exceeds initial threshold (12px),
+            // If vertical movement dominates and exceeds threshold (20px),
             // this is vertical feed scroll: cancel horizontal swipe detection immediately!
-            if (absY > 12 && absY > absX) {
+            if (absY > 20 && absY > absX * 1.35) {
                 isVerticalScrollRef.current = true;
                 return;
             }
 
             // If horizontal movement dominates and exceeds threshold
             if (absX > 10 && absX > absY) {
-                isSwipingRef.current = true;
+                if (!isSwipingRef.current) {
+                    isSwipingRef.current = true;
+                    // Disable native Android pull-to-refresh while swiping horizontally
+                    if (typeof window !== "undefined" && (window as any).TTCNative?.setSwipeRefreshEnabled) {
+                        try {
+                            (window as any).TTCNative.setSwipeRefreshEnabled(false);
+                        } catch {}
+                    }
+                }
             }
         },
         [disabled]
@@ -114,6 +128,13 @@ export function useSwipeGesture<T extends HTMLElement = HTMLDivElement>(
 
     const handleTouchEnd = useCallback(
         (e: TouchEvent) => {
+            // Restore native pull-to-refresh
+            if (typeof window !== "undefined" && (window as any).TTCNative?.setSwipeRefreshEnabled) {
+                try {
+                    (window as any).TTCNative.setSwipeRefreshEnabled(true);
+                } catch {}
+            }
+
             if (disabled || !touchStartRef.current) return;
 
             const start = touchStartRef.current;
@@ -141,6 +162,12 @@ export function useSwipeGesture<T extends HTMLElement = HTMLDivElement>(
             const validTime = deltaTime <= 800; // Not a long stationary drag
 
             if (isHorizontal && (meetsDistance || meetsVelocity) && validTime) {
+                // Flag that a swipe just happened so handleClickCapture can suppress click
+                justSwipedRef.current = true;
+                setTimeout(() => {
+                    justSwipedRef.current = false;
+                }, 160);
+
                 if (deltaX < 0) {
                     // Swiped Right-to-Left (user dragged finger leftwards -> next tab)
                     triggerHaptic();
@@ -155,20 +182,42 @@ export function useSwipeGesture<T extends HTMLElement = HTMLDivElement>(
         [disabled, maxPerpendicularDistance, minDistance, minVelocity, triggerHaptic]
     );
 
+    const handleTouchCancel = useCallback(() => {
+        touchStartRef.current = null;
+        isVerticalScrollRef.current = false;
+        isSwipingRef.current = false;
+        if (typeof window !== "undefined" && (window as any).TTCNative?.setSwipeRefreshEnabled) {
+            try {
+                (window as any).TTCNative.setSwipeRefreshEnabled(true);
+            } catch {}
+        }
+    }, []);
+
     useEffect(() => {
         const el = elementRef.current;
         if (!el) return;
 
+        const handleClickCapture = (e: MouseEvent) => {
+            if (justSwipedRef.current) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        };
+
         el.addEventListener("touchstart", handleTouchStart, { passive: true });
         el.addEventListener("touchmove", handleTouchMove, { passive: true });
         el.addEventListener("touchend", handleTouchEnd, { passive: true });
+        el.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+        el.addEventListener("click", handleClickCapture, true);
 
         return () => {
             el.removeEventListener("touchstart", handleTouchStart);
             el.removeEventListener("touchmove", handleTouchMove);
             el.removeEventListener("touchend", handleTouchEnd);
+            el.removeEventListener("touchcancel", handleTouchCancel);
+            el.removeEventListener("click", handleClickCapture, true);
         };
-    }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+    }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel]);
 
     return elementRef;
 }

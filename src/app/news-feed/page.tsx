@@ -40,26 +40,26 @@ type Post = FirestorePost & { id: string };
 const FEED_TABS = ["event", "club", "group"] as const;
 type FeedTab = (typeof FEED_TABS)[number];
 
-/* ─── Directional Slide Variants for Butter-Smooth Tab Switching ─── */
+/* ─── Directional Slide Variants for Butter-Smooth, Hardware-Accelerated Tab Switching ─── */
 const slideVariants: Variants = {
     enter: (direction: number) => ({
-        x: direction > 0 ? 80 : -80,
+        x: direction > 0 ? 32 : -32,
         opacity: 0,
     }),
     center: {
         x: 0,
         opacity: 1,
         transition: {
-            x: { type: "spring", stiffness: 350, damping: 30 },
-            opacity: { duration: 0.2 }
+            x: { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.18 },
+            opacity: { duration: 0.14 }
         }
     },
     exit: (direction: number) => ({
-        x: direction > 0 ? -80 : 80,
+        x: direction > 0 ? -32 : 32,
         opacity: 0,
         transition: {
-            x: { type: "spring", stiffness: 350, damping: 30 },
-            opacity: { duration: 0.15 }
+            x: { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.1 },
+            opacity: { duration: 0.08 }
         }
     })
 };
@@ -767,7 +767,10 @@ function NewsFeedInner() {
                     >
                         
                         {/* Feed Navigation Tabs (Segmented Control with Animated Pill) */}
-                        <div className="bg-white dark:bg-[#161822] p-1.5 rounded-2xl border border-gray-200/70 dark:border-gray-800/80 shadow-xs">
+                        <div 
+                            data-allow-swipe="true"
+                            className="bg-white dark:bg-[#161822] p-1.5 rounded-2xl border border-gray-200/70 dark:border-gray-800/80 shadow-xs touch-pan-y"
+                        >
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1 flex-1">
                                     {(
@@ -782,8 +785,11 @@ function NewsFeedInner() {
                                         return (
                                             <button
                                                 key={tab.id}
+                                                role="tab"
+                                                aria-selected={isActive}
+                                                data-allow-swipe="true"
                                                 onClick={() => handleTabSwitch(tab.id)}
-                                                className={`relative flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 sm:px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none ${
+                                                className={`relative flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 sm:px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer select-none touch-pan-y ${
                                                     isActive 
                                                         ? "text-white" 
                                                         : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/60 dark:hover:bg-gray-800/60"
@@ -793,7 +799,8 @@ function NewsFeedInner() {
                                                     <motion.div
                                                         layoutId="activeFeedTabIndicator"
                                                         className="absolute inset-0 bg-primary rounded-xl shadow-md shadow-primary/25"
-                                                        transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                                                        transition={{ type: "spring", stiffness: 550, damping: 38, mass: 0.7 }}
+                                                        style={{ willChange: "transform" }}
                                                     />
                                                 )}
                                                 <span className="relative z-10 flex items-center gap-1.5 sm:gap-2 truncate">
@@ -833,7 +840,10 @@ function NewsFeedInner() {
                             </div>
 
                             {/* Mobile Swipe Guidance Indicator */}
-                            <div className="md:hidden mt-1 pt-1 border-t border-gray-100 dark:border-gray-800/60 flex items-center justify-between px-2 text-[10px] text-gray-400 dark:text-gray-500 font-semibold select-none">
+                            <div 
+                                data-allow-swipe="true"
+                                className="md:hidden mt-1 pt-1 border-t border-gray-100 dark:border-gray-800/60 flex items-center justify-between px-2 text-[10px] text-gray-400 dark:text-gray-500 font-semibold select-none touch-pan-y"
+                            >
                                 <span className="flex items-center gap-1">
                                     <ChevronLeft size={12} /> Swipe
                                 </span>
@@ -856,7 +866,7 @@ function NewsFeedInner() {
                         </div>
 
                         {/* ─── ANIMATED FEED SWITCHER ─── */}
-                        <AnimatePresence mode="wait" custom={tabDirection}>
+                        <AnimatePresence mode="popLayout" custom={tabDirection}>
                             <motion.div
                                 key={showOnlySaved ? "saved" : activeTab}
                                 custom={tabDirection}

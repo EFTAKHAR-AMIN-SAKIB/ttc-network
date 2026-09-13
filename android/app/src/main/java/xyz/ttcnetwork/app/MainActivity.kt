@@ -108,10 +108,17 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun isNativeApp(): Boolean = true
+
+        @JavascriptInterface
+        fun setSwipeRefreshEnabled(enabled: Boolean) {
+            runOnUiThread {
+                swipeRefresh.isEnabled = enabled
+            }
+        }
     }
 
     private lateinit var webView: WebView
-    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var swipeRefresh: TouchConflictSwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
     private lateinit var offlineContainer: LinearLayout
     private lateinit var btnRetry: Button
@@ -372,7 +379,7 @@ class MainActivity : ComponentActivity() {
             webView.reload()
         }
         swipeRefresh.setOnChildScrollUpCallback { _, _ ->
-            webView.scrollY > 0
+            webView.canScrollVertically(-1)
         }
     }
 

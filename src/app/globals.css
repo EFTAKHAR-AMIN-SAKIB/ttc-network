@@ -132,9 +132,16 @@ textarea,
 [role="button"],
 .location-filter-btn,
 .card-hover {
-  transition: all 0.25s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure swipeable elements and tab bars override manipulation with pan-y */
+.touch-pan-y,
+[data-allow-swipe="true"],
+[role="tab"] {
+  touch-action: pan-y !important;
 }
 
 /* Prevent accidental text selection and callouts on navigation and UI buttons */
