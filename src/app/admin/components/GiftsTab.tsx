@@ -25,6 +25,14 @@ import {
     Layers,
     Search,
     Banknote,
+    Building2,
+    GraduationCap,
+    Sparkles,
+    ExternalLink,
+    Check,
+    Tag,
+    Linkedin,
+    Github,
 } from "lucide-react";
 import {
     getPendingGifts,
@@ -41,10 +49,13 @@ import {
     updateSupportSettings,
     getSupportSettings,
     seedRoadmapPhases,
+    getAllUsers,
     type FirestoreGift,
     type SupportPhase,
     type SupportSettings,
+    type FirestoreUser,
 } from "@/lib/firestore";
+import { colleges } from "@/data/colleges";
 
 /* ═══════════════════════════════════════════════════
    ROLE CONFIG — matches Support page roles
@@ -56,8 +67,6 @@ const ROLES = [
     { value: "advocate",  label: "Advocate",  desc: "Helped spread the word",         color: "#7c3aed", bg: "#ede9fe", icon: <Megaphone size={12} /> },
     { value: "supporter", label: "Supporter", desc: "General support",                color: "#2563eb", bg: "#dbeafe", icon: <Heart size={12} /> },
 ];
-
-
 
 import { UserProfile } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -72,12 +81,31 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
     const [selectedPhases, setSelectedPhases] = useState<Record<string, string>>({});
     const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
 
-    // Add Contributor state
+    // Users and Autocomplete state
+    const [allUsers, setAllUsers] = useState<(FirestoreUser & { id: string })[]>([]);
+    const [contributorMode, setContributorMode] = useState<"registered" | "external">("registered");
+    const [userSearch, setUserSearch] = useState("");
+    const [selectedUser, setSelectedUser] = useState<(FirestoreUser & { id: string }) | null>(null);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+    // Add Contributor metadata state
     const [manualUserId, setManualUserId] = useState("");
-    const [manualMessage, setManualMessage] = useState("");
+    const [manualName, setManualName] = useState("");
+    const [manualPhotoURL, setManualPhotoURL] = useState("");
+    const [manualHeadline, setManualHeadline] = useState("");
+    const [manualCollegeId, setManualCollegeId] = useState("");
+    const [manualCollegeName, setManualCollegeName] = useState("");
+    const [manualBatchOrDept, setManualBatchOrDept] = useState("");
+    const [manualContributionHighlight, setManualContributionHighlight] = useState("");
+    const [manualBadgeLabel, setManualBadgeLabel] = useState("");
+    const [manualProfileUrl, setManualProfileUrl] = useState("");
+    const [manualSocialLinkedin, setManualSocialLinkedin] = useState("");
+    const [manualSocialGithub, setManualSocialGithub] = useState("");
+    const [manualSocialWebsite, setManualSocialWebsite] = useState("");
     const [manualAmount, setManualAmount] = useState("");
     const [manualPhase, setManualPhase] = useState("");
     const [manualRole, setManualRole] = useState("patron");
+    const [manualMessage, setManualMessage] = useState("");
     const [addingManual, setAddingManual] = useState(false);
 
     // ROADMAP & SETTINGS
@@ -97,23 +125,63 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [pending, approved, p, s] = await Promise.all([
+            const [pending, approved, p, s, u] = await Promise.all([
                 getPendingGifts(),
                 getApprovedGifts(),
                 getSupportPhases(),
-                getSupportSettings()
+                getSupportSettings(),
+                getAllUsers().catch(() => []),
             ]);
             setGifts(pending);
             setApprovedGifts(approved);
             setPhases(p);
             setSettings(s || { fundingOpen: true, fundingMessage: "", supportPageActive: true });
+            setAllUsers(u);
         } catch (err) { console.error(err); }
         setLoading(false);
     };
 
     useEffect(() => { loadData(); }, []);
 
+    const handleSelectUser = (u: FirestoreUser & { id: string }) => {
+        setSelectedUser(u);
+        setManualUserId(u.id);
+        setManualName(u.displayName || "");
+        setManualPhotoURL(u.photoURL || "");
+        setManualCollegeId(u.collegeId || "");
+        const cShort = colleges.find(c => c.id === u.collegeId)?.shortName || u.college || "";
+        setManualCollegeName(cShort);
+        setManualBatchOrDept(u.yearSemester || (u.role === "teacher" ? "Faculty" : ""));
+        setManualHeadline(u.bio || (u.role === "teacher" ? "Teacher / Faculty" : (u.role === "admin" ? "Core Team" : "Student")));
+        setManualSocialLinkedin(u.linkedin || "");
+        setManualSocialGithub(u.github || "");
+        setManualSocialWebsite(u.website || "");
+        setManualProfileUrl(`/profile/${u.id}`);
+        setUserSearch(u.displayName || u.username || "");
+        setIsSearchFocused(false);
+    };
 
+    const resetManualForm = () => {
+        setSelectedUser(null);
+        setUserSearch("");
+        setManualUserId("");
+        setManualName("");
+        setManualPhotoURL("");
+        setManualHeadline("");
+        setManualCollegeId("");
+        setManualCollegeName("");
+        setManualBatchOrDept("");
+        setManualContributionHighlight("");
+        setManualBadgeLabel("");
+        setManualProfileUrl("");
+        setManualSocialLinkedin("");
+        setManualSocialGithub("");
+        setManualSocialWebsite("");
+        setManualAmount("");
+        setManualPhase("");
+        setManualRole("patron");
+        setManualMessage("");
+    };
 
     // ───────────────────────────────────────────────────
     // VERIFICATIONS
@@ -145,23 +213,39 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
     // ───────────────────────────────────────────────────
     const handleAddContributor = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!manualUserId) return showToast("❌ User ID is required.", "error");
-        
+        if (contributorMode === "registered" && !manualUserId) {
+            return showToast("❌ Please select a registered user or switch to External Supporter mode.", "error");
+        }
+        if (contributorMode === "external" && !manualName.trim()) {
+            return showToast("❌ Supporter name is required.", "error");
+        }
+
         setAddingManual(true);
         try {
             await addManualContributor({
-                userId: manualUserId,
-                message: manualMessage,
+                userId: contributorMode === "registered" ? manualUserId : undefined,
+                name: manualName.trim(),
+                photoURL: manualPhotoURL.trim(),
+                headline: manualHeadline.trim(),
+                collegeId: manualCollegeId,
+                collegeName: manualCollegeName.trim(),
+                batchOrDept: manualBatchOrDept.trim(),
+                contributionHighlight: manualContributionHighlight.trim(),
+                supporterBadgeLabel: manualBadgeLabel.trim(),
+                socialLinks: {
+                    linkedin: manualSocialLinkedin.trim() || undefined,
+                    github: manualSocialGithub.trim() || undefined,
+                    website: manualSocialWebsite.trim() || undefined,
+                },
+                supporterProfileUrl: manualProfileUrl.trim(),
+                isExternalSupporter: contributorMode === "external",
                 amount: manualAmount ? Number(manualAmount) : 0,
                 phaseId: manualPhase || undefined,
-                role: manualRole
+                role: manualRole,
+                message: manualMessage.trim(),
             });
             showToast("✅ Contributor added successfully! They are now live on the Support page.", "success");
-            setManualUserId("");
-            setManualMessage("");
-            setManualAmount("");
-            setManualPhase("");
-            setManualRole("patron");
+            resetManualForm();
             loadData();
         } catch (err) {
             showToast(`❌ ${err instanceof Error ? err.message : "Error"}`, "error");
@@ -467,19 +551,19 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                         <div className="grid grid-cols-1 gap-3">
                             {filteredSupporters.map((gift) => (
                                 <div key={gift.id} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 mt-0.5">
                                             {gift.photoURL ? (
                                                 <img src={gift.photoURL} alt="" className="w-full h-full object-cover rounded-lg" />
                                             ) : (
                                                 <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-black text-lg rounded-lg">
-                                                    {gift.name[0]}
+                                                    {gift.name ? gift.name[0] : "?"}
                                                 </div>
                                             )}
                                         </div>
                                         
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-0.5">
+                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                                                 <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{gift.name}</p>
                                                 {(() => {
                                                     const role = ROLES.find(r => r.value === (gift.role || "patron"));
@@ -490,21 +574,54 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                                                         </span>
                                                     );
                                                 })()}
+                                                {gift.supporterBadgeLabel && (
+                                                    <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-200/50">
+                                                        {gift.supporterBadgeLabel}
+                                                    </span>
+                                                )}
+                                                {gift.isVerifiedSupporter && (
+                                                    <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                                                        <Check size={10} strokeWidth={3} /> Verified
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400">
-                                                <span className="font-mono text-blue-500 dark:text-blue-400">{gift.userId}</span>
-                                                <span>·</span>
+
+                                            {gift.headline && (
+                                                <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mb-1 line-clamp-1">
+                                                    {gift.headline}
+                                                </p>
+                                            )}
+
+                                            <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 flex-wrap">
+                                                {gift.collegeName && (
+                                                    <span className="font-semibold text-blue-600 dark:text-blue-400">🏛️ {gift.collegeName}</span>
+                                                )}
+                                                {gift.batchOrDept && (
+                                                    <span>• {gift.batchOrDept}</span>
+                                                )}
+                                                {gift.contributionHighlight && (
+                                                    <span className="text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md">
+                                                        ✨ {gift.contributionHighlight}
+                                                    </span>
+                                                )}
+                                                <span>•</span>
                                                 <span className="text-amber-500 font-bold uppercase tracking-tighter">৳{gift.amount}</span>
                                                 {gift.phaseId && (
                                                     <>
-                                                        <span>·</span>
+                                                        <span>•</span>
                                                         <span className="truncate">Phase: {phases.find(p => p.id === gift.phaseId)?.title || "Unknown"}</span>
                                                     </>
                                                 )}
                                             </div>
+
+                                            {gift.message && (
+                                                <p className="text-[11px] text-gray-500 dark:text-gray-400 italic mt-1.5 line-clamp-1 border-l-2 border-amber-300 pl-2">
+                                                    "{gift.message}"
+                                                </p>
+                                            )}
                                         </div>
 
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 shrink-0">
                                             <button 
                                                 onClick={() => setEditingGift(gift)}
                                                 className="p-2 bg-gray-50 dark:bg-gray-900 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border border-gray-100 dark:border-gray-700 transition-all"
@@ -531,22 +648,22 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                     {/* Edit Supporter Modal */}
                     <AnimatePresence>
                         {editingGift && (
-                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
                                 <motion.div 
                                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                    className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700"
+                                    className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 my-8"
                                 >
                                     <form onSubmit={handleUpdateGift}>
-                                        <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/30">
+                                        <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/30">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                                                    <Pencil className="text-blue-500" size={18} />
+                                                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
+                                                    <Pencil size={18} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Edit Supporter</h3>
-                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">UID: {editingGift.userId}</p>
+                                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Edit Supporter Details</h3>
+                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">At-a-glance profile, affiliation, and contribution details</p>
                                                 </div>
                                             </div>
                                             <button type="button" onClick={() => setEditingGift(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-400 transition-colors">
@@ -554,46 +671,151 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                                             </button>
                                         </div>
 
-                                        <div className="p-6 space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="col-span-2">
-                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Full Name</label>
+                                        <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+                                            {/* Live Card Preview Box */}
+                                            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700/60 mb-2">
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                                    <Sparkles size={11} className="text-amber-500" /> Live Preview on Support Page
+                                                </p>
+                                                <div className="bg-white dark:bg-[#161620] border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <div className="w-11 h-11 rounded-full border-2 border-amber-400/40 overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-400 shrink-0">
+                                                            {editingGift.photoURL ? <img src={editingGift.photoURL} alt="" className="w-full h-full object-cover" /> : (editingGift.name ? editingGift.name[0] : "?")}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="font-bold text-gray-900 dark:text-white text-sm truncate">{editingGift.name || "Supporter Name"}</h4>
+                                                                {editingGift.isVerifiedSupporter && (
+                                                                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px]">✓</span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                                                {editingGift.headline || "Supporter Headline / Profession"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                                                        {editingGift.collegeName && (
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                                                                🏛️ {editingGift.collegeName}
+                                                            </span>
+                                                        )}
+                                                        {editingGift.batchOrDept && (
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                                                                🎓 {editingGift.batchOrDept}
+                                                            </span>
+                                                        )}
+                                                        {editingGift.contributionHighlight && (
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200/50">
+                                                                ✨ {editingGift.contributionHighlight}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {editingGift.message && (
+                                                        <p className="text-[11px] text-gray-500 italic line-clamp-2 border-l-2 border-amber-300 pl-2">
+                                                            "{editingGift.message}"
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Full Name</label>
                                                     <input 
                                                         type="text" 
                                                         required
                                                         value={editingGift.name}
                                                         onChange={e => setEditingGift({...editingGift, name: e.target.value})}
-                                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                                                     />
                                                 </div>
+
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Headline / Designation (At-a-Glance Title)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. Lead UI Designer & Frontend Architect, Software Engineer @ Acme"
+                                                        value={editingGift.headline || ""}
+                                                        onChange={e => setEditingGift({...editingGift, headline: e.target.value})}
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                                                    />
+                                                </div>
+
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Contribution Amount (৳)</label>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">College / Campus</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. Dhaka TTC, Feni TTC, or External"
+                                                        value={editingGift.collegeName || ""}
+                                                        onChange={e => setEditingGift({...editingGift, collegeName: e.target.value})}
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Batch or Department</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. Batch 2019-20, Computer Dept, Alumni"
+                                                        value={editingGift.batchOrDept || ""}
+                                                        onChange={e => setEditingGift({...editingGift, batchOrDept: e.target.value})}
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Contribution Highlight Ribbon</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. Engineered Core UI & Design System, Cloud Server Sponsor"
+                                                        value={editingGift.contributionHighlight || ""}
+                                                        onChange={e => setEditingGift({...editingGift, contributionHighlight: e.target.value})}
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Avatar Photo URL</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="https://..."
+                                                        value={editingGift.photoURL || ""}
+                                                        onChange={e => setEditingGift({...editingGift, photoURL: e.target.value})}
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none font-mono"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Contribution Amount (৳)</label>
                                                     <input 
                                                         type="number" 
                                                         required
                                                         value={editingGift.amount}
                                                         onChange={e => setEditingGift({...editingGift, amount: Number(e.target.value)})}
-                                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                                                     />
                                                 </div>
+
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Contribution Role</label>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Contribution Role</label>
                                                     <select
                                                         value={editingGift.role || "patron"}
                                                         onChange={e => setEditingGift({...editingGift, role: e.target.value as any})}
-                                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                                                     >
                                                         {ROLES.map(r => (
                                                             <option key={r.value} value={r.value}>{r.label}</option>
                                                         ))}
                                                     </select>
                                                 </div>
-                                                <div className="col-span-2">
-                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Support Phase</label>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Support Phase</label>
                                                     <select
                                                         value={editingGift.phaseId || ""}
                                                         onChange={e => setEditingGift({...editingGift, phaseId: e.target.value})}
-                                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                                                     >
                                                         <option value="">General Support</option>
                                                         {phases.map(p => (
@@ -601,55 +823,81 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                                                         ))}
                                                     </select>
                                                 </div>
-                                                <div className="col-span-2">
-                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Personal Quote / Message</label>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Custom Badge Label</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={editingGift.supporterBadgeLabel || ""}
+                                                        onChange={e => setEditingGift({...editingGift, supporterBadgeLabel: e.target.value})}
+                                                        placeholder="e.g. Pioneer, Builder"
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1">Personal Quote / Testimonial</label>
                                                     <textarea 
                                                         value={editingGift.message || ""}
                                                         onChange={e => setEditingGift({...editingGift, message: e.target.value})}
-                                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all min-h-[80px] resize-none"
-                                                        placeholder="Leave a message..."
+                                                        className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none min-h-[70px] resize-none"
+                                                        placeholder="Short quote or testimonial from the contributor..."
                                                     />
                                                 </div>
-                                                <div className="col-span-2 grid grid-cols-2 gap-4">
+
+                                                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-700/50">
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Custom Badge Label</label>
+                                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">LinkedIn URL</label>
                                                         <input 
                                                             type="text" 
-                                                            value={editingGift.supporterBadgeLabel || ""}
-                                                            onChange={e => setEditingGift({...editingGift, supporterBadgeLabel: e.target.value})}
-                                                            placeholder="e.g. Pioneer, Friend"
-                                                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                                                            placeholder="https://linkedin.com/in/..."
+                                                            value={editingGift.socialLinks?.linkedin || ""}
+                                                            onChange={e => setEditingGift({
+                                                                ...editingGift, 
+                                                                socialLinks: { ...(editingGift.socialLinks || {}), linkedin: e.target.value }
+                                                            })}
+                                                            className="w-full px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Verified Status</label>
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => setEditingGift({...editingGift, isVerifiedSupporter: !editingGift.isVerifiedSupporter})}
-                                                            className={`w-full px-4 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${editingGift.isVerifiedSupporter ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400" : "bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-400"}`}
-                                                        >
-                                                            {editingGift.isVerifiedSupporter ? (
-                                                                <><CheckCircle2 size={14} /> Verified</>
-                                                            ) : (
-                                                                "Not Verified"
-                                                            )}
-                                                        </button>
+                                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">GitHub URL</label>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="https://github.com/..."
+                                                            value={editingGift.socialLinks?.github || ""}
+                                                            onChange={e => setEditingGift({
+                                                                ...editingGift, 
+                                                                socialLinks: { ...(editingGift.socialLinks || {}), github: e.target.value }
+                                                            })}
+                                                            className="w-full px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="sm:col-span-2">
+                                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Website / Profile URL Override</label>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="/profile/... or https://..."
+                                                            value={editingGift.supporterProfileUrl || ""}
+                                                            onChange={e => setEditingGift({...editingGift, supporterProfileUrl: e.target.value})}
+                                                            className="w-full px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono"
+                                                        />
                                                     </div>
                                                 </div>
-                                                <div className="col-span-2">
-                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-1.5">Profile Link URL (Override)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={editingGift.supporterProfileUrl || ""}
-                                                        onChange={e => setEditingGift({...editingGift, supporterProfileUrl: e.target.value})}
-                                                        placeholder="e.g. /profile/username"
-                                                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all font-mono"
-                                                    />
+
+                                                <div className="sm:col-span-2">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setEditingGift({...editingGift, isVerifiedSupporter: !editingGift.isVerifiedSupporter})}
+                                                        className={`w-full px-4 py-2 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${editingGift.isVerifiedSupporter ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400" : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500"}`}
+                                                    >
+                                                        <CheckCircle2 size={14} />
+                                                        {editingGift.isVerifiedSupporter ? "Verified Supporter Status: Active (Checked)" : "Mark as Verified Supporter"}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="p-6 bg-gray-50/50 dark:bg-gray-900/30 flex justify-end gap-3 border-t border-gray-50 dark:border-gray-700">
+                                        <div className="p-5 bg-gray-50/50 dark:bg-gray-900/30 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-700">
                                             <button 
                                                 type="button" 
                                                 onClick={() => setEditingGift(null)} 
@@ -660,7 +908,7 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
                                                 disabled={savingGift}
                                                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
                                             >
-                                                {savingGift ? <Loader2 size={16} className="animate-spin" /> : <Save className="hidden" />}
+                                                {savingGift ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                                 {savingGift ? "Saving..." : "Save Changes"}
                                             </button>
                                         </div>
@@ -673,88 +921,344 @@ export default function GiftsTab({ profile }: { profile: UserProfile }) {
             )}
 
             {subTab === "add_contributor" && (
-                <form onSubmit={handleAddContributor} className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                            <UserPlus className="text-amber-500" size={20} />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Contributor Manually</h3>
-                            <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">Directly inject an approved supporter pulling their profile data via ID.</p>
-                        </div>
-                    </div>
+                <div className="space-y-6">
+                    <form onSubmit={handleAddContributor} className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500">
+                                    <UserPlus size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Contributor</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Publish a new supporter with at-a-glance identity, affiliation, and contribution details.</p>
+                                </div>
+                            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Supporter User ID</label>
-                            <input 
-                                type="text" 
-                                required 
-                                value={manualUserId} 
-                                onChange={e => setManualUserId(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium"
-                                placeholder="e.g. jf8s2j4n..."
-                            />
+                            {/* Mode toggle */}
+                            <div className="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-xl">
+                                <button
+                                    type="button"
+                                    onClick={() => { setContributorMode("registered"); resetManualForm(); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${contributorMode === "registered" ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                                >
+                                    <Users size={13} /> Registered TTCian
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setContributorMode("external"); resetManualForm(); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${contributorMode === "external" ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                                >
+                                    <Globe size={13} /> External / Guest
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Contribution Amount (৳) — Optional</label>
-                            <input 
-                                type="number" 
-                                min="0"
-                                value={manualAmount} 
-                                onChange={e => setManualAmount(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium"
-                                placeholder="e.g. 5000"
-                            />
-                        </div>
-                        
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Short Message (Optional)</label>
-                            <textarea 
-                                value={manualMessage} 
-                                onChange={e => setManualMessage(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium min-h-[80px]"
-                                placeholder="A short message from the contributor to display publicly."
-                            />
-                        </div>
-                        
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Phase Assignment</label>
-                            <select
-                                value={manualPhase}
-                                onChange={e => setManualPhase(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium"
-                            >
-                                <option value="">General Supporter (No Phase)</option>
-                                {phases.map(p => (
-                                    <option key={p.id} value={p.id}>{p.title}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide mb-2">Contribution Role</label>
-                            <select
-                                value={manualRole}
-                                onChange={e => setManualRole(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium"
-                            >
-                                {ROLES.map(r => (
-                                    <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
 
-                    <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
-                        <button 
-                            type="submit" 
-                            disabled={addingManual}
-                            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            {addingManual ? "Adding..." : <><Plus size={16} /> Add to Support Page</>}
-                        </button>
-                    </div>
-                </form>
+                        {/* Registered User Search Section */}
+                        {contributorMode === "registered" && (
+                            <div className="mb-6 p-4 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border border-amber-200/50 dark:border-amber-800/30">
+                                <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                    <Search size={13} /> Search Registered TTCian User
+                                </label>
+                                
+                                {selectedUser ? (
+                                    <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-xl border border-amber-300 dark:border-amber-700/60 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-bold text-gray-500 shrink-0">
+                                                {selectedUser.photoURL ? <img src={selectedUser.photoURL} alt="" className="w-full h-full object-cover" /> : selectedUser.displayName[0]}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                    {selectedUser.displayName}
+                                                    <span className="text-[10px] font-mono font-normal text-gray-400">(@{selectedUser.username})</span>
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {selectedUser.college || selectedUser.collegeId || "No College"} • {selectedUser.yearSemester || selectedUser.role}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={resetManualForm}
+                                            className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        >
+                                            Change User
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="relative">
+                                        <div className="relative">
+                                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                            <input 
+                                                type="text"
+                                                placeholder="Type name, @username, or email to auto-fill..."
+                                                value={userSearch}
+                                                onChange={e => { setUserSearch(e.target.value); setIsSearchFocused(true); }}
+                                                onFocus={() => setIsSearchFocused(true)}
+                                                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                            />
+                                        </div>
+
+                                        {isSearchFocused && userSearch.trim().length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1.5 max-h-60 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl z-20 p-2 space-y-1">
+                                                {allUsers
+                                                    .filter(u => 
+                                                        (u.displayName || "").toLowerCase().includes(userSearch.toLowerCase()) ||
+                                                        (u.username || "").toLowerCase().includes(userSearch.toLowerCase()) ||
+                                                        (u.email || "").toLowerCase().includes(userSearch.toLowerCase())
+                                                    )
+                                                    .slice(0, 8)
+                                                    .map(u => (
+                                                        <button
+                                                            key={u.id}
+                                                            type="button"
+                                                            onClick={() => handleSelectUser(u)}
+                                                            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/30 text-left transition-colors"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 shrink-0">
+                                                                {u.photoURL ? <img src={u.photoURL} alt="" className="w-full h-full object-cover" /> : u.displayName[0]}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{u.displayName}</p>
+                                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                                    @{u.username} • {colleges.find(c => c.id === u.collegeId)?.shortName || u.college || "TTCian"}
+                                                                </p>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {contributorMode === "external" && (
+                            <div className="mb-6 p-4 bg-blue-50/50 dark:bg-blue-950/10 rounded-2xl border border-blue-200/50 dark:border-blue-800/30 flex items-center gap-3">
+                                <Globe className="text-blue-500 shrink-0" size={20} />
+                                <p className="text-xs text-blue-900 dark:text-blue-300">
+                                    <strong>External Contributor Mode:</strong> Add an alumnus, sponsor organization, or offline patron who doesn't have an account on TTC Network.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Contributor Metadata Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">
+                                    Full Name <span className="text-red-500">*</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    value={manualName} 
+                                    onChange={e => setManualName(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                    placeholder="e.g. Eftakhar Amin Sakib"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">
+                                    Headline / Designation (At-a-glance Identity)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value={manualHeadline} 
+                                    onChange={e => setManualHeadline(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                    placeholder="e.g. Lead UI Designer & Architect, Software Engineer"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">
+                                    College / Campus
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value={manualCollegeName} 
+                                    onChange={e => setManualCollegeName(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                    placeholder="e.g. Dhaka TTC, Feni TTC, or Partner Co."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">
+                                    Batch or Department
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value={manualBatchOrDept} 
+                                    onChange={e => setManualBatchOrDept(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                    placeholder="e.g. Batch 2019-20, Computer Dept, Alumni"
+                                />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">
+                                    Contribution Highlight Ribbon (Key achievement/contribution)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value={manualContributionHighlight} 
+                                    onChange={e => setManualContributionHighlight(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                    placeholder="e.g. Engineered Core UI & Design System, Cloud Server Sponsor"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">Avatar Photo URL</label>
+                                <input 
+                                    type="text" 
+                                    value={manualPhotoURL} 
+                                    onChange={e => setManualPhotoURL(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-mono text-xs"
+                                    placeholder="https://..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">Contribution Amount (৳)</label>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    value={manualAmount} 
+                                    onChange={e => setManualAmount(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                    placeholder="e.g. 5000"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">Phase Assignment</label>
+                                <select
+                                    value={manualPhase}
+                                    onChange={e => setManualPhase(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                >
+                                    <option value="">General Supporter (No Phase)</option>
+                                    {phases.map(p => (
+                                        <option key={p.id} value={p.id}>{p.title}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">Contribution Role</label>
+                                <select
+                                    value={manualRole}
+                                    onChange={e => setManualRole(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                                >
+                                    {ROLES.map(r => (
+                                        <option key={r.value} value={r.value}>{r.label} — {r.desc}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="sm:col-span-2">
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">Personal Quote / Note (Optional)</label>
+                                <textarea 
+                                    value={manualMessage} 
+                                    onChange={e => setManualMessage(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium min-h-[70px] resize-none"
+                                    placeholder="A quote or impact statement from the contributor..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">LinkedIn Profile Link</label>
+                                <input 
+                                    type="text" 
+                                    value={manualSocialLinkedin} 
+                                    onChange={e => setManualSocialLinkedin(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                                    placeholder="https://linkedin.com/in/..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-1.5">GitHub Profile Link</label>
+                                <input 
+                                    type="text" 
+                                    value={manualSocialGithub} 
+                                    onChange={e => setManualSocialGithub(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                                    placeholder="https://github.com/..."
+                                />
+                            </div>
+                        </div>
+
+                        {/* Live Card Preview Box */}
+                        <div className="mb-6 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <Sparkles size={12} className="text-amber-500" /> Live Preview of Supporter Card (As shown on Support Page)
+                            </p>
+                            <div className="max-w-md mx-auto bg-white dark:bg-[#161620] border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                                <div className="flex items-center gap-3.5 mb-3">
+                                    <div className="w-12 h-12 rounded-full border-2 border-amber-400/40 overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-400 shrink-0 shadow-sm">
+                                        {manualPhotoURL ? <img src={manualPhotoURL} alt="" className="w-full h-full object-cover" /> : (manualName ? manualName[0] : "?")}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <h4 className="font-bold text-gray-900 dark:text-white text-sm truncate">{manualName || "Supporter Name"}</h4>
+                                            <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px]">✓</span>
+                                        </div>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                            {manualHeadline || "Supporter Headline / Role"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    {manualCollegeName && (
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                                            🏛️ {manualCollegeName}
+                                        </span>
+                                    )}
+                                    {manualBatchOrDept && (
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                                            🎓 {manualBatchOrDept}
+                                        </span>
+                                    )}
+                                    {manualContributionHighlight && (
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200/50">
+                                            ✨ {manualContributionHighlight}
+                                        </span>
+                                    )}
+                                </div>
+                                {manualMessage && (
+                                    <p className="text-[11px] text-gray-500 italic mb-3 line-clamp-2 border-l-2 border-amber-300 pl-2">
+                                        "{manualMessage}"
+                                    </p>
+                                )}
+                                <div className="pt-2.5 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                                    {(() => {
+                                        const role = ROLES.find(r => r.value === manualRole);
+                                        return (
+                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider" style={{ background: role?.bg, color: role?.color }}>
+                                                {role?.label || "Supporter"}
+                                            </span>
+                                        );
+                                    })()}
+                                    <span className="text-[10px] font-bold text-gray-400">Verified Supporter ✓</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <button 
+                                type="submit" 
+                                disabled={addingManual}
+                                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {addingManual ? <><Loader2 size={16} className="animate-spin" /> Adding...</> : <><Plus size={16} /> Add to Support Page</>}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             )}
 
             {subTab === "roadmap" && (

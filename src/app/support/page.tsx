@@ -39,10 +39,15 @@ import {
     CreditCard,
     QrCode,
     ExternalLink,
-    Banknote
+    Banknote,
+    Building2,
+    GraduationCap,
+    Linkedin,
+    Github,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { colleges } from "@/data/colleges";
 import { getApprovedGifts, getSupportSettings, getSupportPhases, getBuilderSettings, submitGift, updateSupportSettings, type FirestoreGift, type SupportSettings, type SupportPhase, type FirestoreBuilderSettings } from "@/lib/firestore";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -650,87 +655,171 @@ function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; 
                                  </button>
                              </div>
 
-                             {filteredSupporters.length === 0 ? (
-                                 <div className="text-center py-10 px-4 bg-white dark:bg-transparent rounded-3xl border border-gray-100 dark:border-gray-800 border-dashed">
-                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No matching supporters found.</p>
-                                 </div>
-                             ) : (
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                                     {filteredSupporters.map(s => {
-                                         const roleMap: Record<string, string> = { founder: "Founder", advocate: "Advocate", patron: "Patron", supporter: "Supporter", builder: "Builder" };
-                                         const badgeLabel = s.supporterBadgeLabel || (s.role && roleMap[s.role] ? roleMap[s.role] : (s.amount >= 1000 ? "Builder" : s.amount >= 500 ? "Patron" : "Friend"));
-                                         
-                                         const badgeColors: Record<string, string> = {
-                                             "Founder": "text-rose-600 bg-rose-50 dark:bg-rose-900/20 dark:text-rose-400",
-                                             "Builder": "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400",
-                                             "Patron": "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
-                                             "Friend": "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400",
-                                             "Pioneer": "text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400",
-                                             "Believer": "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400",
-                                             "Advocate": "text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400",
-                                             "Supporter": "text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400"
-                                         };
+                              {filteredSupporters.length === 0 ? (
+                                  <div className="text-center py-10 px-4 bg-white dark:bg-transparent rounded-3xl border border-gray-100 dark:border-gray-800 border-dashed">
+                                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No matching supporters found.</p>
+                                  </div>
+                              ) : (
+                                  <div className={filteredSupporters.length === 1 ? "grid grid-cols-1 max-w-lg mx-auto" : filteredSupporters.length === 2 ? "grid grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto gap-5" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"}>
+                                      {filteredSupporters.map(s => {
+                                          const roleMap: Record<string, string> = { founder: "Founder", advocate: "Advocate", patron: "Patron", supporter: "Supporter", builder: "Builder" };
+                                          const badgeLabel = s.supporterBadgeLabel || (s.role && roleMap[s.role] ? roleMap[s.role] : (s.amount >= 1000 ? "Builder" : s.amount >= 500 ? "Patron" : "Friend"));
+                                          
+                                          const badgeColors: Record<string, string> = {
+                                              "Founder": "text-rose-600 bg-rose-50 dark:bg-rose-900/20 dark:text-rose-400",
+                                              "Builder": "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400",
+                                              "Patron": "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
+                                              "Friend": "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400",
+                                              "Pioneer": "text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400",
+                                              "Believer": "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400",
+                                              "Advocate": "text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400",
+                                              "Supporter": "text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400"
+                                          };
 
-                                         const badgeClass = badgeColors[badgeLabel] || "text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400";
+                                          const badgeClass = badgeColors[badgeLabel] || "text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400";
 
-                                         const dateFormatted = s.date?.seconds 
-                                             ? new Date(s.date.seconds * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                                             : "Early Supporter";
+                                          const dateFormatted = s.date?.seconds 
+                                              ? new Date(s.date.seconds * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                                              : "Early Supporter";
 
-                                         const ProfileWrapper = ({ children }: { children: React.ReactNode }) => {
-                                             const url = s.supporterProfileUrl || (s.userId ? `/profile/${s.userId}` : "");
-                                             if (!url) return <>{children}</>;
-                                             return <Link href={url} className="contents">{children}</Link>;
-                                         };
+                                          const collegeDisplay = s.collegeName || (s.collegeId ? colleges.find(c => c.id === s.collegeId)?.shortName : "");
 
-                                         return (
-                                             <motion.div 
-                                                key={s.id} 
-                                                whileHover={{ y: -4 }}
-                                                className="group bg-white dark:bg-[#161620] border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl dark:hover:shadow-amber-500/5 transition-all duration-300 relative"
-                                             >
-                                                 <div className="flex items-center gap-4 mb-4">
-                                                     <div className="relative shrink-0">
-                                                        <ProfileWrapper>
-                                                            <div className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-800 shadow-md overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400 cursor-pointer">
-                                                                {s.photoURL ? <img src={s.photoURL} alt={s.name} className="w-full h-full object-cover" /> : s.name[0]}
-                                                            </div>
-                                                        </ProfileWrapper>
-                                                        {(s.isVerifiedSupporter || s.status === "approved") && (
-                                                            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#161620] flex items-center justify-center shadow-sm">
-                                                                <Check size={10} className="text-white" strokeWidth={4} />
-                                                            </div>
-                                                        )}
-                                                     </div>
-                                                     <div className="min-w-0">
-                                                        <ProfileWrapper>
-                                                            <h4 className="font-black text-gray-900 dark:text-white truncate tracking-tight text-sm leading-none cursor-pointer hover:text-amber-600 transition-colors">{s.name}</h4>
-                                                        </ProfileWrapper>
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">
-                                                            {dateFormatted}
-                                                        </p>
-                                                     </div>
-                                                 </div>
+                                          const ProfileWrapper = ({ children }: { children: React.ReactNode }) => {
+                                              const url = s.supporterProfileUrl || (s.userId && !s.isExternalSupporter ? `/profile/${s.userId}` : "");
+                                              if (!url) return <>{children}</>;
+                                              return <Link href={url} className="contents">{children}</Link>;
+                                          };
 
-                                                 {s.message && (
-                                                     <div className="pl-3 border-l-2 border-amber-100 dark:border-amber-900/30 py-1 mb-4">
-                                                         <p className="text-[11px] text-gray-600 dark:text-gray-400 font-medium italic leading-relaxed line-clamp-3">
-                                                             "{s.message}"
-                                                         </p>
-                                                     </div>
-                                                 )}
+                                          return (
+                                              <motion.div 
+                                                 key={s.id} 
+                                                 whileHover={{ y: -4 }}
+                                                 className="group bg-white dark:bg-[#161620] border border-gray-100 dark:border-gray-800/80 rounded-2xl p-5 shadow-sm hover:shadow-xl dark:hover:shadow-amber-500/5 transition-all duration-300 relative flex flex-col justify-between"
+                                              >
+                                                  <div>
+                                                      {/* Top Header Row */}
+                                                      <div className="flex items-start justify-between gap-3 mb-3">
+                                                          <div className="flex items-center gap-3 min-w-0">
+                                                              <div className="relative shrink-0">
+                                                                  <ProfileWrapper>
+                                                                      <div className="w-12 h-12 rounded-full border-2 border-amber-400/40 dark:border-amber-400/30 shadow-md overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-400 cursor-pointer">
+                                                                          {s.photoURL ? <img src={s.photoURL} alt={s.name} className="w-full h-full object-cover" /> : (s.name ? s.name[0] : "?")}
+                                                                      </div>
+                                                                  </ProfileWrapper>
+                                                                  {(s.isVerifiedSupporter || s.status === "approved") && (
+                                                                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#161620] flex items-center justify-center shadow-sm" title="Verified Supporter">
+                                                                          <Check size={10} className="text-white" strokeWidth={4} />
+                                                                      </div>
+                                                                  )}
+                                                              </div>
 
-                                                 <div className="pt-3 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
-                                                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-sm ${badgeClass}`}>
-                                                         {badgeLabel}
-                                                     </span>
-                                                     <span className="text-[10px] font-bold text-gray-300 dark:text-gray-600">Verified ✓</span>
-                                                 </div>
-                                             </motion.div>
-                                         );
-                                     })}
-                                 </div>
-                             )}
+                                                              <div className="min-w-0 flex-1">
+                                                                  <ProfileWrapper>
+                                                                      <h4 className="font-bold text-gray-900 dark:text-white truncate tracking-tight text-sm cursor-pointer hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                                                                          {s.name}
+                                                                      </h4>
+                                                                  </ProfileWrapper>
+                                                                  {s.headline ? (
+                                                                      <p className="text-xs text-gray-600 dark:text-gray-300 font-medium truncate mt-0.5 leading-snug">
+                                                                          {s.headline}
+                                                                      </p>
+                                                                  ) : (
+                                                                      <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                                                                          Community Contributor
+                                                                      </p>
+                                                                  )}
+                                                              </div>
+                                                          </div>
+
+                                                          <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-gray-800/80 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 border border-gray-100 dark:border-gray-800">
+                                                              {dateFormatted}
+                                                          </span>
+                                                      </div>
+
+                                                      {/* Academic & Affiliation Micro-Chips */}
+                                                      {(collegeDisplay || s.batchOrDept) && (
+                                                          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                                                              {collegeDisplay && (
+                                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100/60 dark:border-blue-800/30">
+                                                                      <Building2 size={10} />
+                                                                      {collegeDisplay}
+                                                                  </span>
+                                                              )}
+                                                              {s.batchOrDept && (
+                                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-800/90 text-gray-600 dark:text-gray-300 border border-gray-200/50 dark:border-gray-700/50">
+                                                                      <GraduationCap size={10} />
+                                                                      {s.batchOrDept}
+                                                                  </span>
+                                                              )}
+                                                          </div>
+                                                      )}
+
+                                                      {/* Contribution Highlight Ribbon */}
+                                                      {s.contributionHighlight && (
+                                                          <div className="mb-3 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 flex items-center gap-2">
+                                                              <Sparkles size={12} className="text-amber-500 shrink-0" />
+                                                              <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-200 leading-tight">
+                                                                  {s.contributionHighlight}
+                                                              </p>
+                                                          </div>
+                                                      )}
+
+                                                      {/* Personal Message / Quote */}
+                                                      {s.message && (
+                                                          <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-500/40 py-1 mb-4 bg-amber-50/20 dark:bg-amber-950/10 rounded-r-xl">
+                                                              <p className="text-[11px] text-gray-600 dark:text-gray-300 font-medium italic leading-relaxed line-clamp-3">
+                                                                  "{s.message}"
+                                                              </p>
+                                                          </div>
+                                                      )}
+                                                  </div>
+
+                                                  {/* Footer Row: Role pill + Profile / Social Links */}
+                                                  <div className="pt-3 border-t border-gray-50 dark:border-gray-800/80 flex items-center justify-between gap-2 mt-2">
+                                                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-sm ${badgeClass}`}>
+                                                          {badgeLabel}
+                                                      </span>
+
+                                                      <div className="flex items-center gap-1.5">
+                                                          {s.socialLinks?.linkedin && (
+                                                              <a 
+                                                                  href={s.socialLinks.linkedin.startsWith("http") ? s.socialLinks.linkedin : `https://${s.socialLinks.linkedin}`} 
+                                                                  target="_blank" 
+                                                                  rel="noreferrer"
+                                                                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
+                                                                  title="LinkedIn Profile"
+                                                              >
+                                                                  <Linkedin size={13} />
+                                                              </a>
+                                                          )}
+                                                          {s.socialLinks?.github && (
+                                                              <a 
+                                                                  href={s.socialLinks.github.startsWith("http") ? s.socialLinks.github : `https://${s.socialLinks.github}`} 
+                                                                  target="_blank" 
+                                                                  rel="noreferrer"
+                                                                  className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                                                  title="GitHub Profile"
+                                                              >
+                                                                  <Github size={13} />
+                                                              </a>
+                                                          )}
+                                                          {s.supporterProfileUrl || (s.userId && !s.isExternalSupporter) ? (
+                                                              <Link 
+                                                                  href={s.supporterProfileUrl || `/profile/${s.userId}`}
+                                                                  className="text-[10px] font-bold text-gray-500 hover:text-amber-600 dark:text-gray-400 dark:hover:text-amber-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                                              >
+                                                                  Profile <ExternalLink size={10} />
+                                                              </Link>
+                                                          ) : (
+                                                              <span className="text-[10px] font-bold text-gray-300 dark:text-gray-600">Verified ✓</span>
+                                                          )}
+                                                      </div>
+                                                  </div>
+                                              </motion.div>
+                                          );
+                                      })}
+                                  </div>
+                              )}
                         </div>
                     </motion.div>
                 )}
@@ -1050,6 +1139,7 @@ export default function SupportPage() {
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
+    const [mounted, setMounted] = useState(false);
     const [isEditingNote, setIsEditingNote] = useState(false);
     const [editNote, setEditNote] = useState("");
     const [isSaving, setIsSaving] = useState(false);
@@ -1235,6 +1325,7 @@ export default function SupportPage() {
     );
 
     useEffect(() => {
+        setMounted(true);
         getApprovedGifts().then(setSupporters).catch(console.error);
         getSupportSettings().then(s => {
             setSettings(s);
@@ -1266,7 +1357,7 @@ export default function SupportPage() {
         setIsSaving(false);
     };
 
-    if (!settings.supportPageActive && !isAdmin) {
+    if (mounted && !settings.supportPageActive && !isAdmin) {
         return (
             <div className="min-h-screen bg-white dark:bg-[#0A0A0B] flex items-center justify-center p-6">
                 <div className="max-w-md w-full text-center space-y-8">
@@ -1329,7 +1420,7 @@ export default function SupportPage() {
 
     return (
         <div className="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-32 overflow-hidden selection:bg-amber-400 selection:text-slate-900">
-            {isAdmin && <AdminSupportPanel />}
+            {mounted && isAdmin && <AdminSupportPanel />}
             {/* ===== Vision Roadmap (Top Section) ===== */}
             <div className="max-w-7xl mx-auto px-6 relative pt-12 pb-24">
                 <VisionRoadmap phases={phases} supporters={supporters} />
@@ -1593,7 +1684,7 @@ export default function SupportPage() {
                 date="March 5, 2026"
             />
 
-            {builderSettings && (
+            {mounted && builderSettings && (
                 <BuilderPopupModal 
                     show={showBuilderPopup} 
                     onClose={() => setShowBuilderPopup(false)} 

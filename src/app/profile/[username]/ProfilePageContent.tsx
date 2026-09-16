@@ -880,6 +880,15 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     // Contact Popover State
     const [contactOpen, setContactOpen] = useState(false);
     const contactRef = useRef<HTMLDivElement>(null);
+    const [copiedField, setCopiedField] = useState<string | null>(null);
+
+    const handleCopyField = (text: string, fieldKey: string, label: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        setCopiedField(fieldKey);
+        showToast(`${label} copied to clipboard!`, "success");
+        setTimeout(() => setCopiedField(null), 2000);
+    };
     
     // Lightbox State
     const [lightbox, setLightbox] = useState<{ open: boolean; src: string | null; alt: string }>({
@@ -1112,23 +1121,48 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         }
     };
 
-    // Close contact popover when clicking outside or scrolling
+    // Close contact popover/sheet when clicking outside or scrolling on desktop
     useEffect(() => {
+        if (!contactOpen) return;
+
+        const isMobile = window.innerWidth < 768;
+
         const handleClickOutside = (e: MouseEvent) => {
-            if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
+            // On desktop only close if clicked outside contactRef
+            if (!isMobile && contactRef.current && !contactRef.current.contains(e.target as Node)) {
                 setContactOpen(false);
             }
         };
+
         const handleScroll = () => {
-            setContactOpen(false);
+            // Only auto-close on desktop scroll
+            if (!isMobile) {
+                setContactOpen(false);
+            }
         };
-        if (contactOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-            window.addEventListener("scroll", handleScroll, { passive: true });
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setContactOpen(false);
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        window.addEventListener("keydown", handleKeyDown);
+
+        // Prevent body scroll on mobile while bottom sheet is open
+        let originalOverflow = "";
+        if (isMobile) {
+            originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
         }
+
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
             window.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("keydown", handleKeyDown);
+            if (isMobile) {
+                document.body.style.overflow = originalOverflow;
+            }
         };
     }, [contactOpen]);
 
@@ -1889,93 +1923,455 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             <MessageCircle size={16} />
                                         </motion.button>
 
-                                        {/* Contact Popover */}
+                                        {/* Contact Modal & Popover (Mobile Bottom Sheet + Desktop Dropdown) */}
                                         <AnimatePresence>
                                             {contactOpen && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                                                    transition={{ duration: 0.15 }}
-                                                    className="absolute top-full right-0 mt-3 w-72 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[1.5rem] shadow-2xl overflow-hidden z-50 ring-1 ring-black/5 dark:ring-white/10"
-                                                >
-                                                    <div className="p-4 border-b border-slate-50 dark:border-gray-800">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Contact Info</div>
-                                                    </div>
-                                                    <div className="p-2 space-y-1">
-                                                        {profileData?.publicEmail && (
-                                                            <button
-                                                                onClick={() => copyText(profileData.publicEmail!, "Email")}
-                                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group text-left"
-                                                            >
-                                                                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                                                                    <Mail size={16} className="text-blue-500" />
+                                                <>
+                                                    {/* Mobile Backdrop */}
+                                                    <motion.div
+                                                        key="contact-mobile-backdrop"
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        onClick={() => setContactOpen(false)}
+                                                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden"
+                                                    />
+
+                                                    {/* Mobile Bottom Sheet Drawer */}
+                                                    <motion.div
+                                                        key="contact-mobile-sheet"
+                                                        initial={{ y: "100%" }}
+                                                        animate={{ y: 0 }}
+                                                        exit={{ y: "100%" }}
+                                                        transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                                                        className="fixed bottom-0 inset-x-0 z-[101] bg-white dark:bg-[#111118] border-t border-slate-200/80 dark:border-gray-800 rounded-t-[2.5rem] shadow-2xl max-h-[85vh] overflow-y-auto md:hidden p-5 pt-3 pb-8"
+                                                    >
+                                                        {/* Drag Handle Indicator */}
+                                                        <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-4" />
+
+                                                        {/* Header */}
+                                                        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-gray-800 mb-4">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className="w-11 h-11 rounded-2xl bg-primary/10 border-2 border-primary/20 overflow-hidden relative shrink-0">
+                                                                    {profileData?.photoURL ? (
+                                                                        <Image 
+                                                                            src={profileData.photoURL} 
+                                                                            alt={profileData.displayName || "Avatar"} 
+                                                                            fill 
+                                                                            className="object-cover" 
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center font-black text-primary text-base">
+                                                                            {profileData?.displayName?.[0] || "?"}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Email</div>
-                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.publicEmail}</div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <h3 className="text-sm font-black text-navy-900 dark:text-white tracking-tight truncate">
+                                                                            {profileData?.displayName}
+                                                                        </h3>
+                                                                        {profileData?.roleVerified && (
+                                                                            <CheckCircle size={13} className="text-primary fill-primary/20 shrink-0" />
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-[11px] font-bold text-gray-400 truncate">
+                                                                        Contact & Connectivity
+                                                                    </p>
                                                                 </div>
-                                                                <Copy size={12} className="text-gray-300 group-hover:text-primary transition-colors shrink-0" />
-                                                            </button>
-                                                        )}
-                                                        {profileData?.phone && (
-                                                            <a
-                                                                href={`tel:${profileData.phone}`}
-                                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group text-left"
-                                                            >
-                                                                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                                                                    <Phone size={16} className="text-emerald-500" />
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Phone</div>
-                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.phone}</div>
-                                                                </div>
-                                                                <ExternalLink size={12} className="text-gray-300 group-hover:text-emerald-500 transition-colors shrink-0" />
-                                                            </a>
-                                                        )}
-                                                        {profileData?.whatsapp && (
-                                                            <a
-                                                                href={`https://wa.me/${profileData.whatsapp.replace(/[^0-9]/g, '')}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group text-left"
-                                                            >
-                                                                <div className="w-9 h-9 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
-                                                                    <MessageCircle size={16} className="text-green-500" />
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest">WhatsApp</div>
-                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.whatsapp}</div>
-                                                                </div>
-                                                                <ExternalLink size={12} className="text-gray-300 group-hover:text-green-500 transition-colors shrink-0" />
-                                                            </a>
-                                                        )}
-                                                        {profileData?.facebook && (
-                                                            <a
-                                                                href={profileData.facebook.startsWith('http') ? profileData.facebook : `https://${profileData.facebook}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group text-left"
-                                                            >
-                                                                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                                                                    <Facebook size={16} className="text-blue-600 dark:text-blue-500" />
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Facebook</div>
-                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</div>
-                                                                </div>
-                                                                <ExternalLink size={12} className="text-gray-300 group-hover:text-blue-600 transition-colors shrink-0" />
-                                                            </a>
-                                                        )}
-                                                        {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && !profileData?.facebook && (
-                                                            <div className="px-4 py-6 text-center">
-                                                                <MessageCircle className="mx-auto text-gray-200 mb-2" size={28} />
-                                                                <p className="text-xs font-bold text-gray-400">No contact info available</p>
-                                                                <p className="text-[10px] text-gray-300 mt-1">This user hasn't shared their contact details yet.</p>
                                                             </div>
+
+                                                            <button
+                                                                onClick={() => setContactOpen(false)}
+                                                                className="p-2 rounded-full bg-slate-100 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors shrink-0"
+                                                                title="Close"
+                                                            >
+                                                                <X size={18} />
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Contact Items List */}
+                                                        <div className="space-y-3">
+                                                            {/* Email */}
+                                                            {profileData?.publicEmail && (
+                                                                <div className="p-3.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl flex items-center justify-between gap-3">
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                                                            <Mail size={18} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase tracking-wider text-gray-400">Email</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate select-all">{profileData.publicEmail}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <a
+                                                                            href={`mailto:${profileData.publicEmail}`}
+                                                                            className="px-3 py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-xl shadow-sm hover:bg-blue-700 active:scale-95 transition-all inline-flex items-center gap-1"
+                                                                        >
+                                                                            <ExternalLink size={12} />
+                                                                            Mail
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleCopyField(profileData.publicEmail!, "email", "Email")}
+                                                                            className="p-2 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-slate-200 dark:border-gray-600 rounded-xl hover:text-primary active:scale-95 transition-all"
+                                                                            title="Copy Email"
+                                                                        >
+                                                                            {copiedField === "email" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Phone */}
+                                                            {profileData?.phone && (
+                                                                <div className="p-3.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl flex items-center justify-between gap-3">
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                                                            <Phone size={18} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase tracking-wider text-gray-400">Phone Number</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate select-all">{profileData.phone}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <a
+                                                                            href={`tel:${profileData.phone.replace(/\s+/g, '')}`}
+                                                                            className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-[11px] rounded-xl shadow-sm hover:bg-emerald-700 active:scale-95 transition-all inline-flex items-center gap-1"
+                                                                        >
+                                                                            <Phone size={12} />
+                                                                            Call
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleCopyField(profileData.phone!, "phone", "Phone number")}
+                                                                            className="p-2 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-slate-200 dark:border-gray-600 rounded-xl hover:text-emerald-500 active:scale-95 transition-all"
+                                                                            title="Copy Phone Number"
+                                                                        >
+                                                                            {copiedField === "phone" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* WhatsApp */}
+                                                            {profileData?.whatsapp && (
+                                                                <div className="p-3.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl flex items-center justify-between gap-3">
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0">
+                                                                            <MessageCircle size={18} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase tracking-wider text-gray-400">WhatsApp</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate select-all">{profileData.whatsapp}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <a
+                                                                            href={`https://wa.me/${profileData.whatsapp.replace(/[^0-9]/g, '')}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="px-3 py-1.5 bg-green-600 text-white font-bold text-[11px] rounded-xl shadow-sm hover:bg-green-700 active:scale-95 transition-all inline-flex items-center gap-1"
+                                                                        >
+                                                                            <MessageCircle size={12} />
+                                                                            Chat
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleCopyField(profileData.whatsapp!, "whatsapp", "WhatsApp number")}
+                                                                            className="p-2 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-slate-200 dark:border-gray-600 rounded-xl hover:text-green-500 active:scale-95 transition-all"
+                                                                            title="Copy WhatsApp Number"
+                                                                        >
+                                                                            {copiedField === "whatsapp" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Facebook */}
+                                                            {profileData?.facebook && (
+                                                                <div className="p-3.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl flex items-center justify-between gap-3">
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-600/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                                                            <Facebook size={18} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase tracking-wider text-gray-400">Facebook</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
+                                                                                {profileData.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <a
+                                                                            href={profileData.facebook.startsWith('http') ? profileData.facebook : `https://${profileData.facebook}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="px-3 py-1.5 bg-[#1877F2] text-white font-bold text-[11px] rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all inline-flex items-center gap-1"
+                                                                        >
+                                                                            <ExternalLink size={12} />
+                                                                            Visit
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleCopyField(profileData.facebook!, "facebook", "Facebook link")}
+                                                                            className="p-2 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-slate-200 dark:border-gray-600 rounded-xl hover:text-[#1877F2] active:scale-95 transition-all"
+                                                                            title="Copy Facebook Link"
+                                                                        >
+                                                                            {copiedField === "facebook" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Website / Portfolio */}
+                                                            {profileData?.website && (
+                                                                <div className="p-3.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl flex items-center justify-between gap-3">
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                                                            <Globe size={18} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase tracking-wider text-gray-400">Portfolio / Website</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
+                                                                                {profileData.website.replace(/^https?:\/\/(www\.)?/, '')}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <a
+                                                                            href={profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="px-3 py-1.5 bg-purple-600 text-white font-bold text-[11px] rounded-xl shadow-sm hover:bg-purple-700 active:scale-95 transition-all inline-flex items-center gap-1"
+                                                                        >
+                                                                            <ExternalLink size={12} />
+                                                                            Visit
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleCopyField(profileData.website!, "website", "Website link")}
+                                                                            className="p-2 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 border border-slate-200 dark:border-gray-600 rounded-xl hover:text-purple-600 active:scale-95 transition-all"
+                                                                            title="Copy Website Link"
+                                                                        >
+                                                                            {copiedField === "website" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Empty State */}
+                                                            {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && !profileData?.facebook && !profileData?.website && (
+                                                                <div className="py-10 px-4 text-center space-y-3">
+                                                                    <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-400 flex items-center justify-center mx-auto">
+                                                                        <MessageCircle size={26} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-sm font-bold text-navy-900 dark:text-white">No Contact Details Available</h4>
+                                                                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                                                                            This user hasn't added any public contact or connectivity details yet.
+                                                                        </p>
+                                                                    </div>
+                                                                    {isViewingAsOwner && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setContactOpen(false);
+                                                                                handleEditFromCompletion("contact-connectivity");
+                                                                            }}
+                                                                            className="mt-2 inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                                                                        >
+                                                                            <Pencil size={13} />
+                                                                            Add Contact Info
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {(profileData?.publicEmail || profileData?.phone || profileData?.whatsapp || profileData?.facebook || profileData?.website) && (
+                                                            <p className="text-[10px] text-center font-medium text-gray-400 dark:text-gray-500 mt-5">
+                                                                Tap action buttons to connect directly or copy details to clipboard.
+                                                            </p>
                                                         )}
-                                                    </div>
-                                                </motion.div>
+                                                    </motion.div>
+
+                                                    {/* Desktop Dropdown Popover (md and up) */}
+                                                    <motion.div
+                                                        key="contact-desktop-dropdown"
+                                                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                        transition={{ duration: 0.15 }}
+                                                        className="hidden md:block absolute top-full right-0 mt-3 w-80 bg-white dark:bg-[#111118] border-2 border-slate-100 dark:border-gray-800 rounded-[1.5rem] shadow-2xl overflow-hidden z-50 ring-1 ring-black/5 dark:ring-white/10"
+                                                    >
+                                                        <div className="p-4 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Contact Info</div>
+                                                            <span className="text-[10px] font-bold text-gray-400 bg-slate-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                                                {profileData?.displayName?.split(" ")[0]}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-2 space-y-1 max-h-96 overflow-y-auto">
+                                                            {/* Email */}
+                                                            {profileData?.publicEmail && (
+                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                    <a 
+                                                                        href={`mailto:${profileData.publicEmail}`}
+                                                                        className="flex items-center gap-3 min-w-0 flex-1"
+                                                                        title="Send Email"
+                                                                    >
+                                                                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center shrink-0">
+                                                                            <Mail size={16} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Email</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.publicEmail}</div>
+                                                                        </div>
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={() => handleCopyField(profileData.publicEmail!, "email", "Email")}
+                                                                        className="p-2 rounded-lg text-gray-400 hover:text-primary hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                        title="Copy Email"
+                                                                    >
+                                                                        {copiedField === "email" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Phone */}
+                                                            {profileData?.phone && (
+                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                    <a 
+                                                                        href={`tel:${profileData.phone.replace(/\s+/g, '')}`}
+                                                                        className="flex items-center gap-3 min-w-0 flex-1"
+                                                                        title="Call Phone"
+                                                                    >
+                                                                        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
+                                                                            <Phone size={16} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Phone</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.phone}</div>
+                                                                        </div>
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={() => handleCopyField(profileData.phone!, "phone", "Phone number")}
+                                                                        className="p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                        title="Copy Phone Number"
+                                                                    >
+                                                                        {copiedField === "phone" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {/* WhatsApp */}
+                                                            {profileData?.whatsapp && (
+                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                    <a 
+                                                                        href={`https://wa.me/${profileData.whatsapp.replace(/[^0-9]/g, '')}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-3 min-w-0 flex-1"
+                                                                        title="Message on WhatsApp"
+                                                                    >
+                                                                        <div className="w-9 h-9 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-500 flex items-center justify-center shrink-0">
+                                                                            <MessageCircle size={16} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">WhatsApp</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.whatsapp}</div>
+                                                                        </div>
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={() => handleCopyField(profileData.whatsapp!, "whatsapp", "WhatsApp number")}
+                                                                        className="p-2 rounded-lg text-gray-400 hover:text-green-500 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                        title="Copy WhatsApp Number"
+                                                                    >
+                                                                        {copiedField === "whatsapp" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Facebook */}
+                                                            {profileData?.facebook && (
+                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                    <a 
+                                                                        href={profileData.facebook.startsWith('http') ? profileData.facebook : `https://${profileData.facebook}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-3 min-w-0 flex-1"
+                                                                        title="Open Facebook Profile"
+                                                                    >
+                                                                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                                                            <Facebook size={16} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Facebook</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
+                                                                                {profileData.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}
+                                                                            </div>
+                                                                        </div>
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={() => handleCopyField(profileData.facebook!, "facebook", "Facebook link")}
+                                                                        className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                        title="Copy Facebook Link"
+                                                                    >
+                                                                        {copiedField === "facebook" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Website / Portfolio */}
+                                                            {profileData?.website && (
+                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                    <a 
+                                                                        href={profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-3 min-w-0 flex-1"
+                                                                        title="Visit Website"
+                                                                    >
+                                                                        <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                                                            <Globe size={16} />
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Portfolio / Website</div>
+                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
+                                                                                {profileData.website.replace(/^https?:\/\/(www\.)?/, '')}
+                                                                            </div>
+                                                                        </div>
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={() => handleCopyField(profileData.website!, "website", "Website link")}
+                                                                        className="p-2 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                        title="Copy Website Link"
+                                                                    >
+                                                                        {copiedField === "website" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && !profileData?.facebook && !profileData?.website && (
+                                                                <div className="px-4 py-8 text-center space-y-3">
+                                                                    <MessageCircle className="mx-auto text-gray-300 dark:text-gray-600" size={32} />
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">No contact info available</p>
+                                                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">This user hasn't shared their contact details yet.</p>
+                                                                    </div>
+                                                                    {isViewingAsOwner && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setContactOpen(false);
+                                                                                handleEditFromCompletion("contact-connectivity");
+                                                                            }}
+                                                                            className="text-[11px] font-black text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl transition-all uppercase tracking-wider"
+                                                                        >
+                                                                            Add Contact Details
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </motion.div>
+                                                </>
                                             )}
                                         </AnimatePresence>
                                     </div>

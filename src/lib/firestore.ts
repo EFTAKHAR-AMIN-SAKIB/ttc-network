@@ -266,6 +266,17 @@ export interface FirestoreGift {
     supporterBadgeLabel?: string; // Custom display label (e.g. "Pioneer")
     isVerifiedSupporter?: boolean; // Manual verification flag
     supporterProfileUrl?: string; // Link to their real profile
+    // At-a-glance supporter details
+    headline?: string; // Short title / designation, e.g. "Software Engineer @ Acme" or "CMT 8th Sem"
+    collegeName?: string; // Human-readable college, e.g. "Dhaka TTC"
+    batchOrDept?: string; // e.g. "Batch 2019-20" or "Dept. of Computer"
+    contributionHighlight?: string; // Short highlight ribbon, e.g. "Lead UI Architect & Contributor"
+    socialLinks?: {
+        linkedin?: string;
+        github?: string;
+        website?: string;
+    };
+    isExternalSupporter?: boolean; // True if supporter does not have a user account
 }
 
 export interface AdminPendingCounts {
@@ -3332,35 +3343,90 @@ export async function getApprovedGifts(): Promise<(FirestoreGift & { id: string 
     return snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreGift) }));
 }
 
-export async function addManualContributor(data: { userId: string; message?: string; amount: number; phaseId?: string; role: string }): Promise<void> {
+export async function addManualContributor(data: {
+    userId?: string;
+    name?: string;
+    photoURL?: string;
+    collegeId?: string;
+    collegeName?: string;
+    batchOrDept?: string;
+    headline?: string;
+    contributionHighlight?: string;
+    supporterBadgeLabel?: string;
+    socialLinks?: {
+        linkedin?: string;
+        github?: string;
+        website?: string;
+    };
+    isExternalSupporter?: boolean;
+    supporterProfileUrl?: string;
+    message?: string;
+    amount: number;
+    phaseId?: string;
+    role: string;
+}): Promise<void> {
     await requireAdminOrManager();
-    const userDoc = await getDocById<FirestoreUser>("users", data.userId);
-
     const activePhaseId = await getActivePhaseId();
 
+    let resolvedName = data.name || "";
+    let resolvedPhotoURL = data.photoURL || "";
+    let resolvedCollegeId = data.collegeId || "";
+    let resolvedCollegeName = data.collegeName || "";
+    let resolvedUserId = data.userId || "";
+
+    if (!data.isExternalSupporter && data.userId) {
+        try {
+            const userDoc = await getDocById<FirestoreUser>("users", data.userId);
+            if (userDoc) {
+                if (!resolvedName) resolvedName = userDoc.displayName;
+                if (!resolvedPhotoURL) resolvedPhotoURL = userDoc.photoURL || "";
+                if (!resolvedCollegeId) resolvedCollegeId = userDoc.collegeId || "";
+                if (!resolvedCollegeName && userDoc.college) resolvedCollegeName = userDoc.college;
+            }
+        } catch (e) {
+            console.warn("[addManualContributor] Could not fetch user doc:", e);
+        }
+    }
+
     const giftData: Omit<FirestoreGift, "id"> = {
-        userId: data.userId,
-        collegeId: userDoc.collegeId,
-        name: userDoc.displayName,
-        photoURL: userDoc.photoURL || "",
-        amount: data.amount,
+        userId: resolvedUserId || (data.isExternalSupporter ? `ext_${Date.now()}` : "guest"),
+        collegeId: resolvedCollegeId,
+        collegeName: resolvedCollegeName,
+        name: resolvedName || "Anonymous Contributor",
+        photoURL: resolvedPhotoURL,
+        amount: data.amount || 0,
         txId: `MANUAL-${Date.now()}`,
-        method: "bKash", // default for manual
+        method: "bKash",
         role: data.role as FirestoreGift["role"],
         status: "approved",
         badgeIssued: true,
         date: serverTimestamp() as Timestamp,
         phaseId: data.phaseId || activePhaseId,
+        message: data.message || "",
+        headline: data.headline || "",
+        batchOrDept: data.batchOrDept || "",
+        contributionHighlight: data.contributionHighlight || "",
+        supporterBadgeLabel: data.supporterBadgeLabel || "",
+        socialLinks: data.socialLinks || {},
+        isExternalSupporter: Boolean(data.isExternalSupporter),
+        isVerifiedSupporter: true,
+        supporterProfileUrl: data.supporterProfileUrl || (resolvedUserId && !data.isExternalSupporter ? `/profile/${resolvedUserId}` : ""),
     };
 
     await addDoc(collection(getDb(), "gifts"), giftData);
 
-    // Update user totals
-    await updateDoc(doc(getDb(), "users", data.userId), {
-        "supporterBadge.totalAmount": increment(data.amount),
-        "supporterBadge.lastDonationDate": serverTimestamp(),
-        "supporterBadge.visible": true,
-    });
+    // Update user totals only for internal users
+    if (!data.isExternalSupporter && resolvedUserId) {
+        try {
+            await updateDoc(doc(getDb(), "users", resolvedUserId), {
+                "supporterBadge.totalAmount": increment(data.amount || 0),
+                "supporterBadge.lastDonationDate": serverTimestamp(),
+                "supporterBadge.visible": true,
+            });
+        } catch (e) {
+            console.warn("[addManualContributor] Could not increment supporter badge on user:", e);
+        }
+    }
 }
 
 export async function getActivePhaseId(): Promise<string> {
