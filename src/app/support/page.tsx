@@ -36,14 +36,13 @@ import {
     AlertTriangle,
     FileText,
     Pencil,
-    CreditCard,
-    QrCode,
     ExternalLink,
     Banknote,
     Building2,
     GraduationCap,
     Linkedin,
     Github,
+    type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -56,9 +55,10 @@ import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import BuilderPopupModal from "@/components/BuilderPopupModal";
 
 const CONFIG = {
-    stripeLink: "https://donate.stripe.com/test_14A9AU2l3g027rq8V12cg00",
-    cryptoWallet: "0xCa78EFEda896070E997BbA0c82deA12a5ca7DEc3",
     bkashNumber: "01805107667",
+    bkashType: "Personal" as "Personal" | "Merchant",
+    nagadNumber: "01805107667",
+    nagadType: "Personal" as "Personal" | "Merchant",
     raised: 12500,
     supporters: "48",
     goal: 50000,
@@ -71,89 +71,74 @@ const CONFIG = {
 
 function MeshGradient() {
     return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40 dark:opacity-20">
-            <motion.div 
-                animate={{
-                    x: [0, 100, 0],
-                    y: [0, 50, 0],
-                    scale: [1, 1.2, 1],
-                }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-1/4 -left-1/4 w-full h-full bg-cyan-400/30 rounded-full blur-[120px]" 
-            />
-            <motion.div 
-                animate={{
-                    x: [0, -80, 0],
-                    y: [0, 100, 0],
-                    scale: [1, 1.5, 1],
-                }}
-                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                className="absolute top-1/2 -right-1/4 w-full h-full bg-purple-400/20 rounded-full blur-[150px]" 
-            />
-            <motion.div 
-                animate={{
-                    x: [0, 50, 0],
-                    y: [0, -50, 0],
-                    scale: [1, 1.1, 1],
-                }}
-                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-                className="absolute -bottom-1/4 left-1/4 w-full h-full bg-amber-400/10 rounded-full blur-[100px]" 
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+            {/* Ambient Radial Spotlight matching TTC Network brand */}
+            <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[850px] h-[500px] bg-gradient-to-b from-blue-600/[0.08] via-indigo-600/[0.04] to-transparent blur-[120px] rounded-full" />
+            <div className="absolute top-1/3 -right-24 w-[450px] h-[450px] bg-sky-400/[0.05] dark:bg-blue-500/[0.04] blur-[100px] rounded-full" />
+            <div className="absolute bottom-0 -left-20 w-[500px] h-[500px] bg-indigo-600/[0.05] dark:bg-sky-500/[0.03] blur-[130px] rounded-full" />
+            {/* Subtle micro grid dot texture */}
+            <div 
+                className="absolute inset-0 opacity-[0.22] dark:opacity-[0.12]" 
+                style={{ 
+                    backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)", 
+                    backgroundSize: "28px 28px" 
+                }} 
             />
         </div>
     );
 }
 
-function StatPill({ label, value, icon: Icon, delay = 0 }: { label: string, value: string | number, icon: any, delay?: number }) {
+function StatPill({ label, value, icon: Icon, delay = 0 }: { label: string, value: string | number, icon: LucideIcon, delay?: number }) {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.8, type: "spring" }}
-            className="flex items-center gap-3 px-5 py-3 bg-white/50 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-2xl shadow-xl shadow-black/5"
+            transition={{ delay, duration: 0.6, ease: "easeOut" }}
+            whileHover={{ y: -3 }}
+            className="flex items-center gap-3.5 px-5 py-3.5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-gray-200/60 dark:border-white/10 rounded-2xl shadow-lg shadow-black/[0.03] hover:border-primary/40 dark:hover:border-blue-400/40 transition-all duration-300"
         >
-            <div className="w-10 h-10 rounded-xl bg-amber-400/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Icon size={20} />
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 border border-blue-500/20 dark:border-blue-400/20 flex items-center justify-center text-primary dark:text-blue-400 shrink-0">
+                <Icon size={18} />
             </div>
             <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
-                <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-lg font-black text-gray-900 dark:text-white leading-none mt-1"
-                >
+                <p className="text-lg font-black text-gray-900 dark:text-white leading-none mt-1">
                     {value}
-                </motion.p>
+                </p>
             </div>
         </motion.div>
     );
 }
 
 function ShimmerProgressBar({ raised, goal }: { raised: number, goal: number }) {
-    const percentage = Math.min(100, (raised / goal) * 100);
+    const percentage = Math.min(100, Math.max(0, (raised / (goal || 1)) * 100));
     
     return (
-        <div className="w-full space-y-3">
-            <div className="flex justify-between items-end">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">Platform Growth Phase</p>
-                <p className="text-xl font-black text-amber-600 dark:text-amber-400">{Math.round(percentage)}%</p>
+        <div className="w-full space-y-3 p-5 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-gray-200/60 dark:border-white/10 shadow-sm">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Platform Growth Phase</p>
+                </div>
+                <span className="text-lg font-black text-primary dark:text-blue-400">{Math.round(percentage)}%</span>
             </div>
-            <div className="h-4 w-full bg-gray-200/50 dark:bg-white/5 rounded-full overflow-hidden border border-white/10 relative">
+            <div className="h-3.5 w-full bg-gray-100 dark:bg-slate-800/80 rounded-full overflow-hidden border border-gray-200/50 dark:border-white/5 relative">
                 <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${percentage}%` }}
                     transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="h-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 relative"
+                    className="h-full bg-gradient-to-r from-[#1A56DB] via-blue-600 to-[#1D9BF0] relative rounded-full"
                 >
                     <motion.div 
                         animate={{ x: ["-100%", "200%"] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12"
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-12"
                     />
                 </motion.div>
             </div>
-            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                <span>Raised: {CONFIG.currencySymbol}{raised.toLocaleString()}</span>
-                <span>Goal: {CONFIG.currencySymbol}{goal.toLocaleString()}</span>
+            <div className="flex justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                <span>Raised: <strong className="text-gray-900 dark:text-white font-black">{CONFIG.currencySymbol}{raised.toLocaleString()}</strong></span>
+                <span>Target: <strong className="text-gray-900 dark:text-white font-black">{CONFIG.currencySymbol}{goal.toLocaleString()}</strong></span>
             </div>
         </div>
     );
@@ -442,8 +427,8 @@ const PHASE_COLORS: Record<string, { bg: string, text: string, iconBg: string, d
     rose:   { bg: "bg-rose-100",   text: "text-rose-600",   iconBg: "bg-rose-50",   darkIconBg: "dark:bg-rose-900/30" },
 };
 
-const getIconComponent = (iconName: string) => {
-    const icons: Record<string, any> = {
+const getIconComponent = (iconName: string): LucideIcon => {
+    const icons: Record<string, LucideIcon> = {
         Palette, Server, Smartphone, Globe, Users, Layers, 
         Hammer, Megaphone, Star, Wallet, Shield, Heart, Plus, Copy, Edit, Save, 
         BookOpen, Video, Calendar, Clock, Loader2, Sparkles, AlertTriangle, FileText, Pencil,
@@ -452,43 +437,12 @@ const getIconComponent = (iconName: string) => {
     return icons[iconName] || Layers;
 };
 
-const UnderlineSVG = ({ color }: { color: string }) => (
-    <motion.svg
-        width="100%"
-        height="12"
-        viewBox="0 0 300 12"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={`absolute -bottom-2 left-0 w-full ${color}`}
-    >
-        <motion.path
-            d="M5 9C50 3 150 3 295 7"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: 0.5 }}
-        />
-    </motion.svg>
-);
-
-/* ═══════════════════════════════════════════════════
-   ROLE HELPERS — map role to display label & style
-   ═══════════════════════════════════════════════════ */
-const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-    patron:    { label: "Patron",    color: "#C0392B", bg: "#fdf2f2", icon: <Shield size={12} /> },
-    builder:   { label: "Builder",   color: "#059669", bg: "#ecfdf5", icon: <Hammer size={12} /> },
-    friend:    { label: "Friend",    color: "#d97706", bg: "#fffbeb", icon: <Heart size={12} /> },
-    supporter: { label: "Supporter", color: "#4b5563", bg: "#f3f4f6", icon: <Users size={12} /> }
-};
-
 /* ═══════════════════════════════════════════════════
    VERTICAL TIMELINE ROADMAP
    ═══════════════════════════════════════════════════ */
 function VisionRoadmap({ phases, supporters }: { phases: (SupportPhase & { id: string })[], supporters: (FirestoreGift & { id: string })[] }) {
     return (
-        <div className="py-24 max-w-5xl mx-auto">
+        <div className="pt-6 pb-12 max-w-5xl mx-auto">
             <div className="text-center mb-16">
                 <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
                     <div className="relative inline-block">
@@ -499,16 +453,15 @@ function VisionRoadmap({ phases, supporters }: { phases: (SupportPhase & { id: s
                     </div>
                 </motion.div>
                 <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-sm font-medium mt-10 leading-relaxed px-4">
-                    The journey to connecting every TTCian. See what we've built, what we're building, and the heroes supporting each phase.
+                    The journey to connecting every TTCian. See what we&apos;ve built, what we&apos;re building, and the heroes supporting each phase.
                 </p>
             </div>
 
             <div className="space-y-8">
-                {phases.map((phase, i) => (
+                {phases.map((phase) => (
                     <PhaseTimelineCard 
                         key={phase.id} 
                         phase={phase} 
-                        index={i} 
                         supporters={supporters.filter(s => s.phaseId === phase.id)} 
                     />
                 ))}
@@ -517,14 +470,13 @@ function VisionRoadmap({ phases, supporters }: { phases: (SupportPhase & { id: s
     );
 }
 
-function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; index: number; supporters: (FirestoreGift & { id: string })[] }) {
+function PhaseTimelineCard({ phase, supporters }: { phase: SupportPhase; supporters: (FirestoreGift & { id: string })[] }) {
     const [expanded, setExpanded] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [sortTop, setSortTop] = useState(true);
 
     const traction = phase.tractionLevel || 0;
     const isComplete = traction === 100 || phase.status === "Complete";
-    const isInProgress = !isComplete && phase.status === "In Progress";
 
     const filteredSupporters = supporters
         .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -592,10 +544,10 @@ function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; 
                             <div className="mt-6 p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100/50 dark:border-amber-900/20">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Star size={12} className="text-amber-500 fill-amber-500" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Founder's Note</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Founder&apos;s Note</span>
                                 </div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400 font-medium leading-relaxed italic">
-                                    "{phase.personalNote}"
+                                    &ldquo;{phase.personalNote}&rdquo;
                                 </p>
                             </div>
                         )}
@@ -703,7 +655,9 @@ function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; 
                                                               <div className="relative shrink-0">
                                                                   <ProfileWrapper>
                                                                       <div className="w-12 h-12 rounded-full border-2 border-amber-400/40 dark:border-amber-400/30 shadow-md overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-400 cursor-pointer">
-                                                                          {s.photoURL ? <img src={s.photoURL} alt={s.name} className="w-full h-full object-cover" /> : (s.name ? s.name[0] : "?")}
+                                                                          {s.photoURL ? (
+                                                                              <Image src={s.photoURL} alt={s.name || "Supporter"} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                                                                          ) : (s.name ? s.name[0] : "?")}
                                                                       </div>
                                                                   </ProfileWrapper>
                                                                   {(s.isVerifiedSupporter || s.status === "approved") && (
@@ -768,7 +722,7 @@ function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; 
                                                       {s.message && (
                                                           <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-500/40 py-1 mb-4 bg-amber-50/20 dark:bg-amber-950/10 rounded-r-xl">
                                                               <p className="text-[11px] text-gray-600 dark:text-gray-300 font-medium italic leading-relaxed line-clamp-3">
-                                                                  "{s.message}"
+                                                                  &ldquo;{s.message}&rdquo;
                                                               </p>
                                                           </div>
                                                       )}
@@ -831,22 +785,32 @@ function PhaseTimelineCard({ phase, index, supporters }: { phase: SupportPhase; 
 /* ═══════════════════════════════════════════════════
    HOW TO SEND INSTRUCTIONS
    ═══════════════════════════════════════════════════ */
-function HowToSend() {
+function HowToSend({ bkashNumber = "01805107667", nagadNumber = "01805107667" }: { bkashNumber?: string; nagadNumber?: string }) {
     const [expanded, setExpanded] = useState(false);
+    const [guideTab, setGuideTab] = useState<"bkash" | "nagad">("bkash");
 
     return (
-        <div className="mt-8 bg-white dark:bg-[#1a1b23] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+        <div className="mt-8 bg-white dark:bg-[#111118] rounded-3xl border border-gray-200/80 dark:border-white/10 shadow-sm overflow-hidden">
             <button
                 onClick={() => setExpanded(!expanded)}
-                className="w-full p-5 flex items-center justify-between text-left"
+                className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors"
             >
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    📖 How to Send Money via bKash
-                </h3>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                        <BookOpen size={18} />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white">
+                            How to Send Money via bKash & Nagad
+                        </h3>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                            Step-by-step instructions in English & বাংলা
+                        </p>
+                    </div>
+                </div>
                 <ChevronDown
-                    size={16}
-                    className={`text-gray-500/60 dark:text-gray-500 transition-transform ${expanded ? "rotate-180" : ""
-                        }`}
+                    size={18}
+                    className={`text-gray-400 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
                 />
             </button>
 
@@ -856,59 +820,137 @@ function HowToSend() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25 }}
+                        transition={{ duration: 0.3 }}
                         className="overflow-hidden"
                     >
-                        <div className="px-5 pb-5 border-t border-gray-100 dark:border-gray-800 pt-4 space-y-8">
-                            {/* English Instructions */}
-                            <div>
-                                <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4">
-                                    English Guide
-                                </h4>
-                                <ol className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {[
-                                        { s: "1", t: <>Open the <strong className="text-gray-900 dark:text-white font-black">bKash</strong> app on your phone</> },
-                                        { s: "2", t: <>Tap <strong className="text-gray-900 dark:text-white font-black">&quot;Send Money&quot;</strong></> },
-                                        { s: "3", t: <>Enter the number: <strong className="text-pink-600 dark:text-pink-400 font-black">01805107667</strong></> },
-                                        { s: "4", t: <>Enter the amount you wish to send</> },
-                                        { s: "5", t: <>In the <strong className="text-gray-900 dark:text-white font-black">reference</strong> field, type your name</> },
-                                        { s: "6", t: <>Confirm and enter your bKash PIN</> },
-                                        { s: "7", t: <>Save the <strong className="text-gray-900 dark:text-white font-black">Transaction ID</strong> for verification</> }
-                                    ].map(item => (
-                                        <li key={item.s} className="flex gap-3">
-                                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-50 dark:bg-pink-900/20 text-pink-500 dark:text-pink-400 flex items-center justify-center text-[10px] font-black shadow-sm">
-                                                {item.s}
-                                            </span>
-                                            <span className="font-medium pt-0.5">{item.t}</span>
-                                        </li>
-                                    ))}
-                                </ol>
+                        <div className="px-6 pb-6 border-t border-gray-100 dark:border-white/5 pt-5 space-y-6">
+                            {/* Guide switcher tab with official logos */}
+                            <div className="flex p-1.5 bg-gray-100 dark:bg-white/5 rounded-xl max-w-xs">
+                                <button
+                                    onClick={() => setGuideTab("bkash")}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "bkash" ? "bg-[#E2136E] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
+                                >
+                                    <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                                        <Image src="/logos/bkash.svg" alt="bKash" width={16} height={12} className="w-full h-full object-contain" />
+                                    </div>
+                                    <span>bKash Guide</span>
+                                </button>
+                                <button
+                                    onClick={() => setGuideTab("nagad")}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "nagad" ? "bg-gradient-to-r from-[#F7941D] to-[#ED1C24] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
+                                >
+                                    <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                                        <Image src="/logos/nagad.svg" alt="Nagad" width={16} height={12} className="w-full h-full object-contain" />
+                                    </div>
+                                    <span>Nagad Guide</span>
+                                </button>
                             </div>
 
-                            {/* Bengali Instructions */}
-                            <div>
-                                <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4">
-                                    বাংলা নির্দেশিকা
-                                </h4>
-                                <ol className="space-y-4 text-sm text-gray-600 dark:text-gray-400 font-bengali">
-                                    {[
-                                        { s: "১", t: <>আপনার ফোনে <strong className="text-gray-900 dark:text-white font-black">বিকাশ</strong> অ্যাপ খুলুন</> },
-                                        { s: "২", t: <><strong className="text-gray-900 dark:text-white font-black">&quot;সেন্ড মানি&quot;</strong> ট্যাপ করুন</> },
-                                        { s: "৩", t: <>নম্বর দিন: <strong className="text-pink-600 dark:text-pink-400 font-black">০১৮০৫১০৭৬৬৭</strong></> },
-                                        { s: "৪", t: <>আপনি যে পরিমাণ পাঠাতে চান তা লিখুন</> },
-                                        { s: "৫", t: <><strong className="text-gray-900 dark:text-white font-black">রেফারেন্স</strong> ঘরে আপনার নাম লিখুন</> },
-                                        { s: "৬", t: <>নিশ্চিত করুন এবং আপনার বিকাশ পিন দিন</> },
-                                        { s: "৭", t: <><strong className="text-gray-900 dark:text-white font-black">ট্রানজ্যাকশন আইডি</strong> সংরক্ষণ করুন</> }
-                                    ].map(item => (
-                                        <li key={item.s} className="flex gap-3">
-                                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-50 dark:bg-pink-900/20 text-pink-500 dark:text-pink-400 flex items-center justify-center text-[10px] font-black shadow-sm font-english">
-                                                {item.s}
-                                            </span>
-                                            <span className="font-medium pt-0.5">{item.t}</span>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
+                            {guideTab === "bkash" ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+                                    {/* English Instructions */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                                            English Instructions (bKash)
+                                        </h4>
+                                        <ol className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
+                                            {[
+                                                { s: "1", t: <>Open the <strong className="text-gray-900 dark:text-white font-black">bKash</strong> app on your smartphone</> },
+                                                { s: "2", t: <>Tap <strong className="text-gray-900 dark:text-white font-black">&quot;Send Money&quot;</strong></> },
+                                                { s: "3", t: <>Enter recipient number: <strong className="text-[#E2136E] dark:text-pink-400 font-black font-mono">{bkashNumber}</strong></> },
+                                                { s: "4", t: <>Enter the amount you wish to contribute</> },
+                                                { s: "5", t: <>In the <strong className="text-gray-900 dark:text-white font-black">Reference</strong> field, enter your name</> },
+                                                { s: "6", t: <>Confirm with your bKash PIN</> },
+                                                { s: "7", t: <>Copy and save the <strong className="text-gray-900 dark:text-white font-black">Transaction ID (TrxID)</strong> to verify below</> }
+                                            ].map(item => (
+                                                <li key={item.s} className="flex gap-2.5">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-pink-50 dark:bg-pink-900/30 text-[#E2136E] dark:text-pink-400 flex items-center justify-center text-[10px] font-black">
+                                                        {item.s}
+                                                    </span>
+                                                    <span className="font-medium pt-0.5">{item.t}</span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    </div>
+
+                                    {/* Bengali Instructions */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                                            বাংলা নির্দেশিকা (বিকাশ)
+                                        </h4>
+                                        <ol className="space-y-3 text-xs text-gray-600 dark:text-gray-400 font-bengali">
+                                            {[
+                                                { s: "১", t: <>আপনার ফোনে <strong className="text-gray-900 dark:text-white font-black">বিকাশ</strong> অ্যাপ ওপেন করুন</> },
+                                                { s: "২", t: <><strong className="text-gray-900 dark:text-white font-black">&quot;সেন্ড মানি&quot;</strong> অপশন সিলেক্ট করুন</> },
+                                                { s: "৩", t: <>নম্বর দিন: <strong className="text-[#E2136E] dark:text-pink-400 font-black font-mono font-english">{bkashNumber}</strong></> },
+                                                { s: "৪", t: <>আপনার পছন্দের অনুদানের পরিমাণ লিখুন</> },
+                                                { s: "৫", t: <><strong className="text-gray-900 dark:text-white font-black">রেফারেন্স</strong> এ আপনার নাম লিখুন</> },
+                                                { s: "৬", t: <>পিন দিয়ে সেন্ড মানি কনফার্ম করুন</> },
+                                                { s: "৭", t: <><strong className="text-gray-900 dark:text-white font-black">ট্রানজ্যাকশন আইডি (TrxID)</strong> কপি করে নিচের ভেরিফিকেশনে জমা দিন</> }
+                                            ].map(item => (
+                                                <li key={item.s} className="flex gap-2.5">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-pink-50 dark:bg-pink-900/30 text-[#E2136E] dark:text-pink-400 flex items-center justify-center text-[10px] font-black font-english">
+                                                        {item.s}
+                                                    </span>
+                                                    <span className="font-medium pt-0.5">{item.t}</span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+                                    {/* English Instructions */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                                            English Instructions (Nagad)
+                                        </h4>
+                                        <ol className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
+                                            {[
+                                                { s: "1", t: <>Open your <strong className="text-gray-900 dark:text-white font-black">Nagad</strong> app</> },
+                                                { s: "2", t: <>Tap <strong className="text-gray-900 dark:text-white font-black">&quot;Send Money&quot;</strong></> },
+                                                { s: "3", t: <>Enter recipient number: <strong className="text-[#F7941D] font-black font-mono">{nagadNumber}</strong></> },
+                                                { s: "4", t: <>Enter the amount you wish to contribute</> },
+                                                { s: "5", t: <>In the <strong className="text-gray-900 dark:text-white font-black">Reference</strong> field, enter your name</> },
+                                                { s: "6", t: <>Confirm with your Nagad PIN</> },
+                                                { s: "7", t: <>Save the <strong className="text-gray-900 dark:text-white font-black">Transaction ID (TxnID)</strong> to claim your badge</> }
+                                            ].map(item => (
+                                                <li key={item.s} className="flex gap-2.5">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-50 dark:bg-orange-900/30 text-[#F7941D] flex items-center justify-center text-[10px] font-black">
+                                                        {item.s}
+                                                    </span>
+                                                    <span className="font-medium pt-0.5">{item.t}</span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    </div>
+
+                                    {/* Bengali Instructions */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                                            বাংলা নির্দেশিকা (নগদ)
+                                        </h4>
+                                        <ol className="space-y-3 text-xs text-gray-600 dark:text-gray-400 font-bengali">
+                                            {[
+                                                { s: "১", t: <>আপনার ফোনে <strong className="text-gray-900 dark:text-white font-black">নগদ</strong> অ্যাপ ওপেন করুন</> },
+                                                { s: "২", t: <><strong className="text-gray-900 dark:text-white font-black">&quot;সেন্ড মানি&quot;</strong> অপশন বেছে নিন</> },
+                                                { s: "৩", t: <>নম্বর দিন: <strong className="text-[#F7941D] font-black font-mono font-english">{nagadNumber}</strong></> },
+                                                { s: "৪", t: <>অনুদানের পরিমাণ লিখুন</> },
+                                                { s: "৫", t: <><strong className="text-gray-900 dark:text-white font-black">রেফারেন্স</strong> এ আপনার নাম লিখুন</> },
+                                                { s: "৬", t: <>নগদ পিন দিয়ে কনফার্ম করুন</> },
+                                                { s: "৭", t: <><strong className="text-gray-900 dark:text-white font-black">ট্রানজ্যাকশন আইডি</strong> কপি করে নিচে জমা দিন</> }
+                                            ].map(item => (
+                                                <li key={item.s} className="flex gap-2.5">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-50 dark:bg-orange-900/30 text-[#F7941D] flex items-center justify-center text-[10px] font-black font-english">
+                                                        {item.s}
+                                                    </span>
+                                                    <span className="font-medium pt-0.5">{item.t}</span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -920,240 +962,286 @@ function HowToSend() {
 /* ═══════════════════════════════════════════════════
    PAYMENT CARD COMPONENT
    ═══════════════════════════════════════════════════ */
-function PaymentCard({ giftAmount, setGiftAmount, onGiftSubmit, config, cardEnabled = true, bkashEnabled = true, cryptoEnabled = true }: { giftAmount: string, setGiftAmount: (val: string) => void, onGiftSubmit: () => void, config: typeof CONFIG, cardEnabled?: boolean, bkashEnabled?: boolean, cryptoEnabled?: boolean }) {
+function PaymentCard({ 
+    giftAmount, 
+    setGiftAmount, 
+    onGiftSubmit, 
+    config, 
+    bkashEnabled = true, 
+    nagadEnabled = true 
+}: { 
+    giftAmount: string; 
+    setGiftAmount: (val: string) => void; 
+    onGiftSubmit: (method: "bKash" | "Nagad", amount: string) => void; 
+    config: typeof CONFIG & { bkashType?: string; nagadType?: string; bkashNumber?: string; nagadNumber?: string }; 
+    bkashEnabled?: boolean; 
+    nagadEnabled?: boolean; 
+}) {
     const [copied, setCopied] = useState(false);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 2200);
     };
 
-    const allTabs = [
-        { id: "card", label: "Card", icon: CreditCard, enabled: cardEnabled },
-        { id: "bkash", label: "bKash", icon: Smartphone, enabled: bkashEnabled },
-        { id: "crypto", label: "Crypto", icon: Wallet, enabled: cryptoEnabled }
-    ];
-    const tabs = allTabs.filter(t => t.enabled);
-    const [activeTab, setActiveTab] = useState<"card" | "bkash" | "crypto">((tabs[0]?.id as any) || "card");
+    const tabs: { id: "bkash" | "nagad"; label: string; subLabel: string; color: string; activeClass: string }[] = [];
+    if (bkashEnabled) {
+        tabs.push({ id: "bkash", label: "bKash", subLabel: config.bkashType || "Personal", color: "#E2136E", activeClass: "bg-[#E2136E] text-white shadow-md shadow-pink-500/20" });
+    }
+    if (nagadEnabled) {
+        tabs.push({ id: "nagad", label: "Nagad", subLabel: config.nagadType || "Personal", color: "#F7941D", activeClass: "bg-gradient-to-r from-[#F7941D] to-[#ED1C24] text-white shadow-md shadow-orange-500/20" });
+    }
 
-    // If no tabs are enabled, show a paused message
+    const [activeTab, setActiveTab] = useState<"bkash" | "nagad">("bkash");
+
+    // Keep activeTab synchronized with available tabs
+    useEffect(() => {
+        if (bkashEnabled && !nagadEnabled) {
+            setActiveTab("bkash");
+        } else if (!bkashEnabled && nagadEnabled) {
+            setActiveTab("nagad");
+        }
+    }, [bkashEnabled, nagadEnabled]);
+
     if (tabs.length === 0) {
         return (
-            <div className="w-full max-w-[480px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/20 dark:border-white/10 shadow-2xl overflow-hidden p-10 text-center">
+            <div className="w-full max-w-[480px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] border border-gray-200/80 dark:border-white/10 shadow-2xl p-10 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto mb-4">
                     <Heart size={28} className="text-amber-500" />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Donations Paused</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">All payment methods are currently unavailable. Please check back later.</p>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Support Currently Paused</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Donations are temporarily offline. Please check back shortly or connect with our team.</p>
             </div>
         );
     }
 
+    const currentNumber = activeTab === "bkash" ? (config.bkashNumber || "01805107667") : (config.nagadNumber || "01805107667");
+    const currentType = activeTab === "bkash" ? (config.bkashType || "Personal") : (config.nagadType || "Personal");
+
     return (
-        <div className="w-full max-w-[480px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/20 dark:border-white/10 shadow-2xl overflow-hidden group">
-            {/* Tab Header */}
-            <div className="flex p-2 bg-gray-100/50 dark:bg-white/5 m-4 rounded-2xl relative">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-black uppercase tracking-widest transition-all relative z-10 ${activeTab === tab.id ? "text-gray-900 dark:text-white" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
-                    >
-                        <tab.icon size={14} />
-                        {tab.label}
-                        {activeTab === tab.id && (
-                            <motion.div
-                                layoutId="activeTab"
-                                className="absolute inset-0 bg-white dark:bg-white/10 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 -z-10"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        <div className="w-full max-w-[460px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] border border-gray-200/80 dark:border-white/10 shadow-2xl shadow-black/10 overflow-hidden group">
+            {/* Header Tabs (if both methods enabled) */}
+            {tabs.length > 1 ? (
+                <div className="flex p-1.5 bg-gray-100/80 dark:bg-white/5 m-4 mb-2 rounded-2xl relative">
+                    {tabs.map(tab => {
+                        const isSelected = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 relative z-10 ${
+                                    isSelected ? tab.activeClass : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                }`}
+                            >
+                                <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs">
+                                    <Image
+                                        src={tab.id === "bkash" ? "/logos/bkash.svg" : "/logos/nagad.svg"}
+                                        alt={tab.label}
+                                        width={20}
+                                        height={14}
+                                        className="w-full h-full object-contain"
+                                    />
+                                </div>
+                                <span>{tab.label}</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold opacity-80 ${isSelected ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-white/10 text-gray-500"}`}>
+                                    {tab.subLabel}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="pt-5 px-6 pb-1">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-gray-100 dark:bg-white/5 text-xs font-black text-gray-700 dark:text-gray-300">
+                        <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs">
+                            <Image
+                                src={tabs[0]?.id === "bkash" ? "/logos/bkash.svg" : "/logos/nagad.svg"}
+                                alt={tabs[0]?.label || "MFS"}
+                                width={20}
+                                height={14}
+                                className="w-full h-full object-contain"
                             />
-                        )}
-                    </button>
-                ))}
-            </div>
+                        </div>
+                        {tabs[0]?.label} ({tabs[0]?.subLabel})
+                    </div>
+                </div>
+            )}
 
-            <div className="p-8 pt-4">
+            <div className="p-6 pt-3 space-y-6">
                 <AnimatePresence mode="wait">
-                    {activeTab === "card" && (
-                        <motion.div
-                            key="card"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="space-y-6"
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -12 }}
+                        transition={{ duration: 0.25 }}
+                        className="space-y-5"
+                    >
+                        {/* Branded Digital Card */}
+                        <div 
+                            className={`rounded-3xl p-6 text-white relative overflow-hidden shadow-xl ${
+                                activeTab === "bkash" 
+                                    ? "bg-gradient-to-br from-[#E2136E] via-[#C91060] to-[#960B46]" 
+                                    : "bg-gradient-to-br from-[#F7941D] via-[#ED1C24] to-[#C11018]"
+                            }`}
                         >
-                            <div className="text-center space-y-2 mb-8">
-                                <h3 className="text-xl font-black text-gray-900 dark:text-white">Secure Card Payment</h3>
-                                <p className="text-xs text-gray-500 font-medium">Powered by Stripe Global Infrastructure</p>
-                            </div>
+                            {/* Decorative ambient shine */}
+                            <div className="absolute top-0 right-0 w-36 h-36 bg-white/15 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" />
+                            <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-black/10 rounded-full blur-xl pointer-events-none" />
 
-                            <div className="grid grid-cols-3 gap-3">
-                                {[100, 500, 1000].map(amt => (
-                                    <button
-                                        key={amt}
-                                        onClick={() => setGiftAmount(String(amt))}
-                                        className={`py-4 rounded-2xl text-sm font-black transition-all border ${giftAmount === String(amt) ? "bg-amber-400 text-slate-900 border-transparent shadow-lg shadow-amber-400/20" : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-white/5 hover:border-amber-400/50"}`}
+                            <div className="relative z-10 space-y-5">
+                                <div className="flex justify-between items-start">
+                                    <div className="h-11 px-3.5 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10">
+                                        <Image 
+                                            src={activeTab === "bkash" ? "/logos/bkash.svg" : "/logos/nagad.svg"} 
+                                            alt={activeTab === "bkash" ? "bKash" : "Nagad"}
+                                            width={84}
+                                            height={32}
+                                            className="h-7 w-auto object-contain"
+                                            priority
+                                        />
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">Recipient Account</p>
+                                        <p className="text-sm font-black tracking-tight text-white">{activeTab === "bkash" ? "bKash" : "Nagad"} {currentType}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/70">Account Number</span>
+                                        <span className="text-[9px] font-bold text-white/80 uppercase">Tap to copy</span>
+                                    </div>
+                                    <div 
+                                        onClick={() => copyToClipboard(currentNumber)}
+                                        className="group/num flex items-center justify-between p-3 rounded-2xl bg-black/15 hover:bg-black/25 backdrop-blur-sm border border-white/10 cursor-pointer transition-all active:scale-[0.99]"
+                                        title="Click to copy number"
                                     >
-                                        ৳{amt}
-                                    </button>
-                                ))}
-                            </div>
+                                        <p className="text-2xl font-mono font-black tracking-wider text-white">
+                                            {currentNumber}
+                                        </p>
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors">
+                                            {copied ? (
+                                                <>
+                                                    <Check size={14} className="text-emerald-300" />
+                                                    <span className="text-[10px] text-emerald-200">Copied!</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy size={14} />
+                                                    <span className="text-[10px]">Copy</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
 
+                                <div className="flex items-center justify-between pt-1 text-[10px] text-white/75 font-medium border-t border-white/10">
+                                    <span>Method: Send Money</span>
+                                    <span>Ref: Your Name</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Quick Preset Gift Chips */}
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block">
+                                Choose Amount
+                            </label>
+                            <div className="grid grid-cols-5 gap-2">
+                                {[50, 100, 200, 500, 1000].map(amt => {
+                                    const isSelected = giftAmount === String(amt);
+                                    return (
+                                        <button
+                                            key={amt}
+                                            type="button"
+                                            onClick={() => setGiftAmount(String(amt))}
+                                            className={`py-2.5 rounded-xl text-xs font-black transition-all border ${
+                                                isSelected 
+                                                    ? activeTab === "bkash"
+                                                        ? "bg-[#E2136E] text-white border-transparent shadow-md shadow-pink-500/25 scale-[1.03]"
+                                                        : "bg-gradient-to-r from-[#F7941D] to-[#ED1C24] text-white border-transparent shadow-md shadow-orange-500/25 scale-[1.03]"
+                                                    : "bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-300 border-gray-100 dark:border-white/5 hover:border-primary/40"
+                                            }`}
+                                        >
+                                            ৳{amt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Custom Amount Input */}
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-lg">
+                                ৳
+                            </span>
                             <input
                                 type="number"
                                 value={giftAmount}
                                 onChange={e => setGiftAmount(e.target.value)}
-                                placeholder="Enter custom amount..."
-                                className="w-full p-5 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-center font-black text-xl placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-600 focus:ring-4 focus:ring-amber-400/10 focus:border-amber-400 transition-all outline-none"
+                                placeholder="Or enter any custom amount..."
+                                className="w-full pl-9 pr-4 py-3.5 bg-gray-50 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-2xl text-base font-black placeholder:text-xs placeholder:font-normal placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                             />
+                        </div>
 
-                            <motion.a
-                                href={config.stripeLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="w-full py-5 bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-900 font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 text-lg"
-                            >
-                                <CreditCard size={20} /> Pay with Card <ExternalLink size={14} className="opacity-50" />
-                            </motion.a>
-                            
-                            <div className="flex items-center justify-center gap-4 pt-2 opacity-30 grayscale">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-5" />
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {activeTab === "bkash" && (
-                        <motion.div
-                            key="bkash"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="space-y-6"
+                        {/* CTA: I Sent a Gift */}
+                        <motion.button
+                            whileHover={{ scale: 1.015 }}
+                            whileTap={{ scale: 0.985 }}
+                            onClick={() => onGiftSubmit(activeTab === "bkash" ? "bKash" : "Nagad", giftAmount)}
+                            className="w-full py-4 bg-slate-900 hover:bg-slate-800 dark:bg-primary dark:hover:bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-slate-900/10 dark:shadow-blue-500/20 flex items-center justify-center gap-2.5 text-base transition-colors"
                         >
-                            <div className="bg-[#E2136E] rounded-3xl p-8 text-white relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-                                <div className="relative z-10 space-y-6">
-                                    <div className="flex justify-between items-start">
-                                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-[#E2136E] font-black text-xl">b</div>
-                                        <div className="text-right">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Recipient</p>
-                                            <p className="text-lg font-black tracking-tight">bKash Personal</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Account Number</p>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-2xl font-mono font-black tracking-tighter">{config.bkashNumber}</p>
-                                            <button onClick={() => copyToClipboard(config.bkashNumber)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                                                {copied ? <Check size={20} /> : <Copy size={20} />}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={onGiftSubmit}
-                                className="w-full py-5 bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-900 font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 text-lg"
-                            >
-                                <Heart size={20} fill="currentColor" /> I Sent a Gift
-                            </motion.button>
-                            <p className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest">Verify transaction to get your badge</p>
-                        </motion.div>
-                    )}
-
-                    {activeTab === "crypto" && (
-                        <motion.div
-                            key="crypto"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="space-y-6"
-                        >
-                            <div className="text-center space-y-2 mb-4">
-                                <h3 className="text-xl font-black text-gray-900 dark:text-white">Web3 / Crypto Payment</h3>
-                                <p className="text-xs text-gray-500 font-medium">Support via Blockchain networks</p>
-                            </div>
-
-                            <div className="flex justify-center py-2">
-                                <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-inner">
-                                    <img 
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${config.cryptoWallet}`} 
-                                        alt="Wallet QR" 
-                                        className="w-32 h-32"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 space-y-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Wallet Address</p>
-                                <div className="flex items-center gap-3">
-                                    <p className="text-[11px] font-mono font-bold text-gray-600 dark:text-gray-300 break-all">{config.cryptoWallet}</p>
-                                    <button onClick={() => copyToClipboard(config.cryptoWallet)} className="shrink-0 p-2 text-gray-400 hover:text-amber-500 transition-colors">
-                                        {copied ? <Check size={16} /> : <Copy size={16} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Accepted Networks</p>
-                                <div className="flex flex-wrap justify-center gap-2">
-                                    {["Ethereum", "BNB Chain", "Polygon", "Base"].map(net => (
-                                        <span key={net} className="px-3 py-1 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-full text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">{net}</span>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
+                            <Heart size={18} className="fill-current text-[#E63946] animate-pulse" /> 
+                            <span>I Have Sent a Gift</span>
+                        </motion.button>
+                        
+                        <p className="text-center text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
+                            Instant verification & supporter badge on the vision roadmap
+                        </p>
+                    </motion.div>
                 </AnimatePresence>
             </div>
             
-            {/* Trust Badges below payment area inside card but distinct */}
-            <div className="p-6 bg-gray-50/50 dark:bg-white/5 border-t border-gray-100 dark:border-white/5 flex items-center justify-around">
-                <div className="flex flex-col items-center gap-1 opacity-50">
-                    <Shield size={16} className="text-emerald-500" />
-                    <span className="text-[8px] font-black uppercase tracking-tighter text-gray-500">Secured</span>
+            {/* Trust Badges footer */}
+            <div className="p-4 bg-gray-50/70 dark:bg-white/[0.02] border-t border-gray-100 dark:border-white/5 flex items-center justify-around">
+                <div className="flex items-center gap-1.5 opacity-70">
+                    <Shield size={14} className="text-emerald-500" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-400">Verified Platform</span>
                 </div>
-                <div className="flex flex-col items-center gap-1 opacity-50">
-                    <CheckCircle2 size={16} className="text-blue-500" />
-                    <span className="text-[8px] font-black uppercase tracking-tighter text-gray-500">Student-Built</span>
+                <div className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+                <div className="flex items-center gap-1.5 opacity-70">
+                    <Sparkles size={14} className="text-primary dark:text-blue-400" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-400">100% Direct</span>
                 </div>
-                <div className="flex flex-col items-center gap-1 opacity-50">
-                    <Sparkles size={16} className="text-amber-500" />
-                    <span className="text-[8px] font-black uppercase tracking-tighter text-gray-500">100% Direct</span>
+                <div className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+                <div className="flex items-center gap-1.5 opacity-70">
+                    <CheckCircle2 size={14} className="text-blue-500" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-400">Student-Built</span>
                 </div>
             </div>
         </div>
     );
 }
+
 export default function SupportPage() {
-    const { siteName } = useSiteSettings();
-    const { user, profile } = useAuth();
+    const { profile } = useAuth();
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
     const [mounted, setMounted] = useState(false);
-    const [isEditingNote, setIsEditingNote] = useState(false);
-    const [editNote, setEditNote] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [showGiftForm, setShowGiftForm] = useState(false);
     const [giftAmount, setGiftAmount] = useState("");
     const [giftTxId, setGiftTxId] = useState("");
-    const [giftService, setGiftService] = useState("bkash");
+    const [giftService, setGiftService] = useState<"bKash" | "Nagad">("bKash");
     const [giftName, setGiftName] = useState("");
     const [giftSubmitted, setGiftSubmitted] = useState(false);
     const [showThankYou, setShowThankYou] = useState(false);
     const [supporters, setSupporters] = useState<(FirestoreGift & { id: string })[]>([]);
     const [settings, setSettings] = useState<SupportSettings>({ fundingOpen: true, fundingMessage: "Help us build the ultimate university platform.", supportPageActive: true });
     const [phases, setPhases] = useState<(SupportPhase & { id: string })[]>([]);
-    const [copied, setCopied] = useState(false);
     const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
     const [showBuilderPopup, setShowBuilderPopup] = useState(false);
 
@@ -1161,18 +1249,17 @@ export default function SupportPage() {
     const [tempSettings, setTempSettings] = useState<Partial<SupportSettings>>({});
 
     const activeConfig = {
-        stripeLink: settings.stripeLink || CONFIG.stripeLink,
-        cryptoWallet: settings.cryptoWallet || CONFIG.cryptoWallet,
         bkashNumber: settings.bkashNumber || CONFIG.bkashNumber,
+        bkashType: settings.bkashType || CONFIG.bkashType,
+        bkashEnabled: settings.bkashEnabled ?? true,
+        nagadNumber: settings.nagadNumber || CONFIG.nagadNumber,
+        nagadType: settings.nagadType || CONFIG.nagadType,
+        nagadEnabled: settings.nagadEnabled ?? true,
         raised: settings.raised ?? CONFIG.raised,
         goal: settings.goal ?? CONFIG.goal,
         supporters: String(settings.supporters ?? CONFIG.supporters),
         currencySymbol: settings.currencySymbol || CONFIG.currencySymbol,
     };
-
-    const cardEnabled = settings.cardEnabled ?? true;
-    const bkashEnabled = settings.bkashEnabled ?? true;
-    const cryptoEnabled = settings.cryptoEnabled ?? true;
 
     const handleSaveSettings = async () => {
         setIsSaving(true);
@@ -1180,6 +1267,7 @@ export default function SupportPage() {
             await updateSupportSettings(tempSettings);
             setSettings(prev => ({ ...prev, ...tempSettings }));
             setIsEditingSettings(false);
+            showToast("Settings updated successfully!", "success");
         } catch (err) {
             console.error(err);
             showToast("Failed to save settings.", "error");
@@ -1187,152 +1275,216 @@ export default function SupportPage() {
         setIsSaving(false);
     };
 
-    const AdminSupportPanel = () => (
-        <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="fixed top-24 right-6 z-[100] w-80 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-[2rem] shadow-2xl overflow-hidden"
-        >
-            <div className="p-6 bg-slate-50 dark:bg-slate-950/50 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Shield className="text-amber-500" size={18} />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Admin Hub</span>
-                </div>
-                <button 
-                    onClick={() => setIsEditingSettings(!isEditingSettings)}
-                    className={`p-2 rounded-xl transition-all ${isEditingSettings ? "bg-amber-500 text-white" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-amber-500"}`}
-                >
-                    <Edit size={14} />
-                </button>
-            </div>
+    const AdminSupportPanel = () => {
+        const isBkashOn = (tempSettings.bkashEnabled ?? settings.bkashEnabled) ?? true;
+        const isNagadOn = (tempSettings.nagadEnabled ?? settings.nagadEnabled) ?? true;
 
-            <AnimatePresence>
-                {isEditingSettings && (
-                    <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stripe Link</label>
-                                <input 
-                                    type="text" 
-                                    value={tempSettings.stripeLink ?? activeConfig.stripeLink}
-                                    onChange={e => setTempSettings(prev => ({ ...prev, stripeLink: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Crypto Wallet</label>
-                                <input 
-                                    type="text" 
-                                    value={tempSettings.cryptoWallet ?? activeConfig.cryptoWallet}
-                                    onChange={e => setTempSettings(prev => ({ ...prev, cryptoWallet: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold font-mono"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">bKash Number</label>
-                                <input 
-                                    type="text" 
-                                    value={tempSettings.bkashNumber ?? activeConfig.bkashNumber}
-                                    onChange={e => setTempSettings(prev => ({ ...prev, bkashNumber: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Raised</label>
-                                    <input 
-                                        type="number" 
-                                        value={tempSettings.raised ?? activeConfig.raised}
-                                        onChange={e => setTempSettings(prev => ({ ...prev, raised: Number(e.target.value) }))}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Goal</label>
-                                    <input 
-                                        type="number" 
-                                        value={tempSettings.goal ?? activeConfig.goal}
-                                        onChange={e => setTempSettings(prev => ({ ...prev, goal: Number(e.target.value) }))}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Supporters</label>
-                                    <input 
-                                        type="text" 
-                                        value={tempSettings.supporters ?? activeConfig.supporters}
-                                        onChange={e => setTempSettings(prev => ({ ...prev, supporters: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Currency</label>
-                                    <input 
-                                        type="text" 
-                                        value={tempSettings.currencySymbol ?? activeConfig.currencySymbol}
-                                        onChange={e => setTempSettings(prev => ({ ...prev, currencySymbol: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold"
-                                    />
-                                </div>
-                            </div>
-                            {/* ─── Payment Method Toggles ─── */}
-                            <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-white/5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Payment Methods</label>
-                                <div className="space-y-2.5 mt-2">
-                                    {[
-                                        { key: "cardEnabled" as const, label: "Card (Stripe)", icon: CreditCard, color: "text-blue-500" },
-                                        { key: "bkashEnabled" as const, label: "bKash", icon: Smartphone, color: "text-pink-500" },
-                                        { key: "cryptoEnabled" as const, label: "Crypto", icon: Wallet, color: "text-purple-500" },
-                                    ].map(method => {
-                                        const isOn = (tempSettings[method.key] ?? (settings as any)[method.key]) ?? true;
-                                        return (
-                                            <div key={method.key} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5">
-                                                <div className="flex items-center gap-2.5">
-                                                    <method.icon size={14} className={method.color} />
-                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{method.label}</span>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setTempSettings(prev => ({ ...prev, [method.key]: !isOn }))}
-                                                    className={`relative w-11 h-6 rounded-full transition-all duration-300 ${isOn ? "bg-emerald-500 shadow-sm shadow-emerald-500/30" : "bg-gray-300 dark:bg-gray-700"}`}
-                                                >
-                                                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${isOn ? "translate-x-5" : "translate-x-0"}`} />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            <button 
-                                onClick={handleSaveSettings}
-                                disabled={isSaving}
-                                className="w-full py-3 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                            >
-                                {isSaving ? "Saving..." : "Save Changes"}
-                            </button>
+        return (
+            <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="fixed top-20 sm:top-24 right-4 sm:right-6 z-[100] w-84 sm:w-96 max-w-[92vw] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-gray-200/90 dark:border-white/10 rounded-[2rem] shadow-2xl overflow-hidden"
+            >
+                <div className="p-5 bg-gradient-to-r from-amber-500/10 via-slate-50 to-transparent dark:from-amber-500/10 dark:via-slate-950/50 dark:to-transparent border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                            <Shield size={16} />
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </motion.div>
-    );
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Admin Hub</span>
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            </div>
+                            <span className="text-[10px] text-gray-400 font-medium">MFS & Campaign Controls</span>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setIsEditingSettings(!isEditingSettings)}
+                        className={`p-2 rounded-xl transition-all ${isEditingSettings ? "bg-amber-500 text-white shadow-md shadow-amber-500/20" : "bg-gray-100 dark:bg-slate-800 text-slate-500 hover:text-amber-500"}`}
+                        title={isEditingSettings ? "Close Admin Panel" : "Edit Settings"}
+                    >
+                        <Edit size={14} />
+                    </button>
+                </div>
+
+                <AnimatePresence>
+                    {isEditingSettings && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                                {/* Section 1: Mobile Banking (MFS) */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mobile Financial Services</label>
+                                        <span className="text-[9px] font-bold text-amber-500 uppercase">Bangladesh MFS</span>
+                                    </div>
+
+                                    {/* bKash Config Card */}
+                                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-gray-100 dark:border-white/5 space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 border border-gray-200/80 shadow-xs">
+                                                    <Image src="/logos/bkash.svg" alt="bKash" width={20} height={14} className="w-full h-full object-contain" />
+                                                </div>
+                                                <span className="text-xs font-black text-slate-800 dark:text-slate-200">bKash Configuration</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTempSettings(prev => ({ ...prev, bkashEnabled: !isBkashOn }))}
+                                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${isBkashOn ? "bg-[#E2136E]" : "bg-gray-300 dark:bg-gray-700"}`}
+                                            >
+                                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ${isBkashOn ? "translate-x-4" : "translate-x-0"}`} />
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="col-span-2 space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Account Number</span>
+                                                <input 
+                                                    type="text" 
+                                                    value={tempSettings.bkashNumber ?? activeConfig.bkashNumber}
+                                                    onChange={e => setTempSettings(prev => ({ ...prev, bkashNumber: e.target.value }))}
+                                                    placeholder="01805107667"
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Type</span>
+                                                <select
+                                                    value={tempSettings.bkashType ?? activeConfig.bkashType}
+                                                    onChange={e => setTempSettings(prev => ({ ...prev, bkashType: e.target.value as "Personal" | "Merchant" }))}
+                                                    className="w-full px-2 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                                                >
+                                                    <option value="Personal">Personal</option>
+                                                    <option value="Merchant">Merchant</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Nagad Config Card */}
+                                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-gray-100 dark:border-white/5 space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 border border-gray-200/80 shadow-xs">
+                                                    <Image src="/logos/nagad.svg" alt="Nagad" width={20} height={14} className="w-full h-full object-contain" />
+                                                </div>
+                                                <span className="text-xs font-black text-slate-800 dark:text-slate-200">Nagad Configuration</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTempSettings(prev => ({ ...prev, nagadEnabled: !isNagadOn }))}
+                                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${isNagadOn ? "bg-[#F7941D]" : "bg-gray-300 dark:bg-gray-700"}`}
+                                            >
+                                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ${isNagadOn ? "translate-x-4" : "translate-x-0"}`} />
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="col-span-2 space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Account Number</span>
+                                                <input 
+                                                    type="text" 
+                                                    value={tempSettings.nagadNumber ?? activeConfig.nagadNumber}
+                                                    onChange={e => setTempSettings(prev => ({ ...prev, nagadNumber: e.target.value }))}
+                                                    placeholder="01805107667"
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Type</span>
+                                                <select
+                                                    value={tempSettings.nagadType ?? activeConfig.nagadType}
+                                                    onChange={e => setTempSettings(prev => ({ ...prev, nagadType: e.target.value as "Personal" | "Merchant" }))}
+                                                    className="w-full px-2 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                                                >
+                                                    <option value="Personal">Personal</option>
+                                                    <option value="Merchant">Merchant</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 2: Goals & Progress */}
+                                <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-white/5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fundraising Targets</label>
+                                    <div className="grid grid-cols-2 gap-2.5">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Raised (৳)</label>
+                                            <input 
+                                                type="number" 
+                                                value={tempSettings.raised ?? activeConfig.raised}
+                                                onChange={e => setTempSettings(prev => ({ ...prev, raised: Number(e.target.value) }))}
+                                                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Goal (৳)</label>
+                                            <input 
+                                                type="number" 
+                                                value={tempSettings.goal ?? activeConfig.goal}
+                                                onChange={e => setTempSettings(prev => ({ ...prev, goal: Number(e.target.value) }))}
+                                                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2.5">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Supporters Count</label>
+                                            <input 
+                                                type="text" 
+                                                value={tempSettings.supporters ?? activeConfig.supporters}
+                                                onChange={e => setTempSettings(prev => ({ ...prev, supporters: e.target.value }))}
+                                                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Currency Symbol</label>
+                                            <input 
+                                                type="text" 
+                                                value={tempSettings.currencySymbol ?? activeConfig.currencySymbol}
+                                                onChange={e => setTempSettings(prev => ({ ...prev, currencySymbol: e.target.value }))}
+                                                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={handleSaveSettings}
+                                    disabled={isSaving}
+                                    className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-amber-500/20 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 size={14} className="animate-spin" />
+                                            <span>Saving Settings...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={14} />
+                                            <span>Save Changes</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.div>
+        );
+    };
 
     useEffect(() => {
         setMounted(true);
         getApprovedGifts().then(setSupporters).catch(console.error);
         getSupportSettings().then(s => {
             setSettings(s);
-            setEditNote(s.supportPageNote || "");
         }).catch(err => {
             console.error("[SupportPage] Error fetching settings:", err);
-            // Fallback: don't block the page if fetch fails for admin
         });
         getSupportPhases().then(allPhases => {
             const sorted = [...(allPhases || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -1343,19 +1495,6 @@ export default function SupportPage() {
 
         getBuilderSettings().then(setBuilderSettings).catch(console.error);
     }, []);
-
-    const handleSaveNote = async () => {
-        setIsSaving(true);
-        try {
-            await updateSupportSettings({ supportPageNote: editNote } as Partial<SupportSettings>);
-            setSettings(prev => ({ ...prev, supportPageNote: editNote }));
-            setIsEditingNote(false);
-        } catch (err) {
-            console.error(err);
-            showToast("Failed to save note.", "error");
-        }
-        setIsSaving(false);
-    };
 
     if (mounted && !settings.supportPageActive && !isAdmin) {
         return (
@@ -1381,17 +1520,6 @@ export default function SupportPage() {
         );
     }
 
-    const fundingOpen = settings?.fundingOpen ?? true;
-    const fundingMessage = settings?.fundingMessage || "Your support — no matter how small — helps keep this platform alive and growing for every TTCian across Bangladesh. 💛";
-
-    const bkashNumber = "01805107667";
-
-    const copyNumber = () => {
-        navigator.clipboard.writeText(bkashNumber);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     const handleGiftSubmit = async () => {
         if (!giftTxId || !giftAmount || !giftName) return;
         
@@ -1401,7 +1529,7 @@ export default function SupportPage() {
                 name: giftName,
                 amount: Number(giftAmount),
                 txId: giftTxId,
-                method: giftService as "bKash" | "Nagad"
+                method: giftService
             });
             
             setShowGiftForm(false);
@@ -1416,55 +1544,57 @@ export default function SupportPage() {
         setGiftSubmitted(false);
     };
 
-    const presetAmounts = [50, 100, 200, 500, 1000];
-
     return (
-        <div className="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-32 overflow-hidden selection:bg-amber-400 selection:text-slate-900">
+        <div className="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-32 overflow-hidden selection:bg-primary selection:text-white min-h-screen">
             {mounted && isAdmin && <AdminSupportPanel />}
-            {/* ===== Vision Roadmap (Top Section) ===== */}
-            <div className="max-w-7xl mx-auto px-6 relative pt-12 pb-24">
-                <VisionRoadmap phases={phases} supporters={supporters} />
-            </div>
 
-            {/* ===== Hero Section with Mesh Gradient (Now Middle) ===== */}
-            <div className="relative pt-32 pb-40 overflow-hidden border-t border-b border-gray-200 dark:border-white/5">
+            {/* 1. VISION ROADMAP (FIRST SECTION) */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-14 pb-12 sm:pb-16 relative z-10">
+                <VisionRoadmap phases={phases} supporters={supporters} />
+            </section>
+
+            {/* 2. "KEEP THE DREAM ALIVE" & MFS PAYMENT WIDGET */}
+            <section className="relative pt-16 sm:pt-24 pb-20 sm:pb-32 overflow-hidden border-t border-b border-gray-200/70 dark:border-white/5">
                 <MeshGradient />
                 
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <div className="flex flex-col lg:flex-row gap-16 lg:gap-32 items-center">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-center justify-between">
                         {/* Left: Content & Mission */}
-                        <div className="flex-1 space-y-12">
+                        <div className="flex-1 space-y-10">
                             <motion.div 
-                                initial={{ opacity: 0, x: -30 }} 
+                                initial={{ opacity: 0, x: -24 }} 
                                 animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.8 }}
+                                transition={{ duration: 0.7 }}
                                 className="space-y-6"
                             >
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-400/10 border border-amber-400/20 rounded-full">
-                                    <Sparkles size={14} className="text-amber-500" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">Keep The Dream Alive</span>
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 dark:bg-blue-400/10 border border-blue-500/20 dark:border-blue-400/20 rounded-full">
+                                    <Sparkles size={14} className="text-primary dark:text-blue-400" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary dark:text-blue-400">Keep The Dream Alive</span>
                                 </div>
-                                <h1 className="text-5xl sm:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter">
-                                    Fueling the Future of <span className="text-amber-500">TTC Network</span>
+                                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tight font-sora">
+                                    Fueling the Future of{" "}
+                                    <span className="bg-gradient-to-r from-[#1A56DB] via-blue-600 to-[#1D9BF0] dark:from-[#3B82F6] dark:via-[#60A5FA] dark:to-[#93C5FD] bg-clip-text text-transparent">
+                                        TTC Network
+                                    </span>
                                 </h1>
-                                <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-xl">
-                                    TTC Network is built independently to connect educators across Bangladesh. Your support—no matter how small—directly accelerates our mission to empower every student.
+                                <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-xl">
+                                    TTC Network is built independently by students to connect educators and learners across Bangladesh. Your support—no matter how small—directly accelerates our mission to empower every university and college.
                                 </p>
                             </motion.div>
 
                             {/* Animated Stat Pills */}
-                            <div className="flex flex-wrap gap-4">
+                            <div className="flex flex-wrap gap-3.5">
                                 <StatPill label="Raised" value={`${activeConfig.currencySymbol}${activeConfig.raised.toLocaleString()}`} icon={Wallet} delay={0.2} />
-                                <StatPill label="Supporters" value={activeConfig.supporters} icon={Users} delay={0.4} />
-                                <StatPill label="Trust Score" value="100%" icon={Shield} delay={0.6} />
+                                <StatPill label="Supporters" value={activeConfig.supporters} icon={Users} delay={0.35} />
+                                <StatPill label="Trust Score" value="100%" icon={Shield} delay={0.5} />
                             </div>
 
                             {/* Progress Bar */}
                             <motion.div
-                                initial={{ opacity: 0, y: 20 }}
+                                initial={{ opacity: 0, y: 16 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.8 }}
-                                className="max-w-md"
+                                transition={{ delay: 0.6 }}
+                                className="max-w-lg"
                             >
                                 <ShimmerProgressBar raised={activeConfig.raised} goal={activeConfig.goal} />
                             </motion.div>
@@ -1472,48 +1602,53 @@ export default function SupportPage() {
 
                         {/* Right: Payment Card */}
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                            initial={{ opacity: 0, scale: 0.94, y: 30 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
-                            className="w-full lg:w-auto"
+                            transition={{ duration: 0.7, delay: 0.2, type: "spring" }}
+                            className="w-full lg:w-auto flex justify-center"
                         >
                             <PaymentCard 
                                 giftAmount={giftAmount} 
                                 setGiftAmount={setGiftAmount} 
-                                onGiftSubmit={() => {
+                                onGiftSubmit={(method, amt) => {
                                     if (requireVerification("support the platform")) {
+                                        setGiftService(method);
+                                        if (amt) setGiftAmount(amt);
                                         setShowGiftForm(true);
                                     }
                                 }} 
                                 config={activeConfig}
-                                cardEnabled={cardEnabled}
-                                bkashEnabled={bkashEnabled}
-                                cryptoEnabled={cryptoEnabled}
+                                bkashEnabled={activeConfig.bkashEnabled}
+                                nagadEnabled={activeConfig.nagadEnabled}
                             />
                         </motion.div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            {/* ===== Why Support? Section (Bento Grid) ===== */}
-            <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20 pb-24">
+            {/* 3. WHY SUPPORT? (Bento Grid) */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
+                <div className="text-center max-w-2xl mx-auto mb-12">
+                    <h2 className="text-xs font-black uppercase tracking-[0.25em] text-primary dark:text-blue-400 mb-2">Our Commitments</h2>
+                    <h3 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight">Why Your Gift Matters</h3>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
                         { 
                             title: "Sustainability", 
-                            desc: "Servers and infrastructure require constant resources. Your support ensures we stay online 24/7.", 
+                            desc: "Servers, database bandwidth, and cloud storage require continuous resources. Your contributions keep the platform online 24/7 for everyone.", 
                             icon: Server, 
                             color: "bg-blue-500" 
                         },
                         { 
                             title: "Innovation", 
-                            desc: "We're building features like real-time study hubs and career networking tools for educators.", 
+                            desc: "We are engineering high-impact tools: real-time collaborative study circles, semester resources, and career connections for educators.", 
                             icon: Palette, 
                             color: "bg-purple-500" 
                         },
                         { 
                             title: "Community", 
-                            desc: "100% of your gift goes back into the platform. No corporate overhead, just student-powered growth.", 
+                            desc: "100% of funds go directly into platform infrastructure and development. Zero corporate overhead—just student-led dedication.", 
                             icon: Heart, 
                             color: "bg-rose-500" 
                         }
@@ -1533,26 +1668,33 @@ export default function SupportPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{item.title}</h3>
+                                <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{item.title}</h4>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">{item.desc}</p>
                             </div>
                         </motion.div>
                     ))}
                 </div>
-            </div>
+            </section>
 
-            <div className="max-w-6xl mx-auto px-4 relative z-10 mt-12">
-                <HowToSend />
-            </div>
+            {/* 4. HOW TO SEND INSTRUCTIONS */}
+            <section className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 pb-20">
+                <HowToSend bkashNumber={activeConfig.bkashNumber} nagadNumber={activeConfig.nagadNumber} />
+            </section>
 
-
+            {/* Floating builder footer */}
             <div className="fixed bottom-0 left-0 right-0 z-[60]">
-                <div className="bg-white dark:bg-[#0c0c12] border-t border-gray-200 dark:border-gray-800 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] py-4 text-center">
+                <div className="bg-white/95 dark:bg-[#0c0c12]/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] py-3.5 px-4 text-center">
                     <button 
                         onClick={() => setShowBuilderPopup(true)}
-                        className="group text-xs sm:text-sm font-black text-gray-600 dark:text-gray-400 uppercase tracking-[0.2em] flex items-center justify-center gap-3 mx-auto transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
-                        BUILT BY A STUDENT FOR STUDENTS <Heart size={14} className="text-red-500 fill-red-500 animate-pulse group-hover:scale-125 transition-transform" /> <span className="opacity-60 group-hover:opacity-100 transition-opacity">HELP KEEP THIS DREAM ALIVE</span>
+                        <span className="text-slate-800 dark:text-slate-200 font-black">
+                            BUILT BY A STUDENT FOR STUDENTS
+                        </span>
+                        <Heart size={14} className="text-[#E63946] fill-[#E63946] animate-pulse group-hover:scale-125 transition-transform" />
+                        <span className="text-primary dark:text-[#1D9BF0] font-black group-hover:underline decoration-2 underline-offset-4">
+                            HELP KEEP THIS DREAM ALIVE
+                        </span>
                     </button>
                 </div>
             </div>
@@ -1589,7 +1731,7 @@ export default function SupportPage() {
                                     </h3>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 font-medium">
                                         Sakib will verify your transaction and approve it shortly.
-                                        You'll receive a Thank You Card and Supporter Badge once verified. 💛
+                                        You&apos;ll receive a Thank You Card and Supporter Badge once verified. 💛
                                     </p>
                                 </motion.div>
                             ) : (
@@ -1597,7 +1739,7 @@ export default function SupportPage() {
                                     <div className="p-6 pb-0">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center">
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
                                                     <CheckCircle2 size={20} className="text-white" />
                                                 </div>
                                                 <div>
@@ -1622,7 +1764,7 @@ export default function SupportPage() {
                                                 value={giftName}
                                                 onChange={(e) => setGiftName(e.target.value)}
                                                 placeholder="Your full name"
-                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/10 focus:border-amber-400 dark:focus:border-amber-500 transition-all placeholder:text-gray-400"
+                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-400"
                                             />
                                         </div>
                                         <div>
@@ -1632,17 +1774,17 @@ export default function SupportPage() {
                                                 value={giftAmount}
                                                 onChange={(e) => setGiftAmount(e.target.value)}
                                                 placeholder="e.g. 500"
-                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/10 focus:border-amber-400 dark:focus:border-amber-500 transition-all placeholder:text-gray-400"
+                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-400"
                                             />
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide block mb-1">Payment Method</label>
                                             <select
                                                 value={giftService}
-                                                onChange={(e) => setGiftService(e.target.value)}
-                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/10 focus:border-amber-400 dark:focus:border-amber-500 transition-all"
+                                                onChange={(e) => setGiftService(e.target.value as "bKash" | "Nagad")}
+                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold"
                                             >
-                                                <option value="bkash">bKash</option>
+                                                <option value="bKash">bKash</option>
                                                 <option value="Nagad">Nagad</option>
                                             </select>
                                         </div>
@@ -1653,17 +1795,13 @@ export default function SupportPage() {
                                                 value={giftTxId}
                                                 onChange={(e) => setGiftTxId(e.target.value)}
                                                 placeholder="e.g. TXN9K3M8B2P5"
-                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/10 focus:border-amber-400 dark:focus:border-amber-500 transition-all font-mono placeholder:text-gray-400"
+                                                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono placeholder:text-gray-400"
                                             />
                                         </div>
                                         <button
                                             onClick={handleGiftSubmit}
                                             disabled={!giftName || !giftAmount || !giftTxId}
-                                            className="w-full py-3.5 text-white font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-xl active:scale-[0.98]"
-                                            style={{
-                                                background: !giftName || !giftAmount || !giftTxId ? "#ccc" : "linear-gradient(135deg, #FFD700, #FFA500)",
-                                                color: !giftName || !giftAmount || !giftTxId ? "#fff" : "#1a1a2e",
-                                            }}
+                                            className="w-full py-3.5 text-white font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-xl active:scale-[0.98] bg-gradient-to-r from-[#1A56DB] via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                                         >
                                             <Send size={16} />
                                             Submit for Verification

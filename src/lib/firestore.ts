@@ -310,16 +310,21 @@ export interface SupportSettings {
     supportPageActive: boolean;
     supportPageNote?: string;
     supportPageSubtext?: string;
-    stripeLink?: string;
-    cryptoWallet?: string;
     bkashNumber?: string;
+    bkashType?: "Personal" | "Merchant";
+    bkashEnabled?: boolean;   // Toggle bKash payment tab on/off
+    nagadNumber?: string;
+    nagadType?: "Personal" | "Merchant";
+    nagadEnabled?: boolean;   // Toggle Nagad payment tab on/off
     raised?: number;
     goal?: number;
     supporters?: string | number;
     currencySymbol?: string;
-    cardEnabled?: boolean;    // Toggle Card/Stripe payment tab on/off
-    bkashEnabled?: boolean;   // Toggle bKash payment tab on/off
-    cryptoEnabled?: boolean;  // Toggle Crypto payment tab on/off
+    // Deprecated payment fields kept for backward compatibility
+    stripeLink?: string;
+    cryptoWallet?: string;
+    cardEnabled?: boolean;
+    cryptoEnabled?: boolean;
 }
 
 export interface FirestoreStudyPost {
