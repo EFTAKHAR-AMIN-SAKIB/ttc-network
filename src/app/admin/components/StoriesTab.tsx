@@ -4,16 +4,11 @@ import { useState, useEffect } from "react";
 import { 
     Trash2, 
     Loader2, 
-    CheckCircle2, 
-    AlertTriangle, 
-    Clock, 
     Check, 
     X,
     ShieldCheck,
     Eye,
-    Star,
-    Sparkles,
-    Save
+    Star
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -22,11 +17,7 @@ import {
     approveStory, 
     rejectStory, 
     deleteStory,
-    getStoryHeroSettings,
-    getTotalUserCount,
-    updateStoryHeroSettings,
-    type FirestoreStory,
-    type StoryHeroSettings
+    type FirestoreStory
 } from "@/lib/firestore";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -41,39 +32,6 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
     const [rejectId, setRejectId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState("");
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
-
-    // Hero Hero Settings State
-    const [heroLoading, setHeroLoading] = useState(true);
-    const [heroSaving, setHeroSaving] = useState(false);
-    const [heroData, setHeroData] = useState<StoryHeroSettings | null>(null);
-    const [realUserCount, setRealUserCount] = useState<number>(0);
-
-    const loadHeroSettings = async () => {
-        setHeroLoading(true);
-        try {
-            const [settings, count] = await Promise.all([
-                getStoryHeroSettings(),
-                getTotalUserCount()
-            ]);
-            setHeroData(settings);
-            setRealUserCount(count);
-        } catch (err) {
-            console.error("Hero Load Error:", err);
-        }
-        setHeroLoading(false);
-    };
-
-    const handleSaveHero = async () => {
-        if (!heroData) return;
-        setHeroSaving(true);
-        try {
-            await updateStoryHeroSettings(heroData);
-            showToast("✅ Hero statistics updated!", "success");
-        } catch (err) {
-            showToast("❌ Failed to update hero stats.", "error");
-        }
-        setHeroSaving(false);
-    };
 
     const loadStories = async () => {
         setLoading(true);
@@ -100,7 +58,6 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
 
     useEffect(() => { 
         loadStories(); 
-        loadHeroSettings();
     }, []);
 
     const handleApprove = async (storyId: string) => {
@@ -143,7 +100,7 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
             showToast("✅ Story deleted!", "success");
             loadStories();
             onCountRefresh?.();
-        } catch (err) {
+        } catch {
             showToast("❌ Failed to delete story.", "error");
         } finally {
             setConfirmLoading(false);
@@ -165,87 +122,6 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
 
     return (
         <div className="space-y-10">
-
-
-            {/* Hero Configuration */}
-            {profile.role === "admin" && (
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[3rem] p-8 text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:bg-white/20 transition-all duration-700" />
-                    
-                    <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8">
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-3">
-                                <Sparkles className="text-amber-300" />
-                                <h3 className="text-2xl font-black uppercase tracking-tighter">Impact Statistics</h3>
-                            </div>
-                            <p className="text-indigo-100 text-sm font-medium">Control the aggregate numbers shown on the portal hero section.</p>
-                        </div>
-
-                        <div className="flex flex-wrap gap-4">
-                            {[
-                                { label: "Colleges", key: "collegesCount" },
-                                { label: "Community", key: "communityCount" },
-                                { label: "Impact", key: "impactLevel" },
-                            ].map((item) => (
-                                <div key={item.key} className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 hover:border-white/40 transition-all min-w-[140px]">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-1 block">{item.label}</label>
-                                    <input 
-                                        type="text" 
-                                        value={heroData?.[item.key as keyof StoryHeroSettings] as string || ""}
-                                        onChange={(e) => setHeroData(prev => prev ? { ...prev, [item.key]: e.target.value } : null)}
-                                        className="bg-transparent border-none text-xl font-black focus:outline-none focus:ring-0 p-0 w-full placeholder:text-white/30"
-                                        placeholder="0"
-                                    />
-                                </div>
-                            ))}
-                            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 flex flex-col justify-center min-w-[160px]">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${heroData?.autoCountCommunity ? "bg-emerald-400 animate-pulse" : "bg-white/30"}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Auto Sync</span>
-                                    </div>
-                                    <button 
-                                        onClick={() => setHeroData(prev => prev ? { ...prev, autoCountCommunity: !prev.autoCountCommunity } : null)}
-                                        className={`w-10 h-5 rounded-full relative transition-all ${
-                                            heroData?.autoCountCommunity ? "bg-emerald-400" : "bg-white/20"
-                                        }`}
-                                    >
-                                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${heroData?.autoCountCommunity ? "right-1" : "left-1"}`} />
-                                    </button>
-                                </div>
-                                <p className="text-[9px] text-white/50 font-bold mt-2 uppercase tracking-tight">Active Users: {realUserCount}</p>
-                            </div>
-                            <div className="bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 flex flex-col justify-center min-w-[140px]">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${heroData?.isVisible ? "bg-emerald-400" : "bg-red-400"}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Visibility</span>
-                                    </div>
-                                    <button 
-                                        onClick={() => setHeroData(prev => prev ? { ...prev, isVisible: !prev.isVisible } : null)}
-                                        className={`w-10 h-5 rounded-full relative transition-all ${
-                                            heroData?.isVisible ? "bg-emerald-400" : "bg-white/20"
-                                        }`}
-                                    >
-                                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${heroData?.isVisible ? "right-1" : "left-1"}`} />
-                                    </button>
-                                </div>
-                                <p className="text-[9px] text-white/50 font-bold mt-2 uppercase tracking-tight">
-                                    {heroData?.isVisible ? "Publicly Visible" : "Hidden"}
-                                </p>
-                            </div>
-                            <button 
-                                onClick={handleSaveHero}
-                                disabled={heroSaving}
-                                className="h-full bg-white text-indigo-600 px-8 py-4 rounded-3xl text-xs font-black uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                            >
-                                {heroSaving ? "Updating..." : "Save Config"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
@@ -255,12 +131,12 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
                     <p className="text-sm text-gray-500 font-medium max-w-md">Review deep-stories and professional journeys from across our network.</p>
                 </div>
 
-                <div className="flex items-center gap-2 p-1.5 bg-gray-100 dark:bg-gray-800/80 rounded-3xl w-fit">
+                <div className="w-full sm:w-fit grid grid-cols-3 sm:flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl">
                     {(["pending", "published", "all"] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                            className={`py-2.5 sm:py-2.5 px-3 sm:px-6 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all text-center ${
                                 filter === f 
                                     ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
                                     : "text-gray-400 hover:text-gray-600"
@@ -279,11 +155,11 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
                         layout
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white dark:bg-gray-800/40 rounded-[3rem] border border-gray-100 dark:border-gray-700 flex flex-col group overflow-hidden hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500"
+                        className="bg-white dark:bg-gray-800/40 rounded-[2rem] sm:rounded-[3rem] border border-gray-100 dark:border-gray-700 flex flex-col group overflow-hidden hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500"
                     >
-                        <div className="p-8 pb-4 flex-1 space-y-4">
+                        <div className="p-6 sm:p-8 pb-4 flex-1 space-y-4">
                             <div className="flex items-center justify-between">
-                                <span className={`px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest ${
+                                <span className={`px-3 sm:px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest ${
                                     story.status === "published" ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
                                 }`}>
                                     {story.status}
@@ -295,17 +171,17 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
                             </div>
                             
                             <div>
-                                <h4 className="text-xl font-black text-gray-900 dark:text-white leading-tight mb-2 group-hover:text-primary transition-colors">{story.title}</h4>
+                                <h4 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight mb-2 group-hover:text-primary transition-colors">{story.title}</h4>
                                 <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-4">By {story.name} · {story.role}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-4 leading-relaxed italic">"{story.preview}"</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-4 leading-relaxed italic">&ldquo;{story.preview}&rdquo;</p>
                             </div>
                         </div>
 
-                        <div className="p-8 pt-4 bg-gray-50/50 dark:bg-black/20 mt-auto border-t border-gray-50 dark:border-gray-700/50 flex items-center justify-between">
+                        <div className="p-5 sm:p-8 pt-4 bg-gray-50/50 dark:bg-black/20 mt-auto border-t border-gray-50 dark:border-gray-700/50 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setPreviewId(story.id)}
-                                    className="px-4 py-2 bg-white dark:bg-gray-800 text-xs font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-primary hover:text-white transition-all flex items-center gap-2"
+                                    className="px-3.5 sm:px-4 py-2.5 sm:py-2 bg-white dark:bg-gray-800 text-xs font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-primary hover:text-white transition-all flex items-center gap-1.5"
                                 >
                                     <Eye size={14} /> Preview
                                 </button>
@@ -316,26 +192,26 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
                                     <>
                                         <button 
                                             onClick={() => handleApprove(story.id)}
-                                            className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all transform hover:scale-105"
+                                            className="p-2.5 sm:p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 active:bg-emerald-600 active:text-white hover:bg-emerald-600 hover:text-white transition-all transform active:scale-95"
                                             title="Publish story"
                                         >
-                                            <Check size={20} />
+                                            <Check size={18} />
                                         </button>
                                         <button 
                                             onClick={() => setRejectId(story.id)}
-                                            className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all transform hover:scale-105"
+                                            className="p-2.5 sm:p-3.5 rounded-2xl bg-amber-50 text-amber-600 active:bg-amber-600 active:text-white hover:bg-amber-600 hover:text-white transition-all transform active:scale-95"
                                             title="Reject & Notify Author"
                                         >
-                                            <X size={20} />
+                                            <X size={18} />
                                         </button>
                                     </>
                                 )}
                                 <button 
                                     onClick={() => handleDelete(story.id)}
-                                    className="p-3.5 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-105"
+                                    className="p-2.5 sm:p-3.5 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all transform active:scale-95"
                                     title="Delete story"
                                 >
-                                    <Trash2 size={20} />
+                                    <Trash2 size={18} />
                                 </button>
                             </div>
                         </div>
@@ -346,24 +222,27 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
             {/* Preview Modal */}
             <AnimatePresence>
                 {previewId && (
-                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+                    <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-xl">
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-white dark:bg-gray-900 rounded-[3rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-12 border border-white/10"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] sm:rounded-[3rem] w-full max-w-4xl max-h-[92vh] overflow-y-auto p-6 sm:p-12 border border-white/10"
                         >
-                            <div className="flex justify-between items-start mb-10">
+                            {/* Mobile Drag Handle */}
+                            <div className="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-700 mx-auto sm:hidden mb-4" />
+
+                            <div className="flex justify-between items-start mb-6 sm:mb-10">
                                 <div className="space-y-2">
-                                    <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Global Story Preview</span>
-                                    <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter italic">"{stories.find(s => s.id === previewId)?.title}"</h2>
+                                    <span className="bg-primary/10 text-primary px-3 sm:px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Global Story Preview</span>
+                                    <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tighter italic">&ldquo;{stories.find(s => s.id === previewId)?.title}&rdquo;</h2>
                                 </div>
-                                <button onClick={() => setPreviewId(null)} className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] hover:bg-red-500 hover:text-white transition-all">
-                                    <X size={24} />
+                                <button onClick={() => setPreviewId(null)} className="p-3 sm:p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] hover:bg-red-500 hover:text-white transition-all">
+                                    <X size={20} />
                                 </button>
                             </div>
                             <div className="prose prose-indigo dark:prose-invert max-w-none">
-                                <p className="text-lg leading-loose text-gray-600 dark:text-gray-300 font-medium">{stories.find(s => s.id === previewId)?.fullStory}</p>
+                                <p className="text-base sm:text-lg leading-relaxed sm:leading-loose text-gray-600 dark:text-gray-300 font-medium">{stories.find(s => s.id === previewId)?.fullStory}</p>
                             </div>
                         </motion.div>
                     </div>
@@ -373,30 +252,34 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
             {/* Reject Reason Modal */}
             <AnimatePresence>
                 {rejectId && (
-                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
                         <motion.div 
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white dark:bg-gray-900 rounded-[3rem] w-full max-w-md p-10 shadow-2xl"
+                            exit={{ opacity: 0, y: 20 }}
+                            className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] sm:rounded-[3rem] w-full max-w-md p-6 sm:p-10 shadow-2xl"
                         >
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Rejection Feedback</h3>
+                            {/* Mobile Drag Handle */}
+                            <div className="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-700 mx-auto sm:hidden mb-4" />
+
+                            <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-3 sm:mb-6 uppercase tracking-tight">Rejection Feedback</h3>
                             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-4">The author will be notified with this message.</p>
                             <textarea 
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
-                                className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded-3xl p-6 text-sm focus:ring-2 focus:ring-amber-500 transition-all font-medium min-h-[150px]"
+                                className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-base sm:text-sm focus:ring-2 focus:ring-amber-500 transition-all font-medium min-h-[130px]"
                                 placeholder="Tell the author why this story was rejected..."
                             />
-                            <div className="flex gap-4 mt-8">
+                            <div className="flex gap-3 sm:gap-4 mt-6 sm:mt-8">
                                 <button 
                                     onClick={() => { setRejectId(null); setRejectReason(""); }}
-                                    className="flex-1 px-8 py-4 bg-gray-100 dark:bg-gray-800 text-xs font-black uppercase tracking-widest rounded-3xl"
+                                    className="flex-1 py-3.5 sm:py-4 bg-gray-100 dark:bg-gray-800 text-xs font-black uppercase tracking-widest rounded-2xl sm:rounded-3xl"
                                 >
                                     Cancel
                                 </button>
                                 <button 
                                     onClick={handleReject}
-                                    className="flex-1 px-8 py-4 bg-amber-500 text-white text-xs font-black uppercase tracking-widest rounded-3xl shadow-xl shadow-amber-500/20 active:scale-95 transition-all"
+                                    className="flex-1 py-3.5 sm:py-4 bg-amber-500 text-white text-xs font-black uppercase tracking-widest rounded-2xl sm:rounded-3xl shadow-xl shadow-amber-500/20 active:scale-95 transition-all"
                                 >
                                     Confirm Reject
                                 </button>

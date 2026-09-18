@@ -10,7 +10,7 @@ import {
     Megaphone
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getNotices, deleteNotice, updateNotice, type FirestoreNotice } from "@/lib/firestore";
+import { getNotices, deleteNotice, type FirestoreNotice } from "@/lib/firestore";
 import { seedDatabaseAction } from "@/lib/actions";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { type UserProfile } from "@/contexts/AuthContext";
@@ -57,7 +57,7 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
             setMessage("✅ Notice deleted successfully");
             setTimeout(() => setMessage(""), 3000);
             loadNotices();
-        } catch (err) {
+        } catch {
             setMessage("❌ Failed to delete notice");
         } finally {
             setConfirmLoading(false);
@@ -71,7 +71,7 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
             await seedDatabaseAction("notices");
             setMessage("✅ Database seeded with notices");
             loadNotices();
-        } catch (err) {
+        } catch {
             setMessage("❌ Seeding failed");
         }
         setSeeding(false);
@@ -129,9 +129,9 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
                     <motion.div 
                         key={notice.id}
                         layout
-                        className="bg-white dark:bg-gray-800/50 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between group"
+                        className="bg-white dark:bg-gray-800/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between group gap-3"
                     >
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
                                     notice.isUrgent ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
@@ -144,16 +144,17 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
                                     </span>
                                 )}
                             </div>
-                            <h3 className="font-bold text-gray-900 dark:text-white">{notice.title}</h3>
-                            <p className="text-xs text-gray-500 font-medium">{notice.college}</p>
+                            <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate">{notice.title}</h3>
+                            <p className="text-xs text-gray-500 font-medium truncate">{notice.college}</p>
                         </div>
 
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
                             <button 
                                 onClick={() => handleDelete(notice.id, notice.title)}
-                                className="p-3 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                                className="p-2.5 sm:p-3 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+                                title="Delete notice"
                             >
-                                <Trash2 size={18} />
+                                <Trash2 size={16} />
                             </button>
                         </div>
                     </motion.div>

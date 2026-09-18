@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
     Users,
@@ -221,21 +220,21 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
         <div className="space-y-6">
 
 
-            <div className="flex bg-white dark:bg-[#1a1b23] p-1 rounded-xl border border-gray-100 dark:border-gray-800 inline-flex shadow-sm">
+            <div className="w-full sm:w-fit grid grid-cols-2 sm:flex bg-white dark:bg-[#1a1b23] p-1 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <button 
                     onClick={() => setActiveSection("approvals")}
-                    className={`px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeSection === "approvals" ? "bg-primary text-white shadow-md shadow-primary/20" : "text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"}`}
+                    className={`justify-center px-4 sm:px-6 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-colors ${activeSection === "approvals" ? "bg-primary text-white shadow-md shadow-primary/20" : "text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"}`}
                 >
-                    <Clock size={16} /> Approvals
+                    <Clock size={16} /> <span>Approvals</span>
                     {pendingCount > 0 && (
-                        <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-xs">{pendingCount}</span>
+                        <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-xs font-black">{pendingCount}</span>
                     )}
                 </button>
                 <button 
                     onClick={() => setActiveSection("users")}
-                    className={`px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeSection === "users" ? "bg-primary text-white shadow-md shadow-primary/20" : "text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"}`}
+                    className={`justify-center px-4 sm:px-6 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-colors ${activeSection === "users" ? "bg-primary text-white shadow-md shadow-primary/20" : "text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"}`}
                 >
-                    <Users size={16} /> Users & Roles
+                    <Users size={16} /> <span>Directory</span>
                 </button>
             </div>
 
@@ -275,8 +274,8 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
                                         </div>
                                         <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-3 mb-4 leading-relaxed">{post.linkPreview?.description || post.description || "No description provided."}</p>
                                         <div className="flex items-center gap-2">
-                                            <button onClick={() => handleAction("post", post.id!, "approve")} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
-                                            <button onClick={() => handleAction("post", post.id!, "reject")} className="flex-1 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-[10px] font-bold hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors">Reject</button>
+                                            <button onClick={() => handleAction("post", post.id!, "approve")} className="flex-1 py-2.5 sm:py-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs sm:text-[10px] font-bold transition-colors shadow-sm">Approve</button>
+                                            <button onClick={() => handleAction("post", post.id!, "reject")} className="flex-1 py-2.5 sm:py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs sm:text-[10px] font-bold transition-colors">Reject</button>
                                         </div>
                                     </div>
                                 ))}
@@ -316,8 +315,8 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
                                         </div>
                                         <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-4 italic leading-relaxed">&ldquo;{story.preview}&rdquo;</p>
                                         <div className="flex items-center gap-2">
-                                            <button onClick={() => handleAction("story", story.id!, "approve")} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
-                                            <button onClick={() => handleAction("story", story.id!, "reject")} className="flex-1 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-[10px] font-bold hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors">Reject</button>
+                                            <button onClick={() => handleAction("story", story.id!, "approve")} className="flex-1 py-2.5 sm:py-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs sm:text-[10px] font-bold transition-colors shadow-sm">Approve</button>
+                                            <button onClick={() => handleAction("story", story.id!, "reject")} className="flex-1 py-2.5 sm:py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs sm:text-[10px] font-bold transition-colors">Reject</button>
                                         </div>
                                     </div>
                                 ))}
@@ -356,8 +355,8 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
                                             <p className="text-[10px] text-gray-500">By {notice.postedBy} · {notice.college}</p>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleAction("notice", notice.id!, "approve")} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-bold shadow-sm">Approve</button>
-                                            <button onClick={() => handleAction("notice", notice.id!, "reject")} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl text-[10px] font-bold">Reject</button>
+                                            <button onClick={() => handleAction("notice", notice.id!, "approve")} className="flex-1 sm:flex-initial px-5 py-2.5 sm:py-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs sm:text-[10px] font-bold shadow-sm transition-colors text-center">Approve</button>
+                                            <button onClick={() => handleAction("notice", notice.id!, "reject")} className="flex-1 sm:flex-initial px-5 py-2.5 sm:py-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs sm:text-[10px] font-bold transition-colors text-center">Reject</button>
                                         </div>
                                     </div>
                                 ))}
@@ -399,54 +398,60 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
                                 <p className="text-sm text-gray-500 mt-2">No users found matching your access permissions.</p>
                             </div>
                         ) : (
-                            <table className="w-full text-left text-sm border-separate border-spacing-0">
-                                <thead className="bg-gray-50/50 dark:bg-gray-900/50 text-[10px] uppercase font-black tracking-widest text-gray-400">
-                                    <tr>
-                                        <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Member Identity</th>
-                                        <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Institution</th>
-                                        <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Authorization</th>
-                                        <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Trust State</th>
-                                        <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 text-right">Operations</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                            <>
+                                {/* Mobile User Cards (< sm) */}
+                                <div className="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
                                     {users.map((user) => (
-                                        <tr key={user.id} className="group hover:bg-gray-50/50 dark:hover:bg-primary/5 transition-all">
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 flex items-center justify-center font-black text-primary text-sm shadow-sm">
+                                        <div key={user.id} className="p-4 space-y-3 bg-white dark:bg-[#1a1b23]">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 flex items-center justify-center font-black text-primary text-sm shadow-sm flex-shrink-0">
                                                         {user.displayName[0]}
                                                     </div>
                                                     <div className="min-w-0">
                                                         <p className="font-black text-gray-900 dark:text-white text-sm truncate">{user.displayName}</p>
-                                                        <p className="text-[10px] text-gray-500 font-bold truncate tracking-tight">{user.email}</p>
+                                                        <p className="text-[11px] text-gray-500 font-bold truncate">{user.email}</p>
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-5">
+                                                <div>
+                                                    {user.roleVerified ? (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 uppercase tracking-wider border border-emerald-100 dark:border-emerald-500/20">
+                                                            <ShieldCheck size={13} /> Verified
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-xl bg-gray-50 text-gray-400 dark:bg-gray-800/50 dark:text-gray-500 uppercase tracking-wider border border-gray-100 dark:border-gray-700">
+                                                            <Shield size={13} /> Unverified
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Institution and Role controls */}
+                                            <div className="grid grid-cols-1 gap-2 pt-1">
                                                 {isGlobalAdmin ? (
-                                                    <div className="relative inline-block w-48">
+                                                    <div className="relative">
                                                         <select 
                                                             value={user.collegeId} 
                                                             onChange={(e) => handleCollegeChange(user.id!, user, e.target.value)}
-                                                            className="appearance-none w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs font-bold"
+                                                            className="appearance-none w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 py-2.5 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs font-bold"
                                                         >
                                                             {colleges.map(c => (
                                                                 <option key={c.id} value={c.id}>{c.shortName || c.name}</option>
                                                             ))}
                                                         </select>
-                                                        <ChevronDown size={12} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                                                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-400">{user.college}</span>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-400 px-1">
+                                                        {user.college}
+                                                    </div>
                                                 )}
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="relative inline-block w-36">
+
+                                                <div className="relative">
                                                     <select 
                                                         value={user.role} 
                                                         onChange={(e) => handleRoleChange(user.id!, user, e.target.value as FirestoreUser["role"])}
-                                                        className={`appearance-none w-full border text-[10px] font-black uppercase py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${
+                                                        className={`appearance-none w-full border text-xs font-black uppercase py-2.5 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
                                                             user.role === "admin" ? "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800" :
                                                             user.role === "super_manager" ? "bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" :
                                                             user.role === "manager" ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" :
@@ -461,36 +466,121 @@ export default function ManagementTab({ profile: initialProfile }: { profile: Us
                                                         {isAdmin && <option value="super_manager">Super Manager</option>}
                                                         {isAdmin && <option value="admin">Admin</option>}
                                                     </select>
-                                                    <ChevronDown size={10} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                {user.roleVerified ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 uppercase tracking-widest border border-emerald-100 dark:border-emerald-500/20">
-                                                        <ShieldCheck size={14} /> Verified
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl bg-gray-50 text-gray-400 dark:bg-gray-800/50 dark:text-gray-500 uppercase tracking-widest border border-gray-100 dark:border-gray-700">
-                                                        <Shield size={14} /> Unverified
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <button 
-                                                    onClick={() => handleVerifyToggle(user.id!, user)}
-                                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider ${
-                                                        user.roleVerified 
-                                                        ? "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700" 
-                                                        : "bg-primary text-white hover:bg-secondary shadow-lg shadow-primary/20"
-                                                    }`}
-                                                >
-                                                    {user.roleVerified ? "Revoke" : "Approve"}
-                                                </button>
-                                            </td>
-                                        </tr>
+                                            </div>
+
+                                            {/* Action Button */}
+                                            <button 
+                                                onClick={() => handleVerifyToggle(user.id!, user)}
+                                                className={`w-full py-2.5 rounded-xl text-xs font-black uppercase transition-all tracking-wider flex items-center justify-center gap-1.5 ${
+                                                    user.roleVerified 
+                                                    ? "bg-gray-100 text-gray-600 active:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:active:bg-gray-700" 
+                                                    : "bg-primary text-white active:bg-secondary shadow-md shadow-primary/20"
+                                                }`}
+                                            >
+                                                {user.roleVerified ? "Revoke Verification" : "Verify Member"}
+                                            </button>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
+                                </div>
+
+                                {/* Desktop Table (>= sm) */}
+                                <div className="hidden sm:block">
+                                    <table className="w-full text-left text-sm border-separate border-spacing-0">
+                                        <thead className="bg-gray-50/50 dark:bg-gray-900/50 text-[10px] uppercase font-black tracking-widest text-gray-400">
+                                            <tr>
+                                                <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Member Identity</th>
+                                                <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Institution</th>
+                                                <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Authorization</th>
+                                                <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">Trust State</th>
+                                                <th className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 text-right">Operations</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                                            {users.map((user) => (
+                                                <tr key={user.id} className="group hover:bg-gray-50/50 dark:hover:bg-primary/5 transition-all">
+                                                    <td className="px-6 py-5">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 flex items-center justify-center font-black text-primary text-sm shadow-sm">
+                                                                {user.displayName[0]}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="font-black text-gray-900 dark:text-white text-sm truncate">{user.displayName}</p>
+                                                                <p className="text-[10px] text-gray-500 font-bold truncate tracking-tight">{user.email}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        {isGlobalAdmin ? (
+                                                            <div className="relative inline-block w-48">
+                                                                <select 
+                                                                    value={user.collegeId} 
+                                                                    onChange={(e) => handleCollegeChange(user.id!, user, e.target.value)}
+                                                                    className="appearance-none w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs font-bold"
+                                                                >
+                                                                    {colleges.map(c => (
+                                                                        <option key={c.id} value={c.id}>{c.shortName || c.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <ChevronDown size={12} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs font-bold text-gray-600 dark:text-gray-400">{user.college}</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="relative inline-block w-36">
+                                                            <select 
+                                                                value={user.role} 
+                                                                onChange={(e) => handleRoleChange(user.id!, user, e.target.value as FirestoreUser["role"])}
+                                                                className={`appearance-none w-full border text-[10px] font-black uppercase py-2 pl-3 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${
+                                                                    user.role === "admin" ? "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800" :
+                                                                    user.role === "super_manager" ? "bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" :
+                                                                    user.role === "manager" ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800" :
+                                                                    user.role === "teacher" ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800" :
+                                                                    "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
+                                                                }`}
+                                                                disabled={(user.role === "admin" && !isAdmin) || (user.role === "super_manager" && !isAdmin && profile?.uid !== user.id)}
+                                                            >
+                                                                <option value="student">Student</option>
+                                                                <option value="teacher">Teacher</option>
+                                                                {isGlobalAdmin && <option value="manager">Manager</option>}
+                                                                {isAdmin && <option value="super_manager">Super Manager</option>}
+                                                                {isAdmin && <option value="admin">Admin</option>}
+                                                            </select>
+                                                            <ChevronDown size={10} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        {user.roleVerified ? (
+                                                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 uppercase tracking-widest border border-emerald-100 dark:border-emerald-500/20">
+                                                                <ShieldCheck size={14} /> Verified
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl bg-gray-50 text-gray-400 dark:bg-gray-800/50 dark:text-gray-500 uppercase tracking-widest border border-gray-100 dark:border-gray-700">
+                                                                <Shield size={14} /> Unverified
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-5 text-right">
+                                                        <button 
+                                                            onClick={() => handleVerifyToggle(user.id!, user)}
+                                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider ${
+                                                                user.roleVerified 
+                                                                ? "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700" 
+                                                                : "bg-primary text-white hover:bg-secondary shadow-lg shadow-primary/20"
+                                                            }`}
+                                                        >
+                                                            {user.roleVerified ? "Revoke" : "Approve"}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

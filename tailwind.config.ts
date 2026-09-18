@@ -23,6 +23,7 @@ const config: Config = {
         bengali: ["var(--font-hind-siliguri)", "sans-serif"],
         english: ["var(--font-plus-jakarta)", "sans-serif"],
         handwritten: ["var(--font-caveat)", "cursive"],
+        sora: ["var(--font-sora)", "sans-serif"],
       },
       borderRadius: {
         card: "14px",

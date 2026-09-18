@@ -25,7 +25,8 @@ import {
     X,
     Loader2,
     Pencil,
-    BookText
+    BookText,
+    LayoutGrid
 } from "lucide-react";
 import Image from "next/image";
 import { getColleges, updateCollege, uploadFile, subscribeClubs, getAdminPendingCounts, type FirestoreCollege, type FirestoreClub, type FacultyEntry, type AdminPendingCounts } from "@/lib/firestore";
@@ -49,10 +50,15 @@ function FormInput({ label, value, onChange, type = "text", placeholder = "" }: 
     label: string; value: string | number; onChange: (val: string) => void; type?: string; placeholder?: string;
 }) {
     return (
-        <div>
-            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide block mb-1">{label}</label>
-            <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+        <div className="space-y-1">
+            <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide block">{label}</label>
+            <input 
+                type={type} 
+                value={value} 
+                onChange={(e) => onChange(e.target.value)} 
+                placeholder={placeholder}
+                className="w-full px-3.5 py-2.5 sm:py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-base sm:text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
+            />
         </div>
     );
 }
@@ -179,14 +185,14 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
                                 <FormInput label="College Name (English)" value={data.name} onChange={(v) => update({ name: v })} />
                                 <FormInput label="College Name (Bangla)" value={data.nameBn} onChange={(v) => update({ nameBn: v })} />
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <FormInput label="City" value={data.city} onChange={(v) => update({ city: v })} />
                                 <FormInput label="Established" value={data.established} onChange={(v) => update({ established: parseInt(v) || 0 })} type="number" />
                                 <FormInput label="Theme Color" value={data.color} onChange={(v) => update({ color: v })} />
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide block mb-1">Hostel</label>
+                                <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide block">Hostel</label>
                                     <select value={data.hostel ? "yes" : "no"} onChange={(e) => update({ hostel: e.target.value === "yes" })}
-                                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                        className="w-full px-3.5 py-2.5 sm:py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-base sm:text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20">
                                         <option value="yes">Available</option><option value="no">N/A</option>
                                     </select>
                                 </div>
@@ -194,7 +200,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 
                             {/* Logo Upload */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wide block mb-1">College Logo</label>
+                                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide block mb-1">College Logo</label>
                                 <div className="flex items-center gap-3">
                                     {data.hasLogo && data.logo ? (
                                         <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 p-1">
@@ -218,7 +224,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
                                 <FormInput label="Principal Name" value={data.principal?.name || ""} onChange={(v) => update({ principal: { ...data.principal, name: v } })} />
                                 <FormInput label="Contact Number" value={data.principal?.contact || ""} onChange={(v) => update({ principal: { ...data.principal, contact: v } })} />
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <FormInput label="Students" value={data.students} onChange={(v) => update({ students: parseInt(v) || 0 })} type="number" />
                                 <FormInput label="Teachers" value={data.teachers} onChange={(v) => update({ teachers: parseInt(v) || 0 })} type="number" />
                                 <FormInput label="Classrooms" value={data.classrooms} onChange={(v) => update({ classrooms: parseInt(v) || 0 })} type="number" />
@@ -226,7 +232,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 
                             {/* Description */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide block mb-1">Description</label>
+                                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide block mb-1">Description</label>
                                 <textarea value={data.description} onChange={(e) => update({ description: e.target.value })} rows={3}
                                     className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none" />
                             </div>
@@ -239,7 +245,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 
                             {/* Achievements */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide block mb-2">Achievements ({(data.achievements || []).length})</label>
+                                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide block mb-2">Achievements ({(data.achievements || []).length})</label>
                                 <div className="space-y-1.5 mb-2">
                                     {(data.achievements || []).map((a, i) => (
                                         <div key={i} className="flex items-center gap-2 text-xs">
@@ -258,7 +264,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 
                             {/* Faculty List */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide block mb-2">Faculty ({(data.faculty || []).length})</label>
+                                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide block mb-2">Faculty ({(data.faculty || []).length})</label>
                                 <div className="space-y-2 mb-3">
                                     {(data.faculty || []).map((t, i: number) => (
                                         <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-750 rounded-lg text-xs">
@@ -270,16 +276,20 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
                                         </div>
                                     ))}
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    <input value={facultyInput.name} onChange={(e) => setFacultyInput({ ...facultyInput, name: e.target.value })} placeholder="Name"
-                                        className="px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-700 dark:text-white" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                                    <input value={facultyInput.name} onChange={(e) => setFacultyInput({ ...facultyInput, name: e.target.value })} placeholder="Faculty Name"
+                                        className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-white dark:bg-gray-700 dark:text-white" />
                                     <input value={facultyInput.designation} onChange={(e) => setFacultyInput({ ...facultyInput, designation: e.target.value })} placeholder="Designation"
-                                        className="px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-700 dark:text-white" />
+                                        className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-white dark:bg-gray-700 dark:text-white" />
                                     <input value={facultyInput.department} onChange={(e) => setFacultyInput({ ...facultyInput, department: e.target.value })} placeholder="Department"
-                                        className="px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-700 dark:text-white" />
-                                    <input value={facultyInput.email} onChange={(e) => setFacultyInput({ ...facultyInput, email: e.target.value })} placeholder="Email"
-                                        className="px-2 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-700 dark:text-white" />
-                                    <button onClick={addFaculty} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center gap-1"><Plus size={12} /> Add</button>
+                                        className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-white dark:bg-gray-700 dark:text-white" />
+                                    <input value={facultyInput.email} onChange={(e) => setFacultyInput({ ...facultyInput, email: e.target.value })} placeholder="Email address"
+                                        className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-white dark:bg-gray-700 dark:text-white" />
+                                </div>
+                                <div className="mt-2 flex justify-end">
+                                    <button onClick={addFaculty} className="w-full sm:w-auto px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-1.5 transition-colors">
+                                        <Plus size={14} /> Add Faculty Member
+                                    </button>
                                 </div>
                             </div>
 
@@ -321,7 +331,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
                                                                 <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                                                     <span>{club.membersCount} members</span>
                                                                     {club.advisorName && <><span>·</span><span>{club.advisorName}</span></>}
-                                                                    {club.tagline && <><span>·</span><span className="truncate italic">"{club.tagline}"</span></>}
+                                                                    {club.tagline && <><span>·</span><span className="truncate italic">&ldquo;{club.tagline}&rdquo;</span></>}
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -534,11 +544,11 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
                             </div>
 
                             {/* Save Button */}
-                            <div className="flex justify-end">
+                            <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-gray-700">
                                 <button onClick={handleSave} disabled={saving}
-                                    className="flex items-center gap-2 px-5 py-2.5 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50"
+                                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                                     style={{ background: "linear-gradient(135deg, #1a5276, #0e6655)" }}>
-                                    <Save size={15} /> {saving ? "Saving..." : "Save Changes"}
+                                    <Save size={16} /> {saving ? "Saving Changes..." : "Save College Changes"}
                                 </button>
                             </div>
                         </div>
@@ -551,17 +561,23 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 
 /* ─── Tab Config ─── */
 type TabId = "management" | "colleges" | "posts" | "stories" | "study" | "notices" | "qa" | "gifts" | "users" | "settings";
-const tabs: { id: TabId; label: string; icon: typeof Building2 }[] = [
-    { id: "management", label: "Management", icon: Shield },
-    { id: "colleges", label: "Colleges", icon: Building2 },
-    { id: "posts", label: "Posts", icon: GraduationCap },
-    { id: "stories", label: "Stories", icon: BookOpen },
-    { id: "study", label: "Study", icon: BookText },
-    { id: "notices", label: "Notices", icon: Bell },
-    { id: "qa", label: "Homepage", icon: Globe },
-    { id: "gifts", label: "Supporters", icon: Gift },
-    { id: "users", label: "Users", icon: Users },
-    { id: "settings", label: "Settings", icon: Settings },
+const tabs: { id: TabId; label: string; icon: typeof Building2; desc?: string }[] = [
+    { id: "management", label: "Management", icon: Shield, desc: "Approvals & Access Roles" },
+    { id: "colleges", label: "Colleges", icon: Building2, desc: "15 Campus Directory" },
+    { id: "posts", label: "Posts", icon: GraduationCap, desc: "Community Feed Review" },
+    { id: "stories", label: "Stories", icon: BookOpen, desc: "TTC Journeys & Articles" },
+    { id: "study", label: "Study", icon: BookText, desc: "Academic Materials" },
+    { id: "notices", label: "Notices", icon: Bell, desc: "Campus Bulletin Alerts" },
+    { id: "qa", label: "Homepage", icon: Globe, desc: "Landing Showcase & Guides" },
+    { id: "gifts", label: "Supporters", icon: Gift, desc: "Donations & Recognition" },
+    { id: "users", label: "Users", icon: Users, desc: "Member Directory & Badges" },
+    { id: "settings", label: "Settings", icon: Settings, desc: "Branding & Privacy Rules" },
+];
+
+const TAB_GROUPS: { name: string; ids: TabId[] }[] = [
+    { name: "Operations & Directory", ids: ["management", "users", "colleges"] },
+    { name: "Content & Moderation", ids: ["posts", "stories", "study", "notices"] },
+    { name: "Platform & Growth", ids: ["qa", "gifts", "settings"] },
 ];
 
 /* ─── MAIN ADMIN PAGE ─── */
@@ -571,10 +587,8 @@ export default function AdminPage() {
     const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
     const [activeSection, setActiveSection] = useState<TabId>("management");
     const [loadingColleges, setLoadingColleges] = useState(true);
-    // Seed Data state removed for production safety — function preserved in lib/actions.ts
-    // const [seeding, setSeeding] = useState(false);
-    // const [showSeedModal, setShowSeedModal] = useState(false);
     const [pendingCounts, setPendingCounts] = useState<AdminPendingCounts>({ posts: 0, stories: 0, notices: 0, studyPosts: 0, gifts: 0 });
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     const loadColleges = async () => {
         setLoadingColleges(true);
@@ -610,28 +624,32 @@ export default function AdminPage() {
         setTimeout(() => setMessage(null), 4000);
     };
 
-    /* ─── Seed Data handlers removed for production safety ───
-     * The seedDatabaseAction() function is still available in lib/actions.ts
-     * if you ever need to re-seed a development/staging environment.
-     * To re-enable, uncomment the state variables above, the import,
-     * the handlers below, and the button + modal in the JSX.
-     *
-     * const handleConfirmSeed = async () => {
-     *     if (!profile?.uid) return showMessage("❌ Sign in required", "error");
-     *     setSeeding(true);
-     *     try {
-     *         const result = await seedDatabaseAction(profile.uid);
-     *         showMessage("✅ Database seeding started!", "success");
-     *         loadColleges();
-     *         setShowSeedModal(false);
-     *     } catch (err: any) {
-     *         showMessage(`❌ ${err.message || "Seed failed"}`, "error");
-     *     }
-     *     setSeeding(false);
-     * };
-     *
-     * const handleSeedData = () => setShowSeedModal(true);
-     * ─── End of commented-out seed handlers ─── */
+    const getPendingCount = (tabId: string): number => {
+        const countMap: Record<string, number> = {
+            posts: pendingCounts.posts,
+            stories: pendingCounts.stories,
+            study: pendingCounts.studyPosts,
+            notices: pendingCounts.notices,
+            gifts: pendingCounts.gifts,
+        };
+        return countMap[tabId] || 0;
+    };
+
+    const totalPendingCount = pendingCounts.posts + pendingCounts.stories + pendingCounts.notices + pendingCounts.studyPosts + pendingCounts.gifts;
+
+    const isTabAllowed = (tabId: TabId) => {
+        if (tabId === "gifts" && profile?.role !== "admin") return false;
+        if (tabId === "settings" && profile?.role !== "admin") return false;
+        if (profile?.role === "manager") {
+            return ["management", "colleges", "posts", "stories", "notices", "users"].includes(tabId);
+        }
+        return true;
+    };
+
+    const allowedTabs = tabs.filter((tab) => isTabAllowed(tab.id));
+    const activeTabObj = tabs.find((t) => t.id === activeSection) || tabs[0];
+    const ActiveTabIcon = activeTabObj.icon;
+    const activePendingCount = getPendingCount(activeSection);
 
     if (!profile) {
         return (
@@ -657,8 +675,8 @@ export default function AdminPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Header */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+            {/* ══ Desktop / Tablet Header ══ */}
+            <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 hidden sm:block">
                 <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -667,57 +685,190 @@ export default function AdminPage() {
                             </div>
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white font-english">Admin Panel</h1>
-                                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-0.5">Manage all TTC Network data</p>
+                                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-0.5">Manage all TTC Network data & community</p>
                             </div>
                         </div>
-                        {/* Seed Data button removed for production safety */}
                     </div>
                 </div>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="max-w-5xl mx-auto px-4 mt-6">
-                <div className="flex gap-1 bg-white dark:bg-gray-800 rounded-xl p-1 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-black/20 overflow-x-auto">
-                    {tabs
-                        .filter((tab) => {
-                            // Strictly restrict Supporters tab to admin ONLY
-                            if (tab.id === "gifts" && profile?.role !== "admin") return false;
-                            // Strictly restrict Settings tab to admin ONLY
-                            if (tab.id === "settings" && profile?.role !== "admin") return false;
+            {/* ══ Sticky Mobile Quick Navigation Header ══ */}
+            <div className="sm:hidden sticky top-0 z-30 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-700 px-3.5 py-2.5 flex items-center justify-between shadow-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                        <ActiveTabIcon size={17} />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                            <h2 className="text-sm font-black text-gray-900 dark:text-white truncate">
+                                {activeTabObj.label}
+                            </h2>
+                            {activePendingCount > 0 && (
+                                <span className="px-1.5 py-0.2 bg-red-500 text-white text-[9px] font-black rounded-full">
+                                    {activePendingCount}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">Admin Dashboard</p>
+                    </div>
+                </div>
 
-                            if (profile?.role === "manager") {
-                                return ["management", "colleges", "posts", "stories", "notices", "users"].includes(tab.id);
-                            }
-                            return true; // Admin sees all valid remaining tabs
-                        })
-                        .map((tab) => {
-                            const countMap: Record<string, number> = {
-                                posts: pendingCounts.posts,
-                                stories: pendingCounts.stories,
-                                study: pendingCounts.studyPosts, // study tab badge for studyPosts
-                                notices: pendingCounts.notices,
-                                gifts: pendingCounts.gifts
-                            };
-                            const count = countMap[tab.id] || 0;
+                {/* Quick Section Switcher Pill */}
+                <button
+                    onClick={() => setMobileNavOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/80 active:bg-gray-200 dark:active:bg-gray-600 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 border border-gray-200/60 dark:border-gray-600 transition-all flex-shrink-0 shadow-2xs"
+                >
+                    <LayoutGrid size={14} className="text-primary" />
+                    <span>Sections</span>
+                    {totalPendingCount > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                            {totalPendingCount > 9 ? "9+" : totalPendingCount}
+                        </span>
+                    )}
+                </button>
+            </div>
 
-                            return (
-                                <button key={tab.id} onClick={() => setActiveSection(tab.id)}
-                                    className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap px-2 ${activeSection === tab.id ? "bg-primary text-white shadow-sm dark:shadow-black/20" : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300"}`}>
-                                    <tab.icon size={14} />
-                                    {tab.label}
-                                    {count > 0 && (
-                                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800 animate-in fade-in zoom-in duration-300">
-                                            {count > 99 ? "99+" : count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
+            {/* ══ Horizontal Tab Navigation Strip ══ */}
+            <div className="max-w-5xl mx-auto px-3 sm:px-4 mt-3 sm:mt-6">
+                <div className="flex gap-1 bg-white dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-black/20 overflow-x-auto scrollbar-none snap-x snap-mandatory">
+                    {allowedTabs.map((tab) => {
+                        const count = getPendingCount(tab.id);
+                        const isActive = activeSection === tab.id;
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveSection(tab.id)}
+                                className={`relative flex-1 min-w-[90px] sm:min-w-0 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap snap-start cursor-pointer ${
+                                    isActive
+                                        ? "bg-primary text-white shadow-sm dark:shadow-black/20"
+                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750"
+                                }`}
+                            >
+                                <tab.icon size={15} />
+                                <span>{tab.label}</span>
+                                {count > 0 && (
+                                    <span className={`min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full flex items-center justify-center shadow-xs border ${
+                                        isActive 
+                                            ? "bg-white text-primary border-white"
+                                            : "bg-red-500 text-white border-white dark:border-gray-800"
+                                    }`}>
+                                        {count > 99 ? "99+" : count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
+            {/* ══ Mobile Bottom Sheet Navigation Drawer ══ */}
+            <AnimatePresence>
+                {mobileNavOpen && (
+                    <div className="fixed inset-0 z-50 flex items-end justify-center sm:hidden">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setMobileNavOpen(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+                        />
+
+                        {/* Sheet Content */}
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                            className="relative w-full bg-white dark:bg-gray-800 rounded-t-[28px] border-t border-gray-200 dark:border-gray-700 shadow-2xl max-h-[85vh] flex flex-col z-10 overflow-hidden"
+                        >
+                            {/* Drag Handle & Header */}
+                            <div className="p-4 pb-2 border-b border-gray-100 dark:border-gray-700/80 flex items-center justify-between">
+                                <div>
+                                    <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600 mx-auto mb-2" />
+                                    <h3 className="text-base font-black text-gray-900 dark:text-white">Admin Navigation</h3>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Jump directly to any management section</p>
+                                </div>
+                                <button
+                                    onClick={() => setMobileNavOpen(false)}
+                                    className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            {/* Categorized List */}
+                            <div className="p-4 overflow-y-auto space-y-4 pb-10">
+                                {TAB_GROUPS.map((group) => {
+                                    const groupTabs = allowedTabs.filter((t) => group.ids.includes(t.id));
+                                    if (groupTabs.length === 0) return null;
+
+                                    return (
+                                        <div key={group.name} className="space-y-1.5">
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 px-1">
+                                                {group.name}
+                                            </p>
+                                            <div className="grid grid-cols-1 gap-1.5">
+                                                {groupTabs.map((tab) => {
+                                                    const count = getPendingCount(tab.id);
+                                                    const isActive = activeSection === tab.id;
+                                                    const Icon = tab.icon;
+
+                                                    return (
+                                                        <button
+                                                            key={tab.id}
+                                                            onClick={() => {
+                                                                setActiveSection(tab.id);
+                                                                setMobileNavOpen(false);
+                                                                window.scrollTo({ top: 0, behavior: "smooth" });
+                                                            }}
+                                                            className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left ${
+                                                                isActive
+                                                                    ? "bg-primary/10 dark:bg-primary/20 border-primary/40 text-primary dark:text-sky-300"
+                                                                    : "bg-gray-50/70 dark:bg-gray-750/70 border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100"
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                                                    isActive
+                                                                        ? "bg-primary text-white shadow-sm"
+                                                                        : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-600"
+                                                                }`}>
+                                                                    <Icon size={18} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-bold truncate">{tab.label}</p>
+                                                                    {tab.desc && (
+                                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                                            {tab.desc}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {count > 0 ? (
+                                                                <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-full shadow-xs">
+                                                                    {count > 99 ? "99+" : `${count} pending`}
+                                                                </span>
+                                                            ) : isActive ? (
+                                                                <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                                                            ) : null}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Content */}
-            <div className="max-w-5xl mx-auto px-4 mt-6 pb-20">
+            <div className="max-w-5xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 pb-32">
                 <AnimatePresence>
                     {message && (
                         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}

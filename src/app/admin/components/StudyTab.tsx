@@ -248,12 +248,12 @@ export default function StudyTab({ profile, onCountRefresh }: { profile: UserPro
                     <p className="text-sm text-gray-500 font-medium">Verify and approve shared study resources.</p>
                 </div>
 
-                <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit">
+                <div className="w-full sm:w-fit grid grid-cols-3 sm:flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
                     {(["pending", "approved", "all"] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                            className={`py-2.5 sm:py-2 px-3 sm:px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center ${
                                 filter === f 
                                     ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
                                     : "text-gray-400 hover:text-gray-600"
@@ -270,7 +270,7 @@ export default function StudyTab({ profile, onCountRefresh }: { profile: UserPro
                     <motion.div 
                         key={post.id}
                         layout
-                        className="bg-white dark:bg-gray-800/50 rounded-[2.5rem] p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row gap-6 relative overflow-hidden group"
+                        className="bg-white dark:bg-gray-800/50 rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row gap-4 sm:gap-6 relative overflow-hidden group"
                     >
                         <div className="flex-1 space-y-4">
                             <div className="flex items-center gap-3">
@@ -303,31 +303,33 @@ export default function StudyTab({ profile, onCountRefresh }: { profile: UserPro
                             </div>
                         </div>
 
-                        <div className="flex flex-row sm:flex-col gap-2 justify-end sm:justify-center flex-shrink-0">
+                        <div className="flex items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-gray-700/60 sm:flex-col justify-end sm:justify-center flex-shrink-0">
                             {post.status === "pending" && (
                                 <>
                                     <button 
                                         onClick={() => handleApprove(post.id)}
-                                        className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all transform hover:scale-110"
+                                        className="flex-1 sm:flex-initial py-2.5 px-3.5 rounded-2xl bg-emerald-50 text-emerald-600 active:bg-emerald-600 active:text-white hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                                         title="Approve resource"
                                     >
-                                        <Check size={20} />
+                                        <Check size={16} />
+                                        <span className="sm:hidden">Approve</span>
                                     </button>
                                     <button 
                                         onClick={() => handleReject(post.id)}
-                                        className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all transform hover:scale-110"
+                                        className="flex-1 sm:flex-initial py-2.5 px-3.5 rounded-2xl bg-amber-50 text-amber-600 active:bg-amber-600 active:text-white hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                                         title="Reject resource"
                                     >
-                                        <X size={20} />
+                                        <X size={16} />
+                                        <span className="sm:hidden">Reject</span>
                                     </button>
                                 </>
                             )}
                             <button 
                                 onClick={() => handleDelete(post.id)}
-                                className="p-3.5 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-110"
+                                className="p-2.5 sm:p-3.5 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
                                 title="Delete permanently"
                             >
-                                <Trash2 size={20} />
+                                <Trash2 size={16} />
                             </button>
                         </div>
                     </motion.div>

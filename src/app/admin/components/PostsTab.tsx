@@ -9,8 +9,7 @@ import {
     Clock, 
     Check, 
     X,
-    GraduationCap,
-    Filter
+    GraduationCap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPendingPosts, getApprovedPosts, approvePost, rejectPost, deletePost, type FirestorePost } from "@/lib/firestore";
@@ -59,7 +58,7 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
             setMessage(action === "approve" ? "✅ Post approved" : "✅ Post rejected");
             setTimeout(() => setMessage(""), 3000);
             loadPosts();
-        } catch (err) {
+        } catch {
             setMessage("❌ Action failed");
         }
     };
@@ -79,7 +78,7 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
             setMessage("✅ Post deleted successfully");
             setTimeout(() => setMessage(""), 3000);
             loadPosts();
-        } catch (err) {
+        } catch {
             setMessage("❌ Delete failed");
         } finally {
             setConfirmLoading(false);
@@ -128,12 +127,12 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
                     <p className="text-sm text-gray-500 font-medium">Review and moderate user-generated feed content.</p>
                 </div>
 
-                <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit">
+                <div className="w-full sm:w-fit grid grid-cols-3 sm:flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
                     {(["pending", "approved", "all"] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                            className={`py-2.5 sm:py-2 px-3 sm:px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center ${
                                 filter === f 
                                     ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
                                     : "text-gray-400 hover:text-gray-600"
@@ -150,10 +149,10 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
                     <motion.div 
                         key={post.id}
                         layout
-                        className="bg-white dark:bg-gray-800/50 rounded-[2.5rem] p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row gap-6"
+                        className="bg-white dark:bg-gray-800/50 rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row gap-4 sm:gap-6"
                     >
                         {post.thumbnailUrl && (
-                            <div className="w-full sm:w-32 h-32 rounded-3xl overflow-hidden flex-shrink-0 border border-gray-50 dark:border-gray-700">
+                            <div className="w-full sm:w-32 h-44 sm:h-32 rounded-2xl sm:rounded-3xl overflow-hidden flex-shrink-0 border border-gray-50 dark:border-gray-700">
                                 <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                             </div>
                         )}
@@ -183,31 +182,33 @@ export default function PostsTab({ profile }: { profile: UserProfile }) {
                             </div>
                         </div>
 
-                        <div className="flex flex-row sm:flex-col gap-2 justify-end sm:justify-start">
+                        <div className="flex items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-gray-700/60 sm:flex-col justify-end sm:justify-start">
                             {post.status === "pending" && (
                                 <>
                                     <button 
                                         onClick={() => handleAction(post.id, "approve")}
-                                        className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all"
+                                        className="flex-1 sm:flex-initial py-2.5 px-3.5 rounded-2xl bg-emerald-50 text-emerald-600 active:bg-emerald-600 active:text-white hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                                         title="Approve post"
                                     >
-                                        <Check size={18} />
+                                        <Check size={16} />
+                                        <span className="sm:hidden">Approve</span>
                                     </button>
                                     <button 
                                         onClick={() => handleAction(post.id, "reject")}
-                                        className="p-3 rounded-2xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all"
+                                        className="flex-1 sm:flex-initial py-2.5 px-3.5 rounded-2xl bg-amber-50 text-amber-600 active:bg-amber-600 active:text-white hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center gap-1.5 text-xs font-bold"
                                         title="Reject post"
                                     >
-                                        <X size={18} />
+                                        <X size={16} />
+                                        <span className="sm:hidden">Reject</span>
                                     </button>
                                 </>
                             )}
                             <button 
                                 onClick={() => handleDelete(post.id)}
-                                className="p-3 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                                className="p-2.5 sm:p-3 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
                                 title="Delete post"
                             >
-                                <Trash2 size={18} />
+                                <Trash2 size={16} />
                             </button>
                         </div>
                     </motion.div>

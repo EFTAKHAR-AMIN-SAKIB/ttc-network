@@ -93,6 +93,14 @@ export async function setupFCM(uid: string, requestPermissionIfNeeded: boolean =
         return null;
     }
 
+    // In development mode on localhost, skip registering /sw.js to prevent interference with Next.js HMR
+    const isDev = process.env.NODE_ENV !== "production" ||
+        (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"));
+    if (isDev) {
+        console.log("[FCM] Dev mode / localhost: Skipping service worker registration to ensure clean chunk loading.");
+        return null;
+    }
+
     try {
         // 1. Get or register the service worker (/sw.js)
         let registration = await navigator.serviceWorker.getRegistration();
