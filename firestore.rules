@@ -89,11 +89,11 @@ service cloud.firestore {
       // Follow system subcollections
       match /followers/{followerId} {
         allow read: if true;
-        allow create, delete: if isAuthenticated() && request.auth.uid == followerId;
+        allow create, update, delete: if isAuthenticated() && request.auth.uid == followerId;
       }
       match /following/{followingId} {
         allow read: if true;
-        allow create, delete: if isOwner(userId);
+        allow create, update, delete: if isOwner(userId);
       }
       match /savedPosts/{postId} {
         allow read, write: if isOwner(userId);
@@ -185,7 +185,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isAdminOrManager() || 
         (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'creatorId', 'collegeId'])) || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy', 'poll', 'eventDetails'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.creatorId);
     }

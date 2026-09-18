@@ -71,27 +71,25 @@ function NewsFeedInner() {
     const { profile, loading: loadingAuth } = useAuth();
     const { requireVerification } = useVerifiedAccess();
     const { isScrollingDown } = useScrollDirection();
-    const [posts, setPosts] = useState<Post[]>(() => {
-        if (typeof window === "undefined") return [];
-        try {
-            const cached = localStorage.getItem("ttc_cached_feed_posts");
-            return cached ? JSON.parse(cached) : [];
-        } catch {
-            return [];
-        }
-    });
+    const [posts, setPosts] = useState<Post[]>([]);
     const [activeTab, setActiveTab] = useState<FeedTab>("event");
     const [tabDirection, setTabDirection] = useState<number>(0);
     const [selectedFilter, setSelectedFilter] = useState("all");
-    const [loading, setLoading] = useState(() => {
-        if (typeof window === "undefined") return true;
+    const [loading, setLoading] = useState(true);
+
+    // Safely hydrate cached posts on client-side after mount to prevent SSR hydration mismatch
+    useEffect(() => {
         try {
             const cached = localStorage.getItem("ttc_cached_feed_posts");
-            return !cached || JSON.parse(cached).length === 0;
-        } catch {
-            return true;
-        }
-    });
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setPosts(prev => prev.length === 0 ? parsed : prev);
+                    setLoading(false);
+                }
+            }
+        } catch {}
+    }, []);
     const [isMobileLeftMenuOpen, setIsMobileLeftMenuOpen] = useState(false);
     const [isMobileCampusDropdownOpen, setIsMobileCampusDropdownOpen] = useState(false);
 
@@ -193,6 +191,7 @@ function NewsFeedInner() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isSharing, setIsSharing] = useState(false);
     const [composerDefaultType, setComposerDefaultType] = useState<"event" | "club">("event");
+    const [composerInitialMode, setComposerInitialMode] = useState<"post" | "event" | "poll">("post");
     const [showOnlySaved, setShowOnlySaved] = useState(false);
     const [showModeration, setShowModeration] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
@@ -345,9 +344,10 @@ function NewsFeedInner() {
         ? rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1) 
         : "";
 
-    const openComposer = (type: "event" | "club" = "event") => {
+    const openComposer = (type: "event" | "club" = "event", mode: "post" | "event" | "poll" = "post") => {
         if (requireVerification("share updates")) {
             setComposerDefaultType(type);
+            setComposerInitialMode(mode);
             setIsSharing(true);
         }
     };
@@ -899,7 +899,7 @@ function NewsFeedInner() {
                                                 </Link>
 
                                                 <button
-                                                    onClick={() => openComposer(activeTab)}
+                                                    onClick={() => openComposer(activeTab, "post")}
                                                     className="flex-1 text-left px-4 sm:px-5 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100/80 dark:hover:bg-gray-800 border border-gray-200/70 dark:border-gray-700/60 text-gray-400 dark:text-gray-400 text-xs sm:text-sm font-semibold transition-all group/btn cursor-pointer"
                                                 >
                                                     <span className="group-hover/btn:text-gray-700 dark:group-hover/btn:text-gray-200 transition-colors">
@@ -915,8 +915,8 @@ function NewsFeedInner() {
                                             {/* Quick Action Chips */}
                                             <div className="mt-3.5 pt-3 border-t border-gray-100 dark:border-gray-800/70 flex items-center justify-between gap-1.5 sm:gap-2">
                                                 <button
-                                                    onClick={() => openComposer(activeTab)}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-[11px] sm:text-xs font-bold transition-all group/action"
+                                                    onClick={() => openComposer(activeTab, "post")}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-[11px] sm:text-xs font-bold transition-all group/action cursor-pointer"
                                                 >
                                                     <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center group-hover/action:scale-110 transition-transform flex-shrink-0">
                                                         <ImageIcon size={15} className="text-emerald-500" />
@@ -928,28 +928,28 @@ function NewsFeedInner() {
                                                 </button>
                                                 
                                                 <button
-                                                    onClick={() => openComposer("event")}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-500/10 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-[11px] sm:text-xs font-bold transition-all group/action"
+                                                    onClick={() => openComposer(activeTab === "club" ? "club" : "event", "event")}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-500/10 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-[11px] sm:text-xs font-bold transition-all group/action cursor-pointer"
                                                 >
                                                     <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center group-hover/action:scale-110 transition-transform flex-shrink-0">
                                                         <Calendar size={15} className="text-blue-500" />
                                                     </div>
                                                     <span className="truncate">
                                                         <span className="sm:hidden">Event</span>
-                                                        <span className="hidden sm:inline">Campus Event</span>
+                                                        <span className="hidden sm:inline">{activeTab === "club" ? "Club Event" : "Campus Event"}</span>
                                                     </span>
                                                 </button>
                                                 
                                                 <button
-                                                    onClick={() => openComposer("club")}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-500/10 text-gray-600 dark:text-gray-300 hover:text-amber-600 dark:hover:text-amber-400 text-[11px] sm:text-xs font-bold transition-all group/action"
+                                                    onClick={() => openComposer(activeTab === "club" ? "club" : "event", "poll")}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-1.5 sm:px-3 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-500/10 text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 text-[11px] sm:text-xs font-bold transition-all group/action cursor-pointer"
                                                 >
-                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center group-hover/action:scale-110 transition-transform flex-shrink-0">
-                                                        <Award size={15} className="text-amber-500" />
+                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-violet-50 dark:bg-violet-500/15 flex items-center justify-center group-hover/action:scale-110 transition-transform flex-shrink-0">
+                                                        <BarChart2 size={15} className="text-violet-500" />
                                                     </div>
                                                     <span className="truncate">
-                                                        <span className="sm:hidden">Club</span>
-                                                        <span className="hidden sm:inline">Club Activity</span>
+                                                        <span className="sm:hidden">Poll</span>
+                                                        <span className="hidden sm:inline">{activeTab === "club" ? "Club Poll" : "Campus Poll"}</span>
                                                     </span>
                                                 </button>
                                             </div>
@@ -1586,6 +1586,7 @@ function NewsFeedInner() {
                 }}
                 profile={profile}
                 defaultType={composerDefaultType}
+                initialMode={composerInitialMode}
                 editPost={editingPost}
                 onPostUpdated={(updatedPost) => {
                     setEditingPost(null);

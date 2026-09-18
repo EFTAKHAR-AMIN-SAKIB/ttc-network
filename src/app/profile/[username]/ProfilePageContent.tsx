@@ -8,7 +8,8 @@ import {
     Target, Pencil, Save, X, Camera, Loader2, ImageIcon, Trash2, Search,
     Heart, Clock, Shield, Activity, GraduationCap, Building, Quote, BookOpen, BookText, User, Award,
     Sparkles, Sparkle, Mail, ExternalLink, Calendar, Copy, Check, ChevronDown, MessageSquare, ThumbsUp,
-    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff, Facebook, Bookmark
+    Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff, Facebook, Bookmark,
+    Bell, BellRing, BellOff
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -41,12 +42,16 @@ import {
     toggleSaveStudyPost,
     getSavedStudyPostsFull,
     getFollowerUserIds,
-    getProfilesByIds
+    getProfilesByIds,
+    getFollowNotificationSettings,
+    type FollowNotificationSettings,
+    DEFAULT_FOLLOW_NOTIFICATION_SETTINGS
 } from "@/lib/firestore";
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { ProfileCompletionCard, ProfileCompletionBar } from "./ProfileCompletionCard";
 import { FollowersModal } from "./FollowersModal";
+import FollowNotificationModal from "@/components/Social/FollowNotificationModal";
 import StoryCard, { getStoryUrl } from "@/components/StoryCard";
 import PostCard from "@/components/PostCard";
 import StudyNoteCard from "@/app/study/components/StudyNoteCard";
@@ -863,6 +868,8 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [followLoading, setFollowLoading] = useState(false);
     const [followersCount, setFollowersCount] = useState(0);
     const [followingCount, setFollowingCount] = useState(0);
+    const [followNotifSettings, setFollowNotifSettings] = useState<FollowNotificationSettings>(DEFAULT_FOLLOW_NOTIFICATION_SETTINGS);
+    const [notifModalOpen, setNotifModalOpen] = useState(false);
 
     // Follower Avatar Previews (Top 4)
     const [followerPreviews, setFollowerPreviews] = useState<any[]>([]);
@@ -974,10 +981,15 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         };
     }, [uid, isOwnProfile, viewAsGuest, user?.uid]);
 
-    // Check follow status on mount
+    // Check follow status and notification preferences on mount
     useEffect(() => {
         if (user?.uid && uid && user.uid !== uid) {
-            checkIsFollowing(user.uid, uid).then(setIsFollowing);
+            checkIsFollowing(user.uid, uid).then((following) => {
+                setIsFollowing(following);
+                if (following) {
+                    getFollowNotificationSettings(user.uid, uid).then(setFollowNotifSettings);
+                }
+            });
         }
     }, [user?.uid, uid]);
 
@@ -1271,6 +1283,9 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             const nowFollowing = await toggleFollowUser(user.uid, uid);
             setIsFollowing(nowFollowing);
             setFollowersCount(prev => nowFollowing ? prev + 1 : Math.max(0, prev - 1));
+            if (nowFollowing) {
+                setFollowNotifSettings(DEFAULT_FOLLOW_NOTIFICATION_SETTINGS);
+            }
             showToast(nowFollowing ? "You are now following this person!" : "Unfollowed successfully.", "success");
         } catch (err: any) {
             console.error("Follow error:", err);
@@ -1908,6 +1923,36 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                             </>
                                         )}
                                     </motion.button>
+
+                                    {/* Notification Customization Bell (Visible when following) */}
+                                    {!viewAsGuest && isFollowing && (
+                                        <motion.button
+                                            type="button"
+                                            onClick={() => setNotifModalOpen(true)}
+                                            whileTap={{ scale: 0.92 }}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className={`p-2.5 rounded-xl border-2 transition-all flex items-center justify-center relative shadow-xs ${
+                                                followNotifSettings.mode === "none"
+                                                    ? "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:border-gray-400"
+                                                    : followNotifSettings.mode === "custom"
+                                                        ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-amber-500/10"
+                                                        : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 shadow-primary/10"
+                                            }`}
+                                            title="Customize notifications for this user"
+                                        >
+                                            {followNotifSettings.mode === "none" ? (
+                                                <BellOff size={16} />
+                                            ) : followNotifSettings.mode === "custom" ? (
+                                                <div className="relative flex items-center justify-center">
+                                                    <Bell size={16} />
+                                                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-gray-900" />
+                                                </div>
+                                            ) : (
+                                                <BellRing size={16} />
+                                            )}
+                                        </motion.button>
+                                    )}
 
                                     {/* Contact Dropdown Button */}
                                     <div className={`relative ${contactOpen ? "z-50" : "z-10"}`} ref={contactRef}>
@@ -3094,6 +3139,18 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 initialTab={followersModalTab}
                 followersCount={followersCount}
                 followingCount={followingCount}
+            />
+
+            {/* Follow Notification Customization Modal */}
+            <FollowNotificationModal
+                isOpen={notifModalOpen}
+                onClose={() => setNotifModalOpen(false)}
+                targetUserId={uid || ""}
+                targetUsername={profileData?.username || urlUid || ""}
+                targetDisplayName={profileData?.displayName || "User"}
+                currentUserId={user?.uid || ""}
+                initialSettings={followNotifSettings}
+                onSettingsUpdated={(newSettings) => setFollowNotifSettings(newSettings)}
             />
         </div>
     );

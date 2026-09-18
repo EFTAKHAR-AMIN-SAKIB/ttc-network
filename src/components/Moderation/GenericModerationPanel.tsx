@@ -17,6 +17,7 @@ import {
 } from "@/lib/firestore";
 import { useToast } from "@/contexts/ToastContext";
 import { format } from "date-fns";
+import { formatExternalUrl } from "@/lib/url-utils";
 
 interface GenericModerationPanelProps {
     isOpen: boolean;
@@ -135,7 +136,7 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
                             <div className="mt-4">
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Attached Link Preview</p>
                                 <a 
-                                    href={item.shareLink || "#"} 
+                                    href={formatExternalUrl(item.shareLink) || "#"} 
                                     target="_blank" 
                                     rel="noopener noreferrer" 
                                     className="block p-4 rounded-3xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/80 hover:bg-gray-100/80 dark:hover:bg-gray-800/60 transition-all group"
@@ -165,7 +166,7 @@ export default function GenericModerationPanel({ isOpen, onClose, profile, type 
                         {!item.linkPreview && item.shareLink && (
                             <div className="pt-2">
                                 <a 
-                                    href={item.shareLink} 
+                                    href={formatExternalUrl(item.shareLink)} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-black uppercase tracking-wider hover:bg-gray-200 dark:hover:bg-gray-750 transition-all"

@@ -148,13 +148,42 @@ export interface GalleryEntry {
     date: string;
 }
 
+export interface EventDetails {
+    startDate: string; // ISO string or datetime string e.g. "2026-09-25T10:00"
+    endDate?: string;
+    location?: string;
+    isOnline?: boolean;
+    onlineLink?: string;
+    category?: string; // e.g., "Academic", "Workshop", "Sports", "Cultural", "Social", "Career", "Meetup"
+    registrationLink?: string;
+    entryFee?: string;
+    going?: string[]; // Array of user UIDs
+    interested?: string[]; // Array of user UIDs
+}
+
+export interface PollOption {
+    id: string;
+    text: string;
+    votes: string[]; // Array of user UIDs
+}
+
+export interface PollDetails {
+    question: string;
+    options: PollOption[];
+    allowsMultiple?: boolean;
+    expiresAt?: Timestamp | null;
+    createdAt?: Timestamp | null;
+    totalVotes?: number;
+}
+
 export interface FirestorePost {
     id?: string;
     type: "event" | "club";
+    postType?: "post" | "event" | "poll"; // "post" = standard regular post, "event" = Facebook-style campus event, "poll" = interactive campus poll
     collegeId: string;
     collegeName: string;
     collegeLogo: string;
-    eventName: string; // Used as 'Update Title' for clubs
+    eventName: string; // Used as Title / Event Name / Poll Question
     clubName?: string | null;
     clubId?: string | null; // Reference to the associated club
     description?: string;
@@ -176,8 +205,10 @@ export interface FirestorePost {
     reactedBy?: { love: string[]; like: string[]; haha: string[]; sad: string[]; angry: string[]; wow: string[]; [key: string]: string[] };
     timestamp: Timestamp | null;
     visibility?: "public" | "campus" | "private"; // "campus" = same college only
-    thumbnailUrl?: string; // Optional clickable thumbnail image
+    thumbnailUrl?: string; // Optional clickable thumbnail image / Event cover banner
     isAuthorShadowBanned?: boolean; // Visibility control
+    eventDetails?: EventDetails;
+    poll?: PollDetails;
 }
 
 export interface FirestoreStory {
@@ -582,6 +613,24 @@ export interface FirestoreRoadmapSettings {
     downloadSubtext: string;
     features: FirestoreRoadmapFeature[];
 }
+
+export interface FollowNotificationSettings {
+    mode: "all" | "custom" | "none";
+    posts: boolean;     // Regular posts
+    events: boolean;    // Campus & club events
+    polls: boolean;     // Campus polls & voting
+    stories: boolean;   // Stories & highlights
+    studies: boolean;   // Study notes & academic materials
+}
+
+export const DEFAULT_FOLLOW_NOTIFICATION_SETTINGS: FollowNotificationSettings = {
+    mode: "all",
+    posts: true,
+    events: true,
+    polls: true,
+    stories: true,
+    studies: true,
+};
 
 export interface FirestoreNotification {
     id?: string;
@@ -1289,7 +1338,8 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
             profile.displayName,
             profile.photoURL || "",
             docRef.id,
-            post.eventName || ""
+            post.eventName || "",
+            (post.postType as any) || "post"
         );
     }
 
@@ -1412,7 +1462,8 @@ export async function approvePost(id: string): Promise<void> {
         post.createdBy.name,
         post.createdBy.avatar || "",
         id,
-        post.eventName || ""
+        post.eventName || "",
+        (post.postType as any) || "post"
     );
 }
 
@@ -1653,9 +1704,9 @@ export async function rejectModerationItem(collectionName: string, id: string, r
 export async function updatePost(id: string, data: Partial<FirestorePost>): Promise<void> {
     // Allowlist: prevent mutation of sensitive fields
     const ALLOWED_POST_FIELDS = [
-        'title', 'content', 'type', 'tags', 'thumbnailUrl', 'eventName', 
+        'title', 'content', 'type', 'postType', 'tags', 'thumbnailUrl', 'eventName', 
         'eventDate', 'eventLocation', 'eventDescription', 'linkUrl', 'visibility',
-        'description', 'shareLink', 'linkPreview', 'clubId', 'clubName'
+        'description', 'shareLink', 'linkPreview', 'clubId', 'clubName', 'eventDetails', 'poll'
     ];
     const clean = Object.fromEntries(
         Object.entries(data).filter(([k]) => ALLOWED_POST_FIELDS.includes(k))
@@ -1677,6 +1728,83 @@ export async function updatePost(id: string, data: Partial<FirestorePost>): Prom
             console.warn("[updatePost] Failed to dispatch mentions:", e);
         }
     }
+}
+
+/**
+ * Cast or update a vote on a poll inside a post.
+ * Supports single or multiple choices.
+ */
+export async function voteOnPoll(postId: string, optionIds: string[], userId: string): Promise<void> {
+    const postRef = doc(getDb(), "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found");
+    const data = postSnap.data() as FirestorePost;
+    if (!data.poll || !Array.isArray(data.poll.options)) throw new Error("Poll not found on this post");
+
+    // Expiration check
+    if (data.poll.expiresAt) {
+        const exp = (data.poll.expiresAt as any)?.toMillis?.() || (data.poll.expiresAt as any)?.seconds * 1000 || new Date(data.poll.expiresAt as any).getTime();
+        if (exp && Date.now() > exp) {
+            throw new Error("This poll has ended");
+        }
+    }
+
+    const updatedOptions = data.poll.options.map(opt => {
+        const currentVotes = Array.isArray(opt.votes) ? [...opt.votes] : [];
+        const isChosen = optionIds.includes(opt.id);
+        const hasVoted = currentVotes.includes(userId);
+
+        if (isChosen && !hasVoted) {
+            return { ...opt, votes: [...currentVotes, userId] };
+        } else if (!isChosen && hasVoted) {
+            return { ...opt, votes: currentVotes.filter(uid => uid !== userId) };
+        }
+        return opt;
+    });
+
+    // Unique voters set
+    const uniqueVoters = new Set<string>();
+    updatedOptions.forEach(opt => (opt.votes || []).forEach(uid => uniqueVoters.add(uid)));
+
+    const updatedPoll: PollDetails = {
+        ...data.poll,
+        options: updatedOptions,
+        totalVotes: uniqueVoters.size
+    };
+
+    await updateDoc(postRef, { poll: updatedPoll });
+}
+
+/**
+ * RSVP to a Facebook-style campus event ("going" | "interested" | null to remove).
+ */
+export async function rsvpToEvent(postId: string, status: "going" | "interested" | null, userId: string): Promise<void> {
+    const postRef = doc(getDb(), "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found");
+    const data = postSnap.data() as FirestorePost;
+    if (!data.eventDetails) throw new Error("Event details not found");
+
+    let going = Array.isArray(data.eventDetails.going) ? [...data.eventDetails.going] : [];
+    let interested = Array.isArray(data.eventDetails.interested) ? [...data.eventDetails.interested] : [];
+
+    // Clear prior status
+    going = going.filter(uid => uid !== userId);
+    interested = interested.filter(uid => uid !== userId);
+
+    if (status === "going") {
+        going.push(userId);
+    } else if (status === "interested") {
+        interested.push(userId);
+    }
+
+    const updatedEventDetails: EventDetails = {
+        ...data.eventDetails,
+        going,
+        interested
+    };
+
+    await updateDoc(postRef, { eventDetails: updatedEventDetails });
 }
 
 export async function deletePost(id: string): Promise<void> {
@@ -1826,6 +1954,15 @@ export async function approveStory(id: string): Promise<void> {
         relatedType: "story",
         targetUrl: storyUrl
     }).catch(e => console.error("Notification failed", e));
+
+    await notifyFollowersOfPost(
+        story.authorId,
+        story.name || "A classmate",
+        story.authorPhoto || "",
+        id,
+        story.title || "Campus Story",
+        "story"
+    );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -4203,13 +4340,13 @@ export async function toggleFollowUser(currentUserId: string, targetUserId: stri
         // FOLLOW — Step 1: Update own documents
         const ts = serverTimestamp();
         const myBatch = writeBatch(db);
-        myBatch.set(followingRef, { followedAt: ts });
+        myBatch.set(followingRef, { followedAt: ts, notifications: DEFAULT_FOLLOW_NOTIFICATION_SETTINGS });
         myBatch.update(currentUserRef, { followingCount: increment(1) });
         await myBatch.commit();
 
         // Step 2: Update target user's follower subcollection + counter
         const targetBatch = writeBatch(db);
-        targetBatch.set(followerRef, { followedAt: ts });
+        targetBatch.set(followerRef, { followedAt: ts, notifications: DEFAULT_FOLLOW_NOTIFICATION_SETTINGS });
         targetBatch.update(targetUserRef, { followersCount: increment(1) });
         await targetBatch.commit();
 
@@ -4231,6 +4368,58 @@ export async function toggleFollowUser(currentUserId: string, targetUserId: stri
     }
 
     return !isAlreadyFollowing; // returns new state: true = now following
+}
+
+/**
+ * Retrieve follow notification preferences set by `currentUserId` for updates from `targetUserId`.
+ */
+export async function getFollowNotificationSettings(
+    currentUserId: string,
+    targetUserId: string
+): Promise<FollowNotificationSettings> {
+    if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
+        return DEFAULT_FOLLOW_NOTIFICATION_SETTINGS;
+    }
+    try {
+        const db = getDb();
+        const snap = await getDoc(doc(db, "users", currentUserId, "following", targetUserId));
+        if (snap.exists()) {
+            const data = snap.data();
+            if (data?.notifications) {
+                return { ...DEFAULT_FOLLOW_NOTIFICATION_SETTINGS, ...data.notifications };
+            }
+        }
+        return DEFAULT_FOLLOW_NOTIFICATION_SETTINGS;
+    } catch (err) {
+        console.error("[Firestore] getFollowNotificationSettings failed:", err);
+        return DEFAULT_FOLLOW_NOTIFICATION_SETTINGS;
+    }
+}
+
+/**
+ * Update notification preferences for a followed user.
+ * Dual-syncs to current user's following doc and target user's followers doc.
+ */
+export async function updateFollowNotificationSettings(
+    currentUserId: string,
+    targetUserId: string,
+    settings: FollowNotificationSettings
+): Promise<void> {
+    if (!currentUserId || !targetUserId || currentUserId === targetUserId) return;
+    const db = getDb();
+    const ts = serverTimestamp();
+    const followingRef = doc(db, "users", currentUserId, "following", targetUserId);
+    const followerRef = doc(db, "users", targetUserId, "followers", currentUserId);
+
+    // Update in current user's following subcollection
+    await setDoc(followingRef, { notifications: settings, updatedAt: ts }, { merge: true });
+
+    // Mirror to target user's followers subcollection for efficient dispatch filtering
+    try {
+        await setDoc(followerRef, { notifications: settings, updatedAt: ts }, { merge: true });
+    } catch (err) {
+        console.warn("[Firestore] Failed to mirror follow notifications to target user followers doc:", err);
+    }
 }
 
 /**
@@ -4381,6 +4570,16 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
             senderPhotoURL: userProfile.photoURL || ""
         });
     }
+
+    // Notify followers subscribed to study updates
+    await notifyFollowersOfPost(
+        userProfile.id!,
+        userProfile.displayName,
+        userProfile.photoURL || "",
+        docRef.id,
+        post.title || "Study Material",
+        "study"
+    );
 
     // Handle Mentions in study post content
     await handleMentions(post.content || "", `/study?study=${docRef.id}`, userProfile, docRef.id, "study");
@@ -5061,36 +5260,86 @@ export async function getFollowingList(userId: string): Promise<(FirestoreUser &
 }
 
 /**
- * Notify all followers of a user when they publish a new post.
+ * Notify followers of a user when they publish new content,
+ * strictly honoring each follower's notification preferences.
  */
 export async function notifyFollowersOfPost(
     creatorId: string,
     creatorName: string,
     creatorPhotoURL: string,
     postId: string,
-    postTitle: string
+    postTitle: string,
+    contentType: "post" | "event" | "poll" | "story" | "study" = "post"
 ): Promise<void> {
     const db = getDb();
     try {
         const followersSnap = await getDocs(collection(db, "users", creatorId, "followers"));
-        const followerIds = followersSnap.docs.map(d => d.id);
-        
-        if (followerIds.length === 0) return;
-        
+        if (followersSnap.empty) return;
+
+        // Filter followers by their custom notification preferences
+        const eligibleFollowerIds: string[] = [];
+
+        followersSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const settings: FollowNotificationSettings | undefined = data?.notifications;
+
+            // Default (no custom settings or 'all'): send notification
+            if (!settings || settings.mode === "all") {
+                eligibleFollowerIds.push(docSnap.id);
+                return;
+            }
+
+            // Muted entirely: skip
+            if (settings.mode === "none") {
+                return;
+            }
+
+            // Customized preferences: check category flags
+            if (contentType === "event" && settings.events !== false) {
+                eligibleFollowerIds.push(docSnap.id);
+            } else if (contentType === "poll" && settings.polls !== false) {
+                eligibleFollowerIds.push(docSnap.id);
+            } else if (contentType === "story" && settings.stories !== false) {
+                eligibleFollowerIds.push(docSnap.id);
+            } else if (contentType === "study" && settings.studies !== false) {
+                eligibleFollowerIds.push(docSnap.id);
+            } else if (contentType === "post" && settings.posts !== false) {
+                eligibleFollowerIds.push(docSnap.id);
+            }
+        });
+
+        if (eligibleFollowerIds.length === 0) return;
+
+        const notifType = "new_post";
+        let message = `${creatorName} published a new post: "${postTitle || 'Update'}".`;
+        let targetUrl = `/news-feed?post=${postId}`;
+
+        if (contentType === "event") {
+            message = `📅 ${creatorName} organized an event: "${postTitle || 'Campus Event'}".`;
+        } else if (contentType === "poll") {
+            message = `📊 ${creatorName} started a new poll: "${postTitle || 'Poll'}". Cast your vote!`;
+        } else if (contentType === "story") {
+            message = `⚡ ${creatorName} added a new campus story.`;
+            targetUrl = `/story/${postId}`;
+        } else if (contentType === "study") {
+            message = `📖 ${creatorName} shared study materials: "${postTitle || 'Resource'}".`;
+            targetUrl = `/study?study=${postId}`;
+        }
+
         const BATCH_LIMIT = 499;
-        for (let i = 0; i < followerIds.length; i += BATCH_LIMIT) {
-            const chunk = followerIds.slice(i, i + BATCH_LIMIT);
+        for (let i = 0; i < eligibleFollowerIds.length; i += BATCH_LIMIT) {
+            const chunk = eligibleFollowerIds.slice(i, i + BATCH_LIMIT);
             const batch = writeBatch(db);
-            
+
             chunk.forEach(followerId => {
                 const notifRef = doc(collection(db, "notifications"));
                 batch.set(notifRef, {
                     recipientId: followerId,
-                    type: "new_post",
-                    message: `${creatorName} published a new post: "${postTitle || 'Update'}".`,
+                    type: notifType,
+                    message,
                     relatedId: postId,
-                    relatedType: "post",
-                    targetUrl: `/news-feed?post=${postId}`,
+                    relatedType: contentType,
+                    targetUrl,
                     senderId: creatorId,
                     senderName: creatorName,
                     senderPhotoURL: creatorPhotoURL || "",

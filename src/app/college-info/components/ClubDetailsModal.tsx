@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { ToastNotification, ToastType } from "@/components/ConfirmationDialog";
+import { formatExternalUrl } from "@/lib/url-utils";
 
 interface ClubDetailsModalProps {
     club: FirestoreClub & { id: string };
@@ -361,7 +362,7 @@ export default function ClubDetailsModal({ club, onClose }: ClubDetailsModalProp
                                                         </p>
                                                     )}
                                                     {post.linkPreview && (
-                                                        <a href={post.shareLink} target="_blank" rel="noopener noreferrer" className="block mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:opacity-90 transition-opacity bg-white dark:bg-[#161620]">
+                                                        <a href={formatExternalUrl(post.shareLink)} target="_blank" rel="noopener noreferrer" className="block mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:opacity-90 transition-opacity bg-white dark:bg-[#161620]">
                                                             {post.linkPreview.thumbnail && (
                                                                 <div className="h-48 relative w-full bg-gray-100 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                                                                     <img src={post.linkPreview.thumbnail} alt="Preview" className="w-full h-full object-cover" />
