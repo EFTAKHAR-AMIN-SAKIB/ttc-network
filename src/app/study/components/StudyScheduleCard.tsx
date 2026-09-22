@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Video, Calendar, Clock, User, Link as LinkIcon, AlertCircle, Pencil, Globe, Lock, Trash2, MessageCircle, Bookmark, Share2 } from "lucide-react";
 import Link from "next/link";
 import { type FirestoreStudyPost } from "@/lib/firestore";
-import { ReactionBtn } from "@/components/Social/ReactionSystem";
+import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { ExpandableText } from "@/components/Social/SocialUtils";
 import { format, isAfter, isBefore, addHours, parseISO } from "date-fns";
@@ -100,7 +100,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                 status === 'live' ? 'border-red-500/50 dark:border-red-500/40 ring-2 ring-red-500/20' : 'border-gray-100 dark:border-gray-800'
             }`}
         >
-            <div className="p-4 sm:p-7">
+            <div className="p-4 sm:p-5.5">
                 {/* Status Bar */}
                 <div className="flex items-center justify-between gap-2 mb-5">
                     <div className={`px-3 py-1 rounded-full flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider shadow-2xs ${
@@ -222,80 +222,119 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                     </Link>
                 </div>
 
-                {/* Footer bar */}
-                <div className="flex items-center justify-between flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div className="flex items-center gap-3">
-                        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                {/* Join Session CTA Banner */}
+                <div className="mt-4 pt-1">
+                    {status === 'ended' ? (
+                        <div className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                            <AlertCircle size={14} /> Session Ended
+                        </div>
+                    ) : post.link ? (
+                        <a 
+                            href={post.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                                if (!requireVerification("join live prep session")) {
+                                    e.preventDefault();
+                                }
+                            }}
+                            className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm ${
+                                status === 'live' 
+                                    ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-500/30 hover:scale-[1.01] active:scale-95'
+                                    : 'bg-primary hover:bg-primary/90 text-white shadow-primary/20 hover:scale-[1.01] active:scale-95'
+                            }`}
+                        >
+                            {!isVerified ? <Lock size={14} /> : <Video size={14} />}
+                            <span>{status === 'live' ? 'Join Live Prep Session' : 'Meeting Link'}</span>
+                        </a>
+                    ) : (
+                        <div className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50 text-gray-400 border border-gray-200/50 dark:border-gray-700/50">
+                            <Clock size={13} /> Meeting Link TBA
+                        </div>
+                    )}
+                </div>
+
+                {/* Interactions Bar (Facebook Layout) */}
+                <div className="mt-3 pt-2 relative z-10">
+                    {/* 1. Engagement Summary Row */}
+                    <ReactionSummary 
+                        reactions={post.reactions}
+                        reactedBy={post.reactedBy}
+                        commentsCount={post.commentsCount || 0}
+                        onOpenComments={() => setShowComments(!showComments)}
+                    />
+
+                    {/* Subtle Facebook Divider Line */}
+                    <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
+
+                    {/* 2. Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
+                    <div className="flex items-center justify-between gap-1 py-0.5">
+                        {/* 1. React Button */}
+                        <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => e.stopPropagation()}>
                             <ReactionBtn 
                                 contentId={post.id} 
                                 contentType="study" 
                                 reactions={post.reactions} 
                                 reactedBy={post.reactedBy} 
                                 currentUserId={currentUserId}
+                                showSummary={false}
+                                variant="facebook"
+                                compact={true}
                             />
                         </div>
-                        <button 
-                            onClick={() => setShowComments(!showComments)}
-                            className={`flex items-center gap-1.5 transition-colors ${showComments ? 'text-primary' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <div className={`p-2 rounded-xl transition-colors ${showComments ? 'bg-primary/10' : 'bg-gray-50 dark:bg-white/5'}`}>
-                                <MessageCircle size={16} className={showComments ? 'fill-primary' : ''} />
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-wider">{post.commentsCount || 0}</span>
-                        </button>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                        {onSave && (
-                            <button 
-                                onClick={() => onSave(post.id)}
-                                className={`p-2 rounded-xl border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ${
-                                    isSaved 
-                                        ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent"
-                                }`}
-                                title={isSaved ? "Remove Bookmark" : "Bookmark Session"}
-                            >
-                                <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
-                            </button>
-                        )}
+                        {/* 2. Comment Button */}
+                        <button 
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowComments(!showComments);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                                showComments 
+                                    ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                            }`}
+                            title="Comment on session"
+                        >
+                            <MessageCircle size={16} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                            <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Comment</span>
+                        </button>
+
+                        {/* 3. Share Button */}
                         {onShare && (
                             <button 
-                                onClick={() => onShare(post)}
-                                className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-transparent hover:border-primary/10 flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary hover:scale-105 active:scale-95 transition-all duration-200"
-                                title="Share Session"
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onShare(post);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                                title="Share session"
                             >
-                                <Share2 size={16} />
+                                <Share2 size={16} className="shrink-0 transition-transform hover:scale-110" />
+                                <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Share</span>
                             </button>
                         )}
-                        
-                        {status === 'ended' ? (
-                            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-800">
-                                <AlertCircle size={13} /> Ended
-                            </div>
-                        ) : post.link ? (
-                            <a 
-                                href={post.link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
+
+                        {/* 4. Bookmark (Save) Button */}
+                        {onSave && (
+                            <button 
+                                type="button"
                                 onClick={(e) => {
-                                    if (!requireVerification("join live prep session")) {
-                                        e.preventDefault();
-                                    }
+                                    e.stopPropagation();
+                                    onSave(post.id);
                                 }}
-                                className={`flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                    status === 'live' 
-                                        ? 'bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-500/30 hover:scale-105 active:scale-95'
-                                        : 'bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/20 hover:scale-[1.02] active:scale-95'
+                                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                                    isSaved 
+                                        ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
                                 }`}
+                                title={isSaved ? "Remove Bookmark" : "Save Session"}
                             >
-                                {!isVerified ? <Lock size={14} /> : <Video size={14} />}
-                                <span>{status === 'live' ? 'Join Live' : 'Meeting Link'}</span>
-                            </a>
-                        ) : (
-                            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200/50 dark:border-gray-700/50">
-                                <Clock size={13} /> Link TBA
-                            </div>
+                                <Bookmark size={16} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
+                                <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
+                            </button>
                         )}
                     </div>
                 </div>

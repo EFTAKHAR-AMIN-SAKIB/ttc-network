@@ -311,13 +311,6 @@ export default function Navbar() {
                                         })()}
                                     </div>
                                     <span className="hidden lg:inline">{link.label}</span>
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="activeNav"
-                                            className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent rounded-full"
-                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                        />
-                                    )}
                                 </Link>
                             );
                         })}

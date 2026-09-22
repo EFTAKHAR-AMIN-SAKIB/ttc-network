@@ -286,7 +286,7 @@ export interface FirestoreGift {
     name: string;
     amount: number;
     txId: string;
-    method: "bKash" | "Nagad";
+    method: "bKash" | "Nagad" | "upay" | "Upay";
     status: "pending" | "approved" | "rejected";
     badgeIssued: boolean;
     date: Timestamp | null;
@@ -344,9 +344,12 @@ export interface SupportSettings {
     bkashNumber?: string;
     bkashType?: "Personal" | "Merchant";
     bkashEnabled?: boolean;   // Toggle bKash payment tab on/off
+    upayNumber?: string;
+    upayType?: "Personal" | "Merchant";
+    upayEnabled?: boolean;    // Toggle Upay payment tab on/off
     nagadNumber?: string;
     nagadType?: "Personal" | "Merchant";
-    nagadEnabled?: boolean;   // Toggle Nagad payment tab on/off
+    nagadEnabled?: boolean;   // Deprecated / kept for backward compatibility
     raised?: number;
     goal?: number;
     supporters?: string | number;

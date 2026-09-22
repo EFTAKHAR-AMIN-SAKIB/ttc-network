@@ -27,6 +27,7 @@ interface NewsFeedLeftSidebarProps {
     pendingCount: number;
     unseenClubCount?: number;
     unseenGroupCount?: number;
+    onSelectGroupSection?: (section: "my-feed" | "discover" | "my-groups") => void;
 }
 
 const roleStyles: Record<string, { label: string; badge: string }> = {
@@ -67,7 +68,8 @@ export default function NewsFeedLeftSidebar({
     onOpenModeration,
     pendingCount,
     unseenClubCount = 0,
-    unseenGroupCount = 0
+    unseenGroupCount = 0,
+    onSelectGroupSection
 }: NewsFeedLeftSidebarProps) {
     const rawRole = (profile?.role || "student").toLowerCase();
     const currentRole = roleStyles[rawRole] || roleStyles.student;
@@ -471,9 +473,17 @@ export default function NewsFeedLeftSidebar({
             {/* ─── 3. MY GROUPS SHORTCUTS ─── */}
             <div className="bg-white dark:bg-[#161822] rounded-3xl p-4 border border-gray-200/80 dark:border-gray-800/80 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onToggleSaved(false);
+                            onTabSwitch("group");
+                            onSelectGroupSection?.("my-feed");
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                    >
                         <Users size={12} className="text-[#1877F2]" /> Groups Hub
-                    </span>
+                    </button>
                     <button
                         onClick={onCreateGroup}
                         className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline flex items-center gap-1 cursor-pointer"
@@ -508,24 +518,34 @@ export default function NewsFeedLeftSidebar({
                             </Link>
                         ))}
 
-                        <Link
-                            href="/groups"
-                            className="block pt-1 text-center text-[11px] font-bold text-primary hover:underline"
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onToggleSaved(false);
+                                onTabSwitch("group");
+                                onSelectGroupSection?.("my-groups");
+                            }}
+                            className="w-full block pt-1 text-center text-[11px] font-bold text-primary hover:underline cursor-pointer"
                         >
                             Explore All Groups ({myGroups.length}) →
-                        </Link>
+                        </button>
                     </div>
                 ) : (
                     <div className="text-center py-3 px-2 bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl">
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                             Join campus groups to discuss projects and collaborate.
                         </p>
-                        <Link
-                            href="/groups"
-                            className="inline-block mt-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onToggleSaved(false);
+                                onTabSwitch("group");
+                                onSelectGroupSection?.("discover");
+                            }}
+                            className="inline-block mt-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
                         >
                             Discover Groups
-                        </Link>
+                        </button>
                     </div>
                 )}
             </div>

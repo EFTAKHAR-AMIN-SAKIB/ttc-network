@@ -57,6 +57,8 @@ import BuilderPopupModal from "@/components/BuilderPopupModal";
 const CONFIG = {
     bkashNumber: "01805107667",
     bkashType: "Personal" as "Personal" | "Merchant",
+    upayNumber: "01805107667",
+    upayType: "Personal" as "Personal" | "Merchant",
     nagadNumber: "01805107667",
     nagadType: "Personal" as "Personal" | "Merchant",
     raised: 12500,
@@ -785,9 +787,9 @@ function PhaseTimelineCard({ phase, supporters }: { phase: SupportPhase; support
 /* ═══════════════════════════════════════════════════
    HOW TO SEND INSTRUCTIONS
    ═══════════════════════════════════════════════════ */
-function HowToSend({ bkashNumber = "01805107667", nagadNumber = "01805107667" }: { bkashNumber?: string; nagadNumber?: string }) {
+function HowToSend({ bkashNumber = "01805107667", upayNumber = "01805107667" }: { bkashNumber?: string; upayNumber?: string }) {
     const [expanded, setExpanded] = useState(false);
-    const [guideTab, setGuideTab] = useState<"bkash" | "nagad">("bkash");
+    const [guideTab, setGuideTab] = useState<"bkash" | "upay">("bkash");
 
     return (
         <div className="mt-8 bg-white dark:bg-[#111118] rounded-3xl border border-gray-200/80 dark:border-white/10 shadow-sm overflow-hidden">
@@ -801,7 +803,7 @@ function HowToSend({ bkashNumber = "01805107667", nagadNumber = "01805107667" }:
                     </div>
                     <div>
                         <h3 className="text-sm font-black text-gray-900 dark:text-white">
-                            How to Send Money via bKash & Nagad
+                            How to Send Money via bKash & upay
                         </h3>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5">
                             Step-by-step instructions in English & বাংলা
@@ -836,13 +838,13 @@ function HowToSend({ bkashNumber = "01805107667", nagadNumber = "01805107667" }:
                                     <span>bKash Guide</span>
                                 </button>
                                 <button
-                                    onClick={() => setGuideTab("nagad")}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "nagad" ? "bg-gradient-to-r from-[#F7941D] to-[#ED1C24] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
+                                    onClick={() => setGuideTab("upay")}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "upay" ? "bg-gradient-to-r from-[#005BAC] to-[#003B73] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
                                 >
                                     <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
-                                        <Image src="/logos/nagad.svg" alt="Nagad" width={16} height={12} className="w-full h-full object-contain" />
+                                        <Image src="/logos/upay.png" alt="upay" width={16} height={16} className="w-full h-full object-contain" />
                                     </div>
-                                    <span>Nagad Guide</span>
+                                    <span>upay Guide</span>
                                 </button>
                             </div>
 
@@ -903,20 +905,20 @@ function HowToSend({ bkashNumber = "01805107667", nagadNumber = "01805107667" }:
                                     {/* English Instructions */}
                                     <div className="space-y-3">
                                         <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-                                            English Instructions (Nagad)
+                                            English Instructions (upay)
                                         </h4>
                                         <ol className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
                                             {[
-                                                { s: "1", t: <>Open your <strong className="text-gray-900 dark:text-white font-black">Nagad</strong> app</> },
+                                                { s: "1", t: <>Open your <strong className="text-gray-900 dark:text-white font-black">upay</strong> app</> },
                                                 { s: "2", t: <>Tap <strong className="text-gray-900 dark:text-white font-black">&quot;Send Money&quot;</strong></> },
-                                                { s: "3", t: <>Enter recipient number: <strong className="text-[#F7941D] font-black font-mono">{nagadNumber}</strong></> },
+                                                { s: "3", t: <>Enter recipient number: <strong className="text-[#005BAC] dark:text-blue-400 font-black font-mono">{upayNumber}</strong></> },
                                                 { s: "4", t: <>Enter the amount you wish to contribute</> },
                                                 { s: "5", t: <>In the <strong className="text-gray-900 dark:text-white font-black">Reference</strong> field, enter your name</> },
-                                                { s: "6", t: <>Confirm with your Nagad PIN</> },
+                                                { s: "6", t: <>Confirm with your upay PIN</> },
                                                 { s: "7", t: <>Save the <strong className="text-gray-900 dark:text-white font-black">Transaction ID (TxnID)</strong> to claim your badge</> }
                                             ].map(item => (
                                                 <li key={item.s} className="flex gap-2.5">
-                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-50 dark:bg-orange-900/30 text-[#F7941D] flex items-center justify-center text-[10px] font-black">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-[#005BAC] dark:text-blue-400 flex items-center justify-center text-[10px] font-black">
                                                         {item.s}
                                                     </span>
                                                     <span className="font-medium pt-0.5">{item.t}</span>
@@ -928,20 +930,20 @@ function HowToSend({ bkashNumber = "01805107667", nagadNumber = "01805107667" }:
                                     {/* Bengali Instructions */}
                                     <div className="space-y-3">
                                         <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-                                            বাংলা নির্দেশিকা (নগদ)
+                                            বাংলা নির্দেশিকা (উপায়)
                                         </h4>
                                         <ol className="space-y-3 text-xs text-gray-600 dark:text-gray-400 font-bengali">
                                             {[
-                                                { s: "১", t: <>আপনার ফোনে <strong className="text-gray-900 dark:text-white font-black">নগদ</strong> অ্যাপ ওপেন করুন</> },
+                                                { s: "১", t: <>আপনার ফোনে <strong className="text-gray-900 dark:text-white font-black">উপায়</strong> অ্যাপ ওপেন করুন</> },
                                                 { s: "২", t: <><strong className="text-gray-900 dark:text-white font-black">&quot;সেন্ড মানি&quot;</strong> অপশন বেছে নিন</> },
-                                                { s: "৩", t: <>নম্বর দিন: <strong className="text-[#F7941D] font-black font-mono font-english">{nagadNumber}</strong></> },
+                                                { s: "৩", t: <>নম্বর দিন: <strong className="text-[#005BAC] dark:text-blue-400 font-black font-mono font-english">{upayNumber}</strong></> },
                                                 { s: "৪", t: <>অনুদানের পরিমাণ লিখুন</> },
                                                 { s: "৫", t: <><strong className="text-gray-900 dark:text-white font-black">রেফারেন্স</strong> এ আপনার নাম লিখুন</> },
-                                                { s: "৬", t: <>নগদ পিন দিয়ে কনফার্ম করুন</> },
+                                                { s: "৬", t: <>উপায় পিন দিয়ে কনফার্ম করুন</> },
                                                 { s: "৭", t: <><strong className="text-gray-900 dark:text-white font-black">ট্রানজ্যাকশন আইডি</strong> কপি করে নিচে জমা দিন</> }
                                             ].map(item => (
                                                 <li key={item.s} className="flex gap-2.5">
-                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-50 dark:bg-orange-900/30 text-[#F7941D] flex items-center justify-center text-[10px] font-black font-english">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-[#005BAC] dark:text-blue-400 flex items-center justify-center text-[10px] font-black font-english">
                                                         {item.s}
                                                     </span>
                                                     <span className="font-medium pt-0.5">{item.t}</span>
@@ -968,15 +970,18 @@ function PaymentCard({
     onGiftSubmit, 
     config, 
     bkashEnabled = true, 
+    upayEnabled = true,
     nagadEnabled = true 
 }: { 
     giftAmount: string; 
     setGiftAmount: (val: string) => void; 
-    onGiftSubmit: (method: "bKash" | "Nagad", amount: string) => void; 
-    config: typeof CONFIG & { bkashType?: string; nagadType?: string; bkashNumber?: string; nagadNumber?: string }; 
+    onGiftSubmit: (method: "bKash" | "upay", amount: string) => void; 
+    config: typeof CONFIG & { bkashType?: string; upayType?: string; nagadType?: string; bkashNumber?: string; upayNumber?: string; nagadNumber?: string }; 
     bkashEnabled?: boolean; 
+    upayEnabled?: boolean;
     nagadEnabled?: boolean; 
 }) {
+    const isUpayEnabled = upayEnabled ?? nagadEnabled ?? true;
     const [copied, setCopied] = useState(false);
 
     const copyToClipboard = (text: string) => {
@@ -985,24 +990,24 @@ function PaymentCard({
         setTimeout(() => setCopied(false), 2200);
     };
 
-    const tabs: { id: "bkash" | "nagad"; label: string; subLabel: string; color: string; activeClass: string }[] = [];
+    const tabs: { id: "bkash" | "upay"; label: string; subLabel: string; color: string; activeClass: string }[] = [];
     if (bkashEnabled) {
         tabs.push({ id: "bkash", label: "bKash", subLabel: config.bkashType || "Personal", color: "#E2136E", activeClass: "bg-[#E2136E] text-white shadow-md shadow-pink-500/20" });
     }
-    if (nagadEnabled) {
-        tabs.push({ id: "nagad", label: "Nagad", subLabel: config.nagadType || "Personal", color: "#F7941D", activeClass: "bg-gradient-to-r from-[#F7941D] to-[#ED1C24] text-white shadow-md shadow-orange-500/20" });
+    if (isUpayEnabled) {
+        tabs.push({ id: "upay", label: "upay", subLabel: config.upayType || config.nagadType || "Personal", color: "#005BAC", activeClass: "bg-gradient-to-r from-[#005BAC] to-[#003B73] text-white shadow-md shadow-blue-600/20" });
     }
 
-    const [activeTab, setActiveTab] = useState<"bkash" | "nagad">("bkash");
+    const [activeTab, setActiveTab] = useState<"bkash" | "upay">("bkash");
 
     // Keep activeTab synchronized with available tabs
     useEffect(() => {
-        if (bkashEnabled && !nagadEnabled) {
+        if (bkashEnabled && !isUpayEnabled) {
             setActiveTab("bkash");
-        } else if (!bkashEnabled && nagadEnabled) {
-            setActiveTab("nagad");
+        } else if (!bkashEnabled && isUpayEnabled) {
+            setActiveTab("upay");
         }
-    }, [bkashEnabled, nagadEnabled]);
+    }, [bkashEnabled, isUpayEnabled]);
 
     if (tabs.length === 0) {
         return (
@@ -1016,8 +1021,8 @@ function PaymentCard({
         );
     }
 
-    const currentNumber = activeTab === "bkash" ? (config.bkashNumber || "01805107667") : (config.nagadNumber || "01805107667");
-    const currentType = activeTab === "bkash" ? (config.bkashType || "Personal") : (config.nagadType || "Personal");
+    const currentNumber = activeTab === "bkash" ? (config.bkashNumber || "01805107667") : (config.upayNumber || config.nagadNumber || "01805107667");
+    const currentType = activeTab === "bkash" ? (config.bkashType || "Personal") : (config.upayType || config.nagadType || "Personal");
 
     return (
         <div className="w-full max-w-[460px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] border border-gray-200/80 dark:border-white/10 shadow-2xl shadow-black/10 overflow-hidden group">
@@ -1036,10 +1041,10 @@ function PaymentCard({
                             >
                                 <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs">
                                     <Image
-                                        src={tab.id === "bkash" ? "/logos/bkash.svg" : "/logos/nagad.svg"}
+                                        src={tab.id === "bkash" ? "/logos/bkash.svg" : "/logos/upay.png"}
                                         alt={tab.label}
                                         width={20}
-                                        height={14}
+                                        height={20}
                                         className="w-full h-full object-contain"
                                     />
                                 </div>
@@ -1056,10 +1061,10 @@ function PaymentCard({
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-gray-100 dark:bg-white/5 text-xs font-black text-gray-700 dark:text-gray-300">
                         <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs">
                             <Image
-                                src={tabs[0]?.id === "bkash" ? "/logos/bkash.svg" : "/logos/nagad.svg"}
+                                src={tabs[0]?.id === "bkash" ? "/logos/bkash.svg" : "/logos/upay.png"}
                                 alt={tabs[0]?.label || "MFS"}
                                 width={20}
-                                height={14}
+                                height={20}
                                 className="w-full h-full object-contain"
                             />
                         </div>
@@ -1083,7 +1088,7 @@ function PaymentCard({
                             className={`rounded-3xl p-6 text-white relative overflow-hidden shadow-xl ${
                                 activeTab === "bkash" 
                                     ? "bg-gradient-to-br from-[#E2136E] via-[#C91060] to-[#960B46]" 
-                                    : "bg-gradient-to-br from-[#F7941D] via-[#ED1C24] to-[#C11018]"
+                                    : "bg-gradient-to-br from-[#005BAC] via-[#004B93] to-[#002D62]"
                             }`}
                         >
                             {/* Decorative ambient shine */}
@@ -1094,8 +1099,8 @@ function PaymentCard({
                                 <div className="flex justify-between items-start">
                                     <div className="h-11 px-3.5 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10">
                                         <Image 
-                                            src={activeTab === "bkash" ? "/logos/bkash.svg" : "/logos/nagad.svg"} 
-                                            alt={activeTab === "bkash" ? "bKash" : "Nagad"}
+                                            src={activeTab === "bkash" ? "/logos/bkash.svg" : "/logos/upay.png"} 
+                                            alt={activeTab === "bkash" ? "bKash" : "upay"}
                                             width={84}
                                             height={32}
                                             className="h-7 w-auto object-contain"
@@ -1104,7 +1109,7 @@ function PaymentCard({
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">Recipient Account</p>
-                                        <p className="text-sm font-black tracking-tight text-white">{activeTab === "bkash" ? "bKash" : "Nagad"} {currentType}</p>
+                                        <p className="text-sm font-black tracking-tight text-white">{activeTab === "bkash" ? "bKash" : "upay"} {currentType}</p>
                                     </div>
                                 </div>
 
@@ -1149,8 +1154,8 @@ function PaymentCard({
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block">
                                 Choose Amount
                             </label>
-                            <div className="grid grid-cols-5 gap-2">
-                                {[50, 100, 200, 500, 1000].map(amt => {
+                            <div className="grid grid-cols-4 gap-2">
+                                {[1000, 2000, 3000, 5000].map(amt => {
                                     const isSelected = giftAmount === String(amt);
                                     return (
                                         <button
@@ -1161,11 +1166,11 @@ function PaymentCard({
                                                 isSelected 
                                                     ? activeTab === "bkash"
                                                         ? "bg-[#E2136E] text-white border-transparent shadow-md shadow-pink-500/25 scale-[1.03]"
-                                                        : "bg-gradient-to-r from-[#F7941D] to-[#ED1C24] text-white border-transparent shadow-md shadow-orange-500/25 scale-[1.03]"
+                                                        : "bg-gradient-to-r from-[#005BAC] to-[#003B73] text-white border-transparent shadow-md shadow-blue-600/25 scale-[1.03]"
                                                     : "bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-300 border-gray-100 dark:border-white/5 hover:border-primary/40"
                                             }`}
                                         >
-                                            ৳{amt}
+                                            ৳{amt.toLocaleString()}
                                         </button>
                                     );
                                 })}
@@ -1190,36 +1195,18 @@ function PaymentCard({
                         <motion.button
                             whileHover={{ scale: 1.015 }}
                             whileTap={{ scale: 0.985 }}
-                            onClick={() => onGiftSubmit(activeTab === "bkash" ? "bKash" : "Nagad", giftAmount)}
+                            onClick={() => onGiftSubmit(activeTab === "bkash" ? "bKash" : "upay", giftAmount)}
                             className="w-full py-4 bg-slate-900 hover:bg-slate-800 dark:bg-primary dark:hover:bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-slate-900/10 dark:shadow-blue-500/20 flex items-center justify-center gap-2.5 text-base transition-colors"
                         >
                             <Heart size={18} className="fill-current text-[#E63946] animate-pulse" /> 
                             <span>I Have Sent a Gift</span>
                         </motion.button>
                         
-                        <p className="text-center text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
+                        <p className="text-center text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest pb-1">
                             Instant verification & supporter badge on the vision roadmap
                         </p>
                     </motion.div>
                 </AnimatePresence>
-            </div>
-            
-            {/* Trust Badges footer */}
-            <div className="p-4 bg-gray-50/70 dark:bg-white/[0.02] border-t border-gray-100 dark:border-white/5 flex items-center justify-around">
-                <div className="flex items-center gap-1.5 opacity-70">
-                    <Shield size={14} className="text-emerald-500" />
-                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-400">Verified Platform</span>
-                </div>
-                <div className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-                <div className="flex items-center gap-1.5 opacity-70">
-                    <Sparkles size={14} className="text-primary dark:text-blue-400" />
-                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-400">100% Direct</span>
-                </div>
-                <div className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-                <div className="flex items-center gap-1.5 opacity-70">
-                    <CheckCircle2 size={14} className="text-blue-500" />
-                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-400">Student-Built</span>
-                </div>
             </div>
         </div>
     );
@@ -1235,7 +1222,7 @@ export default function SupportPage() {
     const [showGiftForm, setShowGiftForm] = useState(false);
     const [giftAmount, setGiftAmount] = useState("");
     const [giftTxId, setGiftTxId] = useState("");
-    const [giftService, setGiftService] = useState<"bKash" | "Nagad">("bKash");
+    const [giftService, setGiftService] = useState<"bKash" | "upay">("bKash");
     const [giftName, setGiftName] = useState("");
     const [giftSubmitted, setGiftSubmitted] = useState(false);
     const [showThankYou, setShowThankYou] = useState(false);
@@ -1252,9 +1239,12 @@ export default function SupportPage() {
         bkashNumber: settings.bkashNumber || CONFIG.bkashNumber,
         bkashType: settings.bkashType || CONFIG.bkashType,
         bkashEnabled: settings.bkashEnabled ?? true,
-        nagadNumber: settings.nagadNumber || CONFIG.nagadNumber,
-        nagadType: settings.nagadType || CONFIG.nagadType,
-        nagadEnabled: settings.nagadEnabled ?? true,
+        upayNumber: settings.upayNumber || settings.nagadNumber || CONFIG.upayNumber,
+        upayType: settings.upayType || settings.nagadType || CONFIG.upayType,
+        upayEnabled: settings.upayEnabled ?? settings.nagadEnabled ?? true,
+        nagadNumber: settings.upayNumber || settings.nagadNumber || CONFIG.upayNumber,
+        nagadType: settings.upayType || settings.nagadType || CONFIG.upayType,
+        nagadEnabled: settings.upayEnabled ?? settings.nagadEnabled ?? true,
         raised: settings.raised ?? CONFIG.raised,
         goal: settings.goal ?? CONFIG.goal,
         supporters: String(settings.supporters ?? CONFIG.supporters),
@@ -1277,7 +1267,7 @@ export default function SupportPage() {
 
     const AdminSupportPanel = () => {
         const isBkashOn = (tempSettings.bkashEnabled ?? settings.bkashEnabled) ?? true;
-        const isNagadOn = (tempSettings.nagadEnabled ?? settings.nagadEnabled) ?? true;
+        const isUpayOn = (tempSettings.upayEnabled ?? tempSettings.nagadEnabled ?? settings.upayEnabled ?? settings.nagadEnabled) ?? true;
 
         return (
             <motion.div 
@@ -1365,21 +1355,21 @@ export default function SupportPage() {
                                         </div>
                                     </div>
 
-                                    {/* Nagad Config Card */}
+                                    {/* Upay Config Card */}
                                     <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-gray-100 dark:border-white/5 space-y-2.5">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-5 h-5 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 border border-gray-200/80 shadow-xs">
-                                                    <Image src="/logos/nagad.svg" alt="Nagad" width={20} height={14} className="w-full h-full object-contain" />
+                                                    <Image src="/logos/upay.png" alt="upay" width={20} height={20} className="w-full h-full object-contain" />
                                                 </div>
-                                                <span className="text-xs font-black text-slate-800 dark:text-slate-200">Nagad Configuration</span>
+                                                <span className="text-xs font-black text-slate-800 dark:text-slate-200">upay Configuration</span>
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => setTempSettings(prev => ({ ...prev, nagadEnabled: !isNagadOn }))}
-                                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${isNagadOn ? "bg-[#F7941D]" : "bg-gray-300 dark:bg-gray-700"}`}
+                                                onClick={() => setTempSettings(prev => ({ ...prev, upayEnabled: !isUpayOn, nagadEnabled: !isUpayOn }))}
+                                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${isUpayOn ? "bg-[#005BAC]" : "bg-gray-300 dark:bg-gray-700"}`}
                                             >
-                                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ${isNagadOn ? "translate-x-4" : "translate-x-0"}`} />
+                                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ${isUpayOn ? "translate-x-4" : "translate-x-0"}`} />
                                             </button>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2">
@@ -1387,8 +1377,8 @@ export default function SupportPage() {
                                                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Account Number</span>
                                                 <input 
                                                     type="text" 
-                                                    value={tempSettings.nagadNumber ?? activeConfig.nagadNumber}
-                                                    onChange={e => setTempSettings(prev => ({ ...prev, nagadNumber: e.target.value }))}
+                                                    value={tempSettings.upayNumber ?? tempSettings.nagadNumber ?? activeConfig.upayNumber}
+                                                    onChange={e => setTempSettings(prev => ({ ...prev, upayNumber: e.target.value, nagadNumber: e.target.value }))}
                                                     placeholder="01805107667"
                                                     className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white"
                                                 />
@@ -1396,8 +1386,8 @@ export default function SupportPage() {
                                             <div className="space-y-1">
                                                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Type</span>
                                                 <select
-                                                    value={tempSettings.nagadType ?? activeConfig.nagadType}
-                                                    onChange={e => setTempSettings(prev => ({ ...prev, nagadType: e.target.value as "Personal" | "Merchant" }))}
+                                                    value={tempSettings.upayType ?? tempSettings.nagadType ?? activeConfig.upayType}
+                                                    onChange={e => setTempSettings(prev => ({ ...prev, upayType: e.target.value as "Personal" | "Merchant", nagadType: e.target.value as "Personal" | "Merchant" }))}
                                                     className="w-full px-2 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
                                                 >
                                                     <option value="Personal">Personal</option>
@@ -1619,7 +1609,7 @@ export default function SupportPage() {
                                 }} 
                                 config={activeConfig}
                                 bkashEnabled={activeConfig.bkashEnabled}
-                                nagadEnabled={activeConfig.nagadEnabled}
+                                upayEnabled={activeConfig.upayEnabled}
                             />
                         </motion.div>
                     </div>
@@ -1678,7 +1668,7 @@ export default function SupportPage() {
 
             {/* 4. HOW TO SEND INSTRUCTIONS */}
             <section className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 pb-20">
-                <HowToSend bkashNumber={activeConfig.bkashNumber} nagadNumber={activeConfig.nagadNumber} />
+                <HowToSend bkashNumber={activeConfig.bkashNumber} upayNumber={activeConfig.upayNumber} />
             </section>
 
             {/* Floating builder footer */}
@@ -1773,7 +1763,7 @@ export default function SupportPage() {
                                                 type="number"
                                                 value={giftAmount}
                                                 onChange={(e) => setGiftAmount(e.target.value)}
-                                                placeholder="e.g. 500"
+                                                placeholder="e.g. 1000"
                                                 className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-400"
                                             />
                                         </div>
@@ -1781,11 +1771,11 @@ export default function SupportPage() {
                                             <label className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide block mb-1">Payment Method</label>
                                             <select
                                                 value={giftService}
-                                                onChange={(e) => setGiftService(e.target.value as "bKash" | "Nagad")}
+                                                onChange={(e) => setGiftService(e.target.value as "bKash" | "upay")}
                                                 className="w-full px-4 py-3 border border-gray-200 dark:border-gray-800 rounded-xl text-sm bg-gray-50 dark:bg-[#161620] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#1c1c28] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold"
                                             >
                                                 <option value="bKash">bKash</option>
-                                                <option value="Nagad">Nagad</option>
+                                                <option value="upay">upay</option>
                                             </select>
                                         </div>
                                         <div>
@@ -1818,7 +1808,7 @@ export default function SupportPage() {
                 show={showThankYou}
                 onClose={() => setShowThankYou(false)}
                 name={giftName || "Supporter"}
-                amount={parseInt(giftAmount) || 500}
+                amount={parseInt(giftAmount) || 1000}
                 date="March 5, 2026"
             />
 

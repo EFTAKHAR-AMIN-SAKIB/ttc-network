@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Heart, MessageSquare, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart, MessageSquare, MessageCircle, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash } from "lucide-react";
 import { type FirestoreStory, reactToStory } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { TimeAgo } from "@/components/Social/SocialUtils";
 import { isContentRestrictedForUser } from "@/lib/permissions";
 
-import { ReactionBtn } from "@/components/Social/ReactionSystem";
+import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
+import { CommentDrawer } from "@/components/Social/CommentSystem";
 
 /** Build the clean URL for a story: /story/01 if storyNumber exists, else /story/{id} */
 function getStoryUrl(story: FirestoreStory & { id: string }): string {
@@ -33,6 +34,7 @@ interface StoryCardProps {
 
 export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, onSave, onShare }: StoryCardProps) {
   const { user, profile } = useAuth();
+  const [showComments, setShowComments] = useState(false);
   const permissions = React.useMemo(() => {
     const isAuthor = user?.uid === story.authorId;
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
@@ -94,7 +96,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
           </div>
         )}
 
-        <div className="p-5 sm:p-7">
+        <div className="p-4 sm:p-5.5">
           <div className="mb-4 sm:mb-5">
             {/* Top: Author + Actions */}
             <div className="flex items-start justify-between gap-2 mb-2">
@@ -200,56 +202,107 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                 {story.preview}
               </p>
 
-              <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-gray-50 dark:border-gray-800">
-                <div onClick={(e) => e.preventDefault()}>
-                  <ReactionBtn 
-                    contentId={story.id} 
-                    contentType="story" 
-                    reactions={story.reactions} 
-                    reactedBy={story.reactedBy} 
-                    currentUserId={user?.uid}
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {onSave && (
-                    <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSave(story.id);
-                      }}
-                      className={`p-2 rounded-xl border hover:scale-105 active:scale-95 duration-200 ${
-                        isSaved 
-                          ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                          : "bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
-                      }`}
-                      title={isSaved ? "Remove Bookmark" : "Bookmark Story"}
-                    >
-                      <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
-                    </button>
-                  )}
+              {/* Interactions Bar (Facebook Layout) */}
+              <div className="mt-4 pt-2 relative z-10">
+                {/* 1. Engagement Summary Row */}
+                <ReactionSummary 
+                  reactions={story.reactions}
+                  reactedBy={story.reactedBy}
+                  commentsCount={story.commentsCount || 0}
+                  onOpenComments={() => setShowComments(!showComments)}
+                />
+
+                {/* Subtle Facebook Divider Line */}
+                <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
+
+                {/* 2. Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
+                <div className="flex items-center justify-between gap-1 py-0.5">
+                  {/* 1. React Button */}
+                  <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <ReactionBtn 
+                      contentId={story.id} 
+                      contentType="story" 
+                      reactions={story.reactions} 
+                      reactedBy={story.reactedBy} 
+                      currentUserId={user?.uid}
+                      showSummary={false}
+                      variant="facebook"
+                      compact={true}
+                    />
+                  </div>
+
+                  {/* 2. Comment Button */}
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowComments(!showComments);
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                      showComments 
+                        ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                    }`}
+                    title="Comment on story"
+                  >
+                    <MessageCircle size={16} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                    <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Comment</span>
+                  </button>
+
+                  {/* 3. Share Button */}
                   {onShare && (
                     <button 
+                      type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         onShare(story);
                       }}
-                      className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
+                      className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
                       title="Share Story"
                     >
-                      <Share2 size={16} />
+                      <Share2 size={16} className="shrink-0 transition-transform hover:scale-110" />
+                      <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Share</span>
                     </button>
                   )}
-                  <div className="flex items-center gap-2 group/btn ml-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/btn:text-primary transition-colors">Open</span>
-                    <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400 group-hover/btn:bg-primary group-hover/btn:text-white group-hover/btn:rotate-12 transition-all duration-300 shadow-sm">
-                      <BookOpen className="w-5 h-5" />
-                    </div>
-                  </div>
+
+                  {/* 4. Bookmark (Save) Button */}
+                  {onSave && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSave(story.id);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                        isSaved 
+                          ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                      }`}
+                      title={isSaved ? "Remove Bookmark" : "Save Story"}
+                    >
+                      <Bookmark size={16} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
+                      <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {/* Comment Drawer Overlay */}
+              <AnimatePresence>
+                {showComments && (
+                  <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <CommentDrawer 
+                      isOpen={showComments} 
+                      onClose={() => setShowComments(false)}
+                      contentId={story.id}
+                      contentType="story"
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
             </>
           )}
         </div>

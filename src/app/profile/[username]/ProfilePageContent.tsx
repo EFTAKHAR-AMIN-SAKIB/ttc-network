@@ -57,6 +57,7 @@ import PostCard from "@/components/PostCard";
 import StudyNoteCard from "@/app/study/components/StudyNoteCard";
 import StudyScheduleCard from "@/app/study/components/StudyScheduleCard";
 import ImageLightbox from "@/components/ImageLightbox";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 // ═══════════════════════════════════════════════════
 //  SUB-COMPONENTS & HELPERS
@@ -791,6 +792,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("all");
+    const { isScrollingDown } = useScrollDirection();
     const [showProfileStrength, setShowProfileStrength] = useState(() => {
         if (typeof window !== "undefined") {
             const saved = localStorage.getItem("ttc_hide_profile_strength");
@@ -2453,23 +2455,23 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
             {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
             {isViewingAsOwner && profileData && showProfileStrength && (
-                <div className="lg:hidden max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6 relative">
-                    <button 
-                        onClick={handleDismissProfileStrength} 
-                        className="absolute top-3 right-6 z-20 p-1.5 rounded-full bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shadow-sm"
-                        title="Dismiss Strength Bar"
-                    >
-                        <X size={12} />
-                    </button>
+                <div className="lg:hidden max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
                     <ProfileCompletionBar
                         profile={profileData}
                         onEditProfile={handleEditFromCompletion}
+                        onDismiss={handleDismissProfileStrength}
                     />
                 </div>
             )}
 
             {/* 2. STICKY PROFILE NAVIGATION BAR */}
-            <div ref={tabsRef} className="sticky top-16 z-30 bg-[#FAFAF8]/95 dark:bg-[#0c0c10]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-gray-800/80 shadow-sm transition-all mt-4 sm:mt-6">
+            <div 
+                ref={tabsRef} 
+                style={{ paddingTop: isScrollingDown ? "env(safe-area-inset-top, 0px)" : undefined }}
+                className={`sticky z-30 bg-[#FAFAF8] dark:bg-[#0c0c10] border-b border-slate-200/80 dark:border-gray-800/80 shadow-xs transition-all duration-300 ease-in-out ${
+                    isScrollingDown ? "top-0" : "top-16"
+                } md:top-16 mt-4 sm:mt-6`}
+            >
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar py-2.5">
                         {[
@@ -2514,17 +2516,11 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 <div className="lg:col-span-3 space-y-8 lg:sticky lg:top-32 lg:self-start">
                     {/* Profile Completion Card — Desktop Only */}
                     {isViewingAsOwner && profileData && showProfileStrength && (
-                        <div className="hidden lg:block relative">
-                            <button 
-                                onClick={handleDismissProfileStrength} 
-                                className="absolute top-5 right-5 z-20 p-1.5 rounded-full bg-white/85 dark:bg-gray-800/80 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shadow-sm"
-                                title="Dismiss Strength Card"
-                            >
-                                <X size={12} />
-                            </button>
+                        <div className="hidden lg:block">
                             <ProfileCompletionCard
                                 profile={profileData}
                                 onEditProfile={handleEditFromCompletion}
+                                onDismiss={handleDismissProfileStrength}
                             />
                         </div>
                     )}

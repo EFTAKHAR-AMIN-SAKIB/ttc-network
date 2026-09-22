@@ -11,7 +11,7 @@ import {
     Check, Star, BarChart2, RotateCcw, Ticket
 } from "lucide-react";
 import Link from "next/link";
-import { ReactionBtn } from "@/components/Social/ReactionSystem";
+import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { subscribeComments, rsvpToEvent, voteOnPoll, type EventDetails, type PollDetails } from "@/lib/firestore";
 import { ExpandableText, RichText, TimeAgo } from "@/components/Social/SocialUtils";
@@ -993,59 +993,75 @@ export default function PostCard({
                 )}
             </div>
 
-            {/* Interactions Bar */}
+            {/* Interactions Bar (Facebook Layout) */}
             {!isRestricted && (
-                <div className="mt-8 pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-4 sm:gap-6">
-                        <ReactionBtn 
-                            contentId={post.id} 
-                            contentType="post" 
-                            reactions={post.reactions} 
-                            reactedBy={post.reactedBy}
-                            currentUserId={profile?.uid}
-                        />
-                        <button 
-                            onClick={() => setShowComments(!showComments)}
-                            className={`flex items-center gap-2 group/btn transition-colors ${showComments ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
-                        >
-                            <div className={`p-2 rounded-xl transition-colors ${showComments ? 'bg-primary/10' : 'bg-gray-50 dark:bg-white/5 group-hover/btn:bg-primary/10'}`}>
-                                <MessageCircle size={18} className={showComments ? 'fill-primary' : 'group-hover/btn:fill-primary/20'} />
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest">{post.commentsCount || 0}</span>
-                        </button>
-                    </div>
+                <div className="mt-6 pt-2 relative z-10">
+                    {/* Top Engagement Stats Row ("React Seeing" & Comments count) */}
+                    <ReactionSummary 
+                        reactions={post.reactions}
+                        reactedBy={post.reactedBy}
+                        commentsCount={post.commentsCount || 0}
+                        onOpenComments={() => setShowComments(!showComments)}
+                    />
 
-                    <div className="flex items-center gap-2 sm:gap-4">
+                    {/* Subtle Facebook Divider Line */}
+                    <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
+
+                    {/* Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
+                    <div className="flex items-center justify-between gap-1 py-0.5">
+                        {/* 1. React Button */}
+                        <div className="flex-1 flex items-center justify-center min-w-0">
+                            <ReactionBtn 
+                                contentId={post.id} 
+                                contentType="post" 
+                                reactions={post.reactions} 
+                                reactedBy={post.reactedBy}
+                                currentUserId={profile?.uid}
+                                showSummary={false}
+                                variant="facebook"
+                            />
+                        </div>
+
+                        {/* 2. Comment Button */}
                         <button 
-                            onClick={() => onSave?.(post.id)}
-                            className={`p-2 rounded-xl transition-all border hover:scale-105 active:scale-95 duration-200 ${
-                                isSaved 
-                                    ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                                    : "bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 border-transparent hover:border-primary/10"
+                            type="button"
+                            onClick={() => setShowComments(!showComments)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                                showComments 
+                                    ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
                             }`}
-                            title={isSaved ? "Remove Bookmark" : "Bookmark Post"}
+                            title="Comment on post"
                         >
-                            <Bookmark size={18} className={isSaved ? "fill-primary" : ""} />
+                            <MessageCircle size={18} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                            <span className="text-xs sm:text-sm whitespace-nowrap">Comment</span>
                         </button>
+
+                        {/* 3. Share Button */}
                         <button 
+                            type="button"
                             onClick={() => setIsShareOpen(true)}
-                            className="p-2 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/10 hover:scale-105 active:scale-95 duration-200"
-                            title="Share Post"
+                            className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                            title="Share post"
                         >
-                            <Share2 size={18} />
+                            <Share2 size={18} className="shrink-0 transition-transform hover:scale-110" />
+                            <span className="text-xs sm:text-sm whitespace-nowrap">Share</span>
                         </button>
-                        {post.shareLink && (
-                            <a 
-                                href={formatExternalUrl(post.shareLink)} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 duration-200"
-                                title="Visit External Link"
-                            >
-                                <ExternalLink size={18} />
-                            </a>
-                        )}
+
+                        {/* 4. Bookmark (Save) Button */}
+                        <button 
+                            type="button"
+                            onClick={() => onSave?.(post.id)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                                isSaved 
+                                    ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                            }`}
+                            title={isSaved ? "Remove Bookmark" : "Save Post"}
+                        >
+                            <Bookmark size={18} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
+                            <span className="text-xs sm:text-sm whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
+                        </button>
                     </div>
                 </div>
             )}

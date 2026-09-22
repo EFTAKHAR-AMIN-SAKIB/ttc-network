@@ -8,8 +8,8 @@ import {
     Plus, X, Shield, Loader2, Image as ImageIcon, Calendar,
     Award, Globe, Users, Bookmark, Sparkles, Filter,
     CheckCircle2, Compass, School, ChevronRight, MessageSquare,
-    ChevronLeft, ArrowRight, ExternalLink, BarChart2,
-    Menu, Bell, BookOpen, ChevronDown, Check
+    ChevronLeft, ArrowRight, ExternalLink, BarChart2, ShieldCheck,
+    Menu, Bell, BookOpen, ChevronDown, Check, TrendingUp
 } from "lucide-react";
 import NewsFeedLeftSidebar from "./components/NewsFeedLeftSidebar";
 import { colleges } from "@/data/colleges";
@@ -17,7 +17,8 @@ import {
     subscribePosts, subscribeModerationCount, deletePost,
     toggleSavePost, subscribeSavedPosts,
     subscribeMyGroups, subscribeMyGroupFeed,
-    type FirestorePost,
+    subscribeDiscoverGroups, joinGroup,
+    type FirestorePost, type GroupDoc,
     getDocById
 } from "@/lib/firestore";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
@@ -25,6 +26,7 @@ import PostCard from "@/components/PostCard";
 import GroupPostCard from "@/components/GroupPostCard";
 import GroupCreationModal from "@/components/GroupCreationModal";
 import GroupPostCreationModal from "@/components/GroupPostCreationModal";
+import NewsFeedGroupsHub, { GroupJoinAction, getGroupGradient } from "./components/NewsFeedGroupsHub";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -175,6 +177,66 @@ function NewsFeedInner() {
         });
         return () => unsubGroupPosts();
     }, [myGroups]);
+
+    // Campus Groups Hub Integration States
+    const [discoverGroups, setDiscoverGroups] = useState<(GroupDoc & { id: string })[]>([]);
+    const [loadingDiscover, setLoadingDiscover] = useState(true);
+    const [groupSection, setGroupSection] = useState<"my-feed" | "discover" | "my-groups">("my-feed");
+    const [isJoiningSidebar, setIsJoiningSidebar] = useState<string | null>(null);
+
+    // Sync groupSection with query param
+    useEffect(() => {
+        const sec = searchParams.get("section");
+        if (sec === "my-groups" || sec === "discover" || sec === "my-feed") {
+            setGroupSection(sec as any);
+        }
+    }, [searchParams]);
+
+    // Discover groups subscription
+    useEffect(() => {
+        const isSiteAdmin = profile?.role === "admin";
+        const unsubDiscover = subscribeDiscoverGroups(isSiteAdmin, (groups) => {
+            setDiscoverGroups(groups);
+            setLoadingDiscover(false);
+        });
+        return () => unsubDiscover();
+    }, [profile?.role]);
+
+    // Suggested Groups for right sidebar (unjoined groups)
+    const suggestedGroups = useMemo(() => {
+        return discoverGroups
+            .filter((g) => !myGroups.some((mg) => mg.id === g.id))
+            .slice(0, 4);
+    }, [discoverGroups, myGroups]);
+
+    // Trending Groups for right sidebar
+    const trendingGroups = useMemo(() => {
+        return [...discoverGroups]
+            .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
+            .slice(0, 4);
+    }, [discoverGroups]);
+
+    const handleJoinGroupFromSidebar = async (group: GroupDoc & { id: string }) => {
+        if (!profile?.uid) {
+            showToast("Please log in or register to join groups", "info");
+            return;
+        }
+        if (!requireVerification("join groups")) return;
+        setIsJoiningSidebar(group.id);
+        try {
+            const res = await joinGroup(group.id);
+            if (res.status === "joined") {
+                showToast(`Successfully joined "${group.name}"`, "success");
+            } else {
+                showToast(`Request sent to join "${group.name}"`, "info");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to join group", "error");
+        } finally {
+            setIsJoiningSidebar(null);
+        }
+    };
 
     const unseenCounts = useMemo(() => {
         const eventCount = posts.filter(p => (p.type || "event") === "event" && getMs(p.timestamp) > lastSeenEvent).length;
@@ -569,7 +631,7 @@ function NewsFeedInner() {
                             <h1 className="text-lg sm:text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white truncate">
                                 News Feed
                             </h1>
-                            {selectedCollegeName && (
+                            {selectedCollegeName && activeTab !== "group" && (
                                 <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
                                     <School size={12} /> {selectedCollegeName}
                                 </span>
@@ -584,8 +646,9 @@ function NewsFeedInner() {
                 </div>
 
                 {/* Mobile Campus Filter Dropdown (Matches Desktop/Drawer 'Select Campus' Dropdown) */}
-                <div className="lg:hidden border-t border-gray-100 dark:border-gray-800/60 bg-gray-50/70 dark:bg-[#151720]/70 px-4 sm:px-6 py-2 relative">
-                    <div className="max-w-md mx-auto relative">
+                {activeTab !== "group" && (
+                    <div className="lg:hidden border-t border-gray-100 dark:border-gray-800/60 bg-gray-50/70 dark:bg-[#151720]/70 px-4 sm:px-6 py-2 relative">
+                        <div className="max-w-md mx-auto relative">
                         <button
                             type="button"
                             onClick={() => setIsMobileCampusDropdownOpen(prev => !prev)}
@@ -733,6 +796,7 @@ function NewsFeedInner() {
                         </AnimatePresence>
                     </div>
                 </div>
+                )}
             </header>
 
             {/* ─── Main Content Container (3-column on Desktop, 1-column on Mobile) ─── */}
@@ -757,6 +821,15 @@ function NewsFeedInner() {
                             pendingCount={pendingCount}
                             unseenClubCount={unseenCounts.club}
                             unseenGroupCount={unseenCounts.group}
+                            onSelectGroupSection={(sec) => {
+                                setGroupSection(sec);
+                                if (typeof window !== "undefined") {
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set("tab", "group");
+                                    url.searchParams.set("section", sec);
+                                    window.history.replaceState({}, "", url.toString());
+                                }
+                            }}
                         />
                     </aside>
 
@@ -1097,135 +1170,26 @@ function NewsFeedInner() {
                                     TAB 3: CAMPUS GROUPS FEED (Directly in NewsFeed!)
                                    ════════════════════════════════════════════════ */}
                                 {!showOnlySaved && activeTab === "group" && (
-                                    <>
-                                        {/* Groups Hub Quick Header Banner */}
-                                        <div className="bg-white dark:bg-[#161822] rounded-3xl p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                            <div className="flex items-center gap-3.5">
-                                                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-[#1877F2] flex items-center justify-center font-black shrink-0 shadow-inner">
-                                                    <Users size={24} />
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h2 className="text-base sm:text-lg font-black tracking-tight text-gray-900 dark:text-white">
-                                                            Campus Groups
-                                                        </h2>
-                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#1877F2]/10 text-[#1877F2]">
-                                                            {myGroups.length} {myGroups.length === 1 ? "Group" : "Groups"}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        Updates from study circles, tech hubs, and student batches
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <button
-                                                    onClick={() => {
-                                                        if (requireVerification("create groups")) {
-                                                            setIsCreateGroupOpen(true);
-                                                        }
-                                                    }}
-                                                    className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200/80 dark:bg-white/5 dark:hover:bg-white/10 text-gray-800 dark:text-gray-200 text-xs font-bold transition-all flex items-center gap-1.5"
-                                                >
-                                                    <Plus size={14} /> New Group
-                                                </button>
-                                                <Link
-                                                    href="/groups"
-                                                    className="px-3.5 py-2 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold transition-all shadow-md shadow-blue-500/25 flex items-center gap-1.5"
-                                                >
-                                                    Groups Hub <ExternalLink size={13} />
-                                                </Link>
-                                            </div>
-                                        </div>
-
-                                        {/* Group Post Composer Trigger */}
-                                        {profile?.uid && myGroups.length > 0 && (
-                                            <div className="bg-white dark:bg-[#161822] rounded-3xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs hover:shadow-md transition-shadow">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-gray-200 dark:border-gray-700 flex items-center justify-center font-black text-[#1877F2] text-sm sm:text-base overflow-hidden shadow-inner shrink-0">
-                                                        {profile?.photoURL ? (
-                                                            <img src={profile.photoURL} alt={userName} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            (userName || "U").charAt(0).toUpperCase()
-                                                        )}
-                                                    </div>
-
-                                                    <button
-                                                        onClick={handleOpenGroupComposer}
-                                                        className="flex-1 text-left px-4 sm:px-5 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100/80 dark:hover:bg-gray-800 border border-gray-200/70 dark:border-gray-700/60 text-gray-400 dark:text-gray-400 text-xs sm:text-sm font-semibold transition-all group/btn cursor-pointer"
-                                                    >
-                                                        <span className="group-hover/btn:text-gray-700 dark:group-hover/btn:text-gray-200 transition-colors">
-                                                            {firstName ? `Write something in your campus groups, ${firstName}?` : "Share a note, question, or update in your groups..."}
-                                                        </span>
-                                                    </button>
-                                                </div>
-
-                                                <div className="mt-3.5 pt-3 border-t border-gray-100 dark:border-gray-800/70 flex items-center justify-between gap-2">
-                                                    <button
-                                                        onClick={handleOpenGroupComposer}
-                                                        className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs font-bold transition-all"
-                                                    >
-                                                        <ImageIcon size={16} className="text-emerald-500" />
-                                                        <span>Photo / Media</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={handleOpenGroupComposer}
-                                                        className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-500/10 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold transition-all"
-                                                    >
-                                                        <BarChart2 size={16} className="text-blue-500" />
-                                                        <span>Group Poll</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Group Feed Stream */}
-                                        <div className="space-y-6 pb-24">
-                                            {filteredGroupPosts.map((gp) => (
-                                                <GroupPostCard
-                                                    key={gp.id}
-                                                    post={gp}
-                                                    userRole={profile?.role === "admin" ? "admin" : "member"}
-                                                    isGroupMember={myGroups.some(g => g.id === gp.groupId)}
-                                                />
-                                            ))}
-
-                                            {/* Empty State when no group posts exist */}
-                                            {filteredGroupPosts.length === 0 && (
-                                                <div className="text-center py-16 px-6 bg-white dark:bg-[#161822] rounded-3xl border border-gray-200/80 dark:border-gray-800/80 flex flex-col items-center">
-                                                    <div className="w-16 h-16 rounded-3xl bg-blue-500/10 dark:bg-blue-500/20 text-[#1877F2] flex items-center justify-center mb-4 ring-8 ring-blue-500/5">
-                                                        <Users size={32} />
-                                                    </div>
-                                                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                                        {myGroups.length === 0 ? "Join Campus Groups to See Posts" : "No group posts yet"}
-                                                    </h3>
-                                                    <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto mt-2 leading-relaxed">
-                                                        {myGroups.length === 0 
-                                                            ? "Discover study circles, tech clubs, departmental batches, and cultural societies across all TTC colleges."
-                                                            : "Your joined groups are quiet right now. Share the first discussion or announcement!"}
-                                                    </p>
-                                                    <div className="mt-6 flex flex-wrap gap-3 justify-center">
-                                                        {myGroups.length === 0 ? (
-                                                            <Link
-                                                                href="/groups"
-                                                                className="px-6 py-3 bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2"
-                                                            >
-                                                                Explore Campus Groups <ArrowRight size={14} />
-                                                            </Link>
-                                                        ) : (
-                                                            <button
-                                                                onClick={handleOpenGroupComposer}
-                                                                className="px-6 py-3 bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2"
-                                                            >
-                                                                <Plus size={14} /> Write in Group
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
+                                    <NewsFeedGroupsHub
+                                        myGroups={myGroups}
+                                        discoverGroups={discoverGroups}
+                                        groupFeedPosts={groupPosts}
+                                        loadingFeed={loading}
+                                        loadingDiscover={loadingDiscover}
+                                        activeSection={groupSection}
+                                        onSectionChange={(sec) => {
+                                            setGroupSection(sec);
+                                            if (typeof window !== "undefined") {
+                                                const url = new URL(window.location.href);
+                                                url.searchParams.set("tab", "group");
+                                                url.searchParams.set("section", sec);
+                                                window.history.replaceState({}, "", url.toString());
+                                            }
+                                        }}
+                                        onGroupCreated={() => {
+                                            setGroupSection("my-groups");
+                                        }}
+                                    />
                                 )}
 
                                 {/* ════════════════════════════════════════════════
@@ -1289,52 +1253,152 @@ function NewsFeedInner() {
                     {/* ─── Right Desktop Sidebar (Sticky Hub) ─── */}
                     <aside className="hidden xl:block space-y-5 sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto no-scrollbar pb-10">
                         
-                        {/* 1. Moderation Desk (for Admins / Managers) */}
-                        {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
-                            <div className="bg-white dark:bg-[#161822] rounded-3xl p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs space-y-3">
-                                <div className="flex items-center gap-2.5 text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                                    <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                        <Shield size={16} />
+                        {/* If on Groups tab: Show dedicated Groups Hub widgets */}
+                        {activeTab === "group" ? (
+                            <>
+                                {/* Suggested Groups to Join */}
+                                <div className="bg-white dark:bg-[#161822] border border-gray-200/80 dark:border-gray-800/80 rounded-3xl p-4 shadow-xs space-y-3">
+                                    <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800/80">
+                                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                            <Sparkles size={14} className="text-[#1877F2]" /> Suggested for you
+                                        </h3>
+                                        <button
+                                            onClick={() => setGroupSection("discover")}
+                                            className="text-[11px] font-bold text-[#1877F2] hover:underline cursor-pointer"
+                                        >
+                                            See all
+                                        </button>
                                     </div>
-                                    <span>Moderation Desk</span>
+
+                                    {suggestedGroups.length === 0 ? (
+                                        <p className="text-xs text-gray-400 py-3 text-center">No new suggestions right now.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {suggestedGroups.map((g) => (
+                                                <div 
+                                                    key={g.id}
+                                                    onClick={() => router.push(`/groups/${g.id}`)}
+                                                    className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-all cursor-pointer group"
+                                                >
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${getGroupGradient(g.name)} overflow-hidden shrink-0 flex items-center justify-center text-[10px] font-black text-white uppercase`}>
+                                                            {g.coverUrl ? <img src={g.coverUrl} alt="" className="w-full h-full object-cover" /> : g.name.slice(0, 2)}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate group-hover:text-[#1877F2] transition-colors">
+                                                                {g.name}
+                                                            </h4>
+                                                            <p className="text-[10px] text-gray-400">
+                                                                {g.memberCount || 0} members
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <GroupJoinAction 
+                                                        group={g}
+                                                        userId={profile?.uid}
+                                                        isJoined={myGroups.some(mg => mg.id === g.id)}
+                                                        isJoining={isJoiningSidebar === g.id}
+                                                        onJoin={() => handleJoinGroupFromSidebar(g)}
+                                                        layout="compact"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                    {pendingCount > 0 
-                                        ? `${pendingCount} post${pendingCount > 1 ? "s" : ""} pending review in the queue.`
-                                        : "Moderation queue is all caught up! No pending posts."}
-                                </p>
+                                {/* Popular on Campus */}
+                                <div className="bg-white dark:bg-[#161822] border border-gray-200/80 dark:border-gray-800/80 rounded-3xl p-4 shadow-xs space-y-3">
+                                    <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800/80">
+                                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                            <TrendingUp size={14} className="text-[#1877F2]" /> Popular on Campus
+                                        </h3>
+                                    </div>
 
-                                <button
-                                    onClick={() => setShowModeration(true)}
-                                    className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-black uppercase tracking-wider shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                >
-                                    <Shield size={15} /> Open Review Queue
-                                </button>
-                            </div>
+                                    <div className="space-y-1.5">
+                                        {trendingGroups.map((g, idx) => (
+                                            <div 
+                                                key={g.id}
+                                                onClick={() => router.push(`/groups/${g.id}`)}
+                                                className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+                                            >
+                                                <span className="text-xs font-black text-gray-400 w-4 text-center">
+                                                    {idx + 1}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate group-hover:text-[#1877F2] transition-colors">
+                                                        {g.name}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-400">
+                                                        {g.memberCount || 0} active members
+                                                    </p>
+                                                </div>
+                                                <ChevronRight size={14} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Campus Groups Policy */}
+                                <div className="bg-white dark:bg-[#161822] border border-[#1877F2]/15 dark:border-[#1877F2]/25 rounded-3xl p-4 space-y-1.5 text-xs shadow-xs">
+                                    <div className="flex items-center gap-2 text-[#1877F2] font-bold">
+                                        <ShieldCheck size={16} /> Campus Groups Policy
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                                        Campus groups are self-moderated by student leaders and batch coordinators. Keep discussions respectful and academically focused.
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* 1. Moderation Desk (for Admins / Managers) */}
+                                {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
+                                    <div className="bg-white dark:bg-[#161822] rounded-3xl p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs space-y-3">
+                                        <div className="flex items-center gap-2.5 text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                                            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                                <Shield size={16} />
+                                            </div>
+                                            <span>Moderation Desk</span>
+                                        </div>
+
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                            {pendingCount > 0 
+                                                ? `${pendingCount} post${pendingCount > 1 ? "s" : ""} pending review in the queue.`
+                                                : "Moderation queue is all caught up! No pending posts."}
+                                        </p>
+
+                                        <button
+                                            onClick={() => setShowModeration(true)}
+                                            className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-black uppercase tracking-wider shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            <Shield size={15} /> Open Review Queue
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 2. Campus Guidelines */}
+                                <div className="bg-white dark:bg-[#161822] rounded-3xl p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs space-y-3">
+                                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-500">
+                                        <Sparkles size={16} /> Campus Guidelines
+                                    </div>
+
+                                    <ul className="space-y-3 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                        <li className="flex items-start gap-2.5">
+                                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <span>Share official campus events, workshops, and sports updates.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2.5">
+                                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <span>Showcase college club achievements & extracurricular activities.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2.5">
+                                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <span>Maintain academic integrity and respectful discussions.</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </>
                         )}
-
-                        {/* 2. Campus Guidelines */}
-                        <div className="bg-white dark:bg-[#161822] rounded-3xl p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs space-y-3">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-500">
-                                <Sparkles size={16} /> Campus Guidelines
-                            </div>
-
-                            <ul className="space-y-3 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                <li className="flex items-start gap-2.5">
-                                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                    <span>Share official campus events, workshops, and sports updates.</span>
-                                </li>
-                                <li className="flex items-start gap-2.5">
-                                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                    <span>Showcase college club achievements & extracurricular activities.</span>
-                                </li>
-                                <li className="flex items-start gap-2.5">
-                                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                    <span>Maintain academic integrity and respectful discussions.</span>
-                                </li>
-                            </ul>
-                        </div>
 
                         {/* 3. Explore Network */}
                         <div className="bg-white dark:bg-[#161822] rounded-3xl p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-xs space-y-3">
@@ -1571,6 +1635,16 @@ function NewsFeedInner() {
                                 pendingCount={pendingCount}
                                 unseenClubCount={unseenCounts.club}
                                 unseenGroupCount={unseenCounts.group}
+                                onSelectGroupSection={(sec) => {
+                                    setGroupSection(sec);
+                                    setIsMobileLeftMenuOpen(false);
+                                    if (typeof window !== "undefined") {
+                                        const url = new URL(window.location.href);
+                                        url.searchParams.set("tab", "group");
+                                        url.searchParams.set("section", sec);
+                                        window.history.replaceState({}, "", url.toString());
+                                    }
+                                }}
                             />
                         </motion.div>
                     </div>

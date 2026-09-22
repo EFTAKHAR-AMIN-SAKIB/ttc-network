@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, Pencil, Trash2, Download, Bookmark, Share2, Loader2, Eye, FileText } from "lucide-react";
+import { BookOpen, Video, ExternalLink, GraduationCap, Globe, Clock, Lock, MessageSquare, MessageCircle, Pencil, Trash2, Download, Bookmark, Share2, Loader2, Eye, FileText } from "lucide-react";
 import { type FirestoreStudyPost, incrementStudyPostViewCount, incrementStudyPostDownloadCount } from "@/lib/firestore";
-import { ReactionBtn } from "@/components/Social/ReactionSystem";
+import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { ExpandableText } from "@/components/Social/SocialUtils";
 import { formatDistanceToNow } from "date-fns";
@@ -91,7 +91,7 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
             viewport={{ once: true }}
             className={`group relative bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm shadow-navy-900/5 hover:shadow-xl transition-all duration-300 ${showComments ? 'ring-2 ring-primary/20 scale-[1.005]' : 'hover:-translate-y-1'}`}
         >
-            <div className="p-4 sm:p-7">
+            <div className="p-4 sm:p-5.5">
                 {/* Header Metadata Row */}
                 <div className="flex items-center justify-between gap-2 mb-4">
                     <div className="flex items-center gap-1.5 flex-wrap min-w-0">
@@ -243,98 +243,139 @@ export default function StudyNoteCard({ post, currentUserId, isAdmin, onEdit, on
                     </div>
                 )}
 
-                {/* Author Info */}
-                <Link 
-                    href={`/profile/${post.authorId}`}
-                    className="inline-flex items-center gap-2.5 mb-5 group/author cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
-                >
-                    <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs flex items-center justify-center overflow-hidden group-hover/author:ring-2 group-hover/author:ring-primary/30 transition-all">
-                        {post.authorPhoto ? (
-                            <img src={post.authorPhoto} alt={post.authorName} className="w-full h-full object-cover" />
-                        ) : (
-                            <GraduationCap className="w-4 h-4 text-gray-400" />
-                        )}
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-xs font-bold text-navy-900 dark:text-gray-100 truncate group-hover/author:text-primary transition-colors">{post.authorName}</p>
-                        <p className="text-[9px] font-semibold text-gray-400 truncate flex items-center gap-1">
-                            {isCampusOnly ? <Lock size={9} className="text-amber-500" /> : <Globe size={9} className="text-blue-500" />}
-                            {post.collegeName?.split(',')[0]}
-                        </p>
-                    </div>
-                </Link>
-
-                {/* Main Actions Layer */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between flex-wrap gap-2 pt-3.5 border-t border-gray-100 dark:border-gray-800">
-                        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                            <ReactionBtn 
-                                contentId={post.id} 
-                                contentType="study" 
-                                reactions={post.reactions} 
-                                reactedBy={post.reactedBy} 
-                                currentUserId={currentUserId}
-                            />
+                {/* Author Info & Resource Access Action */}
+                <div className="flex items-center justify-between gap-3 mb-4">
+                    <Link 
+                        href={`/profile/${post.authorId}`}
+                        className="inline-flex items-center gap-2.5 group/author cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all min-w-0"
+                    >
+                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs flex items-center justify-center overflow-hidden group-hover/author:ring-2 group-hover/author:ring-primary/30 transition-all shrink-0">
+                            {post.authorPhoto ? (
+                                <img src={post.authorPhoto} alt={post.authorName} className="w-full h-full object-cover" />
+                            ) : (
+                                <GraduationCap className="w-4 h-4 text-gray-400" />
+                            )}
                         </div>
+                        <div className="min-w-0">
+                            <p className="text-xs font-bold text-navy-900 dark:text-gray-100 truncate group-hover/author:text-primary transition-colors">{post.authorName}</p>
+                            <p className="text-[9px] font-semibold text-gray-400 truncate flex items-center gap-1">
+                                {isCampusOnly ? <Lock size={9} className="text-amber-500" /> : <Globe size={9} className="text-blue-500" />}
+                                {post.collegeName?.split(',')[0]}
+                            </p>
+                        </div>
+                    </Link>
 
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            {onSave && (
-                                <button 
-                                    onClick={() => onSave(post.id)}
-                                    className={`p-2 rounded-xl border transition-all duration-200 hover:scale-105 active:scale-95 ${
-                                        isSaved 
-                                            ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" 
-                                            : "text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent"
-                                    }`}
-                                    title={isSaved ? "Remove Bookmark" : "Bookmark Material"}
-                                >
-                                    <Bookmark size={16} className={isSaved ? "fill-primary" : ""} />
-                                </button>
+                    {/* Quick Download / Open Resource CTA */}
+                    {(post.fileUrl || post.link) && (
+                        <button 
+                            type="button"
+                            onClick={handleDownload}
+                            disabled={isDownloading}
+                            className="h-8 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all bg-primary/10 hover:bg-primary text-primary hover:text-white dark:bg-primary/20 dark:hover:bg-primary dark:text-primary-light font-black uppercase text-[10px] tracking-wider active:scale-95 disabled:opacity-50 cursor-pointer shrink-0 border border-primary/20 hover:border-transparent shadow-xs"
+                            title={post.fileUrl ? `Download: ${post.fileName || 'file'}` : "Open link"}
+                        >
+                            {!isVerified ? (
+                                <Lock size={13} className="text-amber-500" />
+                            ) : isDownloading ? (
+                                <Loader2 size={13} className="animate-spin" />
+                            ) : post.fileUrl ? (
+                                <>
+                                    <Download size={13} />
+                                    <span>Get</span>
+                                </>
+                            ) : (
+                                <>
+                                    <ExternalLink size={13} />
+                                    <span>Open</span>
+                                </>
                             )}
-                            {onShare && (
-                                <button 
-                                    onClick={() => onShare(post)}
-                                    className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary border border-transparent hover:scale-105 active:scale-95 transition-all duration-200"
-                                    title="Share Material"
-                                >
-                                    <Share2 size={16} />
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => setShowComments(!showComments)}
-                                className={`flex items-center gap-1.5 group/btn transition-colors ${showComments ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
-                                title="Comments"
-                            >
-                                <div className={`p-2 rounded-xl transition-colors ${showComments ? 'bg-primary/10' : 'bg-gray-50 dark:bg-white/5 group-hover/btn:bg-primary/10'}`}>
-                                    <MessageSquare size={16} className={showComments ? 'fill-primary' : 'group-hover/btn:fill-primary/20'} />
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-wider">{post.commentsCount || 0}</span>
-                            </button>
+                        </button>
+                    )}
+                </div>
 
-                            {/* Download / Open Action Button */}
+                {/* Main Actions Layer (Facebook Layout) */}
+                <div className="space-y-4">
+                    <div className="mt-2 pt-2 relative z-10">
+                        {/* 1. Engagement Summary Row */}
+                        <ReactionSummary 
+                            reactions={post.reactions}
+                            reactedBy={post.reactedBy}
+                            commentsCount={post.commentsCount || 0}
+                            onOpenComments={() => setShowComments(!showComments)}
+                        />
+
+                        {/* Subtle Facebook Divider Line */}
+                        <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
+
+                        {/* 2. Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
+                        <div className="flex items-center justify-between gap-1 py-0.5">
+                            {/* 1. React Button */}
+                            <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => e.stopPropagation()}>
+                                <ReactionBtn 
+                                    contentId={post.id} 
+                                    contentType="study" 
+                                    reactions={post.reactions} 
+                                    reactedBy={post.reactedBy} 
+                                    currentUserId={currentUserId}
+                                    showSummary={false}
+                                    variant="facebook"
+                                    compact={true}
+                                />
+                            </div>
+
+                            {/* 2. Comment Button */}
                             <button 
                                 type="button"
-                                onClick={handleDownload}
-                                disabled={isDownloading}
-                                className="h-9 px-3 sm:px-3.5 rounded-xl flex items-center justify-center gap-1.5 transition-all bg-primary text-white shadow-sm shadow-primary/25 hover:brightness-105 active:scale-95 disabled:opacity-50 text-[10px] font-black uppercase tracking-wider cursor-pointer"
-                                title={post.fileUrl ? `Download: ${post.fileName || 'file'}` : "Open link"}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowComments(!showComments);
+                                }}
+                                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                                    showComments 
+                                        ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                                }`}
+                                title="Comment on material"
                             >
-                                {!isVerified ? (
-                                    <Lock size={14} className="text-amber-300" />
-                                ) : isDownloading ? (
-                                    <Loader2 size={14} className="animate-spin" />
-                                ) : post.fileUrl ? (
-                                    <>
-                                        <Download size={14} />
-                                        <span className="hidden xs:inline">Get</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <ExternalLink size={14} />
-                                        <span className="hidden xs:inline">Open</span>
-                                    </>
-                                )}
+                                <MessageCircle size={16} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                                <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Comment</span>
                             </button>
+
+                            {/* 3. Share Button */}
+                            {onShare && (
+                                <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onShare(post);
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                                    title="Share material"
+                                >
+                                    <Share2 size={16} className="shrink-0 transition-transform hover:scale-110" />
+                                    <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Share</span>
+                                </button>
+                            )}
+
+                            {/* 4. Bookmark (Save) Button */}
+                            {onSave && (
+                                <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSave(post.id);
+                                    }}
+                                    className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                                        isSaved 
+                                            ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                                    }`}
+                                    title={isSaved ? "Remove Bookmark" : "Save Material"}
+                                >
+                                    <Bookmark size={16} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
+                                    <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 

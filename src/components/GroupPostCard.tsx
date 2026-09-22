@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, MoreHorizontal, Pin, Trash2, MessageCircle, 
     AlertTriangle, Check, ShieldAlert, Loader2, Sparkles, Pencil,
-    Globe, Lock
+    Globe, Lock, Share2, Bookmark
 } from "lucide-react";
 import Link from "next/link";
-import { ReactionBtn } from "@/components/Social/ReactionSystem";
+import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { TimeAgo, ExpandableText } from "@/components/Social/SocialUtils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,12 +18,13 @@ import { useToast } from "@/contexts/ToastContext";
 import { 
     deleteGroupPost, pinGroupPost, voteInPoll, reportGroupPost, 
     updateGroupPost, subscribeComments, type GroupPostDoc,
-    subscribeGroupDetails
+    subscribeGroupDetails, toggleSavePost
 } from "@/lib/firestore";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import GroupPostCreationModal from "./GroupPostCreationModal";
 import SafeAvatar from "./SafeAvatar";
+import ShareModal from "@/components/ShareModal";
 
 const gradients = [
     "from-blue-600 to-indigo-600",
@@ -53,6 +54,36 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const searchParams = useSearchParams();
     const [isTarget, setIsTarget] = useState(false);
     const [coverImgError, setCoverImgError] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+    const [isSavingPost, setIsSavingPost] = useState(false);
+    const [isShareOpen, setIsShareOpen] = useState(false);
+
+    useEffect(() => {
+        if (!user?.uid || !post.id) return;
+        const db = getDb();
+        getDoc(doc(db, "users", user.uid, "savedPosts", post.id)).then((snap) => {
+            setIsSaved(snap.exists());
+        }).catch(() => {});
+    }, [user?.uid, post.id]);
+
+    const handleSaveGroupPost = async () => {
+        if (!user?.uid) {
+            showToast("Please log in to save posts.", "info");
+            return;
+        }
+        if (isSavingPost) return;
+        setIsSavingPost(true);
+        try {
+            const saved = await toggleSavePost(user.uid, post.id);
+            setIsSaved(saved);
+            showToast(saved ? "Post bookmarked!" : "Bookmark removed.", saved ? "success" : "info");
+        } catch (err) {
+            console.error("Failed to save post:", err);
+            showToast("Failed to save post.", "error");
+        } finally {
+            setIsSavingPost(false);
+        }
+    };
 
     // Live profile synchronization for post creator
     const [liveCreatorPhoto, setLiveCreatorPhoto] = useState<string | null>(null);
@@ -509,26 +540,76 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                 </div>
             )}
 
-            {/* Reactions & Actions Row */}
-            <div className="flex items-center justify-between border-t border-gray-50 dark:border-gray-800/50 pt-4 mt-2">
-                <ReactionBtn 
-                    contentId={post.id}
-                    contentType="groupPost"
+            {/* Interactions Bar (Facebook Layout) */}
+            <div className="mt-6 pt-2 relative z-10">
+                {/* 1. Engagement Summary Row */}
+                <ReactionSummary 
                     reactions={post.reactions}
                     reactedBy={post.reactedBy}
-                    currentUserId={user?.uid}
+                    commentsCount={post.commentsCount || 0}
+                    onOpenComments={() => setShowComments(!showComments)}
                 />
 
-                <button 
-                    onClick={() => setShowComments(!showComments)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${
-                        showComments 
-                            ? "bg-primary/5 text-primary" 
-                            : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/40"
-                    }`}
-                >
-                    <MessageCircle size={16} /> Comments ({post.commentsCount || 0})
-                </button>
+                {/* Subtle Facebook Divider Line */}
+                <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
+
+                {/* 2. Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
+                <div className="flex items-center justify-between gap-1 py-0.5">
+                    {/* 1. React Button */}
+                    <div className="flex-1 flex items-center justify-center min-w-0">
+                        <ReactionBtn 
+                            contentId={post.id} 
+                            contentType="groupPost" 
+                            reactions={post.reactions} 
+                            reactedBy={post.reactedBy}
+                            currentUserId={user?.uid}
+                            showSummary={false}
+                            variant="facebook"
+                        />
+                    </div>
+
+                    {/* 2. Comment Button */}
+                    <button 
+                        type="button"
+                        onClick={() => setShowComments(!showComments)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                            showComments 
+                                ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                        }`}
+                        title="Comment on post"
+                    >
+                        <MessageCircle size={18} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                        <span className="text-xs sm:text-sm whitespace-nowrap">Comment</span>
+                    </button>
+
+                    {/* 3. Share Button */}
+                    <button 
+                        type="button"
+                        onClick={() => setIsShareOpen(true)}
+                        className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                        title="Share post"
+                    >
+                        <Share2 size={18} className="shrink-0 transition-transform hover:scale-110" />
+                        <span className="text-xs sm:text-sm whitespace-nowrap">Share</span>
+                    </button>
+
+                    {/* 4. Bookmark (Save) Button */}
+                    <button 
+                        type="button"
+                        onClick={handleSaveGroupPost}
+                        disabled={isSavingPost}
+                        className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                            isSaved 
+                                ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                        }`}
+                        title={isSaved ? "Remove Bookmark" : "Save Post"}
+                    >
+                        <Bookmark size={18} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
+                        <span className="text-xs sm:text-sm whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
+                    </button>
+                </div>
             </div>
 
             {/* Preview of 1-2 top comments */}
@@ -632,6 +713,18 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
             groupId={post.groupId}
             groupName={groupDetails?.name || post.groupName}
             editPost={post}
+        />
+
+        <ShareModal 
+            isOpen={isShareOpen}
+            onClose={() => setIsShareOpen(false)}
+            type="post"
+            post={{
+                id: post.id,
+                content: post.content,
+                authorName: liveCreatorName || post.creatorName,
+                thumbnailUrl: post.imageUrl
+            }}
         />
         </>
     );
