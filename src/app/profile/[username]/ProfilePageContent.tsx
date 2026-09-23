@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     AtSign, Globe, Briefcase, Plus, CheckCircle, Info, AlertTriangle, ChevronRight, Share2, MapPin, 
     Target, Pencil, Save, X, Camera, Loader2, ImageIcon, Trash2, Search,
-    Heart, Clock, Shield, Activity, GraduationCap, Building, Quote, BookOpen, BookText, User, Award,
+    Heart, Clock, Shield, ShieldCheck, Lock, Activity, GraduationCap, Building, Quote, BookOpen, BookText, User, Award,
     Sparkles, Sparkle, Mail, ExternalLink, Calendar, Copy, Check, ChevronDown, MessageSquare, ThumbsUp,
     Phone, MessageCircle, UserCheck, UserPlus, Eye, EyeOff, Facebook, Bookmark,
     Bell, BellRing, BellOff
@@ -17,7 +17,7 @@ import {
     collection, query, where, onSnapshot, orderBy, limit, getDocs
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
-import { useAuth, type UserProfile } from "@/contexts/AuthContext";
+import { useAuth, type UserProfile, type ProfileLockSettings } from "@/contexts/AuthContext";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -58,6 +58,11 @@ import StudyNoteCard from "@/app/study/components/StudyNoteCard";
 import StudyScheduleCard from "@/app/study/components/StudyScheduleCard";
 import ImageLightbox from "@/components/ImageLightbox";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
+import { getProfilePermissions, type ProfilePermissions } from "@/lib/profilePrivacy";
+import { ProfileLockBanner } from "@/components/Profile/ProfileLockBanner";
+import { ProfileLockDrawer } from "@/components/Profile/ProfileLockDrawer";
+import { LockedFeedState } from "@/components/Profile/LockedFeedState";
+import { LockedCredentialsState } from "@/components/Profile/LockedCredentialsState";
 
 // ═══════════════════════════════════════════════════
 //  SUB-COMPONENTS & HELPERS
@@ -240,7 +245,13 @@ function AchievementModal({ isOpen, onClose, onUpload, isUploading }: { isOpen: 
 //  TAB COMPONENTS
 // ═══════════════════════════════════════════════════
 
-function AboutTab({ profile, isTeacher }: { profile: UserProfile; isTeacher: boolean }) {
+function AboutTab({ 
+    profile, 
+    isTeacher
+}: { 
+    profile: UserProfile; 
+    isTeacher: boolean;
+}) {
     const college = colleges.find(c => c.id === profile.collegeId);
 
     return (
@@ -534,7 +545,13 @@ function AllTab({
     handleEditStory,
     handleDeleteComment,
     user,
-    router
+    router,
+    canViewFeed = true,
+    canViewCredentials = true,
+    isFollowing = false,
+    onFollowClick,
+    isFollowLoading = false,
+    isLockedForEveryone = false
 }: {
     profile: UserProfile;
     isTeacher: boolean;
@@ -549,6 +566,12 @@ function AllTab({
     handleDeleteComment: any;
     user: any;
     router: any;
+    canViewFeed?: boolean;
+    canViewCredentials?: boolean;
+    isFollowing?: boolean;
+    onFollowClick?: () => void;
+    isFollowLoading?: boolean;
+    isLockedForEveryone?: boolean;
 }) {
     const college = colleges.find(c => c.id === profile.collegeId);
 
@@ -652,7 +675,7 @@ function AllTab({
             </section>
 
             {/* Verified Badges Row */}
-            {profile.badges && profile.badges.length > 0 && (
+            {profile.badges && profile.badges.length > 0 && canViewCredentials && (
                 <section className="p-6 bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-800 rounded-[2rem] shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                         <Award size={16} className="text-primary" />
@@ -688,7 +711,15 @@ function AllTab({
                     <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{allActivity.length} items</span>
                 </div>
 
-                {loadingFeed ? (
+                {!canViewFeed ? (
+                    <LockedFeedState 
+                        displayName={profile.displayName} 
+                        isFollowing={isFollowing} 
+                        onFollowClick={onFollowClick} 
+                        isFollowLoading={isFollowLoading}
+                        isLockedForEveryone={isLockedForEveryone}
+                    />
+                ) : loadingFeed ? (
                     <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div>
                 ) : allActivity.length > 0 ? (
                     <div className="space-y-6">
@@ -906,17 +937,38 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
         alt: ""
     });
 
-    const openLightbox = (src: string | null, alt: string) => {
-        setLightbox({ open: true, src, alt });
-    };
-
     // Tab switching ref for sticky behavior
     const tabsRef = useRef<HTMLDivElement>(null);
+
+    // Profile Lock Drawer State
+    const [lockDrawerOpen, setLockDrawerOpen] = useState(false);
 
     const isOwnProfile = user?.uid === uid;
     const [viewAsGuest, setViewAsGuest] = useState(false);
     const isViewingAsOwner = isOwnProfile && !viewAsGuest;
     const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    // Dynamic Privacy & Lock Permissions
+    // When simulating guest view, pass null/false to simulate a TRUE stranger
+    // (not a follower, not a college peer) — otherwise the owner's own
+    // collegeId matches and isPeerAllowed incorrectly grants access.
+    const profilePermissions = useMemo<ProfilePermissions>(() => {
+        return getProfilePermissions(
+            profileData,
+            user?.uid,
+            viewAsGuest ? false : isFollowing,
+            viewAsGuest ? null : currentUserProfile?.collegeId,
+            viewAsGuest
+        );
+    }, [profileData, user?.uid, isFollowing, currentUserProfile?.collegeId, viewAsGuest]);
+
+    const openLightbox = (src: string | null, alt: string) => {
+        if (!profilePermissions.canViewFullPhotos) {
+            showToast("This photo is protected by Profile Lock.", "info");
+            return;
+        }
+        setLightbox({ open: true, src, alt });
+    };
 
     const handleShareProfile = async () => {
         if (!profileData) return;
@@ -1507,14 +1559,23 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Eye className="w-4 h-4 animate-pulse text-purple-400" />
-                            <span>Previewing Profile: This is how your profile appears to other users.</span>
+                            <span>Previewing Profile: This is how your profile appears to other users {profileData?.lockSettings?.isLocked ? "(Profile Lock Active)" : "(Public)"}.</span>
                         </div>
-                        <button 
-                            onClick={() => setViewAsGuest(false)}
-                            className="bg-white/20 hover:bg-white/30 text-white px-3.5 py-1.5 rounded-lg text-xs uppercase font-black tracking-wider transition-all"
-                        >
-                            Exit Preview
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setLockDrawerOpen(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs uppercase font-black tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                            >
+                                <Shield size={12} />
+                                <span>Adjust Lock</span>
+                            </button>
+                            <button 
+                                onClick={() => setViewAsGuest(false)}
+                                className="bg-white/20 hover:bg-white/30 text-white px-3.5 py-1.5 rounded-lg text-xs uppercase font-black tracking-wider transition-all"
+                            >
+                                Exit Preview
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1523,15 +1584,16 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             <div className={`max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 relative ${contactOpen || photoMenuOpen || bannerMenuOpen ? "z-40" : "z-10"}`}>
                 {/* Banner Frame */}
                 <div 
-                    className="h-48 sm:h-64 md:h-80 lg:h-[350px] w-full relative group/banner cursor-zoom-in rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] overflow-hidden border border-slate-200/80 dark:border-gray-800 shadow-md sm:shadow-lg bg-slate-100 dark:bg-gray-900"
+                    className={`h-48 sm:h-64 md:h-80 lg:h-[350px] w-full relative group/banner ${profilePermissions.canViewFullPhotos ? "cursor-zoom-in" : "cursor-default"} rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] overflow-hidden border border-slate-200/80 dark:border-gray-800 shadow-md sm:shadow-lg bg-slate-100 dark:bg-gray-900 select-none`}
                     onClick={() => openLightbox(profileData.bannerURL || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2070", "Profile Banner")}
+                    onContextMenu={(e) => { if (!profilePermissions.canViewFullPhotos) e.preventDefault(); }}
                 >
                     <Image 
                         src={profileData.bannerURL || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=2070"}
                         alt="Banner"
                         fill
                         priority
-                        className="object-cover transition-transform duration-500 group-hover/banner:scale-[1.01]"
+                        className={`object-cover transition-transform duration-500 group-hover/banner:scale-[1.01] ${!profilePermissions.canViewFullPhotos ? "pointer-events-none" : ""}`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-navy-950/60 via-navy-900/10 to-transparent pointer-events-none" />
                     
@@ -1612,14 +1674,15 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                         {/* Avatar */}
                         <div className="relative group/avatar shrink-0">
                             <div 
-                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-44 md:h-44 rounded-[2rem] sm:rounded-[2.5rem] md:rounded-[3.5rem] bg-white border-[6px] sm:border-[10px] border-[#FAFAF8] dark:border-[#0c0c10] overflow-hidden shadow-2xl relative cursor-zoom-in"
+                                className={`w-24 h-24 sm:w-32 sm:h-32 md:w-44 md:h-44 rounded-[2rem] sm:rounded-[2.5rem] md:rounded-[3.5rem] bg-white border-[6px] sm:border-[10px] border-[#FAFAF8] dark:border-[#0c0c10] overflow-hidden shadow-2xl relative select-none ${profilePermissions.canViewFullPhotos ? "cursor-zoom-in" : "cursor-default"}`}
                                 onClick={() => openLightbox(profileData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.displayName)}&background=1A56DB&color=fff&size=500`, profileData.displayName)}
+                                onContextMenu={(e) => { if (!profilePermissions.canViewFullPhotos) e.preventDefault(); }}
                             >
                                 <Image 
                                     src={profileData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.displayName)}&background=1A56DB&color=fff&size=500`}
                                     alt="Avatar"
                                     fill
-                                    className="object-cover"
+                                    className={`object-cover ${!profilePermissions.canViewFullPhotos ? "pointer-events-none" : ""}`}
                                 />
                             </div>
                             {/* Camera badge button — Facebook-style, always visible for own profile */}
@@ -1689,6 +1752,16 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                             <div className="absolute top-2 right-2 bg-[#FAFAF8] dark:bg-[#0c0c10] p-1.5 rounded-2xl shadow-lg border border-slate-100 dark:border-gray-800">
                                 <BadgeDot role={profileData.role} />
                             </div>
+
+                            {/* Facebook-style Avatar Guard Shield Badge */}
+                            {profilePermissions.hasAvatarGuardBadge && (
+                                <div 
+                                    className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 z-20 bg-blue-600 dark:bg-blue-500 text-white p-1.5 sm:p-2 rounded-xl sm:rounded-2xl shadow-lg border-2 border-white dark:border-[#0c0c10] flex items-center justify-center animate-in fade-in"
+                                    title="Profile Picture Protected by Profile Lock"
+                                >
+                                    <Shield size={14} className="sm:w-4 sm:h-4 fill-white/20 stroke-[2.5]" />
+                                </div>
+                            )}
                         </div>
 
                         {/* Name & Basic Info & Bio & Actions Container */}
@@ -1870,6 +1943,18 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                         <Pencil size={14} /> <span>Edit Profile</span>
                                     </button>
                                     <button 
+                                        onClick={() => setLockDrawerOpen(true)}
+                                        className={`px-3.5 sm:px-4 py-2.5 border-2 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                                            profileData?.lockSettings?.isLocked
+                                                ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/50 text-blue-700 dark:text-blue-300 shadow-blue-500/10"
+                                                : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary/20"
+                                        }`}
+                                        title="Lock or customize profile privacy"
+                                    >
+                                        <Shield size={14} className={profileData?.lockSettings?.isLocked ? "text-blue-600 dark:text-blue-400" : ""} />
+                                        <span>{profileData?.lockSettings?.isLocked ? "Profile Locked" : "Lock Profile"}</span>
+                                    </button>
+                                    <button 
                                         onClick={() => {
                                             if (activeTab === "saved") {
                                                 setActiveTab("about");
@@ -2039,9 +2124,25 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                         </div>
 
                                                         {/* Contact Items List */}
-                                                        <div className="space-y-3">
-                                                            {/* Email */}
-                                                            {profileData?.publicEmail && (
+                                                        {!profilePermissions.canViewContact ? (
+                                                            <div className="py-12 px-4 text-center">
+                                                                <div className="w-14 h-14 rounded-3xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 shadow-xs">
+                                                                    <Lock size={24} />
+                                                                </div>
+                                                                <h4 className="text-sm font-black text-navy-950 dark:text-white">
+                                                                    Contact Info is Protected
+                                                                </h4>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-[240px] mx-auto leading-relaxed">
+                                                                    {profilePermissions.isLockedForEveryone
+                                                                        ? "Contact information is private and hidden from everyone."
+                                                                        : `Contact information is locked. Follow ${profileData?.displayName || "this user"} to view contact details.`
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-3">
+                                                                {/* Email */}
+                                                                {profileData?.publicEmail && (
                                                                 <div className="p-3.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl flex items-center justify-between gap-3">
                                                                     <div className="flex items-center gap-3 min-w-0 flex-1">
                                                                         <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
@@ -2232,6 +2333,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                                 </div>
                                                             )}
                                                         </div>
+                                                    )}
 
                                                         {(profileData?.publicEmail || profileData?.phone || profileData?.whatsapp || profileData?.facebook || profileData?.website) && (
                                                             <p className="text-[10px] text-center font-medium text-gray-400 dark:text-gray-500 mt-5">
@@ -2256,165 +2358,186 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                                             </span>
                                                         </div>
                                                         <div className="p-2 space-y-1 max-h-96 overflow-y-auto">
-                                                            {/* Email */}
-                                                            {profileData?.publicEmail && (
-                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
-                                                                    <a 
-                                                                        href={`mailto:${profileData.publicEmail}`}
-                                                                        className="flex items-center gap-3 min-w-0 flex-1"
-                                                                        title="Send Email"
-                                                                    >
-                                                                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center shrink-0">
-                                                                            <Mail size={16} />
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Email</div>
-                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.publicEmail}</div>
-                                                                        </div>
-                                                                    </a>
-                                                                    <button
-                                                                        onClick={() => handleCopyField(profileData.publicEmail!, "email", "Email")}
-                                                                        className="p-2 rounded-lg text-gray-400 hover:text-primary hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
-                                                                        title="Copy Email"
-                                                                    >
-                                                                        {copiedField === "email" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Phone */}
-                                                            {profileData?.phone && (
-                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
-                                                                    <a 
-                                                                        href={`tel:${profileData.phone.replace(/\s+/g, '')}`}
-                                                                        className="flex items-center gap-3 min-w-0 flex-1"
-                                                                        title="Call Phone"
-                                                                    >
-                                                                        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
-                                                                            <Phone size={16} />
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Phone</div>
-                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.phone}</div>
-                                                                        </div>
-                                                                    </a>
-                                                                    <button
-                                                                        onClick={() => handleCopyField(profileData.phone!, "phone", "Phone number")}
-                                                                        className="p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
-                                                                        title="Copy Phone Number"
-                                                                    >
-                                                                        {copiedField === "phone" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-
-                                                            {/* WhatsApp */}
-                                                            {profileData?.whatsapp && (
-                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
-                                                                    <a 
-                                                                        href={`https://wa.me/${profileData.whatsapp.replace(/[^0-9]/g, '')}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="flex items-center gap-3 min-w-0 flex-1"
-                                                                        title="Message on WhatsApp"
-                                                                    >
-                                                                        <div className="w-9 h-9 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-500 flex items-center justify-center shrink-0">
-                                                                            <MessageCircle size={16} />
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">WhatsApp</div>
-                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.whatsapp}</div>
-                                                                        </div>
-                                                                    </a>
-                                                                    <button
-                                                                        onClick={() => handleCopyField(profileData.whatsapp!, "whatsapp", "WhatsApp number")}
-                                                                        className="p-2 rounded-lg text-gray-400 hover:text-green-500 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
-                                                                        title="Copy WhatsApp Number"
-                                                                    >
-                                                                        {copiedField === "whatsapp" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Facebook */}
-                                                            {profileData?.facebook && (
-                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
-                                                                    <a 
-                                                                        href={profileData.facebook.startsWith('http') ? profileData.facebook : `https://${profileData.facebook}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="flex items-center gap-3 min-w-0 flex-1"
-                                                                        title="Open Facebook Profile"
-                                                                    >
-                                                                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                                                                            <Facebook size={16} />
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Facebook</div>
-                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
-                                                                                {profileData.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}
-                                                                            </div>
-                                                                        </div>
-                                                                    </a>
-                                                                    <button
-                                                                        onClick={() => handleCopyField(profileData.facebook!, "facebook", "Facebook link")}
-                                                                        className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
-                                                                        title="Copy Facebook Link"
-                                                                    >
-                                                                        {copiedField === "facebook" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Website / Portfolio */}
-                                                            {profileData?.website && (
-                                                                <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
-                                                                    <a 
-                                                                        href={profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="flex items-center gap-3 min-w-0 flex-1"
-                                                                        title="Visit Website"
-                                                                    >
-                                                                        <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                                                                            <Globe size={16} />
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Portfolio / Website</div>
-                                                                            <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
-                                                                                {profileData.website.replace(/^https?:\/\/(www\.)?/, '')}
-                                                                            </div>
-                                                                        </div>
-                                                                    </a>
-                                                                    <button
-                                                                        onClick={() => handleCopyField(profileData.website!, "website", "Website link")}
-                                                                        className="p-2 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
-                                                                        title="Copy Website Link"
-                                                                    >
-                                                                        {copiedField === "website" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-
-                                                            {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && !profileData?.facebook && !profileData?.website && (
-                                                                <div className="px-4 py-8 text-center space-y-3">
-                                                                    <MessageCircle className="mx-auto text-gray-300 dark:text-gray-600" size={32} />
-                                                                    <div>
-                                                                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">No contact info available</p>
-                                                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">This user hasn't shared their contact details yet.</p>
+                                                            {!profilePermissions.canViewContact ? (
+                                                                <div className="py-8 px-4 text-center space-y-3">
+                                                                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center mx-auto shadow-xs">
+                                                                        <Lock size={20} />
                                                                     </div>
-                                                                    {isViewingAsOwner && (
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                setContactOpen(false);
-                                                                                handleEditFromCompletion("contact-connectivity");
-                                                                            }}
-                                                                            className="text-[11px] font-black text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl transition-all uppercase tracking-wider"
-                                                                        >
-                                                                            Add Contact Details
-                                                                        </button>
+                                                                    <div>
+                                                                        <h4 className="text-xs font-black text-navy-900 dark:text-white">Contact Info Protected</h4>
+                                                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-[200px] mx-auto leading-relaxed">
+                                                                            This user keeps contact information private under Profile Lock.
+                                                                        </p>
+                                                                    </div>
+                                                                    {viewAsGuest && (
+                                                                        <span className="inline-block text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                                                                            Hidden in Guest Preview
+                                                                        </span>
                                                                     )}
                                                                 </div>
+                                                            ) : (
+                                                                <>
+                                                                    {/* Email */}
+                                                                    {profileData?.publicEmail && (
+                                                                        <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                            <a 
+                                                                                href={`mailto:${profileData.publicEmail}`}
+                                                                                className="flex items-center gap-3 min-w-0 flex-1"
+                                                                                title="Send Email"
+                                                                            >
+                                                                                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center shrink-0">
+                                                                                    <Mail size={16} />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Email</div>
+                                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.publicEmail}</div>
+                                                                                </div>
+                                                                            </a>
+                                                                            <button
+                                                                                onClick={() => handleCopyField(profileData.publicEmail!, "email", "Email")}
+                                                                                className="p-2 rounded-lg text-gray-400 hover:text-primary hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                                title="Copy Email"
+                                                                            >
+                                                                                {copiedField === "email" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Phone */}
+                                                                    {profileData?.phone && (
+                                                                        <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                            <a 
+                                                                                href={`tel:${profileData.phone.replace(/\s+/g, '')}`}
+                                                                                className="flex items-center gap-3 min-w-0 flex-1"
+                                                                                title="Call Phone"
+                                                                            >
+                                                                                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shrink-0">
+                                                                                    <Phone size={16} />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Phone</div>
+                                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.phone}</div>
+                                                                                </div>
+                                                                            </a>
+                                                                            <button
+                                                                                onClick={() => handleCopyField(profileData.phone!, "phone", "Phone number")}
+                                                                                className="p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                                title="Copy Phone Number"
+                                                                            >
+                                                                                {copiedField === "phone" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* WhatsApp */}
+                                                                    {profileData?.whatsapp && (
+                                                                        <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                            <a 
+                                                                                href={`https://wa.me/${profileData.whatsapp.replace(/[^0-9]/g, '')}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center gap-3 min-w-0 flex-1"
+                                                                                title="Message on WhatsApp"
+                                                                            >
+                                                                                <div className="w-9 h-9 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-500 flex items-center justify-center shrink-0">
+                                                                                    <MessageCircle size={16} />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">WhatsApp</div>
+                                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">{profileData.whatsapp}</div>
+                                                                                </div>
+                                                                            </a>
+                                                                            <button
+                                                                                onClick={() => handleCopyField(profileData.whatsapp!, "whatsapp", "WhatsApp number")}
+                                                                                className="p-2 rounded-lg text-gray-400 hover:text-green-500 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                                title="Copy WhatsApp Number"
+                                                                            >
+                                                                                {copiedField === "whatsapp" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Facebook */}
+                                                                    {profileData?.facebook && (
+                                                                        <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                            <a 
+                                                                                href={profileData.facebook.startsWith('http') ? profileData.facebook : `https://${profileData.facebook}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center gap-3 min-w-0 flex-1"
+                                                                                title="Open Facebook Profile"
+                                                                            >
+                                                                                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                                                                    <Facebook size={16} />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Facebook</div>
+                                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
+                                                                                        {profileData.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </a>
+                                                                            <button
+                                                                                onClick={() => handleCopyField(profileData.facebook!, "facebook", "Facebook link")}
+                                                                                className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                                title="Copy Facebook Link"
+                                                                            >
+                                                                                {copiedField === "facebook" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Website / Portfolio */}
+                                                                    {profileData?.website && (
+                                                                        <div className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800/60 transition-colors group">
+                                                                            <a 
+                                                                                href={profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center gap-3 min-w-0 flex-1"
+                                                                                title="Visit Website"
+                                                                            >
+                                                                                <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                                                                    <Globe size={16} />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Portfolio / Website</div>
+                                                                                    <div className="text-xs font-bold text-navy-900 dark:text-gray-200 truncate">
+                                                                                        {profileData.website.replace(/^https?:\/\/(www\.)?/, '')}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </a>
+                                                                            <button
+                                                                                onClick={() => handleCopyField(profileData.website!, "website", "Website link")}
+                                                                                className="p-2 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-white dark:hover:bg-gray-700 transition-colors shrink-0"
+                                                                                title="Copy Website Link"
+                                                                            >
+                                                                                {copiedField === "website" ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {!profileData?.publicEmail && !profileData?.phone && !profileData?.whatsapp && !profileData?.facebook && !profileData?.website && (
+                                                                        <div className="px-4 py-8 text-center space-y-3">
+                                                                            <MessageCircle className="mx-auto text-gray-300 dark:text-gray-600" size={32} />
+                                                                            <div>
+                                                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">No contact info available</p>
+                                                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">This user hasn't shared their contact details yet.</p>
+                                                                            </div>
+                                                                            {isViewingAsOwner && (
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setContactOpen(false);
+                                                                                        handleEditFromCompletion("contact-connectivity");
+                                                                                    }}
+                                                                                    className="text-[11px] font-black text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl transition-all uppercase tracking-wider"
+                                                                                >
+                                                                                    Add Contact Details
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     </motion.div>
@@ -2464,6 +2587,62 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
             )}
 
+            {/* PROFILE LOCK BANNER (Facebook-style Shield Alert) */}
+            {profilePermissions.showLockedShieldBanner && (
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+                    <ProfileLockBanner
+                        displayName={profileData?.displayName || "User"}
+                        isOwner={isViewingAsOwner}
+                        isFollowing={isFollowing}
+                        onFollowClick={handleFollowToggle}
+                        onManageClick={() => setLockDrawerOpen(true)}
+                        isFollowLoading={followLoading}
+                        isPeerAllowed={profilePermissions.isPeerAllowed}
+                        collegeName={profileData?.collegeId ? colleges.find(c => c.id === profileData.collegeId)?.name : undefined}
+                        isLockedForEveryone={profilePermissions.isLockedForEveryone}
+                        gender={profileData?.gender || (colleges.find(c => c.id === profileData?.collegeId)?.gender === "women" ? "female" : "male")}
+                    />
+                </div>
+            )}
+
+            {/* Owner Lock Status Banner — visible when owner views their own locked profile (not guest mode) */}
+            {isViewingAsOwner && profilePermissions.isMasterLocked && !profilePermissions.showLockedShieldBanner && (
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+                    <div className="flex items-center justify-between gap-2.5 sm:gap-3 px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/40">
+                        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                            <div className="w-8 h-8 rounded-xl bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                                <ShieldCheck size={16} className="stroke-[2.5]" />
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-200 truncate">
+                                {profilePermissions.isLockedForEveryone
+                                    ? "Your profile is locked for everyone — only you can see your protected content"
+                                    : "Your profile is locked — only your followers can see your protected content"
+                                }
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <button
+                                onClick={() => {
+                                    if (activeTab === "saved") setActiveTab("about");
+                                    setViewAsGuest(true);
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all"
+                            >
+                                <Eye size={12} />
+                                <span>Preview</span>
+                            </button>
+                            <button
+                                onClick={() => setLockDrawerOpen(true)}
+                                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
+                            >
+                                <Shield size={12} />
+                                <span>Manage</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 2. STICKY PROFILE NAVIGATION BAR */}
             <div 
                 ref={tabsRef} 
@@ -2495,6 +2674,12 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                 >
                                     <IconComponent size={16} className={isActive ? "text-primary stroke-[2.5]" : "text-gray-400 stroke-2"} />
                                     <span>{tab.label}</span>
+                                    {tab.id === "skills" && !profilePermissions.canViewCredentials && !isViewingAsOwner && (
+                                        <Lock size={12} className="text-amber-500 shrink-0" />
+                                    )}
+                                    {tab.id === "activity" && !profilePermissions.canViewFeed && !isViewingAsOwner && (
+                                        <Lock size={12} className="text-blue-500 shrink-0" />
+                                    )}
                                     {isActive && (
                                         <motion.div 
                                             layoutId="profileTabIndicator"
@@ -2573,29 +2758,39 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
 
 
                     {/* Socials & Connectivity */}
-                    <div className="space-y-4 px-2">
-                        {profileData.publicEmail && (
-                            <button 
-                                onClick={copyEmail}
-                                className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-800/50 rounded-2xl group transition-all"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Mail className="text-primary/40 group-hover:text-primary" size={16} />
-                                    <span className="text-xs font-bold text-gray-500 truncate">{profileData.publicEmail}</span>
-                                </div>
-                                {copiedEmail ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-gray-300" />}
-                            </button>
-                        )}
-                        {profileData.website && (
-                             <a href={profileData.website} target="_blank" className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-800/50 rounded-2xl group transition-all">
-                                <div className="flex items-center gap-3">
-                                    <Globe className="text-primary/40 group-hover:text-primary" size={16} />
-                                    <span className="text-xs font-bold text-gray-500 truncate">Portfolio / Website</span>
-                                </div>
-                                <ExternalLink size={14} className="text-gray-300" />
-                            </a>
-                        )}
-                    </div>
+                    {profilePermissions.canViewContact ? (
+                        <div className="space-y-4 px-2">
+                            {profileData.publicEmail && (
+                                <button 
+                                    onClick={copyEmail}
+                                    className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-800/50 rounded-2xl group transition-all"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Mail className="text-primary/40 group-hover:text-primary" size={16} />
+                                        <span className="text-xs font-bold text-gray-500 truncate">{profileData.publicEmail}</span>
+                                    </div>
+                                    {copiedEmail ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-gray-300" />}
+                                </button>
+                            )}
+                            {profileData.website && (
+                                 <a href={profileData.website} target="_blank" className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-800/50 rounded-2xl group transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <Globe className="text-primary/40 group-hover:text-primary" size={16} />
+                                        <span className="text-xs font-bold text-gray-500 truncate">Portfolio / Website</span>
+                                    </div>
+                                    <ExternalLink size={14} className="text-gray-300" />
+                                </a>
+                            )}
+                        </div>
+                    ) : (profileData.publicEmail || profileData.website) ? (
+                        <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30 text-center space-y-1.5 mx-2">
+                            <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                                <Lock size={12} />
+                                Contact Hidden
+                            </div>
+                            <p className="text-[11px] text-gray-400">Locked by profile privacy</p>
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* MAIN CONTENT (M-CONTENT) — 9 cols */}
@@ -2620,12 +2815,32 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     handleDeleteComment={handleDeleteComment}
                                     user={user}
                                     router={router}
+                                    canViewFeed={profilePermissions.canViewFeed}
+                                    canViewCredentials={profilePermissions.canViewCredentials}
+                                    isFollowing={isFollowing}
+                                    onFollowClick={handleFollowToggle}
+                                    isFollowLoading={followLoading}
+                                    isLockedForEveryone={profilePermissions.isLockedForEveryone}
                                 />
                             )}
                             {activeTab === "about" && (
-                                <AboutTab key="about-tab" profile={profileData} isTeacher={isTeacher} />
+                                <AboutTab 
+                                    key="about-tab" 
+                                    profile={profileData} 
+                                    isTeacher={isTeacher} 
+                                />
                             )}
                             {activeTab === "activity" && (
+                                !profilePermissions.canViewFeed ? (
+                                    <LockedFeedState
+                                        key="activity-locked"
+                                        displayName={profileData?.displayName || "User"}
+                                        isFollowing={isFollowing}
+                                        onFollowClick={handleFollowToggle}
+                                        isFollowLoading={followLoading}
+                                        isLockedForEveryone={profilePermissions.isLockedForEveryone}
+                                    />
+                                ) : (
                                 <motion.div 
                                     key="activity-tab"
                                     initial={{ opacity: 0, y: 20 }}
@@ -2789,8 +3004,19 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                         </div>
                                     )}
                                 </motion.div>
+                                )
                             )}
                             {activeTab === "skills" && (
+                                !profilePermissions.canViewCredentials ? (
+                                    <LockedCredentialsState
+                                        key="credentials-locked"
+                                        displayName={profileData?.displayName || "User"}
+                                        isFollowing={isFollowing}
+                                        onFollowClick={handleFollowToggle}
+                                        isFollowLoading={followLoading}
+                                        isLockedForEveryone={profilePermissions.isLockedForEveryone}
+                                    />
+                                ) : (
                                 <motion.div 
                                     key="skills-tab"
                                     initial={{ opacity: 0, y: 20 }}
@@ -2883,6 +3109,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                         )}
                                     </section>
                                 </motion.div>
+                                )
                             )}
                             {activeTab === "saved" && isViewingAsOwner && (
                                 <motion.div 
@@ -3135,6 +3362,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 initialTab={followersModalTab}
                 followersCount={followersCount}
                 followingCount={followingCount}
+                isLocked={!profilePermissions.canViewFollowersList}
             />
 
             {/* Follow Notification Customization Modal */}
@@ -3148,6 +3376,21 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 initialSettings={followNotifSettings}
                 onSettingsUpdated={(newSettings) => setFollowNotifSettings(newSettings)}
             />
+
+            {/* Profile Lock Drawer */}
+            <AnimatePresence>
+                {lockDrawerOpen && (
+                    <ProfileLockDrawer
+                        isOpen={lockDrawerOpen}
+                        onClose={() => setLockDrawerOpen(false)}
+                        profile={profileData}
+                        onSaved={(newSettings: ProfileLockSettings) => {
+                            setProfileData((prev) => prev ? ({ ...prev, lockSettings: newSettings }) : prev);
+                            refreshProfile();
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

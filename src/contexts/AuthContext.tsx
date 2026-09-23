@@ -132,6 +132,7 @@ export interface UserProfile {
     phone?: string;
     whatsapp?: string;
     facebook?: string;
+    gender?: "male" | "female" | "other" | string;
     
     // Professional Details
     professionalStatus?: string; // e.g., "Student", "Employed", "Looking for work"
@@ -168,6 +169,22 @@ export interface UserProfile {
     bioFontSize?: string;
     favoriteQuote?: string;
     favoriteQuoteAuthor?: string;
+    
+    // Privacy & Profile Lock Settings
+    lockSettings?: ProfileLockSettings;
+}
+
+export interface ProfileLockSettings {
+    isLocked: boolean;              // Master Lock Switch
+    lockedAt?: string | number | Date | null;
+    avatarGuard: boolean;           // Disable photo lightbox & context menu
+    hideContactInfo: boolean;       // Hide phone, whatsapp, email
+    hideActivityFeed: boolean;      // Hide posts, stories, comments from non-followers
+    hideCredentials: boolean;       // Hide verified badges, certificates, achievements
+    hideAcademicDetails?: boolean;  // Deprecated fallback for academic details
+    hideFollowersList: boolean;     // Prevent opening followers modal
+    allowCollegePeers: boolean;     // Allow classmates/teachers from same college
+    lockForEveryone?: boolean;      // Apply lock rules to ALL viewers including followers
 }
 
 interface AuthContextType {
