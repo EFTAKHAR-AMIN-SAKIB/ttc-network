@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Users, Download, X, ArrowRight, Compass, Share } from "lucide-react";
+import { Users, Download, ArrowRight, Compass } from "lucide-react";
 import { colleges } from "@/data/colleges";
 import { subscribeColleges, type FirestoreCollege } from "@/lib/firestore";
+import AppDownloadModal from "./AppDownloadModal";
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -339,7 +340,7 @@ export default function OrbitalHero() {
 
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [isAppInstalled, setIsAppInstalled] = useState(false);
-    const [showInstallGuide, setShowInstallGuide] = useState(false);
+    const [showDownloadModal, setShowDownloadModal] = useState(false);
     const [isIos, setIsIos] = useState(false);
     const [isInstalling, setIsInstalling] = useState(false);
 
@@ -386,7 +387,7 @@ export default function OrbitalHero() {
         const handleAppInstalled = () => {
             setIsAppInstalled(true);
             setInstallPrompt(null);
-            setShowInstallGuide(false);
+            setShowDownloadModal(false);
             if (typeof window !== "undefined") {
                 window.__ttcAppInstalled = true;
                 window.__ttcInstallPrompt = null;
@@ -413,56 +414,12 @@ export default function OrbitalHero() {
         };
     }, [installPrompt, isAppInstalled, isIos]);
 
-    const handleInstallClick = async () => {
+    const handleInstallClick = () => {
         if (isAppInstalled) {
             window.location.href = "/news-feed";
             return;
         }
-
-        setIsInstalling(true);
-
-        // 1. Get prompt from local state or window global
-        let promptEvent = installPrompt || (typeof window !== "undefined" ? window.__ttcInstallPrompt : null);
-
-        // 2. If not yet ready on a non-iOS browser, wait briefly up to 1000ms
-        if (!promptEvent && !isIos) {
-            promptEvent = await new Promise((resolve) => {
-                const timer = setTimeout(() => {
-                    window.removeEventListener("ttc-install-prompt-ready", onReady);
-                    resolve(null);
-                }, 1000);
-                const onReady = (e: any) => {
-                    clearTimeout(timer);
-                    window.removeEventListener("ttc-install-prompt-ready", onReady);
-                    resolve(e.detail || (typeof window !== "undefined" ? window.__ttcInstallPrompt : null));
-                };
-                window.addEventListener("ttc-install-prompt-ready", onReady);
-            });
-        }
-
-        setIsInstalling(false);
-
-        // 3. If prompt is available, trigger native browser install prompt
-        if (promptEvent) {
-            try {
-                await promptEvent.prompt();
-                const choiceResult = await promptEvent.userChoice;
-                if (choiceResult?.outcome === "accepted") {
-                    setIsAppInstalled(true);
-                    setInstallPrompt(null);
-                    if (typeof window !== "undefined") {
-                        window.__ttcInstallPrompt = null;
-                        window.__ttcAppInstalled = true;
-                    }
-                }
-            } catch (err) {
-                console.warn("[PWA] Prompt execution error:", err);
-                setShowInstallGuide(true);
-            }
-        } else {
-            // Fallback: only for iOS Safari or browsers without programmatic install
-            setShowInstallGuide(true);
-        }
+        setShowDownloadModal(true);
     };
 
     const mergedColleges = useMemo(() => {
@@ -764,78 +721,15 @@ export default function OrbitalHero() {
                 </div>
             </div>
 
-            {/* Universal Install Guide Modal */}
-            {showInstallGuide && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-[#16181C] border border-gray-100 dark:border-white/5 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center relative max-h-[90vh] overflow-y-auto">
-                        <button
-                            onClick={() => setShowInstallGuide(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                        
-                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto mb-4">
-                            <Download size={26} />
-                        </div>
-                        
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                            Install TTC NETWORK
-                        </h3>
-                        
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
-                            Install the web app on your device for fast offline access and a native experience.
-                        </p>
-                        
-                        {isIos ? (
-                            <div className="space-y-4 text-left">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                                        1
-                                    </div>
-                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                        Tap the <span className="font-bold text-primary inline-flex items-center gap-1">Share <Share size={12} className="inline" /></span> button in Safari&apos;s bottom toolbar.
-                                    </p>
-                                </div>
-                                <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                                        2
-                                    </div>
-                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                        Scroll down and tap <span className="font-bold text-primary">Add to Home Screen</span>.
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4 text-left">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                                        1
-                                    </div>
-                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                        Look for the <span className="font-bold text-primary">Install icon</span> in your browser address bar (top right).
-                                    </p>
-                                </div>
-                                <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">
-                                        2
-                                    </div>
-                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">
-                                        Or click browser menu <span className="font-bold text-primary">(⋮)</span> and select <span className="font-bold text-primary">&quot;Install TTC NETWORK&quot;</span>.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                        
-                        <button
-                            onClick={() => setShowInstallGuide(false)}
-                            className="mt-6 w-full py-2.5 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-800 dark:text-white font-bold rounded-xl text-xs transition-colors"
-                        >
-                            Got it
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* App Download & Play Store Status Hub Modal */}
+            <AppDownloadModal
+                isOpen={showDownloadModal}
+                onClose={() => setShowDownloadModal(false)}
+                installPrompt={installPrompt}
+                isAppInstalled={isAppInstalled}
+                setIsAppInstalled={setIsAppInstalled}
+                isIos={isIos}
+            />
         </section>
     );
 }

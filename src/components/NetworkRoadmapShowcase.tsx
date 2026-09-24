@@ -47,7 +47,7 @@ export default function NetworkRoadmapShowcase() {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("ttc-request-install"));
     }
-    setTimeout(() => setIsInstalling(false), 1500);
+    setTimeout(() => setIsInstalling(false), 500);
   };
 
   const scrollToMobileSection = (id: string) => {
@@ -445,7 +445,7 @@ export default function NetworkRoadmapShowcase() {
               className="relative inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-sm sm:text-base tracking-wide shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 cursor-pointer min-h-[50px]"
             >
               <Download size={18} className="animate-bounce" />
-              <span>{isInstalling ? "Opening Web App..." : settings.downloadButtonText || "Download Web App"}</span>
+              <span>{isInstalling ? "অ্যাপ অপশন খুলছে..." : settings.downloadButtonText || "অ্যাপ ডাউনলোড করুন"}</span>
             </button>
           </div>
 
