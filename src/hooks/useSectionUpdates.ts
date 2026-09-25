@@ -58,6 +58,8 @@ export function useSectionUpdates() {
 
         // Posts query (gets latest Global Event or Club posts)
         const qPosts = query(collection(db, "posts"), orderBy("timestamp", "desc"), limit(10));
+        const noopErr = () => {};
+
         const unsubPosts = onSnapshot(qPosts, (snap) => {
             let latestEventTime = 0;
             let latestClubTime = 0;
@@ -76,7 +78,7 @@ export function useSectionUpdates() {
                 "event": latestEventTime,
                 "club": latestClubTime
             }));
-        });
+        }, noopErr);
 
         // Latest Group Post
         const qGroupPosts = query(collection(db, "groupPosts"), orderBy("createdAt", "desc"), limit(1));
@@ -86,7 +88,7 @@ export function useSectionUpdates() {
                 const date = doc.data().createdAt?.toMillis?.() || doc.data().createdAt?.seconds * 1000 || 0;
                 setLatestUpdate(prev => ({ ...prev, "group": date }));
             }
-        });
+        }, noopErr);
 
         // Latest Story
         const qStories = query(collection(db, "stories"), orderBy("createdAt", "desc"), limit(1));
@@ -96,7 +98,7 @@ export function useSectionUpdates() {
                 const date = doc.data().createdAt?.toMillis?.() || doc.data().createdAt?.seconds * 1000 || 0;
                 setLatestUpdate(prev => ({ ...prev, "story": date }));
             }
-        });
+        }, noopErr);
 
         // Latest Notice
         const qNotices = query(collection(db, "notices"), orderBy("createdAt", "desc"), limit(1));
@@ -106,7 +108,7 @@ export function useSectionUpdates() {
                 const date = doc.data().createdAt?.toMillis?.() || doc.data().createdAt?.seconds * 1000 || 0;
                 setLatestUpdate(prev => ({ ...prev, "notice": date }));
             }
-        });
+        }, noopErr);
 
         // Latest Study Post
         const qStudy = query(collection(db, "studyPosts"), orderBy("createdAt", "desc"), limit(1));
@@ -116,7 +118,7 @@ export function useSectionUpdates() {
                 const date = doc.data().createdAt?.toMillis?.() || doc.data().createdAt?.seconds * 1000 || 0;
                 setLatestUpdate(prev => ({ ...prev, "study": date }));
             }
-        });
+        }, noopErr);
 
         return () => {
             unsubPosts();

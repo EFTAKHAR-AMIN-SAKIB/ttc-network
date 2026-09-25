@@ -754,16 +754,6 @@ function AllTab({
                                         <StudyNoteCard post={act} currentUserId={user?.uid} isAdmin={false} />
                                     </div>
                                 );
-                            } else if (act.activityType === 'comment') {
-                                return (
-                                    <ActivityItem 
-                                        key={act.id} 
-                                        act={act}
-                                        isOwn={isViewingAsOwner}
-                                        onDelete={(id) => handleDeleteComment(id, act.postId || id)}
-                                        onNavigate={() => handleCommentActivityNavigate(act, router)}
-                                    />
-                                );
                             }
                             return null;
                         })}
@@ -895,6 +885,11 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
             return timeB - timeA;
         });
     }, [filteredFeed]);
+
+    // Exclude comments from the "All" section (available in "Activity" section)
+    const allTabActivity = useMemo(() => {
+        return allActivity.filter((act: any) => act.activityType !== 'comment');
+    }, [allActivity]);
     
     // Follow State
     const [isFollowing, setIsFollowing] = useState(false);
@@ -1669,7 +1664,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                 </div>
 
                 {/* Profile Identity Strip */}
-                <div className={`px-2 sm:px-6 relative ${contactOpen || photoMenuOpen ? "z-40" : "z-10"}`}>
+                <div className={`px-3 sm:px-6 relative ${contactOpen || photoMenuOpen ? "z-40" : "z-10"}`}>
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 -mt-14 sm:-mt-16 md:-mt-20 relative">
                         {/* Avatar */}
                         <div className="relative group/avatar shrink-0">
@@ -1932,8 +1927,174 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                 </div>
                             </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2.5 md:pb-2 w-full md:w-auto">
+                        {/* Action Buttons: Dedicated Mobile Layout + Sleek Desktop Row */}
+                        <div className="w-full md:w-auto">
+                            {/* ── MOBILE ACTION BAR (Symmetric 2x2 Grid / Clean Rows) ── */}
+                            <div className="md:hidden w-full pt-1">
+                                {isViewingAsOwner ? (
+                                    <div className="grid grid-cols-2 gap-2 w-full">
+                                        {/* 1. Edit Profile */}
+                                        <button 
+                                            type="button"
+                                            onClick={() => setEditDrawerOpen(true)}
+                                            className="h-10 px-3 bg-primary text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm shadow-primary/25 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
+                                        >
+                                            <Pencil size={14} className="shrink-0" />
+                                            <span className="truncate">Edit Profile</span>
+                                        </button>
+
+                                        {/* 2. Share Profile */}
+                                        <button 
+                                            type="button"
+                                            onClick={handleShareProfile}
+                                            className="h-10 px-3 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 hover:border-primary/40 text-navy-900 dark:text-gray-100 font-bold text-xs uppercase tracking-wider rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                        >
+                                            <Share2 size={14} className="text-primary shrink-0" />
+                                            <span className="truncate">Share</span>
+                                        </button>
+
+                                        {/* 3. Lock Profile / Profile Locked */}
+                                        <button 
+                                            type="button"
+                                            onClick={() => setLockDrawerOpen(true)}
+                                            className={`h-10 px-3 border-2 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98] ${
+                                                profileData?.lockSettings?.isLocked
+                                                    ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/50 text-blue-700 dark:text-blue-300 shadow-blue-500/10"
+                                                    : "bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary/40"
+                                            }`}
+                                            title="Lock or customize profile privacy"
+                                        >
+                                            <Shield size={14} className={profileData?.lockSettings?.isLocked ? "text-blue-600 dark:text-blue-400 shrink-0" : "shrink-0"} />
+                                            <span className="truncate">{profileData?.lockSettings?.isLocked ? "Locked" : "Lock Profile"}</span>
+                                        </button>
+
+                                        {/* 4. View as Guest */}
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                if (activeTab === "saved") {
+                                                    setActiveTab("about");
+                                                }
+                                                setViewAsGuest(true);
+                                            }}
+                                            className="h-10 px-3 border-2 border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary/40 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
+                                            title="Preview how others see your profile"
+                                        >
+                                            <Eye size={14} className="shrink-0" />
+                                            <span className="truncate">View as Guest</span>
+                                        </button>
+                                    </div>
+                                ) : viewAsGuest ? (
+                                    <div className="w-full space-y-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setViewAsGuest(false)}
+                                            className="w-full h-10 px-4 bg-slate-900 dark:bg-purple-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.98]"
+                                            title="Exit guest preview mode"
+                                        >
+                                            <EyeOff size={14} />
+                                            <span>Exit Guest Preview</span>
+                                        </button>
+
+                                        <div className="flex items-center gap-2 w-full">
+                                            <button 
+                                                type="button"
+                                                onClick={() => showToast("Preview mode: Visitors can follow your profile with this button.", "info")}
+                                                className="flex-1 h-10 px-3 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 text-navy-900 dark:text-gray-100 font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                                            >
+                                                <UserPlus size={14} />
+                                                <span className="truncate">Follow</span>
+                                            </button>
+
+                                            <button 
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setContactOpen(!contactOpen);
+                                                }}
+                                                className="h-10 px-4 bg-navy-900 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98]"
+                                            >
+                                                <MessageCircle size={15} />
+                                                <span>Contact</span>
+                                            </button>
+
+                                            <button 
+                                                type="button"
+                                                onClick={handleShareProfile}
+                                                className="h-10 w-10 shrink-0 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl flex items-center justify-center shadow-xs active:scale-[0.98]"
+                                                title="Share Profile"
+                                            >
+                                                <Share2 size={15} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 w-full">
+                                        <motion.button 
+                                            type="button"
+                                            onClick={handleFollowToggle}
+                                            disabled={followLoading}
+                                            whileTap={{ scale: 0.95 }}
+                                            className={`flex-1 h-10 px-4 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 border-2 ${
+                                                isFollowing 
+                                                    ? "bg-primary/5 border-primary/30 text-primary hover:bg-red-50 hover:border-red-300 hover:text-red-500 group" 
+                                                    : "bg-primary text-white border-primary shadow-sm shadow-primary/25"
+                                            }`}
+                                        >
+                                            {followLoading ? (
+                                                <Loader2 size={14} className="animate-spin" />
+                                            ) : isFollowing ? (
+                                                <>
+                                                    <UserCheck size={14} className="group-hover:hidden" />
+                                                    <X size={14} className="hidden group-hover:block" />
+                                                    <span className="group-hover:hidden truncate">Following</span>
+                                                    <span className="hidden group-hover:block truncate">Unfollow</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UserPlus size={14} />
+                                                    <span className="truncate">Follow</span>
+                                                </>
+                                            )}
+                                        </motion.button>
+
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setContactOpen(!contactOpen);
+                                            }}
+                                            className="flex-1 h-10 px-4 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 text-navy-900 dark:text-gray-100 font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                                        >
+                                            <MessageCircle size={15} className="text-primary" />
+                                            <span className="truncate">Message</span>
+                                        </button>
+
+                                        {isFollowing && (
+                                            <button 
+                                                type="button"
+                                                onClick={() => setNotifModalOpen(true)}
+                                                className="h-10 w-10 shrink-0 rounded-xl border-2 border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center active:scale-[0.98]"
+                                                title="Notification Settings"
+                                            >
+                                                <Bell size={15} className="text-gray-500" />
+                                            </button>
+                                        )}
+
+                                        <button 
+                                            type="button"
+                                            onClick={handleShareProfile}
+                                            className="h-10 w-10 shrink-0 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl flex items-center justify-center shadow-xs active:scale-[0.98]"
+                                            title="Share Profile"
+                                        >
+                                            <Share2 size={15} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* ── DESKTOP ACTION BUTTONS (Sleek Horizontal Row) ── */}
+                            <div className="hidden md:flex items-center justify-end gap-2 sm:gap-2.5 md:pb-2">
                             {isViewingAsOwner ? (
                                 <>
                                     <button 
@@ -2574,6 +2735,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                     </div>
                 </div>
             </div>
+            </div>
         </div>
 
             {/* MOBILE PROFILE COMPLETION BAR — shown only on own profile, mobile only */}
@@ -2804,7 +2966,7 @@ export function ProfilePageContent({ uidOverride }: { uidOverride?: string } = {
                                     key="all-tab"
                                     profile={profileData} 
                                     isTeacher={isTeacher}
-                                    allActivity={allActivity}
+                                    allActivity={allTabActivity}
                                     loadingFeed={loadingFeed}
                                     currentUserProfile={currentUserProfile}
                                     isViewingAsOwner={isViewingAsOwner}

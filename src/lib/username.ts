@@ -1,4 +1,4 @@
-import { doc, getDoc, writeBatch, runTransaction } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 
 // ═══════════════════════════════════════════════════
@@ -100,7 +100,7 @@ export async function claimUsername(
 
             // Claim new username
             txn.set(usernameRef, { uid });
-            txn.update(doc(db, "users", uid), { username: trimmed });
+            txn.set(doc(db, "users", uid), { username: trimmed }, { merge: true });
         });
 
         return { success: true };
