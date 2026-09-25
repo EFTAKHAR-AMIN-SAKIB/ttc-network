@@ -31,10 +31,9 @@ import {
     updatePassword,
     verifyBeforeUpdateEmail,
     updateProfile,
-    deleteUser,
     sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { getAuthInstance, getDb } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -284,16 +283,46 @@ function DeleteAccountModal({ isOpen, onClose, userEmail, userUid, onDeleted }: 
             const user = auth.currentUser;
             if (!user || !user.email) throw new Error("Not authenticated");
 
-            // Re-authenticate
+            // 1. Re-authenticate with email + password
             const credential = EmailAuthProvider.credential(user.email, password);
             await reauthenticateWithCredential(user, credential);
 
-            // Delete Firestore document
-            const db = getDb();
-            await deleteDoc(doc(db, "users", userUid));
+            // 2. Obtain fresh ID token for server authentication
+            const idToken = await user.getIdToken(true);
 
-            // Delete Firebase Auth account
-            await deleteUser(user);
+            // 3. Call server endpoint to permanently delete user from Firestore, Auth, R2 & Cloudinary
+            const res = await fetch("/api/auth/delete-account", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ idToken, userId: userUid }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to delete account from server.");
+            }
+
+            // 4. Clear client-side cached profile and local storage
+            if (typeof window !== "undefined") {
+                try {
+                    localStorage.removeItem("ttc_cached_profile");
+                    localStorage.removeItem("ttc_cached_feed_posts");
+                    delete (window as any).__ttcUser;
+                    sessionStorage.clear();
+                } catch {
+                    // ignore
+                }
+            }
+
+            // 5. Sign out client-side cleanly
+            try {
+                await auth.signOut();
+            } catch {
+                // ignore
+            }
 
             showToast("Your account has been permanently deleted.", "success");
             onDeleted();
