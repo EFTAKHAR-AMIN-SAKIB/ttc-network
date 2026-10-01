@@ -81,7 +81,7 @@ class TTCFirebaseMessagingService : FirebaseMessagingService() {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("targetUrl", targetUrl)
             // Also set the data URI so it can be picked up
-            this.data = android.net.Uri.parse("https://ttcnetwork.xyz${if (targetUrl.startsWith("/")) targetUrl else "/$targetUrl"}")
+            this.data = android.net.Uri.parse("https://ttc-network.vercel.app${if (targetUrl.startsWith("/")) targetUrl else "/$targetUrl"}")
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -162,7 +162,7 @@ class TTCFirebaseMessagingService : FirebaseMessagingService() {
     private fun loadBitmapFromUrl(url: String?): Bitmap? {
         if (url.isNullOrBlank()) return null
         val fullUrl = if (url.startsWith("http://") || url.startsWith("https://")) url
-                      else "https://ttcnetwork.xyz${if (url.startsWith("/")) url else "/$url"}"
+                      else "https://ttc-network.vercel.app${if (url.startsWith("/")) url else "/$url"}"
         return try {
             val connection = URL(fullUrl).openConnection() as HttpURLConnection
             connection.doInput = true

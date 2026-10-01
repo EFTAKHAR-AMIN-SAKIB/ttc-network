@@ -1466,7 +1466,7 @@ function NewsFeedInner() {
                                 <Link href="/support" className="hover:underline">Support</Link>
                                 <Link href="/settings" className="hover:underline">Settings</Link>
                             </div>
-                            <p>© {new Date().getFullYear()} TTC Connect • Bangladesh</p>
+                            <p>© {new Date().getFullYear()} TTC Network • Bangladesh</p>
                         </div>
                     </aside>
 

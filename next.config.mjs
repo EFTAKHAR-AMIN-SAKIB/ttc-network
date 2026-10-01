@@ -37,6 +37,26 @@ const nextConfig = {
             },
             {
                 protocol: "https",
+                hostname: "*.googleusercontent.com",
+            },
+            {
+                protocol: "https",
+                hostname: "*.facebook.com",
+            },
+            {
+                protocol: "https",
+                hostname: "*.fbsbx.com",
+            },
+            {
+                protocol: "https",
+                hostname: "*.gravatar.com",
+            },
+            {
+                protocol: "https",
+                hostname: "avatars.githubusercontent.com",
+            },
+            {
+                protocol: "https",
                 hostname: "firebasestorage.googleapis.com",
             },
             {
@@ -89,6 +109,17 @@ const nextConfig = {
                         value: "on",
                     },
                 ],
+            },
+        ];
+    },
+
+    // ── Redirects ─────────────────────────────────────
+    async redirects() {
+        return [
+            {
+                source: "/TTC-Network.apk",
+                destination: "https://pub-9172f31a1ae846ef8b20fc71e0cb1b17.r2.dev/app/TTC-Network.apk",
+                permanent: false,
             },
         ];
     },

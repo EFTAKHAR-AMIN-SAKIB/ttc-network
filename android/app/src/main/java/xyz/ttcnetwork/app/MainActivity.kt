@@ -43,7 +43,7 @@ import kotlin.concurrent.thread
 class MainActivity : ComponentActivity() {
 
     companion object {
-        const val BASE_URL = "https://ttcnetwork.xyz/news-feed?source=app"
+        const val BASE_URL = "https://ttc-network.vercel.app/news-feed?source=app"
         const val NOTIFICATION_CHANNEL_ID = "ttc_notifications_channel"
     }
 
@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
         private fun sendTokenToApi(uid: String, token: String) {
             thread {
                 try {
-                    val url = URL("https://ttcnetwork.xyz/api/register-push")
+                    val url = URL("https://ttc-network.vercel.app/api/register-push")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "POST"
                     conn.setRequestProperty("Content-Type", "application/json")
@@ -258,6 +258,7 @@ class MainActivity : ComponentActivity() {
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
         cookieManager.setAcceptThirdPartyCookies(webView, true)
+        cookieManager.setCookie("https://ttc-network.vercel.app", "pwa_mode=true; Path=/; Max-Age=31536000")
         cookieManager.setCookie("https://ttcnetwork.xyz", "pwa_mode=true; Path=/; Max-Age=31536000")
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -300,7 +301,7 @@ class MainActivity : ComponentActivity() {
                 val url = request?.url?.toString() ?: return false
 
                 // If internal URL, open in WebView
-                if (url.contains("ttcnetwork.xyz") || url.startsWith(BASE_URL) || url.startsWith("/")) {
+                if (url.contains("ttc-network.vercel.app") || url.contains("ttcnetwork.xyz") || url.startsWith(BASE_URL) || url.startsWith("/")) {
                     return false
                 }
 
@@ -593,7 +594,7 @@ class MainActivity : ComponentActivity() {
 
             if (!target.isNullOrBlank() && !target.startsWith("android.intent")) {
                 return if (target.startsWith("http://") || target.startsWith("https://")) target
-                else "https://ttcnetwork.xyz${if (target.startsWith("/")) target else "/$target"}"
+                else "https://ttc-network.vercel.app${if (target.startsWith("/")) target else "/$target"}"
             }
         }
 

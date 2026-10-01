@@ -398,6 +398,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ═══ CAMPUS MANAGER APPLICATIONS ═══
+    match /campusManagerApplications/{appId} {
+      allow read: if isAuthenticated() && (isAdminOrManager() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isNotBanned() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        isAdminOrManager() || 
+        (resource.data.userId == request.auth.uid && resource.data.status == 'pending' && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'reviewedBy', 'reviewedByName', 'reviewedAt', 'adminNotes']))
+      );
+      allow delete: if isAdmin();
+    }
+
     // Default catch-all (safety first)
     match /{document=**} {
       allow read, write: if isAdmin();

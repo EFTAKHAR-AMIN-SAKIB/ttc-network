@@ -26,7 +26,8 @@ import {
     Loader2,
     Pencil,
     BookText,
-    LayoutGrid
+    LayoutGrid,
+    UserCheck,
 } from "lucide-react";
 import Image from "next/image";
 import { getColleges, updateCollege, uploadFile, subscribeClubs, getAdminPendingCounts, type FirestoreCollege, type FirestoreClub, type FacultyEntry, type AdminPendingCounts } from "@/lib/firestore";
@@ -40,6 +41,7 @@ import QAManagerTab from "./components/QAManagerTab";
 import GiftsTab from "./components/GiftsTab";
 import UsersTab from "./components/UsersTab";
 import ManagementTab from "./components/ManagementTab";
+import CampusManagersTab from "./components/CampusManagersTab";
 import SiteSettingsTab from "./components/SiteSettingsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -560,9 +562,10 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 }
 
 /* ─── Tab Config ─── */
-type TabId = "management" | "colleges" | "posts" | "stories" | "study" | "notices" | "qa" | "gifts" | "users" | "settings";
+type TabId = "management" | "campus-managers" | "colleges" | "posts" | "stories" | "study" | "notices" | "qa" | "gifts" | "users" | "settings";
 const tabs: { id: TabId; label: string; icon: typeof Building2; desc?: string }[] = [
     { id: "management", label: "Management", icon: Shield, desc: "Approvals & Access Roles" },
+    { id: "campus-managers", label: "Campus Managers", icon: UserCheck, desc: "Applications & Chapter Leads" },
     { id: "colleges", label: "Colleges", icon: Building2, desc: "15 Campus Directory" },
     { id: "posts", label: "Posts", icon: GraduationCap, desc: "Community Feed Review" },
     { id: "stories", label: "Stories", icon: BookOpen, desc: "TTC Journeys & Articles" },
@@ -575,7 +578,7 @@ const tabs: { id: TabId; label: string; icon: typeof Building2; desc?: string }[
 ];
 
 const TAB_GROUPS: { name: string; ids: TabId[] }[] = [
-    { name: "Operations & Directory", ids: ["management", "users", "colleges"] },
+    { name: "Operations & Directory", ids: ["management", "campus-managers", "users", "colleges"] },
     { name: "Content & Moderation", ids: ["posts", "stories", "study", "notices"] },
     { name: "Platform & Growth", ids: ["qa", "gifts", "settings"] },
 ];
@@ -587,7 +590,7 @@ export default function AdminPage() {
     const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
     const [activeSection, setActiveSection] = useState<TabId>("management");
     const [loadingColleges, setLoadingColleges] = useState(true);
-    const [pendingCounts, setPendingCounts] = useState<AdminPendingCounts>({ posts: 0, stories: 0, notices: 0, studyPosts: 0, gifts: 0 });
+    const [pendingCounts, setPendingCounts] = useState<AdminPendingCounts>({ posts: 0, stories: 0, notices: 0, studyPosts: 0, gifts: 0, campusManagers: 0 });
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     const loadColleges = async () => {
@@ -626,6 +629,7 @@ export default function AdminPage() {
 
     const getPendingCount = (tabId: string): number => {
         const countMap: Record<string, number> = {
+            "campus-managers": pendingCounts.campusManagers || 0,
             posts: pendingCounts.posts,
             stories: pendingCounts.stories,
             study: pendingCounts.studyPosts,
@@ -635,11 +639,12 @@ export default function AdminPage() {
         return countMap[tabId] || 0;
     };
 
-    const totalPendingCount = pendingCounts.posts + pendingCounts.stories + pendingCounts.notices + pendingCounts.studyPosts + pendingCounts.gifts;
+    const totalPendingCount = pendingCounts.posts + pendingCounts.stories + pendingCounts.notices + pendingCounts.studyPosts + pendingCounts.gifts + (pendingCounts.campusManagers || 0);
 
     const isTabAllowed = (tabId: TabId) => {
         if (tabId === "gifts" && profile?.role !== "admin") return false;
         if (tabId === "settings" && profile?.role !== "admin") return false;
+        if (tabId === "campus-managers" && profile?.role !== "admin" && profile?.role !== "super_manager") return false;
         if (profile?.role === "manager") {
             return ["management", "colleges", "posts", "stories", "notices", "users"].includes(tabId);
         }
@@ -730,7 +735,7 @@ export default function AdminPage() {
 
             {/* ══ Horizontal Tab Navigation Strip ══ */}
             <div className="max-w-5xl mx-auto px-3 sm:px-4 mt-3 sm:mt-6">
-                <div className="flex gap-1 bg-white dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-black/20 overflow-x-auto scrollbar-none snap-x snap-mandatory">
+                <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-black/20 overflow-x-auto scrollbar-none snap-x snap-mandatory">
                     {allowedTabs.map((tab) => {
                         const count = getPendingCount(tab.id);
                         const isActive = activeSection === tab.id;
@@ -739,16 +744,16 @@ export default function AdminPage() {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveSection(tab.id)}
-                                className={`relative flex-1 min-w-[90px] sm:min-w-0 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap snap-start cursor-pointer ${
+                                className={`relative flex-shrink-0 flex items-center justify-center gap-2 py-2 sm:py-2.5 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap snap-start cursor-pointer ${
                                     isActive
                                         ? "bg-primary text-white shadow-sm dark:shadow-black/20"
                                         : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750"
                                 }`}
                             >
-                                <tab.icon size={15} />
+                                <tab.icon size={15} className={isActive ? "text-white" : "text-gray-400 dark:text-gray-500"} />
                                 <span>{tab.label}</span>
                                 {count > 0 && (
-                                    <span className={`min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full flex items-center justify-center shadow-xs border ${
+                                    <span className={`min-w-[18px] h-[18px] px-1 text-[9px] font-black rounded-full flex items-center justify-center shadow-xs border ${
                                         isActive 
                                             ? "bg-white text-primary border-white"
                                             : "bg-red-500 text-white border-white dark:border-gray-800"
@@ -924,6 +929,7 @@ export default function AdminPage() {
                 )}
 
                 {activeSection === "management" && <ManagementTab profile={profile as any} />}
+                {activeSection === "campus-managers" && <CampusManagersTab profile={profile as any} />}
                 {activeSection === "posts" && <PostsTab profile={profile as any} />}
                 {activeSection === "stories" && <StoriesTab profile={profile as any} onCountRefresh={loadPendingCounts} />}
                 {activeSection === "study" && <StudyTab profile={profile as any} onCountRefresh={loadPendingCounts} />}

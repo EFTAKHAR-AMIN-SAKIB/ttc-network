@@ -36,13 +36,14 @@ import {
     ShieldCheck
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { canEditCollege, canDeleteGalleryPhoto } from "@/lib/permissions";
 import {
     subscribeColleges, updateCollege, requestCollegeEdit, uploadFile,
-    subscribeClubs,
-    type FirestoreCollege, type FirestoreClub
+    subscribeClubs, getActiveCampusManagers,
+    type FirestoreCollege, type FirestoreClub, type FirestoreUser
 } from "@/lib/firestore";
 import { getClubsAction, addGalleryPhotoAction, deleteGalleryPhotoAction } from "@/lib/actions";
 import ClubCard from "./components/ClubCard";

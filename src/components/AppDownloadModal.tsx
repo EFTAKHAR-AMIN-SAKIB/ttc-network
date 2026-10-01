@@ -54,13 +54,13 @@ export default function AppDownloadModal({
     };
   }, [isOpen, onClose]);
 
-  // Handle direct APK download click
+  // Handle direct APK download click via Cloudflare R2 (Unlimited egress bandwidth)
   const handleApkDownload = () => {
     setDownloading(true);
     setShowGuide(true);
 
     const link = document.createElement("a");
-    link.href = "/TTC-Network.apk";
+    link.href = "https://pub-9172f31a1ae846ef8b20fc71e0cb1b17.r2.dev/app/TTC-Network.apk";
     link.download = "TTC-Network.apk";
     document.body.appendChild(link);
     link.click();
@@ -207,7 +207,7 @@ export default function AppDownloadModal({
                       Android APK
                     </h4>
                     <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">
-                      • ৩.৬৫ MB
+                      • ৬.৫ MB
                     </span>
                   </div>
                   <p className="text-[11px] text-neutral-500 dark:text-neutral-400">

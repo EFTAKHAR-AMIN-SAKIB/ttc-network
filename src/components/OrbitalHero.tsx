@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { Users, Download, ArrowRight, Compass } from "lucide-react";
+import { Users, Download, ArrowRight, Compass, Shield, Sparkles } from "lucide-react";
 import { colleges } from "@/data/colleges";
 import { subscribeColleges, type FirestoreCollege } from "@/lib/firestore";
 import AppDownloadModal from "./AppDownloadModal";
@@ -520,34 +520,67 @@ export default function OrbitalHero() {
                                     transition={{ delay: 0.35, duration: 0.6 }}
                                     className="flex flex-wrap items-center gap-3.5 w-full pt-2"
                                 >
-                                    {/* Primary Bespoke Action */}
+                                    {/* Primary Action: High-Impact Luminous Green Campus Manager Button */}
                                     <Link
-                                        href="/news-feed"
-                                        className="group relative inline-flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-gray-950 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-950 text-sm font-extrabold shadow-xl shadow-gray-950/15 dark:shadow-white/10 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
+                                        href="/campus-manager"
+                                        className="group relative inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-500 text-white text-sm font-extrabold shadow-xl shadow-emerald-500/25 dark:shadow-emerald-950/40 hover:shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-[0.98] border border-emerald-400/40 dark:border-emerald-400/30 transition-all duration-300 overflow-hidden cursor-pointer"
                                     >
-                                        <Compass size={16} className="text-sky-400 dark:text-primary group-hover:rotate-45 transition-transform duration-300" />
-                                        <span>কমিউনিটি এক্সপ্লোর করুন</span>
-                                        <div className="w-6 h-6 rounded-full bg-white/15 dark:bg-black/10 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                                        {/* Animated ambient glow ring */}
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 rounded-2xl blur-md opacity-50 group-hover:opacity-85 transition duration-500 -z-10 animate-pulse" />
+
+                                        {/* Animated shine sweep effect */}
+                                        <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/35 to-transparent skew-x-[-20deg] -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none" />
+
+                                        {/* Left icon badge */}
+                                        <div className="w-7 h-7 rounded-xl bg-white/20 dark:bg-black/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-xs">
+                                            <Sparkles size={14} className="text-white fill-white/25" />
+                                        </div>
+
+                                        {/* Text Label */}
+                                        <span className="font-extrabold tracking-tight text-white drop-shadow-xs">
+                                            Campus Manager
+                                        </span>
+
+                                        {/* Status Pill */}
+                                        <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-white/25 text-white border border-white/30 shadow-xs flex items-center gap-1 shrink-0">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-ping" />
+                                            Apply
+                                        </span>
+
+                                        {/* Right Arrow indicator */}
+                                        <div className="w-6 h-6 rounded-full bg-black/20 dark:bg-white/20 flex items-center justify-center text-white group-hover:bg-white group-hover:text-emerald-700 transition-colors duration-300 shrink-0">
                                             <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform duration-300" />
                                         </div>
                                     </Link>
 
-                                    {/* Elevated Mini Download Button with Black & White Effect */}
+                                    {/* Secondary Action: Elevated Download App Button in Exact Same Layout */}
                                     <button
                                         onClick={handleInstallClick}
                                         disabled={isInstalling}
-                                        className="group relative inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-black hover:bg-neutral-900 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black border border-white/20 hover:border-white/50 dark:border-black/20 dark:hover:border-black/50 text-sm font-extrabold shadow-xl shadow-black/25 dark:shadow-white/10 hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer overflow-hidden"
+                                        className="group relative inline-flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-black hover:bg-neutral-900 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black border border-white/20 hover:border-white/50 dark:border-black/20 dark:hover:border-black/50 text-sm font-extrabold shadow-xl shadow-black/25 dark:shadow-white/10 hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer overflow-hidden"
                                     >
                                         {/* Animated monochrome shine sweep effect */}
                                         <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none" />
 
-                                        <div className="w-6 h-6 rounded-lg bg-white/15 dark:bg-black/10 border border-white/10 dark:border-black/10 flex items-center justify-center text-white dark:text-black">
+                                        {/* Left icon badge */}
+                                        <div className="w-7 h-7 rounded-xl bg-white/15 dark:bg-black/10 border border-white/10 dark:border-black/10 flex items-center justify-center text-white dark:text-black shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-xs">
                                             <Download size={14} className="group-hover:translate-y-0.5 transition-transform" />
                                         </div>
-                                        <span>{isInstalling ? "খুলছে..." : "অ্যাপ ডাউনলোড"}</span>
-                                        <span className="text-[10px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded bg-white text-black dark:bg-black dark:text-white shadow-xs">
+
+                                        {/* Text Label */}
+                                        <span className="font-extrabold tracking-tight">
+                                            {isInstalling ? "Opening..." : "Download App"}
+                                        </span>
+
+                                        {/* Status Pill */}
+                                        <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white dark:bg-black/10 dark:text-black border border-white/20 dark:border-black/10 shadow-xs shrink-0">
                                             App
                                         </span>
+
+                                        {/* Right Arrow indicator */}
+                                        <div className="w-6 h-6 rounded-full bg-white/15 dark:bg-black/10 flex items-center justify-center text-white dark:text-black group-hover:bg-white dark:group-hover:bg-black group-hover:text-black dark:group-hover:text-white transition-colors duration-300 shrink-0">
+                                            <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform duration-300" />
+                                        </div>
                                     </button>
                                 </motion.div>
 
@@ -677,29 +710,42 @@ export default function OrbitalHero() {
                                 className="flex flex-col items-stretch justify-center gap-2.5 w-full max-w-xs mx-auto"
                             >
                                 <Link
-                                    href="/news-feed"
-                                    className="group flex items-center justify-center gap-2.5 px-5 py-3.5 bg-gray-950 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-950 font-extrabold rounded-2xl shadow-lg text-sm active:scale-[0.98] transition-transform"
+                                    href="/campus-manager"
+                                    className="group relative flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-600/30 text-sm active:scale-[0.98] transition-all duration-300 border border-emerald-400/40 overflow-hidden"
                                 >
-                                    <Compass size={15} className="text-sky-400 dark:text-primary" />
-                                    <span>কমিউনিটি এক্সপ্লোর করুন</span>
-                                    <ArrowRight size={12} />
+                                    {/* Animated shine sweep effect */}
+                                    <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none" />
+
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center text-white shrink-0">
+                                            <Sparkles size={13} className="text-white fill-white/20" />
+                                        </div>
+                                        <span className="font-extrabold tracking-tight truncate">Campus Manager</span>
+                                        <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/25">
+                                            Apply
+                                        </span>
+                                    </div>
+                                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
                                 </Link>
 
                                 <button
                                     onClick={handleInstallClick}
                                     disabled={isInstalling}
-                                    className="group relative flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-black hover:bg-neutral-900 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black border border-white/20 dark:border-black/20 text-sm font-extrabold shadow-lg shadow-black/25 dark:shadow-white/10 active:scale-[0.98] transition-all duration-300 cursor-pointer overflow-hidden"
+                                    className="group relative flex items-center justify-between px-4 py-3 rounded-2xl bg-black hover:bg-neutral-900 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black border border-white/20 dark:border-black/20 text-sm font-extrabold shadow-lg shadow-black/25 dark:shadow-white/10 active:scale-[0.98] transition-all duration-300 cursor-pointer overflow-hidden"
                                 >
                                     {/* Animated monochrome shine sweep effect */}
                                     <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out pointer-events-none" />
 
-                                    <div className="w-5 h-5 rounded-md bg-white/15 dark:bg-black/10 flex items-center justify-center text-white dark:text-black">
-                                        <Download size={13} />
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-6 h-6 rounded-lg bg-white/15 dark:bg-black/10 flex items-center justify-center text-white dark:text-black shrink-0">
+                                            <Download size={13} />
+                                        </div>
+                                        <span className="font-extrabold tracking-tight truncate">{isInstalling ? "Opening..." : "Download App"}</span>
+                                        <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-white/20 text-white dark:bg-black/10 dark:text-black border border-white/20 dark:border-black/10 shadow-xs">
+                                            App
+                                        </span>
                                     </div>
-                                    <span>{isInstalling ? "খুলছে..." : "অ্যাপ ডাউনলোড"}</span>
-                                    <span className="text-[10px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded bg-white text-black dark:bg-black dark:text-white shadow-xs">
-                                        App
-                                    </span>
+                                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
                                 </button>
                             </motion.div>
 

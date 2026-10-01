@@ -11,6 +11,7 @@ import {
     Search, School, Filter, Sparkles, GraduationCap, LayoutGrid, Layers
 } from "lucide-react";
 import Image from "next/image";
+import SafeAvatar from "@/components/SafeAvatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -199,7 +200,11 @@ export default function NetworkPage() {
 
         // If filtering by specific college
         if (canViewAllColleges && authScope === "all_colleges" && selectedCollegeFilter !== "all") {
-            list = list.filter(u => u.collegeId === selectedCollegeFilter);
+            if (selectedCollegeFilter === "unassigned") {
+                list = list.filter(u => !u.collegeId || !colleges.some(c => c.id === u.collegeId));
+            } else {
+                list = list.filter(u => u.collegeId === selectedCollegeFilter);
+            }
         }
 
         return list;
@@ -283,9 +288,9 @@ export default function NetworkPage() {
         if (processingVerify[userId]) return;
         setProcessingVerify(prev => ({ ...prev, [userId]: true }));
         try {
-            await updateUserRole(userId, targetUser.role, true);
-            const collegeName = getCollegeCity(targetUser.collegeId || "") + " TTC";
-            showToast(`✅ ${targetUser.displayName} (${collegeName}) verified successfully!`, "success");
+            await updateUserRole(userId, targetUser.role || "student", true);
+            const collegeName = targetUser.collegeId ? getCollegeCity(targetUser.collegeId) + " TTC" : "TTC Network";
+            showToast(`✅ ${targetUser.displayName || "User"} (${collegeName}) verified successfully!`, "success");
         } catch (err: any) {
             showToast(err.message || "Failed to verify user.", "error");
         } finally {
@@ -298,8 +303,8 @@ export default function NetworkPage() {
         if (processingVerify[userId]) return;
         setProcessingVerify(prev => ({ ...prev, [userId]: true }));
         try {
-            await updateUserRole(userId, targetUser.role, false);
-            showToast(`Verification revoked for ${targetUser.displayName}.`, "info");
+            await updateUserRole(userId, targetUser.role || "student", false);
+            showToast(`Verification revoked for ${targetUser.displayName || "User"}.`, "info");
         } catch (err: any) {
             showToast(err.message || "Failed to revoke verification.", "error");
         } finally {
@@ -308,10 +313,11 @@ export default function NetworkPage() {
     };
 
     // Action: Dismiss/Delete user from authentication list
-    const handleDismiss = async (userId: string, displayName: string) => {
+    const handleDismiss = async (userId: string, displayName?: string) => {
+        const nameToDisplay = displayName || "this user";
         const confirmed = await confirm({
             title: "Hide User?",
-            message: `Hide ${displayName} from your verification queue? (This will not delete their account entirely).`,
+            message: `Hide ${nameToDisplay} from your verification queue? (This will not delete their account entirely).`,
             confirmText: "Hide User",
             variant: "warning"
         });
@@ -321,7 +327,7 @@ export default function NetworkPage() {
         setConfirmLoading(true);
         try {
             await dismissUserVerification(userId);
-            showToast(`Removed ${displayName} from your verification queue.`, "success");
+            showToast(`Removed ${nameToDisplay} from your verification queue.`, "success");
         } catch (err: any) {
             showToast(err.message || "Failed to ignore user.", "error");
         } finally {
@@ -402,21 +408,21 @@ export default function NetworkPage() {
         }
     };
 
-    const getCollegeCity = (id: string) => {
+    const getCollegeCity = (id?: string) => {
+        if (!id) return "General";
         return colleges.find(c => c.id === id)?.city || id;
     };
 
-    const getCollegeFullName = (id: string) => {
+    const getCollegeFullName = (id?: string) => {
+        if (!id) return "General Member (No Campus)";
         return colleges.find(c => c.id === id)?.name || id;
     };
 
-    const getInitials = (name: string) => {
-        return name
-            .split(" ")
-            .map(n => n[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase();
+    const getInitials = (name?: string) => {
+        if (!name || typeof name !== "string") return "U";
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return "U";
+        return parts.map(n => n[0]).join("").slice(0, 2).toUpperCase() || "U";
     };
 
     const renderUserCard = (item: FirestoreUser & { id: string }, _isFromMyCollege?: boolean) => {
@@ -473,19 +479,15 @@ export default function NetworkPage() {
                 <div className="relative -mt-8 sm:-mt-10 px-3 sm:px-4 flex justify-center z-10">
                     <Link href={`/profile/${item.id}`} className="relative block group/avatar">
                         <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-3 border-white dark:border-[#161620] shadow-md bg-gray-100 dark:bg-gray-800 shrink-0 aspect-square">
-                            {item.photoURL ? (
-                                <Image
-                                    src={item.photoURL}
-                                    alt={item.displayName}
-                                    fill
-                                    sizes="80px"
-                                    className="object-cover object-center group-hover/avatar:scale-105 transition-transform duration-300"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-base sm:text-lg font-black shadow-inner">
-                                    {getInitials(item.displayName)}
-                                </div>
-                            )}
+                            <SafeAvatar
+                                src={item.photoURL}
+                                alt={item.displayName || "User"}
+                                sizeClassName="w-full h-full"
+                                roundedClassName="rounded-2xl"
+                                fallbackBg="bg-gradient-to-br from-primary to-accent"
+                                fallbackColor="text-white"
+                                textClassName="text-base sm:text-lg font-black"
+                            />
                         </div>
                         {item.roleVerified && (
                             <span 
@@ -856,7 +858,7 @@ export default function NetworkPage() {
                                             </div>
                                             <p className="text-[10px] sm:text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-1">
                                                 {canViewAllColleges && authScope === "all_colleges"
-                                                    ? "Review and verify registrations across all 14 TTC Campuses."
+                                                    ? "Review and verify registrations across all 15 TTC Campuses."
                                                     : `Review and verify registrations for ${getCollegeFullName(profile?.collegeId || "")}.`}
                                             </p>
                                         </div>
@@ -934,7 +936,7 @@ export default function NetworkPage() {
                                                             aria-label="Filter by College Campus"
                                                             className="w-full pl-3.5 pr-8 py-2 bg-white dark:bg-[#15161f] border border-gray-200 dark:border-gray-700/80 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer shadow-sm"
                                                         >
-                                                            <option value="all">All 14 Campuses ({allCollegesPendingCount} pending)</option>
+                                                            <option value="all">All 15 Campuses ({allCollegesPendingCount} pending)</option>
                                                             {colleges.map((col) => {
                                                                 const count = allUnverifiedUsers.filter(u => u.collegeId === col.id).length;
                                                                 return (
@@ -943,6 +945,14 @@ export default function NetworkPage() {
                                                                     </option>
                                                                 );
                                                             })}
+                                                            {(() => {
+                                                                const unassignedCount = allUnverifiedUsers.filter(u => !u.collegeId || !colleges.some(c => c.id === u.collegeId)).length;
+                                                                return unassignedCount > 0 ? (
+                                                                    <option value="unassigned">
+                                                                        General / Unassigned Campus — {unassignedCount} pending
+                                                                    </option>
+                                                                ) : null;
+                                                            })()}
                                                         </select>
                                                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
                                                             <ChevronDown size={14} />
@@ -1001,32 +1011,28 @@ export default function NetworkPage() {
                                                             onClick={() => setExpandedUser(isExpanded ? null : item.id)}
                                                         >
                                                             {/* Photo */}
-                                                            {item.photoURL ? (
-                                                                <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100">
-                                                                    <Image 
-                                                                        src={item.photoURL} 
-                                                                        alt={item.displayName} 
-                                                                        width={48} 
-                                                                        height={48} 
-                                                                        className="w-full h-full object-cover animate-in fade-in duration-300"
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-black shadow-inner">
-                                                                    {getInitials(item.displayName)}
-                                                                </div>
-                                                            )}
+                                                            <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100 shrink-0">
+                                                                <SafeAvatar 
+                                                                    src={item.photoURL} 
+                                                                    alt={item.displayName || "User"} 
+                                                                    sizeClassName="w-12 h-12"
+                                                                    roundedClassName="rounded-xl"
+                                                                    fallbackBg="bg-gradient-to-br from-primary to-accent"
+                                                                    fallbackColor="text-white"
+                                                                    textClassName="text-sm font-black"
+                                                                />
+                                                            </div>
 
                                                             {/* Summary details */}
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2">
                                                                     <h3 className="text-base font-extrabold text-gray-900 dark:text-white truncate">
-                                                                        {item.displayName}
+                                                                        {item.displayName || "TTC Member"}
                                                                     </h3>
                                                                     {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                                                                 </div>
                                                                 <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider flex items-center gap-2 mt-0.5 flex-wrap">
-                                                                    <span className="capitalize text-primary dark:text-[#1D9BF0]">{item.role}</span>
+                                                                    <span className="capitalize text-primary dark:text-[#1D9BF0]">{item.role || "student"}</span>
                                                                     {item.programme && (
                                                                         <>
                                                                             <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
@@ -1036,7 +1042,7 @@ export default function NetworkPage() {
                                                                     <span className="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
                                                                     <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-md border border-amber-200/50 dark:border-amber-900/40">
                                                                         <School size={10} />
-                                                                        {getCollegeCity(item.collegeId || "")} TTC
+                                                                        {item.collegeId ? `${getCollegeCity(item.collegeId)} TTC` : "General Member"}
                                                                     </span>
                                                                 </p>
                                                             </div>
@@ -1069,11 +1075,11 @@ export default function NetworkPage() {
                                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-500 dark:text-gray-400">
                                                                             <div>
                                                                                 <span className="font-bold text-gray-800 dark:text-gray-200 block">Email Address</span>
-                                                                                {item.email}
+                                                                                {item.email || "No email available"}
                                                                             </div>
                                                                             <div>
                                                                                 <span className="font-bold text-gray-800 dark:text-gray-200 block">College Campus</span>
-                                                                                <span className="text-primary font-bold">{getCollegeFullName(item.collegeId || "")}</span>
+                                                                                <span className="text-primary font-bold">{item.collegeId ? getCollegeFullName(item.collegeId) : "General Member (No Campus)"}</span>
                                                                             </div>
                                                                             <div>
                                                                                 <span className="font-bold text-gray-800 dark:text-gray-200 block">Academic Year / Semester</span>
@@ -1587,21 +1593,17 @@ export default function NetworkPage() {
                                                             className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all"
                                                         >
                                                             <Link href={`/profile/${item.id}`} className="shrink-0 relative group">
-                                                                {item.photoURL ? (
-                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100 animate-in fade-in duration-300">
-                                                                        <Image 
-                                                                            src={item.photoURL} 
-                                                                            alt={item.displayName} 
-                                                                            width={48} 
-                                                                            height={48} 
-                                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-350"
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs sm:text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
-                                                                        {getInitials(item.displayName)}
-                                                                    </div>
-                                                                )}
+                                                                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100 shrink-0">
+                                                                    <SafeAvatar 
+                                                                        src={item.photoURL} 
+                                                                        alt={item.displayName || "User"} 
+                                                                        sizeClassName="w-full h-full"
+                                                                        roundedClassName="rounded-xl"
+                                                                        fallbackBg="bg-gradient-to-br from-primary to-accent"
+                                                                        fallbackColor="text-white"
+                                                                        textClassName="text-xs sm:text-sm font-black"
+                                                                    />
+                                                                </div>
                                                                 {item.roleVerified && (
                                                                     <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center">
                                                                         <Check className="text-white w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
@@ -1662,21 +1664,17 @@ export default function NetworkPage() {
                                                             className="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white dark:bg-[#161620] rounded-2xl border border-gray-100 dark:border-gray-800/80 hover:shadow-md transition-all animate-in fade-in duration-200"
                                                         >
                                                             <Link href={`/profile/${item.id}`} className="shrink-0 relative group">
-                                                                {item.photoURL ? (
-                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100">
-                                                                        <Image 
-                                                                            src={item.photoURL} 
-                                                                            alt={item.displayName} 
-                                                                            width={48} 
-                                                                            height={48} 
-                                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-350"
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs sm:text-sm font-black shadow-inner group-hover:scale-105 transition-transform duration-350">
-                                                                        {getInitials(item.displayName)}
-                                                                    </div>
-                                                                )}
+                                                                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-100 shrink-0">
+                                                                    <SafeAvatar 
+                                                                        src={item.photoURL} 
+                                                                        alt={item.displayName || "User"} 
+                                                                        sizeClassName="w-full h-full"
+                                                                        roundedClassName="rounded-xl"
+                                                                        fallbackBg="bg-gradient-to-br from-primary to-accent"
+                                                                        fallbackColor="text-white"
+                                                                        textClassName="text-xs sm:text-sm font-black"
+                                                                    />
+                                                                </div>
                                                                 {item.roleVerified && (
                                                                     <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 border-2 border-white dark:border-[#161620] rounded-full flex items-center justify-center">
                                                                         <Check className="text-white w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />

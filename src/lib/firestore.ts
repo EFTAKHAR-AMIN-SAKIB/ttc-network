@@ -316,6 +316,7 @@ export interface AdminPendingCounts {
     notices: number;
     studyPosts: number;
     gifts: number;
+    campusManagers?: number;
 }
 
 export interface SupportPhase {
@@ -661,7 +662,10 @@ export interface FirestoreNotification {
     | "reply"
     | "club_post_request"
     | "club_post_approved"
-    | "group_invite";
+    | "group_invite"
+    | "campus_manager_approved"
+    | "campus_manager_rejected"
+    | "campus_manager_under_review";
     message: string;
     relatedId: string;
     relatedType: string;
@@ -2525,15 +2529,16 @@ export async function getAdminPendingCounts(): Promise<AdminPendingCounts> {
         }
     };
 
-    const [posts, stories, notices, studyPosts, gifts] = await Promise.all([
+    const [posts, stories, notices, studyPosts, gifts, campusManagers] = await Promise.all([
         countPending("posts"),
         countPending("stories"),
         countPending("notices"),
         countPending("studyPosts"),
         isManager ? Promise.resolve(0) : countPending("gifts"),
+        isManager ? Promise.resolve(0) : countPending("campusManagerApplications"),
     ]);
 
-    return { posts, stories, notices, studyPosts, gifts };
+    return { posts, stories, notices, studyPosts, gifts, campusManagers };
 }
 
 export async function toggleNoticePin(id: string, isPinned: boolean): Promise<void> {
@@ -6527,6 +6532,348 @@ export async function deleteGroup(groupId: string): Promise<void> {
     }
 }
 
+// ═══════════════════════════════════════════════════
+//  CAMPUS MANAGER APPLICATIONS & VETTING SYSTEM
+// ═══════════════════════════════════════════════════
 
+export interface CampusManagerApplication {
+    id?: string;
+    userId: string;
+    applicantName: string;
+    applicantEmail: string;
+    applicantUsername?: string;
+    applicantPhoto?: string;
+    applicantPhone: string;
+    whatsappNumber?: string;
 
+    // College & Academic Credentials
+    collegeId: string;
+    collegeName: string;
+    studentId?: string; // Roll / Registration Number
+    program: "BEdHonours" | "MEd" | "BEd" | "Other" | string;
+    currentYearSemester: string; // e.g. "3rd Year, 5th Semester"
+    graduationYear?: string;
+    studentIdCardUrl?: string; // Uploaded student ID card photo / document URL
 
+    // Leadership & Activity Experience
+    isClassRepresentative?: boolean; // Are you class representative? (Yes, No)
+    clubExperience?: string;
+    hasOrganizedEvents?: boolean;
+    eventExperienceDetails?: string;
+    weeklyAvailabilityHours?: "3-5" | "6-10" | "10-15" | "15+";
+
+    // Motivation & Evaluation
+    motivation?: string; // "Why do you want to become the Campus Manager for [College]?"
+    campusVision?: string;
+    communityPlan?: string;
+    moderationApproach?: string;
+
+    // Links & Social Proof
+    linkedinUrl?: string;
+    facebookUrl?: string;
+    portfolioOrClubUrl?: string;
+
+    // Application Lifecycle & Review
+    status: "pending" | "under_review" | "approved" | "rejected";
+    reviewedBy?: string; // Admin UID
+    reviewedByName?: string; // Admin display name
+    reviewedAt?: Timestamp | null;
+    adminNotes?: string; // Private internal notes for admins
+    feedbackMessage?: string; // Feedback message shown to applicant
+
+    // Timestamps
+    createdAt: Timestamp | null;
+    updatedAt: Timestamp | null;
+}
+
+/**
+ * Submit or update a Campus Manager application for the authenticated user.
+ */
+export async function submitCampusManagerApplication(
+    data: Omit<CampusManagerApplication, "id" | "status" | "createdAt" | "updatedAt">
+): Promise<string> {
+    const userProfile = await getCurrentUserProfile();
+    if (!userProfile) throw new Error("Authentication required to submit an application.");
+
+    const db = getDb();
+    
+    // Check if the user already has an active pending/under_review application
+    const existingQ = query(
+        collection(db, "campusManagerApplications"),
+        where("userId", "==", userProfile.id)
+    );
+    const existingSnap = await getDocs(existingQ);
+
+    const activeApp = existingSnap.docs.find(d => {
+        const status = d.data().status;
+        return status === "pending" || status === "under_review";
+    });
+
+    if (activeApp) {
+        // Update existing pending application
+        const cleanUsername = (userProfile.username || data.applicantUsername || "").toLowerCase().trim();
+        await updateDoc(activeApp.ref, {
+            ...data,
+            applicantUsername: cleanUsername,
+            status: "pending",
+            updatedAt: serverTimestamp(),
+        });
+        return activeApp.id;
+    }
+
+    // Create a new application
+    const cleanUsername = (userProfile.username || data.applicantUsername || "").toLowerCase().trim();
+    const newDocRef = await addDoc(collection(db, "campusManagerApplications"), {
+        ...data,
+        userId: userProfile.id,
+        applicantName: data.applicantName || userProfile.displayName,
+        applicantEmail: data.applicantEmail || userProfile.email,
+        applicantUsername: cleanUsername,
+        applicantPhoto: userProfile.photoURL || "",
+        status: "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    return newDocRef.id;
+}
+
+/**
+ * Get the current user's latest Campus Manager application.
+ */
+export async function getMyCampusManagerApplication(
+    userId: string
+): Promise<(CampusManagerApplication & { id: string }) | null> {
+    if (!userId) return null;
+    try {
+        const db = getDb();
+        const q = query(
+            collection(db, "campusManagerApplications"),
+            where("userId", "==", userId)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+
+        // Sort by createdAt descending in memory to avoid compound index requirements
+        const apps = snap.docs.map(d => ({ id: d.id, ...(d.data() as CampusManagerApplication) }));
+        apps.sort((a, b) => {
+            const timeA = a.createdAt ? (a.createdAt as any).toMillis?.() || 0 : 0;
+            const timeB = b.createdAt ? (b.createdAt as any).toMillis?.() || 0 : 0;
+            return timeB - timeA;
+        });
+
+        return apps[0] || null;
+    } catch (err) {
+        console.error("[Firestore] getMyCampusManagerApplication error:", err);
+        return null;
+    }
+}
+
+/**
+ * Get all Campus Manager applications (for Admin evaluation).
+ */
+export async function getAllCampusManagerApplications(
+    filterCollegeId?: string,
+    filterStatus?: string
+): Promise<(CampusManagerApplication & { id: string })[]> {
+    await requireAdminOrManager();
+    const db = getDb();
+    const snap = await getDocs(collection(db, "campusManagerApplications"));
+    
+    let applications = snap.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as CampusManagerApplication),
+    }));
+
+    // Filter in-memory
+    if (filterCollegeId && filterCollegeId !== "all") {
+        applications = applications.filter(a => a.collegeId === filterCollegeId);
+    }
+    if (filterStatus && filterStatus !== "all") {
+        applications = applications.filter(a => a.status === filterStatus);
+    }
+
+    // Sort newest first
+    applications.sort((a, b) => {
+        const timeA = a.createdAt ? (a.createdAt as any).toMillis?.() || 0 : 0;
+        const timeB = b.createdAt ? (b.createdAt as any).toMillis?.() || 0 : 0;
+        return timeB - timeA;
+    });
+
+    return applications;
+}
+
+/**
+ * Update the status of a Campus Manager application.
+ * If approved, automatically elevates the user's role to "manager", sets roleVerified = true,
+ * locks collegeId, and sends celebratory notifications.
+ */
+export async function updateCampusManagerApplicationStatus(
+    applicationId: string,
+    status: "pending" | "under_review" | "approved" | "rejected",
+    adminNotes?: string,
+    feedbackMessage?: string
+): Promise<void> {
+    const admin = await requireAdminOrManager();
+    const db = getDb();
+    const appRef = doc(db, "campusManagerApplications", applicationId);
+    const appSnap = await getDoc(appRef);
+
+    if (!appSnap.exists()) {
+        throw new Error("Campus Manager application not found.");
+    }
+
+    const appData = appSnap.data() as CampusManagerApplication;
+
+    // Authoritatively resolve target user by unique username first to guarantee the notification
+    // goes to the exact right person and account, never confused with display name
+    let targetUserId = appData.userId;
+    if (appData.applicantUsername && appData.applicantUsername.trim()) {
+        const cleanUsername = appData.applicantUsername.trim().toLowerCase();
+        try {
+            // Check direct usernames index mapping
+            const uDoc = await getDoc(doc(db, "usernames", cleanUsername));
+            if (uDoc.exists() && uDoc.data()?.uid) {
+                targetUserId = uDoc.data()!.uid;
+            } else {
+                // Fallback: search users collection by unique username
+                const matchingUsers = await getAllUsersByUsername(cleanUsername);
+                if (matchingUsers.length > 0 && matchingUsers[0].id) {
+                    targetUserId = matchingUsers[0].id;
+                }
+            }
+        } catch (err) {
+            console.warn("[updateCampusManagerApplicationStatus] Username lookup error:", err);
+        }
+    }
+
+    // 1. Update the application document
+    await updateDoc(appRef, {
+        status,
+        reviewedBy: admin.id || "",
+        reviewedByName: admin.displayName || "Admin",
+        reviewedAt: serverTimestamp(),
+        ...(adminNotes !== undefined ? { adminNotes } : {}),
+        ...(feedbackMessage !== undefined ? { feedbackMessage } : {}),
+        updatedAt: serverTimestamp(),
+    });
+
+    // 2. Lifecycle triggers based on status
+    if (status === "approved") {
+        // Automatically promote user to "manager" of their college
+        const userRef = doc(db, "users", targetUserId);
+        await updateDoc(userRef, {
+            role: "manager",
+            roleVerified: true,
+            collegeId: appData.collegeId,
+            college: appData.collegeName,
+            yearSemester: appData.currentYearSemester || "",
+            programme: appData.program === "BEdHonours" || appData.program === "MEd" ? appData.program : "BEdHonours",
+        });
+
+        // Send celebratory notification
+        await createNotification(targetUserId, {
+            type: "campus_manager_approved",
+            message: `🎉 Congratulations! Your application has been approved. You are now the official Campus Manager for ${appData.collegeName}!`,
+            relatedId: appData.collegeId,
+            relatedType: "college",
+            targetUrl: `/college-info?college=${appData.collegeId}`,
+        });
+    } else if (status === "rejected") {
+        const msg = feedbackMessage
+            ? `Your Campus Manager application was reviewed: "${feedbackMessage}"`
+            : "Your Campus Manager application has been reviewed and was not approved at this time.";
+
+        await createNotification(targetUserId, {
+            type: "campus_manager_rejected",
+            message: msg,
+            relatedId: applicationId,
+            relatedType: "application",
+            targetUrl: "/campus-manager",
+        });
+    } else if (status === "under_review") {
+        await createNotification(targetUserId, {
+            type: "campus_manager_under_review",
+            message: `Your Campus Manager application for ${appData.collegeName} is now under review by central administration.`,
+            relatedId: applicationId,
+            relatedType: "application",
+            targetUrl: "/campus-manager",
+        });
+    }
+}
+
+/**
+ * Revoke Campus Manager role from a user (demotes back to "student").
+ */
+export async function revokeCampusManagerRole(
+    userId: string,
+    reason?: string
+): Promise<void> {
+    await requireAdminOrManager();
+    const db = getDb();
+
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+        role: "student",
+    });
+
+    // Send notification
+    await createNotification(userId, {
+        type: "campus_manager_rejected",
+        message: reason
+            ? `Your Campus Manager appointment has ended. Reason: ${reason}`
+            : "Your Campus Manager appointment has concluded.",
+        relatedId: userId,
+        relatedType: "profile",
+        targetUrl: "/profile",
+    });
+}
+
+/**
+ * Fetch all active campus managers across the network.
+ */
+export async function getActiveCampusManagers(): Promise<(FirestoreUser & { id: string })[]> {
+    const db = getDb();
+    const q = query(
+        collection(db, "users"),
+        where("role", "==", "manager")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }));
+}
+
+/**
+ * Get aggregated application and manager stats for admin dashboard.
+ */
+export async function getCampusManagerStats(): Promise<{
+    totalApplications: number;
+    pendingCount: number;
+    underReviewCount: number;
+    approvedCount: number;
+    activeManagersCount: number;
+}> {
+    const db = getDb();
+    const [appsSnap, managersSnap] = await Promise.all([
+        getDocs(collection(db, "campusManagerApplications")),
+        getDocs(query(collection(db, "users"), where("role", "==", "manager"))),
+    ]);
+
+    let pendingCount = 0;
+    let underReviewCount = 0;
+    let approvedCount = 0;
+
+    appsSnap.docs.forEach(doc => {
+        const s = doc.data().status;
+        if (s === "pending") pendingCount++;
+        else if (s === "under_review") underReviewCount++;
+        else if (s === "approved") approvedCount++;
+    });
+
+    return {
+        totalApplications: appsSnap.size,
+        pendingCount,
+        underReviewCount,
+        approvedCount,
+        activeManagersCount: managersSnap.size,
+    };
+}
