@@ -47,12 +47,11 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { colleges } from "@/data/colleges";
-import { getApprovedGifts, getSupportSettings, getSupportPhases, getBuilderSettings, submitGift, updateSupportSettings, type FirestoreGift, type SupportSettings, type SupportPhase, type FirestoreBuilderSettings } from "@/lib/firestore";
+import { getApprovedGifts, getSupportSettings, getSupportPhases, submitGift, updateSupportSettings, type FirestoreGift, type SupportSettings, type SupportPhase } from "@/lib/firestore";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
-import BuilderPopupModal from "@/components/BuilderPopupModal";
 
 const CONFIG = {
     bkashNumber: "01805107667",
@@ -826,25 +825,24 @@ function HowToSend({ bkashNumber = "01805107667", upayNumber = "01805107667" }: 
                         className="overflow-hidden"
                     >
                         <div className="px-6 pb-6 border-t border-gray-100 dark:border-white/5 pt-5 space-y-6">
-                            {/* Guide switcher tab with official logos */}
-                            <div className="flex p-1.5 bg-gray-100 dark:bg-white/5 rounded-xl max-w-xs">
+                            <div className="grid grid-cols-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-xl max-w-xs gap-1.5">
                                 <button
                                     onClick={() => setGuideTab("bkash")}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "bkash" ? "bg-[#E2136E] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
+                                    className={`w-full min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "bkash" ? "bg-[#E2136E] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
                                 >
-                                    <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                                    <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs">
                                         <Image src="/logos/bkash.svg" alt="bKash" width={16} height={12} className="w-full h-full object-contain" />
                                     </div>
-                                    <span>bKash Guide</span>
+                                    <span className="truncate">bKash Guide</span>
                                 </button>
                                 <button
                                     onClick={() => setGuideTab("upay")}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "upay" ? "bg-gradient-to-r from-[#005BAC] to-[#003B73] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
+                                    className={`w-full min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${guideTab === "upay" ? "bg-gradient-to-r from-[#005BAC] to-[#003B73] text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white"}`}
                                 >
-                                    <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0">
+                                    <div className="w-4 h-4 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs">
                                         <Image src="/logos/upay.png" alt="upay" width={16} height={16} className="w-full h-full object-contain" />
                                     </div>
-                                    <span>upay Guide</span>
+                                    <span className="truncate">upay Guide</span>
                                 </button>
                             </div>
 
@@ -1028,14 +1026,14 @@ function PaymentCard({
         <div className="w-full max-w-[460px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] border border-gray-200/80 dark:border-white/10 shadow-2xl shadow-black/10 overflow-hidden group">
             {/* Header Tabs (if both methods enabled) */}
             {tabs.length > 1 ? (
-                <div className="flex p-1.5 bg-gray-100/80 dark:bg-white/5 m-4 mb-2 rounded-2xl relative">
+                <div className="grid grid-cols-2 p-1.5 bg-gray-100/80 dark:bg-white/5 m-3 sm:m-4 mb-2 rounded-2xl relative gap-1.5">
                     {tabs.map(tab => {
                         const isSelected = activeTab === tab.id;
                         return (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 relative z-10 ${
+                                className={`w-full min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 px-2 sm:px-3 text-[11px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 relative z-10 ${
                                     isSelected ? tab.activeClass : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
                                 }`}
                             >
@@ -1048,8 +1046,12 @@ function PaymentCard({
                                         className="w-full h-full object-contain"
                                     />
                                 </div>
-                                <span>{tab.label}</span>
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold opacity-80 ${isSelected ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-white/10 text-gray-500"}`}>
+                                <span className="truncate">{tab.label}</span>
+                                <span className={`text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                                    isSelected 
+                                        ? "bg-white/20 text-white" 
+                                        : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"
+                                }`}>
                                     {tab.subLabel}
                                 </span>
                             </button>
@@ -1073,7 +1075,7 @@ function PaymentCard({
                 </div>
             )}
 
-            <div className="p-6 pt-3 space-y-6">
+            <div className="p-5 sm:p-6 pt-3 space-y-6">
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={activeTab}
@@ -1085,7 +1087,7 @@ function PaymentCard({
                     >
                         {/* Branded Digital Card */}
                         <div 
-                            className={`rounded-3xl p-6 text-white relative overflow-hidden shadow-xl ${
+                            className={`rounded-3xl p-5 sm:p-6 text-white relative overflow-hidden shadow-xl ${
                                 activeTab === "bkash" 
                                     ? "bg-gradient-to-br from-[#E2136E] via-[#C91060] to-[#960B46]" 
                                     : "bg-gradient-to-br from-[#005BAC] via-[#004B93] to-[#002D62]"
@@ -1097,7 +1099,7 @@ function PaymentCard({
 
                             <div className="relative z-10 space-y-5">
                                 <div className="flex justify-between items-start">
-                                    <div className="h-11 px-3.5 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10">
+                                    <div className="min-w-[80px] h-11 px-3 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10">
                                         <Image 
                                             src={activeTab === "bkash" ? "/logos/bkash.svg" : "/logos/upay.png"} 
                                             alt={activeTab === "bkash" ? "bKash" : "upay"}
@@ -1123,7 +1125,7 @@ function PaymentCard({
                                         className="group/num flex items-center justify-between p-3 rounded-2xl bg-black/15 hover:bg-black/25 backdrop-blur-sm border border-white/10 cursor-pointer transition-all active:scale-[0.99]"
                                         title="Click to copy number"
                                     >
-                                        <p className="text-2xl font-mono font-black tracking-wider text-white">
+                                        <p className="text-xl sm:text-2xl font-mono font-black tracking-wider text-white">
                                             {currentNumber}
                                         </p>
                                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors">
@@ -1229,8 +1231,6 @@ export default function SupportPage() {
     const [supporters, setSupporters] = useState<(FirestoreGift & { id: string })[]>([]);
     const [settings, setSettings] = useState<SupportSettings>({ fundingOpen: true, fundingMessage: "Help us build the ultimate university platform.", supportPageActive: true });
     const [phases, setPhases] = useState<(SupportPhase & { id: string })[]>([]);
-    const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
-    const [showBuilderPopup, setShowBuilderPopup] = useState(false);
 
     const [isEditingSettings, setIsEditingSettings] = useState(false);
     const [tempSettings, setTempSettings] = useState<Partial<SupportSettings>>({});
@@ -1482,8 +1482,6 @@ export default function SupportPage() {
         }).catch(err => {
             console.error("[SupportPage] Error fetching phases:", err);
         });
-
-        getBuilderSettings().then(setBuilderSettings).catch(console.error);
     }, []);
 
     if (mounted && !settings.supportPageActive && !isAdmin) {
@@ -1535,7 +1533,7 @@ export default function SupportPage() {
     };
 
     return (
-        <div className="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-32 overflow-hidden selection:bg-primary selection:text-white min-h-screen">
+        <div className="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-16 overflow-hidden selection:bg-primary selection:text-white min-h-screen">
             {mounted && isAdmin && <AdminSupportPanel />}
 
             {/* 1. VISION ROADMAP (FIRST SECTION) */}
@@ -1667,27 +1665,9 @@ export default function SupportPage() {
             </section>
 
             {/* 4. HOW TO SEND INSTRUCTIONS */}
-            <section className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 pb-20">
+            <section className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 pb-12 sm:pb-16">
                 <HowToSend bkashNumber={activeConfig.bkashNumber} upayNumber={activeConfig.upayNumber} />
             </section>
-
-            {/* Floating builder footer */}
-            <div className="fixed bottom-0 left-0 right-0 z-[60]">
-                <div className="bg-white/95 dark:bg-[#0c0c12]/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] py-3.5 px-4 text-center">
-                    <button 
-                        onClick={() => setShowBuilderPopup(true)}
-                        className="group inline-flex items-center justify-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                        <span className="text-slate-800 dark:text-slate-200 font-black">
-                            BUILT BY A STUDENT FOR STUDENTS
-                        </span>
-                        <Heart size={14} className="text-[#E63946] fill-[#E63946] animate-pulse group-hover:scale-125 transition-transform" />
-                        <span className="text-primary dark:text-[#1D9BF0] font-black group-hover:underline decoration-2 underline-offset-4">
-                            HELP KEEP THIS DREAM ALIVE
-                        </span>
-                    </button>
-                </div>
-            </div>
 
             {/* ═════ Gift Verification Form Modal ═════ */}
             <AnimatePresence>
@@ -1811,14 +1791,6 @@ export default function SupportPage() {
                 amount={parseInt(giftAmount) || 1000}
                 date="March 5, 2026"
             />
-
-            {mounted && builderSettings && (
-                <BuilderPopupModal 
-                    show={showBuilderPopup} 
-                    onClose={() => setShowBuilderPopup(false)} 
-                    builderSettings={builderSettings} 
-                />
-            )}
         </div>
     );
 }

@@ -388,6 +388,18 @@ export default function NewsFeedLeftSidebar({
                     )}
                 </button>
 
+                {/* Discover People */}
+                <Link
+                    href="/network?tab=discover"
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-800/70 transition-all group"
+                >
+                    <span className="flex items-center gap-2.5">
+                        <Compass size={16} className="text-[#1877F2]" />
+                        <span>Discover People</span>
+                    </span>
+                    <ChevronRight size={14} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+
                 {/* Campus Stories */}
                 <Link
                     href="/story"

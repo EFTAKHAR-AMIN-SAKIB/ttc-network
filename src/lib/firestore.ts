@@ -209,6 +209,8 @@ export interface FirestorePost {
     isAuthorShadowBanned?: boolean; // Visibility control
     eventDetails?: EventDetails;
     poll?: PollDetails;
+    lastActivityAt?: Timestamp | null; // Updated on new comments or reactions to bump post in feed
+    sharesCount?: number; // Total shares count
 }
 
 export interface FirestoreStory {
@@ -1265,9 +1267,11 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
     // Auto-approval logic: 
     // Admins and Super Managers are always auto-approved.
     // Managers are auto-approved ONLY if it's for their own college.
+    // Verified users (roleVerified) are auto-approved on the Global Feed (type "event") only.
     const isOwnerOrAdmin = profile.role === "admin" || profile.role === "super_manager";
     const isManagerOfOwnCollege = profile.role === "manager" && profile.collegeId === targetCollegeId;
-    const isAutoApproved = isOwnerOrAdmin || isManagerOfOwnCollege;
+    const isVerifiedOnGlobalFeed = profile.roleVerified === true && post.type === "event";
+    const isAutoApproved = isOwnerOrAdmin || isManagerOfOwnCollege || isVerifiedOnGlobalFeed;
 
     const fullPost: Record<string, unknown> = {
         ...post,
@@ -1284,6 +1288,8 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
         reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
         reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         timestamp: serverTimestamp() as Timestamp,
+        lastActivityAt: serverTimestamp() as Timestamp,
+        sharesCount: 0,
         isAuthorShadowBanned: profile.isShadowBanned || false,
         tags,
     };
@@ -4014,7 +4020,10 @@ export async function addComment(
     try {
         if (parentSnap && parentSnap.exists()) {
             const parentData = parentSnap.data();
-            await updateDoc(parentRef, { commentsCount: increment(1) });
+            await updateDoc(parentRef, { 
+                commentsCount: increment(1),
+                lastActivityAt: serverTimestamp()
+            });
 
             const notifiedIds: string[] = [];
 
@@ -4869,6 +4878,7 @@ export async function reactToContent(contentId: string, reaction: string, conten
         const updates: Record<string, unknown> = {
             [`reactions.${freshKey}`]: increment(1),
             [`reactedBy.${freshKey}`]: arrayUnion(user.uid),
+            lastActivityAt: serverTimestamp(),
         };
 
         // Remove previous reactions (exclusive mode) and sync legacy counts
@@ -4947,6 +4957,22 @@ export async function reactToContent(contentId: string, reaction: string, conten
 // ═══════════════════════════════════════════════════
 //  CREDENTIALS (BADGES & ACHIEVEMENTS)
 // ═══════════════════════════════════════════════════
+
+/**
+ * Records a share event for a post or content item, bumping engagement score and lastActivityAt.
+ */
+export async function recordPostShare(contentId: string, contentType: "post" | "story" | "study" = "post"): Promise<void> {
+    try {
+        const collectionName = contentType === "post" ? "posts" : contentType === "story" ? "stories" : "studyPosts";
+        const contentRef = doc(getDb(), collectionName, contentId);
+        await updateDoc(contentRef, {
+            sharesCount: increment(1),
+            lastActivityAt: serverTimestamp(),
+        });
+    } catch (err) {
+        console.warn("[recordPostShare] Failed to update sharesCount:", err);
+    }
+}
 
 export async function grantBadge(userId: string, badgeData: { name: string; description: string; imageURL: string }): Promise<void> {
     await requireAdminOrManager();
@@ -5099,15 +5125,25 @@ export async function getFriendRecommendations(
     return recommendations.slice(0, limitCount);
 }
 
+export interface RecommendedUser extends FirestoreUser {
+    id: string;
+    mutualCount?: number;
+    sampleMutualName?: string;
+    algoScore?: number;
+}
+
 export interface CategorizedRecommendations {
-    myCollege: (FirestoreUser & { id: string })[];
-    otherColleges: (FirestoreUser & { id: string })[];
+    myCollege: RecommendedUser[];
+    otherColleges: RecommendedUser[];
 }
 
 /**
- * Fetch friend recommendations divided into:
- * 1. My College Peers (batchmates, same year/semester prioritized)
- * 2. Other Colleges Peers (cross-campus peers, same year/semester prioritized)
+ * Facebook-grade "People You May Know" (PYMK) recommendation algorithm.
+ * Evaluates:
+ * 1. Mutual Connections (Triadic Closure / Friends of Friends graph)
+ * 2. Institutional Proximity (Same Batch, Same Academic Programme, Same College)
+ * 3. Campus Faculty & Leadership
+ * 4. Profile Completeness & Engagement Activity
  */
 export async function getCategorizedFriendRecommendations(
     currentUserId: string,
@@ -5126,19 +5162,57 @@ export async function getCategorizedFriendRecommendations(
     const db = getDb();
 
     try {
-        // 1. Get UIDs of users already followed
+        // 1. Get UIDs of users already followed + exclude self
         const followingSnap = await getDocs(collection(db, "users", currentUserId, "following"));
         const followedIds = new Set(followingSnap.docs.map(d => d.id));
-        followedIds.add(currentUserId); // exclude self
+        followedIds.add(currentUserId);
+        const followedList = followingSnap.docs.map(d => d.id);
 
-        // 2. Fetch users across network (sample up to 150)
-        const qAll = query(collection(db, "users"), limit(150));
+        // 2. Discover Mutual Connections (Friends of Friends Graph)
+        // Check who the user's followed connections follow to compute mutual ties
+        const mutualGraph: Record<string, { count: number; sampleFriendName?: string }> = {};
+        try {
+            const sampleFriends = followedList.slice(0, 15);
+            if (sampleFriends.length > 0) {
+                // Fetch profiles of friends in parallel to get their display names for social proof badges
+                const [friendsFollowingSnaps, friendProfiles] = await Promise.all([
+                    Promise.all(sampleFriends.map(fId => getDocs(collection(db, "users", fId, "following")).catch(() => null))),
+                    getProfilesByIds(sampleFriends).catch(() => [])
+                ]);
+
+                const friendNameMap: Record<string, string> = {};
+                friendProfiles.forEach(fp => {
+                    if (fp.id) friendNameMap[fp.id] = fp.displayName?.split(" ")[0] || "A classmate";
+                });
+
+                friendsFollowingSnaps.forEach((fSnap, idx) => {
+                    if (!fSnap) return;
+                    const fId = sampleFriends[idx];
+                    const fName = friendNameMap[fId] || "A classmate";
+                    fSnap.docs.forEach(doc => {
+                        const candidateId = doc.id;
+                        if (candidateId && !followedIds.has(candidateId)) {
+                            if (!mutualGraph[candidateId]) {
+                                mutualGraph[candidateId] = { count: 1, sampleFriendName: fName };
+                            } else {
+                                mutualGraph[candidateId].count += 1;
+                            }
+                        }
+                    });
+                });
+            }
+        } catch (e) {
+            console.warn("[FriendRecs] Mutual connections lookup skipped:", e);
+        }
+
+        // 3. Fetch users across the network
+        const qAll = query(collection(db, "users"), limit(160));
         const snapAll = await getDocs(qAll);
         const allUsers = snapAll.docs
             .map(d => ({ id: d.id, ...(d.data() as FirestoreUser) }))
             .filter(u => !followedIds.has(u.id));
 
-        // Normalize year/semester helper
+        // 4. Normalize year/semester helper
         const cleanYearSem = (val?: string) => (val || "").toLowerCase().replace(/[^a-z0-9]/g, "");
         const myYearSem = cleanYearSem(
             currentUserProfile?.yearSemester || 
@@ -5146,30 +5220,63 @@ export async function getCategorizedFriendRecommendations(
         );
         const myProgramme = currentUserProfile?.programme;
 
-        // Relevance scoring function
-        const scoreUser = (u: FirestoreUser) => {
+        // 5. Facebook-Grade Relevance Scoring Formula
+        const scoreUser = (u: FirestoreUser & { id: string }) => {
             let score = 0;
             const targetYearSem = cleanYearSem(u.yearSemester);
+            const mutual = mutualGraph[u.id];
 
-            // Same year & semester gets top priority (batchmate match!)
-            if (myYearSem && targetYearSem && myYearSem === targetYearSem) {
-                score += 100;
-            } else if (myProgramme && u.programme && myProgramme === u.programme) {
-                score += 30;
+            // A. Mutual connections: The single strongest predictor in social networks
+            if (mutual && mutual.count > 0) {
+                score += Math.min(260, mutual.count * 70);
             }
 
-            if (u.role === "teacher") score += 25;
-            if (u.roleVerified) score += 15;
-            if (u.photoURL) score += 10;
-            if (u.bio) score += 5;
+            // B. Direct Classmates (Same Year & Semester in the teacher training syllabus)
+            if (myYearSem && targetYearSem && myYearSem === targetYearSem) {
+                score += (u.collegeId === collegeId ? 130 : 60);
+            } else if (myProgramme && u.programme && myProgramme === u.programme) {
+                score += 40;
+            }
+
+            // C. Campus Faculty & Educators
+            if (u.role === "teacher") {
+                score += (u.collegeId === collegeId ? 95 : 35);
+            }
+
+            // D. Verified & Leadership credibility
+            if (u.roleVerified) score += 25;
+            if (u.role === "admin" || u.role === "manager" || u.role === "super_manager") score += 20;
+
+            // E. Profile Completeness & Aesthetics
+            if (u.photoURL) score += 15;
+            if (u.bio) score += 10;
+            if (u.bannerURL || u.coverUrl) score += 8;
+
             return score;
         };
 
-        const myCollegeUsers = allUsers.filter(u => u.collegeId === collegeId);
-        const otherCollegesUsers = allUsers.filter(u => u.collegeId && u.collegeId !== collegeId);
+        // 6. Partition into My College and Other Campuses with rich metadata
+        const myCollegeUsers: RecommendedUser[] = allUsers
+            .filter(u => u.collegeId === collegeId)
+            .map(u => ({
+                ...u,
+                mutualCount: mutualGraph[u.id]?.count || 0,
+                sampleMutualName: mutualGraph[u.id]?.sampleFriendName,
+                algoScore: scoreUser(u)
+            }));
 
-        myCollegeUsers.sort((a, b) => scoreUser(b) - scoreUser(a));
-        otherCollegesUsers.sort((a, b) => scoreUser(b) - scoreUser(a));
+        const otherCollegesUsers: RecommendedUser[] = allUsers
+            .filter(u => u.collegeId && u.collegeId !== collegeId)
+            .map(u => ({
+                ...u,
+                mutualCount: mutualGraph[u.id]?.count || 0,
+                sampleMutualName: mutualGraph[u.id]?.sampleFriendName,
+                algoScore: scoreUser(u)
+            }));
+
+        // Sort descending by algorithm score
+        myCollegeUsers.sort((a, b) => (b.algoScore || 0) - (a.algoScore || 0));
+        otherCollegesUsers.sort((a, b) => (b.algoScore || 0) - (a.algoScore || 0));
 
         return {
             myCollege: myCollegeUsers.slice(0, limitPerCategory),

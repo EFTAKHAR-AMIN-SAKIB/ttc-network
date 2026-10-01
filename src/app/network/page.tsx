@@ -26,7 +26,8 @@ import {
     getFollowersList,
     getFollowingList,
     getAllUsers,
-    type FirestoreUser 
+    type FirestoreUser,
+    type RecommendedUser
 } from "@/lib/firestore";
 import { colleges } from "@/data/colleges";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -52,11 +53,15 @@ export default function NetworkPage() {
     // Sub-tab under "My Network": "followers" | "following"
     const [networkTab, setNetworkTab] = useState<"followers" | "following">("following");
 
+    // Discover People Facebook Category Filter
+    type DiscoverCategory = "all" | "mutual" | "batch" | "faculty" | "my_campus" | "other_campuses";
+    const [discoverCategory, setDiscoverCategory] = useState<DiscoverCategory>("all");
+
     // Data States
     const [collegeUsers, setCollegeUsers] = useState<(FirestoreUser & { id: string })[]>([]);
-    const [recommendations, setRecommendations] = useState<(FirestoreUser & { id: string })[]>([]);
-    const [myCollegeRecs, setMyCollegeRecs] = useState<(FirestoreUser & { id: string })[]>([]);
-    const [otherCollegesRecs, setOtherCollegesRecs] = useState<(FirestoreUser & { id: string })[]>([]);
+    const [recommendations, setRecommendations] = useState<RecommendedUser[]>([]);
+    const [myCollegeRecs, setMyCollegeRecs] = useState<RecommendedUser[]>([]);
+    const [otherCollegesRecs, setOtherCollegesRecs] = useState<RecommendedUser[]>([]);
     const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState<Set<string>>(new Set());
     const [discoverViewMode, setDiscoverViewMode] = useState<"reel" | "grid">("reel");
     const [otherCollegeFilter, setOtherCollegeFilter] = useState<string>("all");
@@ -66,6 +71,7 @@ export default function NetworkPage() {
     // Scroll refs for reels
     const myCollegeScrollRef = useRef<HTMLDivElement>(null);
     const otherCollegesScrollRef = useRef<HTMLDivElement>(null);
+    const categoryFilteredScrollRef = useRef<HTMLDivElement>(null);
 
     const scrollReel = (ref: React.RefObject<HTMLDivElement>, direction: "left" | "right") => {
         if (ref.current) {
@@ -83,8 +89,23 @@ export default function NetworkPage() {
         showToast("Suggestion removed", "info");
     };
 
-    const getSuggestionReason = (targetUser: FirestoreUser) => {
+    const getSuggestionReason = (targetUser: RecommendedUser | FirestoreUser) => {
         const isSameCollege = targetUser.collegeId === profile?.collegeId;
+        const targetRec = targetUser as RecommendedUser;
+
+        // 1. Mutual Connections (Triadic Closure - Facebook #1 Signal)
+        if (targetRec.mutualCount && targetRec.mutualCount > 0) {
+            const count = targetRec.mutualCount;
+            const sampleName = targetRec.sampleMutualName;
+            const label = sampleName 
+                ? (count === 1 ? `Followed by ${sampleName}` : `Followed by ${sampleName} +${count - 1}`)
+                : `${count} mutual connection${count > 1 ? "s" : ""}`;
+            return {
+                label,
+                type: "mutual" as const,
+                color: "text-blue-700 dark:text-sky-300 bg-blue-500/10 border-blue-500/20"
+            };
+        }
         
         // Clean string for comparisons
         const clean = (s?: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -96,13 +117,13 @@ export default function NetworkPage() {
             return {
                 label: isSameCollege ? `Same Batch (${targetUser.yearSemester})` : `Same Semester (${targetUser.yearSemester})`,
                 type: "batch" as const,
-                color: "text-blue-700 dark:text-sky-300 bg-blue-500/10 border-blue-500/20"
+                color: "text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 border-indigo-500/20"
             };
         }
 
         if (targetUser.role === "teacher") {
             return {
-                label: isSameCollege ? "Campus Faculty / Teacher" : "Educator in TTC Network",
+                label: isSameCollege ? "Campus Faculty" : "TTC Educator",
                 type: "teacher" as const,
                 color: "text-purple-700 dark:text-purple-300 bg-purple-500/10 border-purple-500/20"
             };
@@ -111,7 +132,7 @@ export default function NetworkPage() {
         if (profile?.programme && targetUser.programme && profile.programme === targetUser.programme) {
             const progName = targetUser.programme === "BEdHonours" ? "B.Ed Honours" : targetUser.programme;
             return {
-                label: isSameCollege ? `Also in ${progName}` : `Fellow ${progName} Student`,
+                label: isSameCollege ? `Also in ${progName}` : `Fellow ${progName}`,
                 type: "programme" as const,
                 color: "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20"
             };
@@ -234,6 +255,30 @@ export default function NetworkPage() {
         const ids = Array.from(new Set(otherCollegesRecs.map(u => u.collegeId).filter(Boolean)));
         return colleges.filter(c => ids.includes(c.id) && c.id !== profile?.collegeId);
     }, [otherCollegesRecs, profile?.collegeId]);
+
+    const cleanStr = (s?: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const myYearSemClean = cleanStr(profile?.yearSemester || `${profile?.year || ""} ${profile?.semester || ""}`);
+
+    // All active non-dismissed recommendations combined
+    const allVisibleRecs = useMemo(() => {
+        return [...visibleMyCollege, ...otherCollegesRecs.filter(u => !dismissedSuggestionIds.has(u.id))];
+    }, [visibleMyCollege, otherCollegesRecs, dismissedSuggestionIds]);
+
+    // Mutual connections across all recommendations (Triadic Closure)
+    const mutualRecs = useMemo(() => {
+        return allVisibleRecs.filter(u => (u.mutualCount || 0) > 0);
+    }, [allVisibleRecs]);
+
+    // Direct Classmates in same batch
+    const batchRecs = useMemo(() => {
+        if (!myYearSemClean) return [];
+        return allVisibleRecs.filter(u => cleanStr(u.yearSemester) === myYearSemClean);
+    }, [allVisibleRecs, myYearSemClean]);
+
+    // Campus Faculty & Educators
+    const facultyRecs = useMemo(() => {
+        return allVisibleRecs.filter(u => u.role === "teacher");
+    }, [allVisibleRecs]);
 
     // 2. Fetch Social Network & Discover Recommendations
     const fetchSocialData = async () => {
@@ -425,7 +470,7 @@ export default function NetworkPage() {
         return parts.map(n => n[0]).join("").slice(0, 2).toUpperCase() || "U";
     };
 
-    const renderUserCard = (item: FirestoreUser & { id: string }, _isFromMyCollege?: boolean) => {
+    const renderUserCard = (item: RecommendedUser | (FirestoreUser & { id: string }), _isFromMyCollege?: boolean) => {
         const isFollowing = !!followingStates[item.id];
         const isWorking = !!processingFollow[item.id];
         const reason = getSuggestionReason(item);
@@ -519,6 +564,7 @@ export default function NetworkPage() {
                     {/* Facebook-style Suggestion Reason Pill */}
                     <div className="mt-1.5 sm:mt-2 w-full flex justify-center">
                         <span className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black border max-w-full truncate ${reason.color}`}>
+                            {reason.type === "mutual" && <Users size={10} className="shrink-0" />}
                             {reason.type === "batch" && <Sparkles size={10} className="shrink-0" />}
                             {reason.type === "teacher" && <School size={10} className="shrink-0" />}
                             {reason.type === "programme" && <BookOpen size={10} className="shrink-0" />}
@@ -1248,6 +1294,129 @@ export default function NetworkPage() {
                                         </form>
                                     </div>
 
+                                    {/* Facebook-style Category Filter Chips */}
+                                    {!isSearching && (
+                                        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-3 sm:pb-4 mb-4 sm:mb-6 -mx-4 px-4 sm:mx-0 sm:px-0 touch-pan-x">
+                                            <button
+                                                type="button"
+                                                onClick={() => setDiscoverCategory("all")}
+                                                className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                    discoverCategory === "all"
+                                                        ? "bg-primary text-white shadow-sm shadow-primary/25"
+                                                        : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                                }`}
+                                            >
+                                                <span>All Suggestions</span>
+                                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                    discoverCategory === "all" ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-500"
+                                                }`}>
+                                                    {allVisibleRecs.length}
+                                                </span>
+                                            </button>
+
+                                            {/* Mutual Friends Pill */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setDiscoverCategory("mutual")}
+                                                className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                    discoverCategory === "mutual"
+                                                        ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                                                        : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                                }`}
+                                            >
+                                                <Users size={13} className={discoverCategory === "mutual" ? "text-white" : "text-blue-500"} />
+                                                <span>Mutual Friends</span>
+                                                {mutualRecs.length > 0 && (
+                                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                        discoverCategory === "mutual" ? "bg-white/20 text-white" : "bg-blue-500/15 text-blue-600 dark:text-sky-300"
+                                                    }`}>
+                                                        {mutualRecs.length}
+                                                    </span>
+                                                )}
+                                            </button>
+
+                                            {/* My Batch Pill */}
+                                            {batchRecs.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDiscoverCategory("batch")}
+                                                    className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                        discoverCategory === "batch"
+                                                            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/25"
+                                                            : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                                    }`}
+                                                >
+                                                    <Sparkles size={13} className={discoverCategory === "batch" ? "text-white" : "text-indigo-500"} />
+                                                    <span>My Batch</span>
+                                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                        discoverCategory === "batch" ? "bg-white/20 text-white" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300"
+                                                    }`}>
+                                                        {batchRecs.length}
+                                                    </span>
+                                                </button>
+                                            )}
+
+                                            {/* Faculty Pill */}
+                                            {facultyRecs.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDiscoverCategory("faculty")}
+                                                    className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                        discoverCategory === "faculty"
+                                                            ? "bg-purple-600 text-white shadow-sm shadow-purple-600/25"
+                                                            : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                                    }`}
+                                                >
+                                                    <School size={13} className={discoverCategory === "faculty" ? "text-white" : "text-purple-500"} />
+                                                    <span>Faculty</span>
+                                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                        discoverCategory === "faculty" ? "bg-white/20 text-white" : "bg-purple-500/15 text-purple-600 dark:text-purple-300"
+                                                    }`}>
+                                                        {facultyRecs.length}
+                                                    </span>
+                                                </button>
+                                            )}
+
+                                            {/* My Campus Pill */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setDiscoverCategory("my_campus")}
+                                                className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                    discoverCategory === "my_campus"
+                                                        ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25"
+                                                        : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                                }`}
+                                            >
+                                                <School size={13} className={discoverCategory === "my_campus" ? "text-white" : "text-emerald-500"} />
+                                                <span>My Campus</span>
+                                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                    discoverCategory === "my_campus" ? "bg-white/20 text-white" : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+                                                }`}>
+                                                    {visibleMyCollege.length}
+                                                </span>
+                                            </button>
+
+                                            {/* Other Campuses Pill */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setDiscoverCategory("other_campuses")}
+                                                className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                    discoverCategory === "other_campuses"
+                                                        ? "bg-amber-600 text-white shadow-sm shadow-amber-600/25"
+                                                        : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                                }`}
+                                            >
+                                                <Globe size={13} className={discoverCategory === "other_campuses" ? "text-white" : "text-amber-500"} />
+                                                <span>Other Campuses</span>
+                                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                    discoverCategory === "other_campuses" ? "bg-white/20 text-white" : "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                                                }`}>
+                                                    {filteredOtherColleges.length}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {/* SEARCH RESULTS VIEW */}
                                     {isSearching ? (
                                         searchingLoader ? (
@@ -1301,7 +1470,7 @@ export default function NetworkPage() {
                                                 </div>
                                             </div>
                                         )
-                                    ) : visibleMyCollege.length === 0 && otherCollegesRecs.filter(u => !dismissedSuggestionIds.has(u.id)).length === 0 ? (
+                                    ) : allVisibleRecs.length === 0 ? (
                                         <div className="py-20 text-center select-none">
                                             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800/40 rounded-[35%] flex items-center justify-center mx-auto mb-6 text-gray-300 dark:text-gray-700">
                                                 <Compass size={36} />
@@ -1323,202 +1492,451 @@ export default function NetworkPage() {
                                         </div>
                                     ) : (
                                         <div className="space-y-10">
-                                            {/* CATEGORY 1: Peers at Your College */}
-                                            <div className="space-y-4">
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                                    <div>
+                                            {/* DEDICATED VIEW: MUTUAL FRIENDS */}
+                                            {discoverCategory === "mutual" && (
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                                                <Users size={17} />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                        Mutual Friends & Connections
+                                                                    </h3>
+                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
+                                                                        {mutualRecs.length}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                                                    People you may know who are connected to your friends
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {discoverViewMode === "reel" && mutualRecs.length > 0 && (
+                                                            <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(categoryFilteredScrollRef, "left")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll left"
+                                                                >
+                                                                    <ChevronLeft size={16} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(categoryFilteredScrollRef, "right")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll right"
+                                                                >
+                                                                    <ChevronRight size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {mutualRecs.length === 0 ? (
+                                                        <div className="p-8 sm:p-12 text-center bg-gray-50/60 dark:bg-black/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                                                            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
+                                                                <Users size={26} />
+                                                            </div>
+                                                            <h4 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                No mutual connections discovered yet
+                                                            </h4>
+                                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                                                                Follow more peers on your campus or other colleges to discover friends-of-friends!
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDiscoverCategory("all")}
+                                                                className="mt-4 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-primary-dark transition-all cursor-pointer shadow-xs"
+                                                            >
+                                                                View All Suggestions
+                                                            </button>
+                                                        </div>
+                                                    ) : discoverViewMode === "reel" ? (
+                                                        <div
+                                                            ref={categoryFilteredScrollRef}
+                                                            className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
+                                                        >
+                                                            <AnimatePresence mode="popLayout">
+                                                                {mutualRecs.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                                                            <AnimatePresence mode="popLayout">
+                                                                {mutualRecs.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* DEDICATED VIEW: MY BATCH */}
+                                            {discoverCategory === "batch" && (
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                                                <Sparkles size={17} />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                        Classmates in Your Batch
+                                                                    </h3>
+                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
+                                                                        {batchRecs.length}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                                                    Peers enrolled in {profile?.yearSemester || "your syllabus semester"}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {discoverViewMode === "reel" && batchRecs.length > 0 && (
+                                                            <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(categoryFilteredScrollRef, "left")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll left"
+                                                                >
+                                                                    <ChevronLeft size={16} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(categoryFilteredScrollRef, "right")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll right"
+                                                                >
+                                                                    <ChevronRight size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {batchRecs.length === 0 ? (
+                                                        <div className="p-8 sm:p-12 text-center bg-gray-50/60 dark:bg-black/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                                                            <GraduationCap className="mx-auto text-gray-400 mb-2" size={32} />
+                                                            <h4 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                No other classmates found in your batch
+                                                            </h4>
+                                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                                                                You are connected with all suggested classmates from your semester.
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDiscoverCategory("all")}
+                                                                className="mt-4 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-primary-dark transition-all cursor-pointer shadow-xs"
+                                                            >
+                                                                View All Suggestions
+                                                            </button>
+                                                        </div>
+                                                    ) : discoverViewMode === "reel" ? (
+                                                        <div
+                                                            ref={categoryFilteredScrollRef}
+                                                            className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
+                                                        >
+                                                            <AnimatePresence mode="popLayout">
+                                                                {batchRecs.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                                                            <AnimatePresence mode="popLayout">
+                                                                {batchRecs.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* DEDICATED VIEW: FACULTY & EDUCATORS */}
+                                            {discoverCategory === "faculty" && (
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                                                                 <School size={17} />
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2">
                                                                     <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                                                        Peers at Your College
+                                                                        Campus Faculty & Educators
                                                                     </h3>
-                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
-                                                                        {visibleMyCollege.length}
+                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200/60 dark:border-purple-800/40">
+                                                                        {facultyRecs.length}
                                                                     </span>
                                                                 </div>
                                                                 <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                                                                    TTC {getCollegeCity(profile?.collegeId || "")} • Classmates, batchmates & teachers you may know
+                                                                    Teachers, instructors and mentors across TTC Network
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Reel Controls (Left / Right scroll buttons - Hidden on mobile) */}
-                                                    {discoverViewMode === "reel" && visibleMyCollege.length > 0 && (
-                                                        <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => scrollReel(myCollegeScrollRef, "left")}
-                                                                className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                                                                title="Scroll left"
-                                                            >
-                                                                <ChevronLeft size={16} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => scrollReel(myCollegeScrollRef, "right")}
-                                                                className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                                                                title="Scroll right"
-                                                            >
-                                                                <ChevronRight size={16} />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {visibleMyCollege.length === 0 ? (
-                                                    <div className="p-8 text-center bg-gray-50/60 dark:bg-black/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                                                        <GraduationCap className="mx-auto text-gray-400 mb-2" size={28} />
-                                                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                                                            You are connected with all suggested classmates from TTC {getCollegeCity(profile?.collegeId || "")}!
-                                                        </p>
-                                                    </div>
-                                                ) : discoverViewMode === "reel" ? (
-                                                    <div
-                                                        ref={myCollegeScrollRef}
-                                                        className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
-                                                    >
-                                                        <AnimatePresence mode="popLayout">
-                                                            {visibleMyCollege.map((item) => renderUserCard(item, true))}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                ) : (
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                                                        <AnimatePresence mode="popLayout">
-                                                            {visibleMyCollege.map((item) => renderUserCard(item, true))}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* CATEGORY 2: Explore Other Campuses */}
-                                            <div className="pt-8 border-t border-gray-100 dark:border-gray-850 space-y-5">
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                                                <Globe size={17} />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                                                        Explore Other TTC Campuses
-                                                                    </h3>
-                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
-                                                                        {filteredOtherColleges.length}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                                                                    Expand your reach across teacher training colleges nationwide
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Reel Controls (Left / Right scroll buttons - Hidden on mobile) */}
-                                                    {discoverViewMode === "reel" && filteredOtherColleges.length > 0 && (
-                                                        <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => scrollReel(otherCollegesScrollRef, "left")}
-                                                                className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                                                                title="Scroll left"
-                                                            >
-                                                                <ChevronLeft size={16} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => scrollReel(otherCollegesScrollRef, "right")}
-                                                                className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                                                                title="Scroll right"
-                                                            >
-                                                                <ChevronRight size={16} />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Campus Filter Pills */}
-                                                {otherCollegesRecs.length > 0 && (
-                                                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 touch-pan-x">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setOtherCollegeFilter("all")}
-                                                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
-                                                                otherCollegeFilter === "all"
-                                                                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20"
-                                                                    : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 border border-transparent"
-                                                            }`}
-                                                        >
-                                                            All Campuses ({otherCollegesRecs.filter(u => !dismissedSuggestionIds.has(u.id)).length})
-                                                        </button>
-                                                        {availableOtherColleges.map((col) => {
-                                                            const count = otherCollegesRecs.filter(u => u.collegeId === col.id && !dismissedSuggestionIds.has(u.id)).length;
-                                                            if (count === 0) return null;
-                                                            const isSelected = otherCollegeFilter === col.id;
-                                                            return (
+                                                        {discoverViewMode === "reel" && facultyRecs.length > 0 && (
+                                                            <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
                                                                 <button
-                                                                    key={col.id}
                                                                     type="button"
-                                                                    onClick={() => setOtherCollegeFilter(col.id)}
-                                                                    className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                                                                        isSelected
-                                                                            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20"
-                                                                            : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 border border-transparent"
-                                                                    }`}
+                                                                    onClick={() => scrollReel(categoryFilteredScrollRef, "left")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll left"
                                                                 >
-                                                                    <span>TTC {col.city}</span>
-                                                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                                                                        isSelected ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-500"
-                                                                    }`}>
-                                                                        {count}
-                                                                    </span>
+                                                                    <ChevronLeft size={16} />
                                                                 </button>
-                                                            );
-                                                        })}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(categoryFilteredScrollRef, "right")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll right"
+                                                                >
+                                                                    <ChevronRight size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
 
-                                                {/* Category 2 Content */}
-                                                {filteredOtherColleges.length === 0 ? (
-                                                    <div className="p-8 text-center bg-gray-50/60 dark:bg-black/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                                                        <Globe className="mx-auto text-gray-400 mb-2" size={28} />
-                                                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                                                            {otherCollegeFilter !== "all" 
-                                                                ? `No suggestions found for TTC ${getCollegeCity(otherCollegeFilter)}. Try selecting 'All Campuses'.`
-                                                                : "No recommendations across other campuses right now."}
-                                                        </p>
-                                                        {otherCollegeFilter !== "all" && (
+                                                    {facultyRecs.length === 0 ? (
+                                                        <div className="p-8 sm:p-12 text-center bg-gray-50/60 dark:bg-black/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                                                            <School className="mx-auto text-gray-400 mb-2" size={32} />
+                                                            <h4 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                No teachers suggested right now
+                                                            </h4>
+                                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                                                                Check back soon as more educators join TTC Connect.
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDiscoverCategory("all")}
+                                                                className="mt-4 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-primary-dark transition-all cursor-pointer shadow-xs"
+                                                            >
+                                                                View All Suggestions
+                                                            </button>
+                                                        </div>
+                                                    ) : discoverViewMode === "reel" ? (
+                                                        <div
+                                                            ref={categoryFilteredScrollRef}
+                                                            className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
+                                                        >
+                                                            <AnimatePresence mode="popLayout">
+                                                                {facultyRecs.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                                                            <AnimatePresence mode="popLayout">
+                                                                {facultyRecs.map((item) => renderUserCard(item, item.collegeId === profile?.collegeId))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* CATEGORY 1: Peers at Your College (shown on "all" and "my_campus") */}
+                                            {(discoverCategory === "all" || discoverCategory === "my_campus") && (
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                                                    <School size={17} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                            Peers at Your College
+                                                                        </h3>
+                                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
+                                                                            {visibleMyCollege.length}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                                                        TTC {getCollegeCity(profile?.collegeId || "")} • Classmates, batchmates & teachers you may know
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Reel Controls */}
+                                                        {discoverViewMode === "reel" && visibleMyCollege.length > 0 && (
+                                                            <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(myCollegeScrollRef, "left")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll left"
+                                                                >
+                                                                    <ChevronLeft size={16} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(myCollegeScrollRef, "right")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll right"
+                                                                >
+                                                                    <ChevronRight size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {visibleMyCollege.length === 0 ? (
+                                                        <div className="p-8 text-center bg-gray-50/60 dark:bg-black/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+                                                            <GraduationCap className="mx-auto text-gray-400 mb-2" size={28} />
+                                                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                                                                You are connected with all suggested classmates from TTC {getCollegeCity(profile?.collegeId || "")}!
+                                                            </p>
+                                                        </div>
+                                                    ) : discoverViewMode === "reel" ? (
+                                                        <div
+                                                            ref={myCollegeScrollRef}
+                                                            className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
+                                                        >
+                                                            <AnimatePresence mode="popLayout">
+                                                                {visibleMyCollege.map((item) => renderUserCard(item, true))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                                                            <AnimatePresence mode="popLayout">
+                                                                {visibleMyCollege.map((item) => renderUserCard(item, true))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* CATEGORY 2: Explore Other Campuses (shown on "all" and "other_campuses") */}
+                                            {(discoverCategory === "all" || discoverCategory === "other_campuses") && (
+                                                <div className={`${discoverCategory === "all" ? "pt-8 border-t border-gray-100 dark:border-gray-850" : ""} space-y-5`}>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                                                    <Globe size={17} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                                            Explore Other TTC Campuses
+                                                                        </h3>
+                                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
+                                                                            {filteredOtherColleges.length}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                                                        Expand your reach across teacher training colleges nationwide
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Reel Controls */}
+                                                        {discoverViewMode === "reel" && filteredOtherColleges.length > 0 && (
+                                                            <div className="hidden sm:flex items-center gap-1.5 self-end sm:self-auto">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(otherCollegesScrollRef, "left")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll left"
+                                                                >
+                                                                    <ChevronLeft size={16} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => scrollReel(otherCollegesScrollRef, "right")}
+                                                                    className="p-2 rounded-xl bg-gray-100 dark:bg-[#1f202b] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                                                    title="Scroll right"
+                                                                >
+                                                                    <ChevronRight size={16} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Campus Filter Pills */}
+                                                    {otherCollegesRecs.length > 0 && (
+                                                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 touch-pan-x">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setOtherCollegeFilter("all")}
-                                                                className="mt-3 px-4 py-1.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-primary-dark transition-all cursor-pointer"
+                                                                className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                                                                    otherCollegeFilter === "all"
+                                                                        ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20"
+                                                                        : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 border border-transparent"
+                                                                }`}
                                                             >
-                                                                Show All Campuses
+                                                                All Campuses ({otherCollegesRecs.filter(u => !dismissedSuggestionIds.has(u.id)).length})
                                                             </button>
-                                                        )}
-                                                    </div>
-                                                ) : discoverViewMode === "reel" ? (
-                                                    <div
-                                                        ref={otherCollegesScrollRef}
-                                                        className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
-                                                    >
-                                                        <AnimatePresence mode="popLayout">
-                                                            {filteredOtherColleges.map((item) => renderUserCard(item, false))}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                ) : (
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                                                        <AnimatePresence mode="popLayout">
-                                                            {filteredOtherColleges.map((item) => renderUserCard(item, false))}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                            {availableOtherColleges.map((col) => {
+                                                                const count = otherCollegesRecs.filter(u => u.collegeId === col.id && !dismissedSuggestionIds.has(u.id)).length;
+                                                                if (count === 0) return null;
+                                                                const isSelected = otherCollegeFilter === col.id;
+                                                                return (
+                                                                    <button
+                                                                        key={col.id}
+                                                                        type="button"
+                                                                        onClick={() => setOtherCollegeFilter(col.id)}
+                                                                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                                                                            isSelected
+                                                                                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20"
+                                                                                : "bg-gray-100 dark:bg-[#161620] hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 border border-transparent"
+                                                                        }`}
+                                                                    >
+                                                                        <span>TTC {col.city}</span>
+                                                                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                                                            isSelected ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-800 text-gray-500"
+                                                                        }`}>
+                                                                            {count}
+                                                                        </span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Category 2 Content */}
+                                                    {filteredOtherColleges.length === 0 ? (
+                                                        <div className="p-8 text-center bg-gray-50/60 dark:bg-black/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+                                                            <Globe className="mx-auto text-gray-400 mb-2" size={28} />
+                                                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                                                                {otherCollegeFilter !== "all" 
+                                                                    ? `No suggestions found for TTC ${getCollegeCity(otherCollegeFilter)}. Try selecting 'All Campuses'.`
+                                                                    : "No recommendations across other campuses right now."}
+                                                            </p>
+                                                            {otherCollegeFilter !== "all" && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setOtherCollegeFilter("all")}
+                                                                    className="mt-3 px-4 py-1.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-primary-dark transition-all cursor-pointer"
+                                                                >
+                                                                    Show All Campuses
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ) : discoverViewMode === "reel" ? (
+                                                        <div
+                                                            ref={otherCollegesScrollRef}
+                                                            className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1 overscroll-x-contain touch-pan-x"
+                                                        >
+                                                            <AnimatePresence mode="popLayout">
+                                                                {filteredOtherColleges.map((item) => renderUserCard(item, false))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                                                            <AnimatePresence mode="popLayout">
+                                                                {filteredOtherColleges.map((item) => renderUserCard(item, false))}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

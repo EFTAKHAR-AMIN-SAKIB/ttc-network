@@ -9,7 +9,8 @@ import {
     Award, Globe, Users, Bookmark, Sparkles, Filter,
     CheckCircle2, Compass, School, ChevronRight, MessageSquare,
     ChevronLeft, ArrowRight, ExternalLink, BarChart2, ShieldCheck,
-    Menu, Bell, BookOpen, ChevronDown, Check, TrendingUp
+    Menu, Bell, BookOpen, ChevronDown, Check, TrendingUp,
+    Flame, Clock
 } from "lucide-react";
 import NewsFeedLeftSidebar from "./components/NewsFeedLeftSidebar";
 import { colleges } from "@/data/colleges";
@@ -19,8 +20,9 @@ import {
     subscribeMyGroups, subscribeMyGroupFeed,
     subscribeDiscoverGroups, joinGroup,
     type FirestorePost, type GroupDoc,
-    getDocById
+    getDocById, getFollowingUserIds, getMyClubs
 } from "@/lib/firestore";
+import { rankAndDiversifyFeed, type FeedSortMode, type ScoredPost } from "@/lib/feedAlgorithm";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
 import PostCard from "@/components/PostCard";
 import GroupPostCard from "@/components/GroupPostCard";
@@ -94,6 +96,56 @@ function NewsFeedInner() {
     }, []);
     const [isMobileLeftMenuOpen, setIsMobileLeftMenuOpen] = useState(false);
     const [isMobileCampusDropdownOpen, setIsMobileCampusDropdownOpen] = useState(false);
+
+    // Facebook Feed Ranking State
+    const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>("top");
+    const [followingUserIds, setFollowingUserIds] = useState<string[]>([]);
+    const [userClubIds, setUserClubIds] = useState<string[]>([]);
+
+    // Hydrate feed sort mode preference from localStorage
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("ttc_feed_sort_mode") as FeedSortMode;
+            if (saved === "top" || saved === "recent") {
+                setFeedSortMode(saved);
+            }
+        } catch {}
+    }, []);
+
+    const handleSortModeChange = (mode: FeedSortMode) => {
+        setFeedSortMode(mode);
+        try {
+            localStorage.setItem("ttc_feed_sort_mode", mode);
+        } catch {}
+    };
+
+    // Load Social Graph signals (people user follows, user's joined clubs) for Facebook affinity
+    useEffect(() => {
+        if (!profile?.uid) {
+            setFollowingUserIds([]);
+            setUserClubIds([]);
+            return;
+        }
+
+        let isMounted = true;
+        getFollowingUserIds(profile.uid)
+            .then(ids => {
+                if (isMounted) setFollowingUserIds(ids || []);
+            })
+            .catch(() => {});
+
+        if (profile.collegeId) {
+            getMyClubs(profile.uid, profile.collegeId)
+                .then(clubs => {
+                    if (isMounted) setUserClubIds(clubs?.map(c => c.id) || []);
+                })
+                .catch(() => {});
+        }
+
+        return () => {
+            isMounted = false;
+        };
+    }, [profile?.uid, profile?.collegeId]);
 
     // Auto-close mobile campus dropdown on scroll
     useEffect(() => {
@@ -527,8 +579,8 @@ function NewsFeedInner() {
         return () => clearTimeout(timer);
     }, [searchParams, posts, editingPost, hashPostId]);
 
-    // Filtered regular posts (Global & Club)
-    const filteredPosts = useMemo(() => {
+    // Raw Filtered regular posts (Global & Club)
+    const rawFilteredPosts = useMemo(() => {
         return posts.filter((p) => {
             if (showOnlySaved) {
                 if (!savedPostIds.includes(p.id)) return false;
@@ -556,6 +608,21 @@ function NewsFeedInner() {
             return true;
         });
     }, [selectedFilter, posts, activeTab, searchQuery, selectedTag, profile?.collegeId, profile?.uid, showOnlySaved, savedPostIds]);
+
+    // Facebook Algorithm-Ranked Feed (EdgeRank + MSI + Discussion Bumping + Author Fatigue)
+    const filteredPosts: ScoredPost[] = useMemo(() => {
+        return rankAndDiversifyFeed(
+            rawFilteredPosts,
+            {
+                currentUserId: profile?.uid,
+                userCollegeId: profile?.collegeId,
+                followingUserIds,
+                userClubIds,
+                savedPostIds,
+            },
+            showOnlySaved ? "recent" : feedSortMode
+        );
+    }, [rawFilteredPosts, profile?.uid, profile?.collegeId, followingUserIds, userClubIds, savedPostIds, feedSortMode, showOnlySaved]);
 
     // Filtered group posts (Campus Groups Feed)
     const filteredGroupPosts = useMemo(() => {
@@ -1073,6 +1140,39 @@ function NewsFeedInner() {
                                                 >
                                                     Clear all
                                                 </button>
+                                            </div>
+                                        )}
+
+                                        {/* ─── Facebook Feed Mode Controls ─── */}
+                                        {!showOnlySaved && filteredPosts.length > 0 && !loading && (
+                                            <div className="flex items-center justify-between px-1 py-0.5">
+                                                <div className="inline-flex items-center gap-1 p-1 bg-gray-100/90 dark:bg-white/5 border border-gray-200/70 dark:border-white/5 rounded-2xl w-fit">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSortModeChange("top")}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer ${
+                                                            feedSortMode === "top"
+                                                                ? "bg-white dark:bg-[#1a1c24] text-primary shadow-xs"
+                                                                : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                        }`}
+                                                    >
+                                                        <Flame size={14} className={feedSortMode === "top" ? "text-primary fill-primary/20" : ""} />
+                                                        <span>Top Posts</span>
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSortModeChange("recent")}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer ${
+                                                            feedSortMode === "recent"
+                                                                ? "bg-white dark:bg-[#1a1c24] text-primary shadow-xs"
+                                                                : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                        }`}
+                                                    >
+                                                        <Clock size={14} className={feedSortMode === "recent" ? "text-primary" : ""} />
+                                                        <span>Most Recent</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
 

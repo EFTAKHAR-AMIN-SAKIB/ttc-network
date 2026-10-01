@@ -28,8 +28,8 @@ export default function DeveloperStrip() {
     const [showModal, setShowModal] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Only show strip on support page
-    const visiblePages = ["/support"];
+    // Disabled on support page
+    const visiblePages: string[] = [];
     const isVisible = visiblePages.includes(pathname);
     const [builderSettings, setBuilderSettings] = useState<FirestoreBuilderSettings | null>(null);
 

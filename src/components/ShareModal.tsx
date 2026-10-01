@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { X, Copy, Check, Link2, Share2, Sparkles, ChevronDown, ChevronUp, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/contexts/ToastContext";
+import { recordPostShare } from "@/lib/firestore";
 
 interface ShareModalProps {
     isOpen: boolean;
@@ -151,6 +152,7 @@ export default function ShareModal({ isOpen, onClose, type = "post", post }: Sha
         try {
             await navigator.clipboard.writeText(postUrl);
             setCopiedLink(true);
+            recordPostShare(post.id, type as any);
             if (typeof window !== "undefined" && "vibrate" in navigator) {
                 navigator.vibrate?.(15);
             }
@@ -165,6 +167,7 @@ export default function ShareModal({ isOpen, onClose, type = "post", post }: Sha
         try {
             await navigator.clipboard.writeText(shareText);
             setCopiedCaption(true);
+            recordPostShare(post.id, type as any);
             if (typeof window !== "undefined" && "vibrate" in navigator) {
                 navigator.vibrate?.(15);
             }
@@ -178,6 +181,7 @@ export default function ShareModal({ isOpen, onClose, type = "post", post }: Sha
     const handleNativeShare = async () => {
         if (!navigator?.share) return;
         try {
+            recordPostShare(post.id, type as any);
             await navigator.share({
                 title: itemTitle,
                 text: shareText,
@@ -194,6 +198,7 @@ export default function ShareModal({ isOpen, onClose, type = "post", post }: Sha
 
     const handleSocialClick = async (platformName: string, shareUrl: string) => {
         try {
+            recordPostShare(post.id, type as any);
             await navigator.clipboard.writeText(shareText);
             if (platformName === "Facebook" || platformName === "LinkedIn") {
                 showToast(`Caption copied! Paste into ${platformName} to share.`, "info");

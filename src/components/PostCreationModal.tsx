@@ -1464,19 +1464,27 @@ export default function PostCreationModal({
                     </div>
 
                     {/* Moderation Advisory Note */}
-                    {isNonAdmin && (
-                        <div className="mt-2 pt-2 border-t border-gray-150/60 dark:border-white/5 flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-400">
-                            <ShieldCheck size={14} className="text-primary shrink-0" />
-                            <span className="truncate">
-                                {visibility === "private" 
-                                    ? "Private post: Only you will be able to see this." 
-                                    : visibility === "campus"
-                                        ? "Campus post: Reviewed by campus moderators before going live."
-                                        : "Global post: Reviewed by community moderators before going live."
-                                }
-                            </span>
-                        </div>
-                    )}
+                    {isNonAdmin && (() => {
+                        const isVerifiedUser = profile?.roleVerified === true;
+                        const isGlobalPost = type === "event";
+                        const willAutoApprove = isVerifiedUser && isGlobalPost;
+
+                        return (
+                            <div className="mt-2 pt-2 border-t border-gray-150/60 dark:border-white/5 flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-400">
+                                <ShieldCheck size={14} className={`shrink-0 ${willAutoApprove ? "text-emerald-500" : "text-primary"}`} />
+                                <span className="truncate">
+                                    {visibility === "private" 
+                                        ? "Private post: Only you will be able to see this." 
+                                        : willAutoApprove
+                                            ? "Verified account: Your post will go live instantly."
+                                            : visibility === "campus"
+                                                ? "Campus post: Reviewed by campus moderators before going live."
+                                                : "Global post: Reviewed by community moderators before going live."
+                                    }
+                                </span>
+                            </div>
+                        );
+                    })()}
                 </div>
             </motion.div>
         </div>
