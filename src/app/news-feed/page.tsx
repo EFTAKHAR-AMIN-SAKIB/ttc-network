@@ -410,7 +410,7 @@ function NewsFeedInner() {
             setLoading(false);
             if (typeof window !== "undefined") {
                 try {
-                    localStorage.setItem("ttc_cached_feed_posts", JSON.stringify(postsList.slice(0, 25)));
+                    localStorage.setItem("ttc_cached_feed_posts", JSON.stringify(postsList.slice(0, 50)));
                 } catch {}
             }
         });

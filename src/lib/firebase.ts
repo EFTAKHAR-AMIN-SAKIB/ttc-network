@@ -6,7 +6,13 @@
  */
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { 
+    initializeFirestore, 
+    getFirestore, 
+    persistentLocalCache, 
+    persistentMultipleTabManager, 
+    type Firestore 
+} from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getMessaging, type Messaging } from "firebase/messaging";
@@ -34,7 +40,22 @@ function getAppInstance(): FirebaseApp {
 }
 
 export function getDb(): Firestore {
-    if (!_db) _db = getFirestore(getAppInstance());
+    if (!_db) {
+        const app = getAppInstance();
+        if (typeof window !== "undefined") {
+            try {
+                _db = initializeFirestore(app, {
+                    localCache: persistentLocalCache({
+                        tabManager: persistentMultipleTabManager(),
+                    }),
+                });
+            } catch {
+                _db = getFirestore(app);
+            }
+        } else {
+            _db = getFirestore(app);
+        }
+    }
     return _db;
 }
 

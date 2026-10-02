@@ -11,6 +11,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import { VerificationProvider } from "@/contexts/VerificationContext";
 import VerificationBanner from "@/components/VerificationBanner";
+import OfflineBanner from "@/components/OfflineBanner";
 import PwaRegister from "@/components/PwaRegister";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -152,6 +153,7 @@ export default function RootLayout({
                   <ConfirmProvider>
                     <VerificationBanner />
                     <Navbar />
+                    <OfflineBanner />
                     <main className="pb-24 md:pb-14">{children}</main>
                     <MobileDock />
                     <DeveloperStrip />

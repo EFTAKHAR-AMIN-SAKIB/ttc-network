@@ -1,6 +1,12 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { 
+  Serwist, 
+  StaleWhileRevalidate, 
+  NetworkFirst, 
+  ExpirationPlugin, 
+  CacheableResponsePlugin 
+} from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -165,13 +171,65 @@ try {
   console.log("[SW] FCM compat initialized with native fallback");
 }
 
+// ── Facebook-Grade Offline Media & Navigation Caching ────────────────
+const runtimeCachingRules = [
+  // 1. Social Media Images & Cloudflare R2 / Cloudinary / Firebase Storage media
+  {
+    matcher({ url }: { url: URL }) {
+      const h = url.hostname;
+      return (
+        h.includes("res.cloudinary.com") ||
+        h.includes("r2.dev") ||
+        h.includes("googleusercontent.com") ||
+        h.includes("firebasestorage.googleapis.com") ||
+        h.includes("images.unsplash.com") ||
+        h.includes("ui-avatars.com") ||
+        /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i.test(url.pathname)
+      );
+    },
+    handler: new StaleWhileRevalidate({
+      cacheName: "ttc-media-assets",
+      plugins: [
+        new CacheableResponsePlugin({
+          statuses: [0, 200],
+        }),
+        new ExpirationPlugin({
+          maxEntries: 300,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          maxAgeFrom: "last-used",
+        }),
+      ],
+    }),
+  },
+  // 2. High-speed App Shell fallback for News Feed & Core Pages
+  {
+    matcher({ request, url }: { request: Request; url: URL }) {
+      return (
+        request.mode === "navigate" &&
+        (url.pathname === "/news-feed" || url.pathname === "/" || url.pathname.startsWith("/news-feed"))
+      );
+    },
+    handler: new NetworkFirst({
+      cacheName: "ttc-newsfeed-shell",
+      networkTimeoutSeconds: 3,
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 10,
+          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+        }),
+      ],
+    }),
+  },
+  ...defaultCache,
+];
+
 // ── Serwist PWA Caching & Offline Routing ────────────────────────────
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: runtimeCachingRules,
   fallbacks: {
     entries: [
       {

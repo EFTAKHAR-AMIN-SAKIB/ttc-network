@@ -6,6 +6,7 @@ const withSerwist = withSerwistInit({
     disable: process.env.NODE_ENV === "development",
     additionalPrecacheEntries: [
         { url: "/offline", revision: Date.now().toString() },
+        { url: "/news-feed", revision: Date.now().toString() },
     ],
 });
 
