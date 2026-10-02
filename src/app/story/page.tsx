@@ -268,7 +268,7 @@ function StoryPageInner() {
                       {[...Array(6)].map((_, i) => <StorySkeleton key={i} />)}
                     </div>
                   ) : filteredStories.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredStories.map((story) => (
                         <StoryCard 
                             key={story.id} 

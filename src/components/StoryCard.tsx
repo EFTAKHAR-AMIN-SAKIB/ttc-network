@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, MessageCircle, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash, ChevronDown, Check } from "lucide-react";
+import { Heart, MessageSquare, MessageCircle, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash, ChevronDown, Check, Maximize2, X } from "lucide-react";
 import { type FirestoreStory, reactToStory, updateStoryVisibility } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -38,6 +38,8 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
   const [showComments, setShowComments] = useState(false);
   const [showAudienceMenu, setShowAudienceMenu] = useState(false);
   const [currentVisibility, setCurrentVisibility] = useState<"public" | "campus" | "college_only" | "private">(story.visibility || "public");
+  const [imageFit, setImageFit] = useState<"contain" | "cover">("contain");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     setCurrentVisibility(story.visibility || "public");
@@ -93,72 +95,102 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className={`group relative bg-white dark:bg-[#1a1b23] rounded-3xl sm:rounded-[2rem] overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 flex flex-col w-full ${accentColor}`}
+      className={`group relative bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-3xl overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 flex flex-col h-full w-full justify-between ${accentColor}`}
     >
       {/* Role Indicator Border (Left) */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-20 ${
+      <div className={`absolute left-0 top-0 bottom-0 w-1 z-20 ${
         story.authorRole === 'student' ? 'bg-amber-500' : 
         story.authorRole === 'teacher' ? 'bg-blue-500' : 
         'bg-emerald-500'
       }`} />
 
-      {/* ═══ COVER IMAGE (SHOW WHOLE IMAGE BY ADJUSTING) ═══ */}
+      {/* Subtle editorial watermark for text-only stories */}
+      {!story.thumbnailUrl && (
+        <div className="absolute right-3.5 top-2.5 text-gray-100 dark:text-gray-800/30 select-none pointer-events-none font-serif text-4xl leading-none font-black z-0">
+          “
+        </div>
+      )}
+
+      {/* ═══ COVER IMAGE (ADJUSTABLE BANNER) ═══ */}
       {story.thumbnailUrl && (
-        <Link href={storyUrl} className="block relative overflow-hidden shrink-0 bg-slate-950 group/img">
+        <div className="relative overflow-hidden shrink-0 w-full h-36 sm:h-40 md:h-44 max-h-[180px] bg-slate-950 group/img">
           {/* Ambient blurred backdrop for letterboxed areas */}
           <div 
-            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110 pointer-events-none"
+            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-125 pointer-events-none"
             style={{ backgroundImage: `url(${story.thumbnailUrl})` }}
           />
           
-          <div className="relative z-10 flex items-center justify-center w-full max-h-[380px] sm:max-h-[440px] overflow-hidden">
+          {/* Main Image with Interactive Lightbox Trigger */}
+          <Link href={storyUrl} className="relative z-10 w-full h-full flex items-center justify-center">
             <img 
               src={story.thumbnailUrl} 
               alt={story.title || "Story Cover"} 
-              className="w-full h-auto max-h-[380px] sm:max-h-[440px] object-contain transition-transform duration-500 group-hover/img:scale-[1.01]"
+              className={`w-full h-full transition-all duration-300 ${
+                imageFit === "contain" ? "object-contain" : "object-cover object-top"
+              } group-hover/img:scale-[1.02]`}
               loading="lazy"
             />
-          </div>
+          </Link>
 
-          {/* Story Number Badge on cover */}
+          {/* Story Number Badge (Top Left) */}
           {story.storyNumber && (
-            <div className="absolute top-3 right-3 z-20 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/15 flex items-center gap-1 shadow-lg">
-              <Hash size={10} className="text-amber-400" />
+            <div className="absolute top-2.5 left-2.5 z-20 px-2 py-0.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black rounded-md border border-white/15 flex items-center gap-1 shadow-lg">
+              <Hash size={9} className="text-amber-400" />
               {story.storyNumber.toString().padStart(2, '0')}
             </div>
           )}
-        </Link>
+
+          {/* Adjustable View Controls (Top Right) */}
+          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            <button
+              type="button"
+              onClick={() => setImageFit(prev => prev === "contain" ? "cover" : "contain")}
+              className="px-1.5 py-0.5 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[9px] font-black rounded-md border border-white/15 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider"
+              title={imageFit === "contain" ? "Zoom to fill card" : "Fit whole image"}
+            >
+              {imageFit === "contain" ? "Fit" : "Fill"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              className="p-1 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-md border border-white/15 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              title="View full poster in modal"
+            >
+              <Maximize2 size={11} />
+            </button>
+          </div>
+        </div>
       )}
 
-      <div className="p-4 sm:p-5.5 flex flex-col flex-1 min-h-0">
+      <div className="p-3.5 sm:p-4 flex flex-col flex-1 min-h-0">
         {/* Top: Author & Actions Bar */}
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <Link 
               href={story.authorId ? `/profile/${story.authorId}` : "#"} 
               className="relative shrink-0 block"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105">
+              <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl border border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105">
                 {story.authorPhoto ? (
                   <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-sm sm:text-base font-black text-gray-400">{story.name?.[0]}</span>
+                  <span className="text-xs sm:text-sm font-black text-gray-400">{story.name?.[0]}</span>
                 )}
               </div>
             </Link>
             <div className="min-w-0">
               <Link 
                 href={story.authorId ? `/profile/${story.authorId}` : "#"} 
-                className="text-sm font-black dark:text-gray-100 hover:text-primary transition-colors truncate tracking-tight block"
+                className="text-xs sm:text-[13px] font-black dark:text-gray-100 hover:text-primary transition-colors truncate tracking-tight block"
                 onClick={(e) => e.stopPropagation()}
               >
                 {story.name}
               </Link>
-              <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 truncate flex items-center gap-1">
+              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 truncate flex items-center gap-1">
                 <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span>
                 <span>•</span>
-                <span className="truncate max-w-[130px] sm:max-w-[180px]">{collegeShort}</span>
+                <span className="truncate max-w-[120px] sm:max-w-[160px]">{collegeShort}</span>
                 {story.timestamp && (
                   <>
                     <span>•</span>
@@ -178,10 +210,10 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                   e.stopPropagation();
                   onEdit(story);
                 }}
-                className="p-1.5 bg-gray-50 hover:bg-primary/10 dark:bg-gray-800 text-gray-400 hover:text-primary rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-105 active:scale-95"
+                className="p-1.5 bg-gray-50 hover:bg-primary/10 dark:bg-gray-800 text-gray-400 hover:text-primary rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-105 active:scale-95"
                 title="Edit Story"
               >
-                <Pencil size={12} />
+                <Pencil size={11} />
               </button>
             )}
             {onDelete && permissions.canDelete && (
@@ -191,17 +223,17 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                   e.stopPropagation();
                   onDelete(story.id);
                 }}
-                className="p-1.5 bg-gray-50 hover:bg-rose-50 dark:bg-gray-800 text-gray-400 hover:text-rose-500 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-105 active:scale-95"
+                className="p-1.5 bg-gray-50 hover:bg-rose-50 dark:bg-gray-800 text-gray-400 hover:text-rose-500 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-105 active:scale-95"
                 title="Delete Story"
               >
-                <Trash2 size={12} />
+                <Trash2 size={11} />
               </button>
             )}
           </div>
         </div>
 
         {/* Badges Row (Reading time, Story # for text stories & Audience privacy) */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+        <div className="flex items-center gap-1.5 flex-wrap mb-2">
           {story.storyNumber && !story.thumbnailUrl && (
             <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/80 px-2.5 py-0.5 rounded-full border border-gray-200/60 dark:border-gray-700/60">
               <Hash className="w-3 h-3 text-primary" />
@@ -324,46 +356,60 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
 
         {/* Story Content Area (Clickable Link to /story/id) */}
         <Link href={storyUrl} className="flex-1 flex flex-col group/content min-h-0">
-          <h3 className={`font-black mb-2 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight ${
-            story.thumbnailUrl ? "text-base sm:text-lg line-clamp-2" : "text-lg sm:text-xl line-clamp-2"
+          <h3 className={`font-black mb-1.5 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight ${
+            story.thumbnailUrl ? "text-sm sm:text-[15px] line-clamp-1 sm:line-clamp-2" : "text-[15px] sm:text-base line-clamp-2"
           }`}>
             {story.title}
           </h3>
           
           {isRestricted ? (
-            <div className="my-2 p-3.5 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-1.5 flex-1">
-              <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
-                <Lock size={14} />
+            <div className="my-1.5 p-3 rounded-xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-1 flex-1">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                <Lock size={12} />
               </div>
-              <p className="text-xs font-bold text-gray-200">
+              <p className="text-[11px] font-bold text-gray-200">
                 {currentVisibility === "private" 
                   ? "This story is marked as private by the creator." 
                   : `Campus Only Story — Only visible to verified members of ${story.college || "this college"}.`}
               </p>
               {!user?.uid && currentVisibility !== "private" && (
-                <span className="mt-1 px-3 py-1 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-md">
-                  <LogIn size={11} /> Log In to Read
+                <span className="mt-0.5 px-2.5 py-0.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-md">
+                  <LogIn size={10} /> Log In to Read
                 </span>
               )}
             </div>
           ) : (
             <div className="flex-1 flex flex-col justify-between">
-              <p className={`text-gray-600 dark:text-gray-300 leading-relaxed font-bengali ${
-                story.thumbnailUrl 
-                  ? "text-sm line-clamp-3 mb-3" 
-                  : "text-sm sm:text-[15px] line-clamp-6 sm:line-clamp-7 mb-3"
-              }`}>
-                {story.preview}
-              </p>
+              <div>
+                <p className={`text-gray-600 dark:text-gray-300 leading-relaxed font-bengali ${
+                  story.thumbnailUrl 
+                    ? "text-xs sm:text-[13px] line-clamp-2 sm:line-clamp-3 mb-1.5" 
+                    : "text-xs sm:text-sm line-clamp-5 sm:line-clamp-6 mb-2"
+                }`}>
+                  {(!story.thumbnailUrl && story.fullStory) ? story.fullStory : story.preview}
+                </p>
 
-              {/* Author's Advice Callout (For text stories if advice exists) */}
-              {!story.thumbnailUrl && story.oneAdvice && (
-                <div className="mb-3 p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 text-xs font-bengali text-amber-900 dark:text-amber-200 flex items-start gap-2">
-                  <Sparkles size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block mb-0.5">Author&apos;s Advice</span>
-                    <p className="italic font-medium line-clamp-2 leading-relaxed">“{story.oneAdvice}”</p>
+                {/* Author's Advice Callout (For text stories if advice exists) */}
+                {!story.thumbnailUrl && story.oneAdvice && (
+                  <div className="mb-2 p-2.5 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 text-[11px] font-bengali text-amber-900 dark:text-amber-200 flex items-start gap-1.5">
+                    <Sparkles size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <span className="text-[8px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block mb-0.5">Author&apos;s Advice</span>
+                      <p className="italic font-medium line-clamp-2 leading-relaxed">“{story.oneAdvice}”</p>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Text-story read invitation so card space feels purposeful and interactive */}
+              {!story.thumbnailUrl && (
+                <div className="pt-1 flex items-center justify-between text-[11px] text-primary font-bold group-hover/content:text-primary-dark transition-colors">
+                  <span className="inline-flex items-center gap-1 group-hover/content:translate-x-1 transition-transform">
+                    সম্পূর্ণ গল্প পড়ুন &rarr;
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold">
+                    Read story
+                  </span>
                 </div>
               )}
             </div>
@@ -372,7 +418,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
 
         {/* ═══ INTERACTIONS BAR (Docked at Bottom) ═══ */}
         {!isRestricted && (
-          <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-800/80">
+          <div className="mt-auto pt-1.5 border-t border-gray-100 dark:border-gray-800/80">
             {/* 1. Engagement Summary Row (Only when reactions or comments exist) */}
             <ReactionSummary 
               reactions={story.reactions}
@@ -382,7 +428,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
             />
 
             {/* 2. Action Buttons Row */}
-            <div className="flex items-center justify-between gap-0.5 pt-1">
+            <div className="flex items-center justify-between gap-0.5 pt-0.5">
               {/* React */}
               <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <ReactionBtn 
@@ -405,15 +451,15 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                   e.stopPropagation();
                   setShowComments(!showComments);
                 }}
-                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1 px-1 rounded-lg transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
                   showComments 
                     ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
                 }`}
                 title="Comment on story"
               >
-                <MessageCircle size={15} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
-                <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Comment</span>
+                <MessageCircle size={14} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                <span className="text-[10px] sm:text-[11px] font-semibold whitespace-nowrap">Comment</span>
               </button>
 
               {/* Share */}
@@ -425,11 +471,11 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                     e.stopPropagation();
                     onShare(story);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                  className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1 px-1 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
                   title="Share Story"
                 >
-                  <Share2 size={15} className="shrink-0 transition-transform hover:scale-110" />
-                  <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Share</span>
+                  <Share2 size={14} className="shrink-0 transition-transform hover:scale-110" />
+                  <span className="text-[10px] sm:text-[11px] font-semibold whitespace-nowrap">Share</span>
                 </button>
               )}
 
@@ -442,7 +488,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                     e.stopPropagation();
                     onSave(story.id);
                   }}
-                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1 px-1 rounded-lg transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
                     isSaved 
                       ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
@@ -467,6 +513,41 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                 contentId={story.id}
                 contentType="story"
               />
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ═══ LIGHTBOX MODAL (VIEW FULL POSTER IN HIGH RESOLUTION) ═══ */}
+        <AnimatePresence>
+          {lightboxOpen && story.thumbnailUrl && (
+            <div 
+              className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightboxOpen(false); }}
+            >
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(false)}
+                  className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md transition-all cursor-pointer"
+                  title="Close"
+                >
+                  <X size={20} />
+                </button>
+                <img 
+                  src={story.thumbnailUrl} 
+                  alt={story.title} 
+                  className="max-w-full max-h-[82vh] object-contain rounded-2xl shadow-2xl border border-white/15"
+                />
+                <p className="mt-3 text-white/90 font-bold text-xs sm:text-sm text-center">
+                  {story.title} • {story.name}
+                </p>
+              </motion.div>
             </div>
           )}
         </AnimatePresence>
