@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, ArrowRight, ArrowLeft, Sparkles, MessageSquare, Shield, Globe, CheckCircle2, AlertTriangle, School, ImagePlus, Trash2, Upload, Loader2 } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Sparkles, MessageSquare, Shield, Globe, CheckCircle2, AlertTriangle, School, ImagePlus, Trash2, Upload, Loader2, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createStory, updateStory } from "@/lib/firestore";
 import { uploadFile } from "@/lib/storage";
@@ -40,7 +40,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [oneAdvice, setOneAdvice] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "campus">("public");
+  const [visibility, setVisibility] = useState<"public" | "campus" | "private">("public");
 
   // Mention Autosuggest Hooks
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -93,9 +93,9 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
     setTitle(draft.title || "");
     setContent(draft.content || "");
     setOneAdvice(draft.oneAdvice || "");
-    // Map legacy values to new privacy model
+    // Map values to privacy model
     const restoredVis = draft.visibility || "public";
-    setVisibility(restoredVis === "college_only" || restoredVis === "private" ? "campus" : "public");
+    setVisibility(restoredVis === "private" ? "private" : restoredVis === "campus" || restoredVis === "college_only" ? "campus" : "public");
     if (draft.coverPreview) setCoverPreview(draft.coverPreview);
     setShowRestore(false);
     showToast("Draft restored!", "info");
@@ -192,10 +192,10 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
 
       if (editStory) {
         await updateStory(editStory.id, storyData);
-        showToast("Story updated successfully!", "success");
+        showToast(visibility === "private" ? "Private story updated successfully!" : "Story updated successfully!", "success");
       } else {
         await createStory(storyData);
-        showToast("Story shared! Pending approval.", "success");
+        showToast(visibility === "private" ? "Private story saved! Only you can view it." : "Story shared! Pending approval.", "success");
         discardDraft();
       }
       
@@ -403,32 +403,33 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                     <Shield className="w-4 h-4 text-primary" />
                     Share With
                   </label>
-                  <div className="flex gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      { id: "public" as const, icon: <Globe size={18} />, label: "Global", desc: "All campuses", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
-                      { id: "campus" as const, icon: <School size={18} />, label: "Campus", desc: "Your college", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10" },
+                      { id: "public" as const, icon: <Globe size={18} />, label: "Global", desc: "All campuses", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10", border: "border-blue-500" },
+                      { id: "campus" as const, icon: <School size={18} />, label: "Campus", desc: "Your college", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10", border: "border-amber-500" },
+                      { id: "private" as const, icon: <Lock size={18} />, label: "Private", desc: "Only visible to you", color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-500/10", border: "border-rose-500" },
                     ].map((opt) => (
                       <button
                         key={opt.id}
                         type="button"
                         onClick={() => setVisibility(opt.id)}
-                        className={`flex-1 relative flex items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-200 group
+                        className={`relative flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl border-2 transition-all duration-200 group text-left
                           ${visibility === opt.id
-                            ? `${opt.bg} border-current shadow-sm`
+                            ? `${opt.bg} ${opt.border} shadow-sm`
                             : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                           }`}
                       >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                           visibility === opt.id ? `${opt.bg} ${opt.color}` : "bg-gray-100 dark:bg-gray-700 text-gray-400"
                         }`}>
                           {opt.icon}
                         </div>
-                        <div className="text-left">
+                        <div className="text-left min-w-0 flex-1">
                           <div className={`text-xs font-black uppercase tracking-widest ${visibility === opt.id ? "text-gray-900 dark:text-white" : "text-gray-500"}`}>{opt.label}</div>
-                          <div className={`text-[10px] font-bold ${visibility === opt.id ? "text-gray-500 dark:text-gray-400" : "text-gray-400 dark:text-gray-600"}`}>{opt.desc}</div>
+                          <div className={`text-[10px] font-bold truncate ${visibility === opt.id ? "text-gray-600 dark:text-gray-400" : "text-gray-400 dark:text-gray-600"}`}>{opt.desc}</div>
                         </div>
                         {visibility === opt.id && (
-                          <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                          <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
                             <CheckCircle2 size={12} className="text-white" />
                           </div>
                         )}
@@ -546,15 +547,33 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                 <div className="hidden lg:block w-px h-64 bg-gray-100 dark:bg-gray-800" />
 
                 <div className="max-w-md space-y-6">
-                   <div className="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-3xl border-2 border-emerald-100 dark:border-emerald-900/40">
-                      <div className="flex items-center gap-3 mb-3 text-emerald-800 dark:text-emerald-400">
-                        <CheckCircle2 className="w-6 h-6" />
-                        <h4 className="font-black">Ready to inspire?</h4>
+                   <div className={`p-6 rounded-3xl border-2 transition-all ${
+                      visibility === "private"
+                        ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40"
+                        : "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40"
+                    }`}>
+                      <div className={`flex items-center gap-3 mb-3 ${
+                        visibility === "private"
+                          ? "text-rose-800 dark:text-rose-400"
+                          : "text-emerald-800 dark:text-emerald-400"
+                      }`}>
+                        {visibility === "private" ? <Lock className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+                        <h4 className="font-black">{visibility === "private" ? "Private Journal Entry" : "Ready to inspire?"}</h4>
                       </div>
-                      <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-white/60 dark:bg-black/20 border border-emerald-200/50 dark:border-emerald-800/30 w-fit">
-                        {visibility === "campus" ? <School size={14} className="text-amber-500" /> : <Globe size={14} className="text-blue-500" />}
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                          {visibility === "campus" ? "Campus Only" : "Global"}
+                      <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-white/60 dark:bg-black/20 border w-fit ${
+                        visibility === "private"
+                          ? "border-rose-200/50 dark:border-rose-800/30"
+                          : "border-emerald-200/50 dark:border-emerald-800/30"
+                      }`}>
+                        {visibility === "private" ? (
+                          <Lock size={14} className="text-rose-500" />
+                        ) : visibility === "campus" ? (
+                          <School size={14} className="text-amber-500" />
+                        ) : (
+                          <Globe size={14} className="text-blue-500" />
+                        )}
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-gray-300">
+                          {visibility === "private" ? "Private (Only Me)" : visibility === "campus" ? "Campus Only" : "Global"}
                         </span>
                       </div>
                       {coverPreview && (
@@ -565,10 +584,18 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                           </span>
                         </div>
                       )}
-                      <p className="text-sm text-emerald-700 dark:text-emerald-500 font-bold leading-relaxed">
-                        {editStory
-                          ? `Your changes will be saved to the ${visibility === "campus" ? "campus" : "global"} audience.`
-                          : `Your story will be shared with the ${visibility === "campus" ? "campus" : "global"} audience. Our moderators will review it within 24 hours.`
+                      <p className={`text-sm font-bold leading-relaxed ${
+                        visibility === "private"
+                          ? "text-rose-700 dark:text-rose-400"
+                          : "text-emerald-700 dark:text-emerald-500"
+                      }`}>
+                        {visibility === "private"
+                          ? (editStory
+                              ? "This story is private. Only you (and administrators) can view it."
+                              : "Your story will be kept private. It will be immediately available to you and will not appear on public feeds.")
+                          : (editStory
+                              ? `Your changes will be saved to the ${visibility === "campus" ? "campus" : "global"} audience.`
+                              : `Your story will be shared with the ${visibility === "campus" ? "campus" : "global"} audience. Our moderators will review it within 24 hours.`)
                         }
                       </p>
                    </div>
@@ -580,7 +607,11 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                    <button
                     disabled={loading}
                     onClick={handleSubmit}
-                    className="w-full py-5 bg-primary text-white rounded-[2rem] font-black text-xl shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                    className={`w-full py-5 text-white rounded-[2rem] font-black text-xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 ${
+                      visibility === "private"
+                        ? "bg-slate-900 dark:bg-rose-700 hover:bg-slate-800 shadow-slate-900/20"
+                        : "bg-primary shadow-red-500/20"
+                    }`}
                    >
                      {loading ? (
                        <>
@@ -589,7 +620,9 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                        </>
                      ) : (
                         <>
-                          {editStory ? "Update Story" : "Share Everywhere"}
+                          {editStory 
+                            ? (visibility === "private" ? "Update Private Story" : "Update Story")
+                            : (visibility === "private" ? "Save Private Story" : "Share Everywhere")}
                           <ArrowRight />
                         </>
                      )}

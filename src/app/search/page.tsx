@@ -1,9 +1,8 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Search, History, Loader2, User, ArrowRight, Sparkles, MapPin, BookOpen, Clock, ShieldAlert, School, GraduationCap, Users, Globe, Lock } from "lucide-react";
-import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { Search, Loader2, User, ArrowRight, Sparkles, BookOpen, ShieldAlert, School, GraduationCap, Users, Globe, Lock } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import PostCard from "@/components/PostCard";
@@ -31,7 +30,6 @@ type TabType = "all" | "people" | "posts" | "stories" | "notices" | "study" | "g
 function SearchContent() {
     const searchParams = useSearchParams();
     const q = searchParams.get("q") || "";
-    const router = useRouter();
     const { profile } = useAuth();
 
     const [activeTab, setActiveTab] = useState<TabType>("all");
@@ -58,7 +56,7 @@ function SearchContent() {
                 const qG = fsQuery(collection(db, "groups"), where("privacyType", "in", ["public", "private"]));
                 const snap = await getDocs(qG);
                 return snap.docs.map(d => ({ id: d.id, ...(d.data() as GroupDoc) }));
-            } catch (e) {
+            } catch {
                 return [];
             }
         };
@@ -71,17 +69,46 @@ function SearchContent() {
             getApprovedStudyPosts().catch(() => []),
             fetchGroups()
         ]).then(([u, p, s, n, sm, g]) => {
-            setUsers(u as any);
-            // Apply privacy filter: remove private items
-            setPosts((p as any[]).filter(post => post.visibility !== "private"));
-            setStories((s as any[]).filter(story => story.visibility !== "private"));
-            setNotices((n as any[]).filter(notice => notice.visibility !== "private"));
-            setStudyMaterials((sm as any[]).filter(study => study.visibility !== "private"));
-            setGroups(g as any);
+            setUsers(u as (FirestoreUser & { id: string })[]);
+            const isAuthorizedPost = (post: FirestorePost & { id: string }) => {
+                const isOwner = !!(profile?.uid && post.creatorId === profile.uid);
+                const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+                if (post.visibility === "private" && !isOwner && !isAdmin) return false;
+                if ((post.visibility === "campus" || (post.visibility as string) === "college") && post.collegeId !== profile?.collegeId && !isAdmin && !isOwner) return false;
+                return true;
+            };
+
+            const isAuthorizedStory = (story: FirestoreStory & { id: string }) => {
+                const isOwner = !!(profile?.uid && story.authorId === profile.uid);
+                const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+                if (story.visibility === "private" && !isOwner && !isAdmin) return false;
+                if ((story.visibility === "campus" || story.visibility === "college_only") && story.collegeId !== profile?.collegeId && !isAdmin && !isOwner) return false;
+                return true;
+            };
+
+            const isAuthorizedNotice = (notice: FirestoreNotice & { id: string }) => {
+                const isOwner = !!(profile?.uid && (notice.authorId === profile.uid || notice.postedBy === profile.uid));
+                const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+                if (notice.visibility === "private" && !isOwner && !isAdmin) return false;
+                return true;
+            };
+
+            const isAuthorizedStudy = (study: FirestoreStudyPost & { id: string }) => {
+                const isOwner = !!(profile?.uid && study.authorId === profile.uid);
+                const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+                if (study.visibility === "private" && !isOwner && !isAdmin) return false;
+                return true;
+            };
+
+            setPosts((p as (FirestorePost & { id: string })[]).filter(isAuthorizedPost));
+            setStories((s as (FirestoreStory & { id: string })[]).filter(isAuthorizedStory));
+            setNotices((n as (FirestoreNotice & { id: string })[]).filter(isAuthorizedNotice));
+            setStudyMaterials((sm as (FirestoreStudyPost & { id: string })[]).filter(isAuthorizedStudy));
+            setGroups(g as (GroupDoc & { id: string })[]);
         }).finally(() => {
             setLoading(false);
         });
-    }, [q]);
+    }, [q, profile?.uid, profile?.collegeId, profile?.role]);
 
     const queryStr = q.trim().toLowerCase();
 
@@ -90,7 +117,7 @@ function SearchContent() {
         user.displayName?.toLowerCase().includes(queryStr) ||
         user.username?.toLowerCase().includes(queryStr) ||
         user.college?.toLowerCase().includes(queryStr) ||
-        (user as any).bio?.toLowerCase().includes(queryStr)
+        (user as { bio?: string }).bio?.toLowerCase().includes(queryStr)
     ) : [];
 
     const filteredPosts = queryStr ? posts.filter(post => 
@@ -351,7 +378,7 @@ function SearchContent() {
                             Search Results
                         </h1>
                         <p className="text-gray-500 dark:text-gray-400 text-lg">
-                            Showing results for <span className="font-bold text-gray-900 dark:text-white">"{q}"</span>
+                            Showing results for <span className="font-bold text-gray-900 dark:text-white">&ldquo;{q}&rdquo;</span>
                         </p>
                     </div>
                     <div className="text-sm font-bold text-gray-400 uppercase tracking-widest bg-white dark:bg-gray-800 px-4 py-2 rounded-xl shadow-sm inline-block w-max border border-gray-100 dark:border-gray-800">
@@ -400,7 +427,7 @@ function SearchContent() {
                             <Search size={32} className="text-gray-400" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No results found</h2>
-                        <p className="text-gray-500 dark:text-gray-400">We couldn't find any matches across the network for "{q}".<br/>Try using different keywords or checking for typos.</p>
+                        <p className="text-gray-500 dark:text-gray-400">We couldn&apos;t find any matches across the network for &ldquo;{q}&rdquo;.<br/>Try using different keywords or checking for typos.</p>
                     </div>
                 )}
 

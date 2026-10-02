@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, MessageCircle, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash } from "lucide-react";
-import { type FirestoreStory, reactToStory } from "@/lib/firestore";
+import { Heart, MessageSquare, MessageCircle, Clock, User, Sparkles, Footprints, BookOpen, Pencil, Trash2, School, Globe, Bookmark, Share2, Lock, LogIn, Hash, ChevronDown, Check } from "lucide-react";
+import { type FirestoreStory, reactToStory, updateStoryVisibility } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { TimeAgo } from "@/components/Social/SocialUtils";
@@ -34,7 +34,14 @@ interface StoryCardProps {
 
 export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, onSave, onShare }: StoryCardProps) {
   const { user, profile } = useAuth();
+  const { showToast } = useToast();
   const [showComments, setShowComments] = useState(false);
+  const [showAudienceMenu, setShowAudienceMenu] = useState(false);
+  const [currentVisibility, setCurrentVisibility] = useState<"public" | "campus" | "college_only" | "private">(story.visibility || "public");
+
+  useEffect(() => {
+    setCurrentVisibility(story.visibility || "public");
+  }, [story.visibility]);
   const permissions = React.useMemo(() => {
     const isAuthor = user?.uid === story.authorId;
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
@@ -52,6 +59,25 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
     graduate: "border-emerald-500/30 dark:border-emerald-500/20"
   };
 
+  const handleVisibilityChange = async (newVis: "public" | "campus" | "private") => {
+    setShowAudienceMenu(false);
+    if (newVis === currentVisibility) return;
+    try {
+      await updateStoryVisibility(story.id, newVis);
+      setCurrentVisibility(newVis);
+      showToast(
+        newVis === "private" 
+          ? "Story set to Private (Only Me)" 
+          : newVis === "campus" 
+          ? "Story set to Campus Only" 
+          : "Story set to Global", 
+        "success"
+      );
+    } catch (e: any) {
+      showToast("Failed to update story privacy: " + (e?.message || ""), "error");
+    }
+  };
+
   const accentColor = roleColors[story.authorRole || 'student'] || "border-gray-100 dark:border-gray-800";
   
   // Format role for sentence case header
@@ -59,7 +85,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
   const formattedRole = role.charAt(0).toUpperCase() + role.slice(1);
   const collegeShort = story.college.split(',')[0].trim();
 
-  const isRestricted = isContentRestrictedForUser(story, profile, user?.uid);
+  const isRestricted = isContentRestrictedForUser({ ...story, visibility: currentVisibility }, profile, user?.uid);
   const storyUrl = getStoryUrl(story);
 
   return (
@@ -67,7 +93,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className={`group relative bg-white dark:bg-[#1a1b23] rounded-[2rem] overflow-hidden border-2 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 hover:border-primary/20 ${accentColor}`}
+      className={`group relative bg-white dark:bg-[#1a1b23] rounded-3xl sm:rounded-[2rem] overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 flex flex-col h-full ${accentColor}`}
     >
       {/* Role Indicator Border (Left) */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-10 ${
@@ -76,237 +102,346 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
         'bg-emerald-500'
       }`} />
 
-      <Link href={storyUrl} className="block">
-        {/* ═══ COVER IMAGE ═══ */}
-        {story.thumbnailUrl && (
-          <div className="relative overflow-hidden">
-            <img 
-              src={story.thumbnailUrl} 
-              alt="" 
-              className="w-full h-40 sm:h-48 object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-            {/* Story Number Badge on cover */}
-            {story.storyNumber && (
-              <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/10 flex items-center gap-1">
-                <Hash size={10} />
-                {story.storyNumber.toString().padStart(2, '0')}
+      {/* ═══ COVER IMAGE ═══ */}
+      {story.thumbnailUrl && (
+        <Link href={storyUrl} className="block relative overflow-hidden shrink-0">
+          <img 
+            src={story.thumbnailUrl} 
+            alt="" 
+            className="w-full h-40 sm:h-48 object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          {/* Story Number Badge on cover */}
+          {story.storyNumber && (
+            <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/10 flex items-center gap-1">
+              <Hash size={10} />
+              {story.storyNumber.toString().padStart(2, '0')}
+            </div>
+          )}
+        </Link>
+      )}
+
+      <div className="p-4 sm:p-5.5 flex flex-col flex-1 min-h-0">
+        {/* Top: Author & Actions Bar */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <Link 
+              href={story.authorId ? `/profile/${story.authorId}` : "#"} 
+              className="relative shrink-0 block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105">
+                {story.authorPhoto ? (
+                  <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-sm sm:text-base font-black text-gray-400">{story.name?.[0]}</span>
+                )}
               </div>
+            </Link>
+            <div className="min-w-0">
+              <Link 
+                href={story.authorId ? `/profile/${story.authorId}` : "#"} 
+                className="text-sm font-black dark:text-gray-100 hover:text-primary transition-colors truncate tracking-tight block"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {story.name}
+              </Link>
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 truncate flex items-center gap-1">
+                <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span>
+                <span>•</span>
+                <span className="truncate max-w-[130px] sm:max-w-[180px]">{collegeShort}</span>
+                {story.timestamp && (
+                  <>
+                    <span>•</span>
+                    <TimeAgo ts={story.timestamp} />
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Edit / Delete / Story# */}
+          <div className="flex items-center gap-1 shrink-0">
+            {story.storyNumber && !story.thumbnailUrl && (
+              <span className="px-2 py-0.5 bg-gray-50 dark:bg-gray-800/50 text-gray-400 text-[9px] font-black rounded-lg border border-gray-100 dark:border-gray-700 flex items-center gap-0.5 mr-0.5">
+                <Hash size={9} />
+                {story.storyNumber.toString().padStart(2, '0')}
+              </span>
+            )}
+            {onEdit && permissions.canEdit && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onEdit(story);
+                }}
+                className="p-1.5 bg-gray-50 hover:bg-primary/10 dark:bg-gray-800 text-gray-400 hover:text-primary rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-105 active:scale-95"
+                title="Edit Story"
+              >
+                <Pencil size={12} />
+              </button>
+            )}
+            {onDelete && permissions.canDelete && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDelete(story.id);
+                }}
+                className="p-1.5 bg-gray-50 hover:bg-rose-50 dark:bg-gray-800 text-gray-400 hover:text-rose-500 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-105 active:scale-95"
+                title="Delete Story"
+              >
+                <Trash2 size={12} />
+              </button>
             )}
           </div>
-        )}
+        </div>
 
-        <div className="p-4 sm:p-5.5">
-          <div className="mb-4 sm:mb-5">
-            {/* Top: Author + Actions */}
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                 <div className="relative shrink-0">
-                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105 group-hover:rotate-2">
-                     {story.authorPhoto ? (
-                       <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
-                     ) : (
-                       <span className="text-base sm:text-lg font-black text-gray-400">{story.name?.[0]}</span>
-                     )}
-                   </div>
-                 </div>
-                 <div className="min-w-0">
-                   <h4 className="text-sm sm:text-base font-black dark:text-gray-100 truncate tracking-tight">{story.name}</h4>
-                   <p className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 truncate">
-                     <span className="text-navy-600 dark:text-navy-400">{formattedRole}</span> • {collegeShort}{story.timestamp && (
-                       <>
-                         {" • "}
-                         <TimeAgo ts={story.timestamp} />
-                       </>
-                     )}
-                   </p>
-                 </div>
-              </div>
-
-              {/* Edit/Delete — always visible at top-right */}
-              <div className="flex items-center gap-1 shrink-0">
-                {/* Story Number Badge (when no cover image) */}
-                {story.storyNumber && !story.thumbnailUrl && (
-                  <span className="px-2 py-1 bg-gray-50 dark:bg-gray-800/50 text-gray-400 text-[9px] font-black rounded-lg border border-gray-100 dark:border-gray-700 flex items-center gap-0.5 mr-1">
-                    <Hash size={9} />
-                    {story.storyNumber.toString().padStart(2, '0')}
-                  </span>
-                )}
-                {onEdit && permissions.canEdit && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onEdit(story);
-                    }}
-                    className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-primary rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
-                    title="Edit Story"
-                  >
-                    <Pencil size={12} />
-                  </button>
-                )}
-                {onDelete && permissions.canDelete && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDelete(story.id);
-                    }}
-                    className="p-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-red-500 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:scale-110 active:scale-95 z-40"
-                    title="Delete Story"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Badges row — below author on mobile */}
-            <div className="flex items-center gap-1.5 flex-wrap pl-[52px] sm:pl-[64px]">
-              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-gray-100 dark:border-gray-700">
-                <Clock className="w-3 h-3 text-primary" />
-                {story.readingTimeMinutes} MIN
-              </div>
-              {(story.visibility === "campus" || story.visibility === "college_only") && (
-                <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
-                  <School className="w-3 h-3" />
-                  Campus
-                </div>
-              )}
-            </div>
+        {/* Badges Row (Reading time & Audience privacy) */}
+        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/50 px-2 py-0.5 rounded-full border border-gray-200/50 dark:border-gray-700/50">
+            <Clock className="w-3 h-3 text-primary" />
+            {story.readingTimeMinutes} MIN
           </div>
 
-          <h3 className="text-lg sm:text-xl font-black mb-2 sm:mb-3 line-clamp-2 leading-tight dark:text-gray-100 group-hover:text-primary transition-colors tracking-tight">
+          {/* Audience Badge with Author Quick Switch */}
+          <div className="relative">
+            {permissions.canEdit ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowAudienceMenu(!showAudienceMenu);
+                  }}
+                  className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                    currentVisibility === "private"
+                      ? "text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-500/10 border-rose-200/60 dark:border-rose-500/20 hover:bg-rose-100 dark:hover:bg-rose-500/20"
+                      : currentVisibility === "campus" || currentVisibility === "college_only"
+                      ? "text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 border-amber-200/50 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/20"
+                      : "text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-500/10 border-blue-200/50 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20"
+                  }`}
+                  title="Change audience / privacy"
+                >
+                  {currentVisibility === "private" ? (
+                    <Lock className="w-3 h-3" />
+                  ) : currentVisibility === "campus" || currentVisibility === "college_only" ? (
+                    <School className="w-3 h-3" />
+                  ) : (
+                    <Globe className="w-3 h-3" />
+                  )}
+                  <span>
+                    {currentVisibility === "private" ? "Private" : currentVisibility === "campus" || currentVisibility === "college_only" ? "Campus" : "Global"}
+                  </span>
+                  <ChevronDown size={10} className={`transition-transform duration-200 ${showAudienceMenu ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showAudienceMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-[60]" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowAudienceMenu(false);
+                        }} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        className="absolute left-0 top-full mt-1.5 w-48 p-1.5 bg-white dark:bg-[#1a1b23] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-[70] space-y-1"
+                      >
+                        <div className="px-2.5 py-1 border-b border-gray-100 dark:border-white/5">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">Audience Privacy</p>
+                        </div>
+                        {[
+                          { id: "public" as const, label: "Global", icon: Globe, color: "text-blue-500" },
+                          { id: "campus" as const, label: "Campus Only", icon: School, color: "text-amber-500" },
+                          { id: "private" as const, label: "Private (Only Me)", icon: Lock, color: "text-rose-500" },
+                        ].map((opt) => {
+                          const OptIcon = opt.icon;
+                          const isSelected = currentVisibility === opt.id || (opt.id === "campus" && currentVisibility === "college_only");
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleVisibilityChange(opt.id);
+                              }}
+                              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                                isSelected 
+                                  ? "bg-gray-100 dark:bg-white/10 font-bold" 
+                                  : "hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 font-medium"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 text-xs">
+                                <OptIcon size={14} className={opt.color} />
+                                <span>{opt.label}</span>
+                              </div>
+                              {isSelected && <Check size={12} className="text-primary shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </>
+            ) : (
+              <>
+                {(currentVisibility === "campus" || currentVisibility === "college_only") && (
+                  <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-500/20">
+                    <School className="w-3 h-3" />
+                    Campus
+                  </div>
+                )}
+                {currentVisibility === "private" && (
+                  <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-200/50 dark:border-rose-500/20">
+                    <Lock className="w-3 h-3" />
+                    Private
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Story Content Area (Clickable Link to /story/id) */}
+        <Link href={storyUrl} className="flex-1 flex flex-col group/content min-h-0">
+          <h3 className="text-base sm:text-lg font-black mb-1.5 line-clamp-2 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight">
             {story.title}
           </h3>
           
           {isRestricted ? (
-            <div className="my-4 p-4 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
-                <Lock size={16} />
+            <div className="my-2 p-3.5 rounded-2xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-1.5 flex-1">
+              <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                <Lock size={14} />
               </div>
               <p className="text-xs font-bold text-gray-200">
-                {story.visibility === "private" 
-                  ? "Private Story" 
-                  : "Campus Only Story — Log in with your verified college account to read full story."}
+                {currentVisibility === "private" 
+                  ? "This story is marked as private by the creator." 
+                  : `Campus Only Story — Only visible to verified members of ${story.college || "this college"}.`}
               </p>
-              {!user?.uid && (
-                <span className="mt-1 px-4 py-1.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-md">
-                  <LogIn size={12} /> Log In to Read
+              {!user?.uid && currentVisibility !== "private" && (
+                <span className="mt-1 px-3 py-1 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-md">
+                  <LogIn size={11} /> Log In to Read
                 </span>
               )}
             </div>
           ) : (
-            <>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 leading-relaxed font-bengali">
-                {story.preview}
-              </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed font-bengali flex-1 mb-3">
+              {story.preview}
+            </p>
+          )}
+        </Link>
 
-              {/* Interactions Bar (Facebook Layout) */}
-              <div className="mt-4 pt-2 relative z-10">
-                {/* 1. Engagement Summary Row */}
-                <ReactionSummary 
-                  reactions={story.reactions}
-                  reactedBy={story.reactedBy}
-                  commentsCount={story.commentsCount || 0}
-                  onOpenComments={() => setShowComments(!showComments)}
+        {/* ═══ INTERACTIONS BAR (Docked at Bottom) ═══ */}
+        {!isRestricted && (
+          <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-800/80">
+            {/* 1. Engagement Summary Row (Only when reactions or comments exist) */}
+            <ReactionSummary 
+              reactions={story.reactions}
+              reactedBy={story.reactedBy}
+              commentsCount={story.commentsCount || 0}
+              onOpenComments={() => setShowComments(!showComments)}
+            />
+
+            {/* 2. Action Buttons Row */}
+            <div className="flex items-center justify-between gap-0.5 pt-1">
+              {/* React */}
+              <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                <ReactionBtn 
+                  contentId={story.id} 
+                  contentType="story" 
+                  reactions={story.reactions} 
+                  reactedBy={story.reactedBy} 
+                  currentUserId={user?.uid}
+                  showSummary={false}
+                  variant="facebook"
+                  compact={true}
                 />
-
-                {/* Subtle Facebook Divider Line */}
-                <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
-
-                {/* 2. Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
-                <div className="flex items-center justify-between gap-1 py-0.5">
-                  {/* 1. React Button */}
-                  <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                    <ReactionBtn 
-                      contentId={story.id} 
-                      contentType="story" 
-                      reactions={story.reactions} 
-                      reactedBy={story.reactedBy} 
-                      currentUserId={user?.uid}
-                      showSummary={false}
-                      variant="facebook"
-                      compact={true}
-                    />
-                  </div>
-
-                  {/* 2. Comment Button */}
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowComments(!showComments);
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
-                      showComments 
-                        ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
-                    }`}
-                    title="Comment on story"
-                  >
-                    <MessageCircle size={16} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
-                    <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Comment</span>
-                  </button>
-
-                  {/* 3. Share Button */}
-                  {onShare && (
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onShare(story);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
-                      title="Share Story"
-                    >
-                      <Share2 size={16} className="shrink-0 transition-transform hover:scale-110" />
-                      <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Share</span>
-                    </button>
-                  )}
-
-                  {/* 4. Bookmark (Save) Button */}
-                  {onSave && (
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSave(story.id);
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
-                        isSaved 
-                          ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
-                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
-                      }`}
-                      title={isSaved ? "Remove Bookmark" : "Save Story"}
-                    >
-                      <Bookmark size={16} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
-                      <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
-                    </button>
-                  )}
-                </div>
               </div>
 
-              {/* Comment Drawer Overlay */}
-              <AnimatePresence>
-                {showComments && (
-                  <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                    <CommentDrawer 
-                      isOpen={showComments} 
-                      onClose={() => setShowComments(false)}
-                      contentId={story.id}
-                      contentType="story"
-                    />
-                  </div>
-                )}
-              </AnimatePresence>
-            </>
+              {/* Comment */}
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowComments(!showComments);
+                }}
+                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                  showComments 
+                    ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                }`}
+                title="Comment on story"
+              >
+                <MessageCircle size={15} className={`shrink-0 transition-transform hover:scale-110 ${showComments ? "fill-primary/20" : ""}`} />
+                <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Comment</span>
+              </button>
+
+              {/* Share */}
+              {onShare && currentVisibility !== "private" && (
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onShare(story);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                  title="Share Story"
+                >
+                  <Share2 size={15} className="shrink-0 transition-transform hover:scale-110" />
+                  <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">Share</span>
+                </button>
+              )}
+
+              {/* Save / Bookmark */}
+              {onSave && (
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSave(story.id);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                    isSaved 
+                      ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
+                  }`}
+                  title={isSaved ? "Remove Bookmark" : "Save Story"}
+                >
+                  <Bookmark size={15} className={`shrink-0 transition-transform hover:scale-110 ${isSaved ? "fill-primary" : ""}`} />
+                  <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">{isSaved ? "Saved" : "Save"}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Comment Drawer Overlay */}
+        <AnimatePresence>
+          {showComments && (
+            <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              <CommentDrawer 
+                isOpen={showComments} 
+                onClose={() => setShowComments(false)}
+                contentId={story.id}
+                contentType="story"
+              />
+            </div>
           )}
-        </div>
-      </Link>
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 }

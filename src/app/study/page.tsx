@@ -5,10 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-    BookOpen, Video, Plus, Search, Filter, 
-    ChevronRight, ExternalLink, Lock, ShieldAlert,
-    LayoutGrid, List, MessageSquare, BookText, Shield,
-    ChevronDown, Check
+    BookOpen, Video, Plus, Search, Shield, ChevronDown, Check
 } from "lucide-react";
 import StudyHero from "./components/StudyHero";
 import StudyNoteCard from "./components/StudyNoteCard";
@@ -21,22 +18,18 @@ import {
     type FirestoreStudyPost, type StudyHeroSettings 
 } from "@/lib/firestore";
 import GenericModerationPanel from "@/components/Moderation/GenericModerationPanel";
-import { canEditStudyPost } from "@/lib/permissions";
-import { Save, Trash2, Pencil, CheckCircle2, Bookmark, Share2 } from "lucide-react";
-import Link from "next/link";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { useToast } from "@/contexts/ToastContext";
-import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import ShareModal from "@/components/ShareModal";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
 
-const safeDate = (val: any): Date => {
+const safeDate = (val: unknown): Date => {
     if (!val) return new Date();
     if (val instanceof Date) return val;
-    if (typeof val.toDate === 'function') return val.toDate();
-    if (typeof val.toMillis === 'function') return new Date(val.toMillis());
-    const d = new Date(val);
+    if (typeof (val as { toDate?: () => Date }).toDate === 'function') return (val as { toDate: () => Date }).toDate();
+    if (typeof (val as { toMillis?: () => number }).toMillis === 'function') return new Date((val as { toMillis: () => number }).toMillis());
+    const d = new Date(val as string | number);
     return isNaN(d.getTime()) ? new Date() : d;
 };
 
@@ -204,7 +197,7 @@ function StudyPageContent() {
         }
     };
 
-    const handleShareStudyPost = (post: any) => {
+    const handleShareStudyPost = (post: FirestoreStudyPost & { id: string }) => {
         setSharingPost(post);
         setIsShareModalOpen(true);
     };
@@ -754,7 +747,7 @@ function StudyPageContent() {
                                             <div className="flex lg:hidden items-center gap-1 shrink-0">
                                                 <select
                                                     value={sortBy}
-                                                    onChange={(e) => setSortBy(e.target.value as any)}
+                                                    onChange={(e) => setSortBy(e.target.value as "latest" | "views" | "comments")}
                                                     className="bg-gray-50 dark:bg-gray-800/90 border border-gray-200/70 dark:border-gray-700/80 rounded-xl px-2.5 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
                                                 >
                                                     <option value="latest">⚡ Latest</option>
@@ -807,7 +800,7 @@ function StudyPageContent() {
                                             <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Sort:</span>
                                             <select
                                                 value={sortBy}
-                                                onChange={(e) => setSortBy(e.target.value as any)}
+                                                onChange={(e) => setSortBy(e.target.value as "latest" | "views" | "comments")}
                                                 className="bg-gray-50 dark:bg-gray-800/90 border border-gray-200/70 dark:border-gray-700/80 rounded-xl px-2.5 py-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
                                             >
                                                 <option value="latest">⚡ Latest</option>
@@ -826,7 +819,7 @@ function StudyPageContent() {
                                                 ))}
                                             </div>
                                         ) : filteredMaterials.length > 0 ? (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
                                                 {filteredMaterials.map(post => {
                                                     const isAuthor = user?.uid === post.authorId;
                                                     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
@@ -837,7 +830,7 @@ function StudyPageContent() {
                                                         <div 
                                                             key={post.id} 
                                                             id={`study-${post.id}`}
-                                                            className={`rounded-2xl transition-all duration-300 ${
+                                                            className={`h-full flex flex-col rounded-2xl transition-all duration-300 ${
                                                                 temporaryHighlightId === post.id 
                                                                     ? "ring-4 ring-blue-500 ring-offset-4 dark:ring-offset-[#0c0c10] shadow-xl scale-[1.01]" 
                                                                     : targetStudyPostId === post.id 
@@ -967,7 +960,7 @@ function StudyPageContent() {
                                                 ))}
                                             </div>
                                         ) : filteredSchedule.length > 0 ? (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-stretch">
                                                 {filteredSchedule.map(post => {
                                                     const isAuthor = user?.uid === post.authorId;
                                                     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_manager';
@@ -978,7 +971,7 @@ function StudyPageContent() {
                                                         <div 
                                                             key={post.id} 
                                                             id={`study-${post.id}`}
-                                                            className={`rounded-2xl transition-all duration-300 ${
+                                                            className={`h-full flex flex-col rounded-2xl transition-all duration-300 ${
                                                                 temporaryHighlightId === post.id 
                                                                     ? "ring-4 ring-blue-500 ring-offset-4 dark:ring-offset-[#0c0c10] shadow-xl scale-[1.01]" 
                                                                     : targetStudyPostId === post.id 

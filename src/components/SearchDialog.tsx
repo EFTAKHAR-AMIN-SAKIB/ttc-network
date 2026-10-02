@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, User, ArrowRight, Sparkles, BookOpen, Clock, MapPin, School, History, ArrowUpRight } from "lucide-react";
+import { Search, X, User, ArrowRight, Sparkles, BookOpen, MapPin, History, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
     getAllUsers, 
     getApprovedPosts, 
@@ -24,6 +25,7 @@ interface SearchDialogProps {
 export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
     const [query, setQuery] = useState("");
     const router = useRouter();
+    const { profile } = useAuth();
     
     // Data states for quick preview
     const [users, setUsers] = useState<(FirestoreUser & { id: string })[]>([]);
@@ -41,7 +43,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
         if (saved) {
             try {
                 setRecentSearches(JSON.parse(saved).slice(0, 5));
-            } catch (e) {
+            } catch {
                 // ignore
             }
         }
@@ -71,9 +73,9 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                 getApprovedPosts().catch(() => []),
                 getApprovedStories().catch(() => [])
             ]).then(([u, p, s]) => {
-                setUsers(u as any);
-                setPosts(p as any);
-                setStories(s as any);
+                setUsers(u as (FirestoreUser & { id: string })[]);
+                setPosts(p as (FirestorePost & { id: string })[]);
+                setStories(s as (FirestoreStory & { id: string })[]);
             });
                 
             setTimeout(() => {
@@ -113,18 +115,32 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
         user.username?.toLowerCase().includes(q)
     ) : [];
 
-    const filteredPosts = q ? posts.filter(post => 
-        post.eventName?.toLowerCase().includes(q) ||
-        post.description?.toLowerCase().includes(q) ||
-        post.collegeName?.toLowerCase().includes(q) ||
-        post.createdBy?.name?.toLowerCase().includes(q)
-    ) : [];
+    const filteredPosts = q ? posts.filter(post => {
+        const isOwner = !!(profile?.uid && post.creatorId === profile.uid);
+        const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+        if (post.visibility === "private" && !isOwner && !isAdmin) return false;
+        if ((post.visibility === "campus" || (post.visibility as string) === "college") && post.collegeId !== profile?.collegeId && !isAdmin && !isOwner) return false;
 
-    const filteredStories = q ? stories.filter(story => 
-        story.title?.toLowerCase().includes(q) ||
-        story.preview?.toLowerCase().includes(q) ||
-        story.name?.toLowerCase().includes(q)
-    ) : [];
+        return (
+            post.eventName?.toLowerCase().includes(q) ||
+            post.description?.toLowerCase().includes(q) ||
+            post.collegeName?.toLowerCase().includes(q) ||
+            post.createdBy?.name?.toLowerCase().includes(q)
+        );
+    }) : [];
+
+    const filteredStories = q ? stories.filter(story => {
+        const isOwner = !!(profile?.uid && story.authorId === profile.uid);
+        const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+        if (story.visibility === "private" && !isOwner && !isAdmin) return false;
+        if ((story.visibility === "campus" || story.visibility === "college_only") && story.collegeId !== profile?.collegeId && !isAdmin && !isOwner) return false;
+
+        return (
+            story.title?.toLowerCase().includes(q) ||
+            story.preview?.toLowerCase().includes(q) ||
+            story.name?.toLowerCase().includes(q)
+        );
+    }) : [];
 
     // Highlight helper
     const highlight = (text: string = "") => {
@@ -245,7 +261,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                                         </div>
                                         <div className="text-left">
                                             <span className="block text-sm font-bold">Search all of TTC Network for</span>
-                                            <span className="block text-base font-black truncate max-w-[200px] sm:max-w-xs">"{query}"</span>
+                                            <span className="block text-base font-black truncate max-w-[200px] sm:max-w-xs">&ldquo;{query}&rdquo;</span>
                                         </div>
                                     </div>
                                     <ArrowUpRight size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
@@ -264,7 +280,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                                 >
                                     <div className="flex items-center gap-3">
                                         <Search size={20} />
-                                        <span className="font-bold">See all results for "{query}"</span>
+                                        <span className="font-bold">See all results for &ldquo;{query}&rdquo;</span>
                                     </div>
                                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                 </button>

@@ -2,12 +2,13 @@
 "use client";
 
 import React, { useRef } from "react";
-import { ChevronLeft, ChevronRight, Hash, GraduationCap, School, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Hash, GraduationCap, School, Users, User } from "lucide-react";
 
 interface StoryFilterProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   showCollegeFilter: boolean;
+  showMyStories?: boolean;
 }
 
 const filters = [
@@ -17,7 +18,7 @@ const filters = [
   { id: "graduate", label: "Alumni", icon: <Users className="w-4 h-4" /> },
 ];
 
-export default function StoryFilter({ activeTab, onTabChange, showCollegeFilter }: StoryFilterProps) {
+export default function StoryFilter({ activeTab, onTabChange, showCollegeFilter, showMyStories }: StoryFilterProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
@@ -28,9 +29,13 @@ export default function StoryFilter({ activeTab, onTabChange, showCollegeFilter 
     }
   };
 
-  const allFilters = showCollegeFilter 
-    ? [...filters, { id: "my-college", label: "My College", icon: <School className="w-4 h-4 text-red-500" /> }]
-    : filters;
+  const allFilters = [...filters];
+  if (showCollegeFilter) {
+    allFilters.push({ id: "my-college", label: "My College", icon: <School className="w-4 h-4 text-red-500" /> });
+  }
+  if (showMyStories) {
+    allFilters.push({ id: "my-stories", label: "My Stories", icon: <User className="w-4 h-4 text-amber-500" /> });
+  }
 
   return (
     <div className="relative flex items-center group max-w-4xl mx-auto px-4 sm:px-0">

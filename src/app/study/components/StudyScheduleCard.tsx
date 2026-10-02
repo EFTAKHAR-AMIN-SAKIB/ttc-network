@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Video, Calendar, Clock, User, Link as LinkIcon, AlertCircle, Pencil, Globe, Lock, Trash2, MessageCircle, Bookmark, Share2 } from "lucide-react";
+import { Video, Calendar, Clock, AlertCircle, Pencil, Globe, Lock, Trash2, MessageCircle, Bookmark, Share2 } from "lucide-react";
 import Link from "next/link";
 import { type FirestoreStudyPost } from "@/lib/firestore";
 import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
 import { ExpandableText } from "@/components/Social/SocialUtils";
-import { format, isAfter, isBefore, addHours, parseISO } from "date-fns";
+import { format, isBefore, addHours } from "date-fns";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 
 interface StudyScheduleCardProps {
@@ -19,19 +19,19 @@ interface StudyScheduleCardProps {
     onDelete?: (id: string) => void;
     isSaved?: boolean;
     onSave?: (id: string) => void;
-    onShare?: (post: any) => void;
+    onShare?: (post: FirestoreStudyPost & { id: string }) => void;
     canEdit?: boolean;
     canDelete?: boolean;
 }
 
-const safeDate = (val: any): Date => {
+const safeDate = (val: unknown): Date => {
     if (!val) return new Date();
     if (val instanceof Date) return val;
     // Handle Firestore Timestamp
-    if (typeof val.toDate === 'function') return val.toDate();
-    if (typeof val.toMillis === 'function') return new Date(val.toMillis());
+    if (typeof (val as { toDate?: () => Date }).toDate === 'function') return (val as { toDate: () => Date }).toDate();
+    if (typeof (val as { toMillis?: () => number }).toMillis === 'function') return new Date((val as { toMillis: () => number }).toMillis());
     // Handle String
-    const d = new Date(val);
+    const d = new Date(val as string | number);
     return isNaN(d.getTime()) ? new Date() : d;
 };
 
@@ -96,14 +96,14 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className={`group relative bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-[2rem] overflow-hidden border transition-all duration-300 shadow-sm shadow-navy-900/5 ${
+            className={`group relative bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-[2rem] overflow-hidden border transition-all duration-300 shadow-sm shadow-navy-900/5 h-full flex flex-col ${
                 status === 'live' ? 'border-red-500/50 dark:border-red-500/40 ring-2 ring-red-500/20' : 'border-gray-100 dark:border-gray-800'
             }`}
         >
-            <div className="p-4 sm:p-5.5">
+            <div className="p-4 sm:p-5 flex flex-col flex-1 min-h-0">
                 {/* Status Bar */}
-                <div className="flex items-center justify-between gap-2 mb-5">
-                    <div className={`px-3 py-1 rounded-full flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider shadow-2xs ${
+                <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className={`px-3 py-1 rounded-full flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-2xs ${
                         status === 'live' ? 'bg-red-500 text-white animate-pulse' : 
                         status === 'upcoming' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
                         'bg-gray-100 text-gray-500 dark:bg-gray-800'
@@ -122,7 +122,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        <div className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1">
+                        <div className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1">
                             {isCampusOnly ? (
                                 <div className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 border border-amber-200/50 dark:border-amber-800/30 flex items-center gap-1">
                                     <Lock size={9} /> Campus Only
@@ -135,14 +135,14 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                         </div>
                         
                         {(showEdit || showDelete) && (
-                            <div className="flex items-center gap-1 border-l border-gray-100 dark:border-gray-800 pl-2">
+                            <div className="flex items-center gap-1 border-l border-gray-100 dark:border-gray-800 pl-1.5 sm:pl-2">
                                 {showEdit && onEdit && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onEdit(post);
                                         }}
-                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-primary/10 dark:bg-gray-800/50 text-gray-400 hover:text-primary transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800"
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-primary/10 dark:bg-gray-800/50 text-gray-400 hover:text-primary transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800 cursor-pointer active:scale-95"
                                         title="Edit"
                                     >
                                         <Pencil size={11} />
@@ -154,7 +154,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                                             e.stopPropagation();
                                             onDelete(post.id);
                                         }}
-                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800/50 text-gray-400 hover:text-red-500 transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800"
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800/50 text-gray-400 hover:text-red-500 transition-all flex items-center justify-center border border-gray-100 dark:border-gray-800 cursor-pointer active:scale-95"
                                         title="Delete"
                                     >
                                         <Trash2 size={11} />
@@ -168,13 +168,13 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                 {/* Main Info */}
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-5">
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-xl font-black text-navy-900 dark:text-white mb-2 leading-snug tracking-tight">
+                        <h3 className="text-base sm:text-xl font-black text-navy-900 dark:text-white mb-2 leading-snug tracking-tight min-h-[2.5rem] sm:min-h-[2.85rem] flex items-start">
                             {post.title}
                         </h3>
 
                         {/* Session Agenda / Description */}
                         {post.content && (
-                            <div className="mb-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium [&_button]:text-xs">
+                            <div className="mb-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium [&_button]:text-xs line-clamp-2 sm:line-clamp-3">
                                 <ExpandableText text={post.content} limit={110} />
                             </div>
                         )}
@@ -223,7 +223,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                 </div>
 
                 {/* Join Session CTA Banner */}
-                <div className="mt-4 pt-1">
+                <div className="mt-2 mb-4">
                     {status === 'ended' ? (
                         <div className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-gray-400 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
                             <AlertCircle size={14} /> Session Ended
@@ -255,7 +255,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                 </div>
 
                 {/* Interactions Bar (Facebook Layout) */}
-                <div className="mt-3 pt-2 relative z-10">
+                <div className="mt-auto pt-2.5 border-t border-gray-100 dark:border-gray-800/80 relative z-10">
                     {/* 1. Engagement Summary Row */}
                     <ReactionSummary 
                         reactions={post.reactions}
@@ -265,7 +265,7 @@ export default function StudyScheduleCard({ post, currentUserId, isAdmin, onEdit
                     />
 
                     {/* Subtle Facebook Divider Line */}
-                    <div className="border-t border-gray-100 dark:border-gray-800/80 my-1" />
+                    <div className="border-t border-gray-100/80 dark:border-gray-800/60 my-1" />
 
                     {/* 2. Action Buttons Row: Serial Sequence: React -> Comment -> Share -> Bookmark */}
                     <div className="flex items-center justify-between gap-1 py-0.5">

@@ -1887,7 +1887,7 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
         collegeGradient: college.color || "linear-gradient(135deg, #C0392B 0%, #2C3E50 100%)",
         authorRole: (['student', 'teacher', 'graduate'].includes(profile.role || '') ? profile.role : 'student') as "student" | "teacher" | "graduate",
         role: profile.role || 'student', // Legacy
-        status: "pending",
+        status: story.visibility === "private" ? "published" : "pending",
         reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
         reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         readingTimeMinutes: Math.max(1, Math.ceil((story.fullStory?.length || 0) / 1500)), 
@@ -1899,8 +1899,10 @@ export async function createStory(story: Omit<FirestoreStory, "timestamp" | "sta
 
     const docRef = await addDoc(collection(getDb(), "stories"), fullStory);
 
-    // Handle Mentions in story title, content, and advice
-    await handleMentions(`${story.title || ""} ${story.fullStory || ""} ${story.oneAdvice || ""}`, `/story/${storyNumber.toString().padStart(2, '0')}`, profile, docRef.id, "story");
+    // Only handle Mentions in public/campus stories (never for private stories)
+    if (story.visibility !== "private") {
+        await handleMentions(`${story.title || ""} ${story.fullStory || ""} ${story.oneAdvice || ""}`, `/story/${storyNumber.toString().padStart(2, '0')}`, profile, docRef.id, "story");
+    }
 }
 
 /**
@@ -1968,14 +1970,17 @@ export async function approveStory(id: string): Promise<void> {
         targetUrl: storyUrl
     }).catch(e => console.error("Notification failed", e));
 
-    await notifyFollowersOfPost(
-        story.authorId,
-        story.name || "A classmate",
-        story.authorPhoto || "",
-        id,
-        story.title || "Campus Story",
-        "story"
-    );
+    // Only notify followers if the story is public or campus (never for private stories)
+    if (story.visibility !== "private") {
+        await notifyFollowersOfPost(
+            story.authorId,
+            story.name || "A classmate",
+            story.authorPhoto || "",
+            id,
+            story.title || "Campus Story",
+            "story"
+        );
+    }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -2008,22 +2013,42 @@ export async function updateStory(id: string, data: Partial<FirestoreStory>): Pr
     await updateDoc(doc(getDb(), "stories", id), clean);
 
     const profile = await getCurrentUserProfile();
-    if (profile && (data.fullStory || data.title || data.oneAdvice)) {
+    // Only handle mentions if the story is NOT private
+    if (profile && (data.fullStory || data.title || data.oneAdvice) && data.visibility !== "private") {
         try {
             const storySnap = await getDoc(doc(getDb(), "stories", id));
             const storyData = storySnap.data() as FirestoreStory | undefined;
-            const sNum = storyData?.storyNumber ? storyData.storyNumber.toString().padStart(2, '0') : id;
-            await handleMentions(
-                `${data.title || ""} ${data.fullStory || ""} ${data.oneAdvice || ""}`,
-                `/story/${sNum}`,
-                profile,
-                id,
-                "story"
-            );
+            if (storyData?.visibility !== "private") {
+                const sNum = storyData?.storyNumber ? storyData.storyNumber.toString().padStart(2, '0') : id;
+                await handleMentions(
+                    `${data.title || ""} ${data.fullStory || ""} ${data.oneAdvice || ""}`,
+                    `/story/${sNum}`,
+                    profile,
+                    id,
+                    "story"
+                );
+            }
         } catch (e) {
             console.warn("[updateStory] Failed to dispatch mentions:", e);
         }
     }
+}
+
+/**
+ * Updates visibility of a story (public, campus, or private).
+ * Accessible by story author or platform administrators.
+ */
+export async function updateStoryVisibility(storyId: string, visibility: "public" | "campus" | "private"): Promise<void> {
+    const profile = await getCurrentUserProfile();
+    if (!profile) throw new Error("Auth required");
+    const storySnap = await getDoc(doc(getDb(), "stories", storyId));
+    if (!storySnap.exists()) throw new Error("Story not found");
+    const story = storySnap.data() as FirestoreStory;
+    const isAuthor = story.authorId === profile.id;
+    const isAdmin = profile.role === "admin" || profile.role === "super_manager";
+    if (!isAuthor && !isAdmin) throw new Error("Unauthorized: Only author or admins can change visibility");
+
+    await updateDoc(doc(getDb(), "stories", storyId), { visibility });
 }
 
 /**
@@ -2343,8 +2368,19 @@ export async function getUserFeedContent(
 
     // Apply visibility filters for non-owners
     if (!isOwner) {
-        posts = posts.filter((p: any) => (p.status === 'published' || p.status === 'approved') && p.visibility !== 'private');
-        stories = stories.filter((s: any) => (s.status === 'published' || s.status === 'approved') && s.visibility !== 'private');
+        const viewerIsAdmin = viewerProfile?.role === 'admin' || viewerProfile?.role === 'super_manager';
+        posts = posts.filter((p: any) => {
+            if (p.status !== 'published' && p.status !== 'approved') return false;
+            if (p.visibility === 'private') return false;
+            if ((p.visibility === 'campus' || p.visibility === 'college') && viewerProfile?.collegeId && p.collegeId !== viewerProfile.collegeId && !viewerIsAdmin) return false;
+            return true;
+        });
+        stories = stories.filter((s: any) => {
+            if (s.status !== 'published' && s.status !== 'approved') return false;
+            if (s.visibility === 'private') return false;
+            if ((s.visibility === 'campus' || s.visibility === 'college_only') && viewerProfile?.collegeId && s.collegeId !== viewerProfile.collegeId && !viewerIsAdmin) return false;
+            return true;
+        });
         notices = notices.filter((n: any) => (n.status === 'published' || n.status === 'approved' || !n.status) && n.visibility !== 'private');
         studyMaterials = studyMaterials.filter((sm: any) => (sm.status === 'published' || sm.status === 'approved' || !sm.status) && sm.visibility !== 'private');
     }

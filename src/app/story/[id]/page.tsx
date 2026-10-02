@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { BookOpen, ArrowLeft, Clock, Sparkles, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User, Lock, LogIn, Hash } from "lucide-react";
-import { getDocById, type FirestoreStory, reactToStory, subscribeStories, toggleSaveStory, subscribeSavedStories, subscribeStory, getProfilesByIds, type FirestoreUser, getStoryByNumber } from "@/lib/firestore";
+import { BookOpen, ArrowLeft, Clock, Footprints, MessageSquare, GraduationCap, School, Share2, Bookmark, User, Lock, LogIn, Hash, Globe, Pencil, Trash2, ChevronDown, Check } from "lucide-react";
+import { type FirestoreStory, subscribeStories, toggleSaveStory, subscribeSavedStories, subscribeStory, getProfilesByIds, type FirestoreUser, getStoryByNumber, deleteStory, updateStoryVisibility } from "@/lib/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import StoryCard, { getStoryUrl } from "@/components/StoryCard";
+import StoryCard from "@/components/StoryCard";
 import { ReactionBtn } from "@/components/Social/ReactionSystem";
 import { CommentSystem } from "@/components/Social/CommentSystem";
 import ShareModal from "@/components/ShareModal";
+import StoryShareModal from "@/components/StoryShareModal";
 import { isContentRestrictedForUser } from "@/lib/permissions";
 import { RichText } from "@/components/Social/SocialUtils";
 
@@ -22,6 +24,7 @@ export default function StoryDetailPage() {
     const rawId = params.id as string;
     const { user, profile } = useAuth();
     const { showToast } = useToast();
+    const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
 
     const [story, setStory] = useState<FirestoreStory & { id: string } | null>(null);
     const [moreStories, setMoreStories] = useState<(FirestoreStory & { id: string })[]>([]);
@@ -30,6 +33,8 @@ export default function StoryDetailPage() {
     const [error, setError] = useState<string | null>(null);
     const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showAudienceMenu, setShowAudienceMenu] = useState(false);
 
     // Determine if the URL param is a numeric storyNumber or a Firestore doc ID
     const isNumericId = /^\d+$/.test(rawId);
@@ -42,10 +47,11 @@ export default function StoryDetailPage() {
 
         if (isNumericId && storyNumber !== null) {
             // Numeric URL — look up by storyNumber, then subscribe by doc ID
+            let unsubStoryDoc: (() => void) | undefined;
             getStoryByNumber(storyNumber).then((found) => {
                 if (found) {
                     // Now subscribe to real-time updates on the actual doc
-                    const unsub = subscribeStory(found.id, (data) => {
+                    unsubStoryDoc = subscribeStory(found.id, (data) => {
                         if (data) {
                             setStory(data);
                             setError(null);
@@ -54,8 +60,6 @@ export default function StoryDetailPage() {
                         }
                         setLoading(false);
                     });
-                    // Store unsub for cleanup
-                    (window as any).__storyUnsub = unsub;
                 } else {
                     setError("Story not found.");
                     setLoading(false);
@@ -66,10 +70,7 @@ export default function StoryDetailPage() {
             });
 
             return () => {
-                if ((window as any).__storyUnsub) {
-                    (window as any).__storyUnsub();
-                    delete (window as any).__storyUnsub;
-                }
+                unsubStoryDoc?.();
             };
         } else {
             // Firestore doc ID — direct subscribe (backward compatible)
@@ -91,12 +92,19 @@ export default function StoryDetailPage() {
         if (!story?.collegeId) return;
         
         const unsubscribeMore = subscribeStories((all) => {
-            const filtered = all.filter(s => s.collegeId === story.collegeId && s.id !== story.id).slice(0, 3);
+            const filtered = all.filter(s => {
+                if (s.collegeId !== story.collegeId || s.id === story.id) return false;
+                const isOwner = user?.uid && s.authorId === user.uid;
+                const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+                if (s.visibility === "private" && !isOwner && !isAdmin) return false;
+                if ((s.visibility === "campus" || s.visibility === "college_only") && s.collegeId !== profile?.collegeId && !isAdmin && !isOwner) return false;
+                return true;
+            }).slice(0, 3);
             setMoreStories(filtered);
         });
         
         return () => unsubscribeMore();
-    }, [story?.collegeId, story?.id]);
+    }, [story?.collegeId, story?.id, user?.uid, profile?.role, profile?.collegeId]);
 
     useEffect(() => {
         if (!story?.reactedBy) {
@@ -127,6 +135,55 @@ export default function StoryDetailPage() {
         }
         return () => unsubSaved();
     }, [profile]);
+
+    const isAuthor = !!(user?.uid && story?.authorId === user.uid);
+    const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
+    const canManage = isAuthor || isAdmin;
+
+    const handleVisibilityChange = async (newVis: "public" | "campus" | "private") => {
+        if (!story) return;
+        setShowAudienceMenu(false);
+        if (newVis === story.visibility) return;
+        try {
+            await updateStoryVisibility(story.id, newVis);
+            setStory(prev => prev ? { ...prev, visibility: newVis } : null);
+            showToast(
+                newVis === "private" 
+                    ? "Story set to Private (Only Me)" 
+                    : newVis === "campus" 
+                    ? "Story set to Campus Only" 
+                    : "Story set to Global", 
+                "success"
+            );
+        } catch (e: unknown) {
+            showToast("Failed to update story privacy: " + ((e as Error)?.message || ""), "error");
+        }
+    };
+
+    const handleDeleteStory = async () => {
+        if (!story) return;
+        const confirmed = await confirm({
+            title: "Delete Story?",
+            message: "Are you sure you want to delete this story? This action cannot be undone and will remove all associated narrative data.",
+            confirmText: "Delete Story",
+            variant: "danger"
+        });
+
+        if (!confirmed) return;
+
+        setConfirmLoading(true);
+        try {
+            await deleteStory(story.id);
+            showToast("Story deleted successfully.", "info");
+            router.push("/story");
+        } catch (err) {
+            console.error("Delete story failed:", err);
+            showToast("Failed to delete story.", "error");
+        } finally {
+            setConfirmLoading(false);
+            closeConfirm();
+        }
+    };
 
     const handleSaveStory = async () => {
         if (!story) return;
@@ -183,6 +240,24 @@ export default function StoryDetailPage() {
                                 </span>
                             </div>
                         )}
+                        {canManage && (
+                            <>
+                                <button 
+                                    onClick={() => setShowEditModal(true)}
+                                    className="p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-primary"
+                                    title="Edit Story"
+                                >
+                                    <Pencil size={18} />
+                                </button>
+                                <button 
+                                    onClick={handleDeleteStory}
+                                    className="p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-red-500"
+                                    title="Delete Story"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </>
+                        )}
                         <button 
                             onClick={handleSaveStory}
                             className={`p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border hover:scale-110 active:scale-95 transition-all duration-200 ${
@@ -194,13 +269,15 @@ export default function StoryDetailPage() {
                         >
                             <Bookmark size={18} className={savedStoryIds.includes(storyId) ? "fill-primary" : ""} />
                         </button>
-                        <button 
-                            onClick={() => setIsShareOpen(true)}
-                            className="p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-primary"
-                            title="Share Story"
-                        >
-                            <Share2 size={18} />
-                        </button>
+                        {story.visibility !== "private" && (
+                            <button 
+                                onClick={() => setIsShareOpen(true)}
+                                className="p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-gray-800 shadow-xl shadow-navy-900/5 border border-gray-100 dark:border-gray-700 hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-primary"
+                                title="Share Story"
+                            >
+                                <Share2 size={18} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -231,6 +308,96 @@ export default function StoryDetailPage() {
                                     <Hash size={11} className="text-primary" /> Story {story.storyNumber.toString().padStart(2, '0')}
                                 </span>
                             )}
+
+                            {/* Audience / Privacy Badge with Author Switcher */}
+                            <div className="relative">
+                                {canManage ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAudienceMenu(!showAudienceMenu)}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                                                story.visibility === "private"
+                                                    ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30 hover:bg-rose-100"
+                                                    : story.visibility === "campus" || story.visibility === "college_only"
+                                                    ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30 hover:bg-amber-100"
+                                                    : "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 hover:bg-blue-100"
+                                            }`}
+                                            title="Click to change audience / privacy"
+                                        >
+                                            {story.visibility === "private" ? (
+                                                <Lock size={12} />
+                                            ) : story.visibility === "campus" || story.visibility === "college_only" ? (
+                                                <School size={12} />
+                                            ) : (
+                                                <Globe size={12} />
+                                            )}
+                                            <span>
+                                                {story.visibility === "private" ? "Private (Only Me)" : story.visibility === "campus" || story.visibility === "college_only" ? "Campus Only" : "Global"}
+                                            </span>
+                                            <ChevronDown size={11} className={`transition-transform duration-200 ${showAudienceMenu ? "rotate-180" : ""}`} />
+                                        </button>
+
+                                        <AnimatePresence>
+                                            {showAudienceMenu && (
+                                                <>
+                                                    <div className="fixed inset-0 z-40" onClick={() => setShowAudienceMenu(false)} />
+                                                    <motion.div
+                                                        initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                                                        className="absolute left-0 top-full mt-2 w-52 p-1.5 bg-white dark:bg-[#1a1b23] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 space-y-1"
+                                                    >
+                                                        <div className="px-3 py-1 border-b border-gray-100 dark:border-white/5">
+                                                            <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">Change Audience</p>
+                                                        </div>
+                                                        {[
+                                                            { id: "public" as const, label: "Global", desc: "All campuses", icon: Globe, color: "text-blue-500" },
+                                                            { id: "campus" as const, label: "Campus Only", desc: "Your college", icon: School, color: "text-amber-500" },
+                                                            { id: "private" as const, label: "Private", desc: "Only visible to you", icon: Lock, color: "text-rose-500" },
+                                                        ].map((opt) => {
+                                                            const OptIcon = opt.icon;
+                                                            const isSelected = story.visibility === opt.id || (opt.id === "campus" && story.visibility === "college_only") || (!story.visibility && opt.id === "public");
+                                                            return (
+                                                                <button
+                                                                    key={opt.id}
+                                                                    type="button"
+                                                                    onClick={() => handleVisibilityChange(opt.id)}
+                                                                    className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
+                                                                        isSelected ? "bg-gray-100 dark:bg-white/10 font-bold" : "hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-2 text-xs">
+                                                                        <OptIcon size={14} className={opt.color} />
+                                                                        <div>
+                                                                            <p className="leading-tight">{opt.label}</p>
+                                                                            <p className="text-[9px] text-gray-400">{opt.desc}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    {isSelected && <Check size={12} className="text-primary shrink-0" />}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </motion.div>
+                                                </>
+                                            )}
+                                        </AnimatePresence>
+                                    </>
+                                ) : (
+                                    <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider border ${
+                                        story.visibility === "private"
+                                            ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30"
+                                            : story.visibility === "campus" || story.visibility === "college_only"
+                                            ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"
+                                            : "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
+                                    }`}>
+                                        {story.visibility === "private" ? <Lock size={12} /> : story.visibility === "campus" || story.visibility === "college_only" ? <School size={12} /> : <Globe size={12} />}
+                                        <span>
+                                            {story.visibility === "private" ? "Private" : story.visibility === "campus" || story.visibility === "college_only" ? "Campus Only" : "Global"}
+                                        </span>
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-navy-900 dark:text-gray-100 leading-[1.15] sm:leading-[1.1] mb-6 sm:mb-10 font-bengali tracking-tight">
                             {story.title}
@@ -260,6 +427,24 @@ export default function StoryDetailPage() {
                         </div>
                     </header>
 
+                    {/* Private Story Alert Banner (visible to author/admin) */}
+                    {story.visibility === "private" && !isContentRestrictedForUser(story, profile, user?.uid) && (
+                        <div className="mx-5 sm:mx-14 mt-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-800/40 flex items-center justify-between gap-3 text-rose-700 dark:text-rose-400">
+                            <div className="flex items-center gap-2.5 text-xs font-bold">
+                                <Lock size={16} className="shrink-0 text-rose-500" />
+                                <span>This story is set to <strong>Private</strong>. Only you and network administrators can view this page.</span>
+                            </div>
+                            {canManage && (
+                                <button
+                                    onClick={() => handleVisibilityChange("public")}
+                                    className="px-3 py-1 rounded-xl bg-white dark:bg-gray-800 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 border border-rose-200 hover:bg-rose-50 transition-all shrink-0 cursor-pointer"
+                                >
+                                    Make Public
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {/* Content Section */}
                     {isContentRestrictedForUser(story, profile, user?.uid) ? (
                         <div className="p-8 sm:p-16 text-center flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-950 text-white rounded-[2rem] border border-white/10 shadow-2xl my-8">
@@ -272,11 +457,11 @@ export default function StoryDetailPage() {
                                 </h2>
                                 <p className="text-sm sm:text-base text-gray-300 max-w-lg mt-2 font-medium leading-relaxed">
                                     {story.visibility === "private" 
-                                        ? "This story is private to the author."
+                                        ? "This story is marked as private by the creator."
                                         : `This story is exclusively available to verified students & faculty of ${story.college}. Log in with your verified college account to read the full journey.`}
                                 </p>
                             </div>
-                            {!user?.uid && (
+                            {!user?.uid && story.visibility !== "private" && (
                                 <Link
                                     href="/login"
                                     className="mt-4 px-8 py-3 rounded-full bg-gradient-to-r from-primary to-accent text-white text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-primary/25 flex items-center gap-2"
@@ -425,6 +610,15 @@ export default function StoryDetailPage() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* Story Edit Modal */}
+            {story && showEditModal && (
+                <StoryShareModal
+                    isOpen={showEditModal}
+                    onClose={() => setShowEditModal(false)}
+                    editStory={story}
+                />
+            )}
         </div>
     );
 }

@@ -8,7 +8,10 @@ import {
     X,
     ShieldCheck,
     Eye,
-    Star
+    Star,
+    Lock,
+    Globe,
+    School
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -159,11 +162,26 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
                     >
                         <div className="p-6 sm:p-8 pb-4 flex-1 space-y-4">
                             <div className="flex items-center justify-between">
-                                <span className={`px-3 sm:px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest ${
-                                    story.status === "published" ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
-                                }`}>
-                                    {story.status}
-                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`px-3 sm:px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest ${
+                                        story.status === "published" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
+                                    }`}>
+                                        {story.status}
+                                    </span>
+                                    {story.visibility === "private" ? (
+                                        <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center gap-1">
+                                            <Lock size={11} /> Private
+                                        </span>
+                                    ) : story.visibility === "campus" ? (
+                                        <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex items-center gap-1">
+                                            <School size={11} /> Campus
+                                        </span>
+                                    ) : (
+                                        <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1">
+                                            <Globe size={11} /> Global
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="flex items-center gap-1.5">
                                     <Star className="text-amber-400 fill-amber-400" size={14} />
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{story.college}</span>
@@ -234,7 +252,28 @@ export default function StoriesTab({ profile, onCountRefresh }: { profile: UserP
 
                             <div className="flex justify-between items-start mb-6 sm:mb-10">
                                 <div className="space-y-2">
-                                    <span className="bg-primary/10 text-primary px-3 sm:px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Global Story Preview</span>
+                                    {(() => {
+                                        const activeStory = stories.find(s => s.id === previewId);
+                                        if (activeStory?.visibility === "private") {
+                                            return (
+                                                <span className="bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-3 sm:px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                                                    <Lock size={12} /> Private Story Preview
+                                                </span>
+                                            );
+                                        }
+                                        if (activeStory?.visibility === "campus") {
+                                            return (
+                                                <span className="bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 px-3 sm:px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                                                    <School size={12} /> Campus Story Preview
+                                                </span>
+                                            );
+                                        }
+                                        return (
+                                            <span className="bg-primary/10 text-primary px-3 sm:px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                                                <Globe size={12} /> Global Story Preview
+                                            </span>
+                                        );
+                                    })()}
                                     <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tighter italic">&ldquo;{stories.find(s => s.id === previewId)?.title}&rdquo;</h2>
                                 </div>
                                 <button onClick={() => setPreviewId(null)} className="p-3 sm:p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] hover:bg-red-500 hover:text-white transition-all">

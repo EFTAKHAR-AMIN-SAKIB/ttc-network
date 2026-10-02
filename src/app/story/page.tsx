@@ -37,7 +37,7 @@ function StoryPageInner() {
     const [editingStory, setEditingStory] = useState<Story | null>(null);
     const [savedStoryIds, setSavedStoryIds] = useState<string[]>([]);
     const [isShareOpen, setIsShareOpen] = useState(false);
-    const [shareStory, setShareStory] = useState<any | null>(null);
+    const [shareStory, setShareStory] = useState<Story | null>(null);
     const { confirm, setIsLoading, close } = useConfirm();
     const { showToast } = useToast();
     
@@ -100,12 +100,13 @@ function StoryPageInner() {
     }, [searchParams, stories, showSubmitModal]);
 
     const filteredStories = stories.filter((s) => {
-        const isOwner = profile?.uid && s.authorId === profile.uid;
-        const isAdmin = profile?.role === "admin" || profile?.role === "manager" || profile?.role === "super_manager";
+        const isOwner = !!(profile?.uid && s.authorId === profile.uid);
+        const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
         
         if (s.visibility === "private" && !isOwner && !isAdmin) return false;
         if ((s.visibility === "campus" || s.visibility === "college_only") && s.collegeId !== profile?.collegeId && !isAdmin && !isOwner) return false;
 
+        if (activeTab === "my-stories") return isOwner;
         if (activeTab === "all") return true;
         if (activeTab === "my-college") return s.collegeId === profile?.collegeId;
         return s.authorRole === activeTab;
@@ -130,7 +131,7 @@ function StoryPageInner() {
         }
     };
 
-    const handleShareStory = (story: any) => {
+    const handleShareStory = (story: Story) => {
         setShareStory(story);
         setIsShareOpen(true);
     };
@@ -256,6 +257,7 @@ function StoryPageInner() {
                   activeTab={activeTab} 
                   onTabChange={setActiveTab} 
                   showCollegeFilter={!!user} 
+                  showMyStories={!!profile?.uid}
                 />
               </div>
 
