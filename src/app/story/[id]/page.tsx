@@ -284,13 +284,13 @@ export default function StoryDetailPage() {
                 <article className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] shadow-2xl shadow-navy-900/5 overflow-hidden border border-gray-100 dark:border-gray-800">
                     {/* ═══ COVER IMAGE HERO ═══ */}
                     {story.thumbnailUrl && (
-                        <div className="relative w-full h-56 sm:h-72 md:h-96 overflow-hidden">
+                        <div className="relative w-full h-64 sm:h-80 md:h-[28rem] overflow-hidden bg-slate-900">
                             <img 
                                 src={story.thumbnailUrl} 
-                                alt="" 
-                                className="w-full h-full object-cover"
+                                alt={story.title || "Story Cover"} 
+                                className="w-full h-full object-cover object-top"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
                         </div>
                     )}
 

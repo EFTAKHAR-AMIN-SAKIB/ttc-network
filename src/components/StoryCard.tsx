@@ -80,6 +80,13 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
 
   const accentColor = roleColors[story.authorRole || 'student'] || "border-gray-100 dark:border-gray-800";
   
+  const roleHeaderGradients: Record<string, string> = {
+    student: "bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-amber-500/5 dark:from-amber-500/25 dark:via-orange-500/10 dark:to-transparent",
+    teacher: "bg-gradient-to-br from-blue-500/15 via-indigo-500/10 to-blue-500/5 dark:from-blue-500/25 dark:via-indigo-500/10 dark:to-transparent",
+    graduate: "bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-emerald-500/5 dark:from-emerald-500/25 dark:via-teal-500/10 dark:to-transparent"
+  };
+  const editorialBg = roleHeaderGradients[story.authorRole || 'student'] || roleHeaderGradients.student;
+
   // Format role for sentence case header
   const role = story.authorRole || 'student';
   const formattedRole = role.charAt(0).toUpperCase() + role.slice(1);
@@ -96,28 +103,82 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
       className={`group relative bg-white dark:bg-[#1a1b23] rounded-3xl sm:rounded-[2rem] overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 flex flex-col h-full ${accentColor}`}
     >
       {/* Role Indicator Border (Left) */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-10 ${
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-20 ${
         story.authorRole === 'student' ? 'bg-amber-500' : 
         story.authorRole === 'teacher' ? 'bg-blue-500' : 
         'bg-emerald-500'
       }`} />
 
-      {/* ═══ COVER IMAGE ═══ */}
-      {story.thumbnailUrl && (
-        <Link href={storyUrl} className="block relative overflow-hidden shrink-0">
+      {/* ═══ TOP COVER HEADER (IMAGE STORY OR EDITORIAL TEXT STORY) ═══ */}
+      {story.thumbnailUrl ? (
+        <Link href={storyUrl} className="block relative overflow-hidden shrink-0 aspect-[16/10] sm:aspect-[16/9] w-full bg-slate-900 group/img">
           <img 
             src={story.thumbnailUrl} 
-            alt="" 
-            className="w-full h-40 sm:h-48 object-cover transition-transform duration-700 group-hover:scale-105"
+            alt={story.title || "Story Cover"} 
+            className="w-full h-full object-cover object-top transition-transform duration-700 group-hover/img:scale-105"
+            loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
           {/* Story Number Badge on cover */}
           {story.storyNumber && (
-            <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/10 flex items-center gap-1">
-              <Hash size={10} />
+            <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/15 flex items-center gap-1 shadow-lg">
+              <Hash size={10} className="text-amber-400" />
               {story.storyNumber.toString().padStart(2, '0')}
             </div>
           )}
+        </Link>
+      ) : (
+        <Link 
+          href={storyUrl} 
+          className={`block relative overflow-hidden shrink-0 aspect-[16/7] sm:aspect-[16/8] w-full p-4 sm:p-5 flex flex-col justify-between transition-all group/banner border-b border-gray-100 dark:border-white/5 ${editorialBg}`}
+        >
+          {/* Background Decorative Watermark */}
+          <div className="absolute -right-2 -bottom-4 text-7xl sm:text-8xl font-serif font-black text-gray-900/5 dark:text-white/5 pointer-events-none select-none">
+            “
+          </div>
+
+          {/* Top Bar of Editorial Header */}
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md border border-black/5 dark:border-white/10 text-[10px] font-black tracking-wider uppercase text-gray-700 dark:text-gray-200 shadow-sm">
+              <BookOpen size={11} className={story.authorRole === 'teacher' ? 'text-blue-500' : story.authorRole === 'graduate' ? 'text-emerald-500' : 'text-amber-500'} />
+              <span>TTC Memoir</span>
+            </div>
+
+            {story.storyNumber && (
+              <div className="px-2.5 py-1 bg-white/90 dark:bg-black/40 backdrop-blur-md text-[10px] font-black rounded-lg border border-black/5 dark:border-white/10 flex items-center gap-1 shadow-sm text-gray-700 dark:text-gray-200">
+                <Hash size={10} className="text-primary" />
+                {story.storyNumber.toString().padStart(2, '0')}
+              </div>
+            )}
+          </div>
+
+          {/* Center Content of Editorial Header */}
+          <div className="relative z-10 my-auto pt-1.5">
+            {story.oneAdvice ? (
+              <div className="space-y-1">
+                <p className="text-xs sm:text-[13px] font-bold font-bengali text-gray-800 dark:text-gray-100 line-clamp-2 leading-relaxed italic group-hover/banner:text-primary transition-colors">
+                  “{story.oneAdvice}”
+                </p>
+                <span className="text-[9px] font-black uppercase tracking-wider text-primary dark:text-primary-light flex items-center gap-1">
+                  <Sparkles size={9} /> Author&apos;s Advice
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-white/90 dark:bg-white/10 backdrop-blur-md flex items-center justify-center text-primary shadow-sm border border-black/5 dark:border-white/10 shrink-0">
+                  <Sparkles size={15} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-gray-900 dark:text-gray-100 truncate tracking-tight">
+                    {collegeShort}
+                  </p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 truncate font-bengali">
+                    শিক্ষকতার স্মৃতি ও ব্যক্তিগত অভিজ্ঞতা
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </Link>
       )}
 
@@ -160,14 +221,8 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
             </div>
           </div>
 
-          {/* Edit / Delete / Story# */}
+          {/* Edit / Delete Actions */}
           <div className="flex items-center gap-1 shrink-0">
-            {story.storyNumber && !story.thumbnailUrl && (
-              <span className="px-2 py-0.5 bg-gray-50 dark:bg-gray-800/50 text-gray-400 text-[9px] font-black rounded-lg border border-gray-100 dark:border-gray-700 flex items-center gap-0.5 mr-0.5">
-                <Hash size={9} />
-                {story.storyNumber.toString().padStart(2, '0')}
-              </span>
-            )}
             {onEdit && permissions.canEdit && (
               <button
                 onClick={(e) => {
@@ -314,7 +369,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
 
         {/* Story Content Area (Clickable Link to /story/id) */}
         <Link href={storyUrl} className="flex-1 flex flex-col group/content min-h-0">
-          <h3 className="text-base sm:text-lg font-black mb-1.5 line-clamp-2 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight">
+          <h3 className="text-base sm:text-lg font-black mb-2 line-clamp-2 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight">
             {story.title}
           </h3>
           
@@ -335,7 +390,9 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
               )}
             </div>
           ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed font-bengali flex-1 mb-3">
+            <p className={`text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-bengali flex-1 mb-3 ${
+              story.thumbnailUrl ? "line-clamp-3" : "line-clamp-4 sm:line-clamp-5"
+            }`}>
               {story.preview}
             </p>
           )}
