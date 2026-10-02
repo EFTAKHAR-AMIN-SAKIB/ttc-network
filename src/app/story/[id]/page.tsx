@@ -282,15 +282,19 @@ export default function StoryDetailPage() {
                 </div>
 
                 <article className="bg-white dark:bg-gray-900 rounded-[1.5rem] sm:rounded-[3rem] shadow-2xl shadow-navy-900/5 overflow-hidden border border-gray-100 dark:border-gray-800">
-                    {/* ═══ COVER IMAGE HERO ═══ */}
+                    {/* ═══ COVER IMAGE HERO (SHOW WHOLE IMAGE BY ADJUSTING) ═══ */}
                     {story.thumbnailUrl && (
-                        <div className="relative w-full h-64 sm:h-80 md:h-[28rem] overflow-hidden bg-slate-900">
+                        <div className="relative w-full overflow-hidden bg-slate-950 flex items-center justify-center">
+                            {/* Ambient blurred backdrop */}
+                            <div 
+                                className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110 pointer-events-none"
+                                style={{ backgroundImage: `url(${story.thumbnailUrl})` }}
+                            />
                             <img 
                                 src={story.thumbnailUrl} 
                                 alt={story.title || "Story Cover"} 
-                                className="w-full h-full object-cover object-top"
+                                className="relative z-10 w-full h-auto max-h-[520px] sm:max-h-[640px] object-contain"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
                         </div>
                     )}
 
