@@ -3639,12 +3639,12 @@ export async function submitGift(gift: Omit<FirestoreGift, "date" | "status" | "
     const fullGift: Omit<FirestoreGift, "id"> = {
         ...gift,
         userId: profile?.id || "guest",
-        collegeId: profile?.collegeId || "",
-        name: profile?.displayName || gift.name || "Anonymous",
+        collegeId: (gift as any).collegeId || profile?.collegeId || "",
+        name: gift.name?.trim() || profile?.displayName || "Anonymous",
         photoURL: profile?.photoURL || "",
         status: "pending",
         badgeIssued: false,
-        phaseId: activePhaseId, // Default to active phase
+        phaseId: gift.phaseId || activePhaseId, // Default to active phase
         date: serverTimestamp() as Timestamp,
     };
     await addDoc(collection(getDb(), "gifts"), fullGift);
