@@ -224,7 +224,7 @@ export default function StoryDetailPage() {
     const storyId = story.id;
 
     return (
-        <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pt-20 sm:pt-24 pb-12 sm:pb-20">
+        <div className="min-h-screen bg-[#FDF8F3] dark:bg-[#0c0c10] pt-20 sm:pt-24 pb-28 sm:pb-20">
             <div className="max-w-4xl mx-auto px-4 sm:px-6">
                 <div className="flex items-center justify-between mb-6 sm:mb-12">
                     <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-navy-900 dark:hover:text-gray-200 transition-colors font-black uppercase tracking-widest text-[10px]">
@@ -293,7 +293,7 @@ export default function StoryDetailPage() {
                             <img 
                                 src={story.thumbnailUrl} 
                                 alt={story.title || "Story Cover"} 
-                                className="relative z-10 w-full h-auto max-h-[520px] sm:max-h-[640px] object-contain"
+                                className="relative z-10 w-full h-auto max-h-[380px] sm:max-h-[520px] md:max-h-[640px] object-contain"
                             />
                         </div>
                     )}

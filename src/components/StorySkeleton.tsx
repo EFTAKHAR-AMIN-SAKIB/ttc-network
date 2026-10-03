@@ -4,7 +4,7 @@ import React from "react";
 
 export default function StorySkeleton() {
   return (
-    <div className="bg-white dark:bg-[#16181c] rounded-3xl sm:rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 flex flex-col overflow-hidden p-5 justify-between h-[360px]">
+    <div className="bg-white dark:bg-[#16181c] rounded-2xl sm:rounded-3xl border-2 border-gray-100 dark:border-gray-800 flex flex-col h-auto md:h-full md:justify-between overflow-hidden p-3.5 sm:p-5 gap-4">
       <div className="space-y-4">
         {/* Author Header */}
         <div className="flex items-center gap-3">

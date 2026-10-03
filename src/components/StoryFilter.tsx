@@ -38,41 +38,43 @@ export default function StoryFilter({ activeTab, onTabChange, showCollegeFilter,
   }
 
   return (
-    <div className="relative flex items-center group max-w-4xl mx-auto px-4 sm:px-0">
+    <div className="relative flex items-center group max-w-4xl mx-auto px-1 sm:px-0">
       <button 
         onClick={() => scroll("left")}
-        className="absolute -left-4 sm:-left-12 z-10 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+        className="hidden sm:flex absolute -left-4 sm:-left-12 z-10 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm cursor-pointer"
+        aria-label="Scroll left"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
       </button>
 
       <div 
         ref={scrollRef}
-        className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-4"
+        className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1 sm:py-2.5 w-full"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {allFilters.map((f) => (
           <button
             key={f.id}
             onClick={() => onTabChange(f.id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border-2
+            className={`flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all border-2 active:scale-95 shrink-0 cursor-pointer
               ${activeTab === f.id 
-                ? "bg-slate-900 text-white border-slate-900 dark:bg-red-600 dark:border-red-600 shadow-md scale-105" 
+                ? "bg-slate-900 text-white border-slate-900 dark:bg-red-600 dark:border-red-600 shadow-md scale-[1.02] sm:scale-105" 
                 : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
               }
             `}
           >
             {f.icon}
-            {f.label}
+            <span>{f.label}</span>
           </button>
         ))}
       </div>
 
       <button 
         onClick={() => scroll("right")}
-        className="absolute -right-4 sm:-right-12 z-10 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+        className="hidden sm:flex absolute -right-4 sm:-right-12 z-10 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm cursor-pointer"
+        aria-label="Scroll right"
       >
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
       </button>
     </div>
   );

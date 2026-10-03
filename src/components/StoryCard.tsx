@@ -38,7 +38,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
   const [showComments, setShowComments] = useState(false);
   const [showAudienceMenu, setShowAudienceMenu] = useState(false);
   const [currentVisibility, setCurrentVisibility] = useState<"public" | "campus" | "college_only" | "private">(story.visibility || "public");
-  const [imageFit, setImageFit] = useState<"contain" | "cover">("contain");
+  const [imageFit, setImageFit] = useState<"contain" | "cover">("cover");
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className={`group relative bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-3xl overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 flex flex-col h-full w-full justify-between ${accentColor}`}
+      className={`group relative bg-white dark:bg-[#1a1b23] rounded-2xl sm:rounded-3xl overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 flex flex-col h-auto md:h-full md:justify-between w-full ${accentColor}`}
     >
       {/* Role Indicator Border (Left) */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 z-20 ${
@@ -103,6 +103,11 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
         story.authorRole === 'teacher' ? 'bg-blue-500' : 
         'bg-emerald-500'
       }`} />
+
+      {/* Decorative top accent for text-only stories */}
+      {!story.thumbnailUrl && (
+        <div className="h-1.5 w-full bg-gradient-to-r from-amber-500/40 via-primary/30 to-emerald-500/20 shrink-0" />
+      )}
 
       {/* Subtle editorial watermark for text-only stories */}
       {!story.thumbnailUrl && (
@@ -113,7 +118,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
 
       {/* ═══ COVER IMAGE (ADJUSTABLE BANNER) ═══ */}
       {story.thumbnailUrl && (
-        <div className="relative overflow-hidden shrink-0 w-full h-36 sm:h-40 md:h-44 max-h-[180px] bg-slate-950 group/img">
+        <div className="relative overflow-hidden shrink-0 w-full h-40 sm:h-44 md:h-48 bg-slate-950 group/img">
           {/* Ambient blurred backdrop for letterboxed areas */}
           <div 
             className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-125 pointer-events-none"
@@ -141,11 +146,11 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
           )}
 
           {/* Adjustable View Controls (Top Right) */}
-          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
             <button
               type="button"
               onClick={() => setImageFit(prev => prev === "contain" ? "cover" : "contain")}
-              className="px-1.5 py-0.5 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[9px] font-black rounded-md border border-white/15 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider"
+              className="px-2 py-1 bg-black/70 hover:bg-black/90 active:scale-95 backdrop-blur-md text-white text-[10px] font-black rounded-lg border border-white/20 shadow-lg transition-all cursor-pointer uppercase tracking-wider"
               title={imageFit === "contain" ? "Zoom to fill card" : "Fit whole image"}
             >
               {imageFit === "contain" ? "Fit" : "Fill"}
@@ -153,10 +158,10 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
             <button
               type="button"
               onClick={() => setLightboxOpen(true)}
-              className="p-1 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-md border border-white/15 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              className="p-1.5 bg-black/70 hover:bg-black/90 active:scale-95 backdrop-blur-md text-white rounded-lg border border-white/20 shadow-lg transition-all cursor-pointer"
               title="View full poster in modal"
             >
-              <Maximize2 size={11} />
+              <Maximize2 size={12} />
             </button>
           </div>
         </div>
@@ -168,12 +173,12 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <Link 
               href={story.authorId ? `/profile/${story.authorId}` : "#"} 
-              className="relative shrink-0 block"
+              className="relative shrink-0 block w-9 h-9"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl border border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105">
+              <div className="w-9 h-9 rounded-xl border border-white dark:border-gray-800 shadow-sm flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800 transition-transform group-hover:scale-105 shrink-0">
                 {story.authorPhoto ? (
-                  <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover" />
+                  <img src={story.authorPhoto} alt={story.name} className="w-full h-full object-cover rounded-xl" />
                 ) : (
                   <span className="text-xs sm:text-sm font-black text-gray-400">{story.name?.[0]}</span>
                 )}
@@ -355,15 +360,15 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
         </div>
 
         {/* Story Content Area (Clickable Link to /story/id) */}
-        <Link href={storyUrl} className="flex-1 flex flex-col group/content min-h-0">
-          <h3 className={`font-black mb-1.5 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight ${
-            story.thumbnailUrl ? "text-sm sm:text-[15px] line-clamp-1 sm:line-clamp-2" : "text-[15px] sm:text-base line-clamp-2"
+        <Link href={storyUrl} className="flex flex-col group/content min-h-0">
+          <h3 className={`font-black mb-1.5 leading-snug dark:text-gray-100 group-hover/content:text-primary transition-colors tracking-tight line-clamp-2 ${
+            story.thumbnailUrl ? "text-sm sm:text-[15px]" : "text-[15px] sm:text-base"
           }`}>
             {story.title}
           </h3>
           
           {isRestricted ? (
-            <div className="my-1.5 p-3 rounded-xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-1 flex-1">
+            <div className="my-1.5 p-3 rounded-xl bg-slate-900/90 text-white border border-white/10 shadow-lg text-center flex flex-col items-center justify-center gap-1">
               <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
                 <Lock size={12} />
               </div>
@@ -379,12 +384,12 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
               )}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col justify-between">
+            <div className="flex flex-col">
               <div>
                 <p className={`text-gray-600 dark:text-gray-300 leading-relaxed font-bengali ${
                   story.thumbnailUrl 
                     ? "text-xs sm:text-[13px] line-clamp-2 sm:line-clamp-3 mb-1.5" 
-                    : "text-xs sm:text-sm line-clamp-5 sm:line-clamp-6 mb-2"
+                    : "text-xs sm:text-sm line-clamp-3 sm:line-clamp-4 md:line-clamp-5 mb-2"
                 }`}>
                   {(!story.thumbnailUrl && story.fullStory) ? story.fullStory : story.preview}
                 </p>
@@ -418,7 +423,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
 
         {/* ═══ INTERACTIONS BAR (Docked at Bottom) ═══ */}
         {!isRestricted && (
-          <div className="mt-auto pt-1.5 border-t border-gray-100 dark:border-gray-800/80">
+          <div className="mt-3 md:mt-auto pt-1.5 border-t border-gray-100 dark:border-gray-800/80">
             {/* 1. Engagement Summary Row (Only when reactions or comments exist) */}
             <ReactionSummary 
               reactions={story.reactions}
@@ -428,7 +433,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
             />
 
             {/* 2. Action Buttons Row */}
-            <div className="flex items-center justify-between gap-0.5 pt-0.5">
+            <div className="flex items-center justify-between gap-1 pt-1">
               {/* React */}
               <div className="flex-1 flex items-center justify-center min-w-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <ReactionBtn 
@@ -451,7 +456,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                   e.stopPropagation();
                   setShowComments(!showComments);
                 }}
-                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1 px-1 rounded-lg transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-lg transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 min-h-[36px] ${
                   showComments 
                     ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"
@@ -471,7 +476,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                     e.stopPropagation();
                     onShare(story);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1 px-1 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0"
+                  className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 min-h-[36px]"
                   title="Share Story"
                 >
                   <Share2 size={14} className="shrink-0 transition-transform hover:scale-110" />
@@ -488,7 +493,7 @@ export default function StoryCard({ story, priority, onEdit, onDelete, isSaved, 
                     e.stopPropagation();
                     onSave(story.id);
                   }}
-                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1 px-1 rounded-lg transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 ${
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 rounded-lg transition-all duration-150 active:scale-95 select-none cursor-pointer min-w-0 min-h-[36px] ${
                     isSaved 
                       ? "text-primary font-bold bg-primary/5 dark:bg-primary/10" 
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/5 font-semibold"

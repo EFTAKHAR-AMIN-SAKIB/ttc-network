@@ -248,24 +248,24 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white dark:bg-[#0c0c10] w-full max-w-5xl rounded-[2.5rem] shadow-2xl relative overflow-hidden h-[90vh] flex flex-col"
+        className="bg-white dark:bg-[#0c0c10] w-full max-w-5xl rounded-3xl sm:rounded-[2.5rem] shadow-2xl relative overflow-hidden h-[94vh] sm:h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="p-8 pb-4 flex items-center justify-between">
+        <div className="p-4 sm:p-8 pb-3 sm:pb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-black flex items-center gap-2">
               {step === 1 && (editStory ? "Edit Your Story ✨" : "Your Story ✨")}
               {step === 2 && (editStory ? "Preview & Publish 👀" : "Preview & Publish 👀")}
             </h2>
             <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-1">Step {step} of 2</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Dynamic Content Area */}
-        <div className="flex-grow overflow-y-auto px-8 py-4">
+        <div className="flex-grow overflow-y-auto px-4 sm:px-8 py-4">
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div 
@@ -311,7 +311,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
                         }
                       }}
                       placeholder="Give your journey a name..."
-                      className="w-full text-3xl font-black border-none focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-600 bg-transparent"
+                      className="w-full text-xl sm:text-3xl font-black border-none focus:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-600 bg-transparent"
                     />
                   </div>
                   <div className="h-1 bg-red-100 dark:bg-red-900/30 rounded-full w-24" />
@@ -634,7 +634,7 @@ export default function StoryShareModal({ isOpen, onClose, editStory }: StorySha
         </div>
 
         {/* Footer Navigation */}
-        <div className="p-8 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
+        <div className="p-4 sm:p-8 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
            <button 
              disabled={step === 1}
              onClick={() => setStep(step - 1)}

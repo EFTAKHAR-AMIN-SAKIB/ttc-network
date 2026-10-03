@@ -161,24 +161,96 @@ function StoryPageInner() {
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-[#0c0c10]">
             {/* ═══════════ HERO ═══════════ */}
-            <div className="relative overflow-hidden pt-[max(2rem,env(safe-area-inset-top,2rem))] pb-12 sm:pt-12 sm:pb-20 warm-textured-hero border-b-4 border-primary">
+            <div className="relative overflow-hidden pt-6 pb-8 sm:pt-14 sm:pb-16 warm-textured-hero border-b-4 border-primary">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-8 md:gap-12">
-                  <div className="flex-1 text-center md:text-left">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs sm:text-sm font-bold mb-4 sm:mb-6 animate-fade-in">
-                       <Sparkles className="w-3.5 h-3.5" />
-                       Community Driven Narratives
+                {heroData && heroData.isVisible !== false ? (
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6 md:gap-12">
+                    <div className="flex-1 text-center md:text-left">
+                      <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-primary dark:text-blue-400 text-xs sm:text-sm font-bold mb-3 sm:mb-6 animate-fade-in">
+                         <Sparkles className="w-3.5 h-3.5" />
+                         <span>Community Driven Narratives</span>
+                      </div>
+                      <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-gray-100 mb-2.5 sm:mb-6 leading-tight">
+                        One Platform. <br className="hidden sm:inline" />
+                        All Colleges. <br className="hidden sm:inline" />
+                        <span className="text-primary italic animate-variable-underline">Every Story.</span>
+                      </h1>
+                      <p className="text-xs sm:text-lg text-gray-600 dark:text-gray-400 mb-4 sm:mb-8 max-w-xl leading-relaxed font-medium line-clamp-2 sm:line-clamp-none">
+                        Every TTC journey is a footprint of resilience. Share your struggles, victories, and lessons with the largest community of Bangladeshi educators.
+                      </p>
+                      
+                      <div className="flex flex-row items-center gap-2 sm:gap-3 justify-center md:justify-start">
+                          <button
+                            onClick={() => {
+                              if (!user) {
+                                showToast("Please log in or register to share your story.", "info");
+                                router.push("/login?redirect=/story");
+                              } else if (requireVerification("share stories")) {
+                                setShowSubmitModal(true);
+                              }
+                            }}
+                            className="px-5 py-3 sm:px-8 sm:py-4 bg-primary text-white rounded-xl sm:rounded-2xl font-black text-sm sm:text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 flex-1 sm:flex-none"
+                          >
+                            <PenLine className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                            <span>Share My Journey</span>
+                          </button>
+                          {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
+                              <button 
+                                  onClick={() => setShowModeration(true)}
+                                  className="relative flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm flex-initial sm:w-auto"
+                              >
+                                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                  <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Review</span>
+                                  <AnimatePresence>
+                                      {pendingCount > 0 && (
+                                          <motion.span 
+                                              initial={{ scale: 0 }}
+                                              animate={{ scale: 1 }}
+                                              exit={{ scale: 0 }}
+                                              className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-[#1a1c24] shadow-lg"
+                                          >
+                                              {pendingCount}
+                                          </motion.span>
+                                      )}
+                                  </AnimatePresence>
+                              </button>
+                          )}
+                      </div>
                     </div>
-                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-gray-100 mb-4 sm:mb-6 leading-tight">
-                      One Platform. <br/>
-                      All Colleges. <br/>
+
+                    <div className="flex-1 grid grid-cols-4 sm:grid-cols-2 gap-2 sm:gap-4 mt-2 md:mt-0">
+                      {[
+                        { label: "Colleges", value: heroData?.collegesCount || "14", icon: <School className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-amber-500" /> },
+                        { label: "Community", value: heroData?.autoCountCommunity ? `${liveUserCount}+` : (heroData?.communityCount || "1.2k+"), icon: <Users className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-emerald-500" /> },
+                        { label: "Stories", value: stories.length || (heroData?.storiesFallback || "85+"), icon: <BookOpen className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-blue-500" /> },
+                        { label: "Impact", value: heroData?.impactLevel || "High", icon: <Sparkles className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-purple-500" /> },
+                      ].map((stat, i) => (
+                        <div key={i} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-2.5 sm:p-6 rounded-xl sm:rounded-3xl border border-gray-100 sm:border-2 sm:border-white dark:border-gray-700/80 shadow-xs sm:shadow-sm text-center md:text-left flex flex-col justify-center items-center md:items-start" 
+                             style={{ animationDelay: `${i * 0.1}s` }}>
+                          <div className="w-6 h-6 sm:w-10 sm:h-10 rounded-lg sm:rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-1 sm:mb-4 shrink-0">
+                            {stat.icon}
+                          </div>
+                          <div className="text-sm sm:text-2xl font-black text-slate-900 dark:text-gray-100 truncate w-full">{stat.value}</div>
+                          <div className="text-[8px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate w-full">{stat.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="max-w-3xl mx-auto text-center flex flex-col items-center py-2 sm:py-4">
+                    <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-primary dark:text-blue-400 text-xs sm:text-sm font-bold mb-3 sm:mb-6 animate-fade-in">
+                       <Sparkles className="w-3.5 h-3.5" />
+                       <span>Community Driven Narratives</span>
+                    </div>
+                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-gray-100 mb-3 sm:mb-6 leading-tight">
+                      One Platform. All Colleges. <br />
                       <span className="text-primary italic animate-variable-underline">Every Story.</span>
                     </h1>
-                    <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 max-w-xl leading-relaxed font-medium">
+                    <p className="text-xs sm:text-lg text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 max-w-2xl leading-relaxed font-medium">
                       Every TTC journey is a footprint of resilience. Share your struggles, victories, and lessons with the largest community of Bangladeshi educators.
                     </p>
                     
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-center md:justify-start">
+                    <div className="flex flex-row items-center gap-3 justify-center">
                         <button
                           onClick={() => {
                             if (!user) {
@@ -188,18 +260,18 @@ function StoryPageInner() {
                               setShowSubmitModal(true);
                             }
                           }}
-                          className="px-6 py-3.5 sm:px-8 sm:py-4 bg-primary text-white rounded-2xl font-black text-base sm:text-lg shadow-xl shadow-red-500/20 hover:shadow-red-500/40 transition-all active:scale-95 flex items-center justify-center gap-3 animate-pulse-breathe w-full sm:w-auto"
+                          className="px-6 py-3 sm:px-8 sm:py-4 bg-primary text-white rounded-xl sm:rounded-2xl font-black text-sm sm:text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3"
                         >
-                          <PenLine className="w-5 h-5 sm:w-6 sm:h-6" />
-                          Share My Journey
+                          <PenLine className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                          <span>Share My Journey</span>
                         </button>
                         {profile && (profile.role === "admin" || profile.role === "manager" || profile.role === "super_manager") && (
                             <button 
                                 onClick={() => setShowModeration(true)}
-                                className="relative flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-2xl border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm w-full sm:w-auto"
+                                className="relative flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-100 dark:hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all group backdrop-blur-sm shadow-sm"
                             >
-                                <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                                <span className="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Review Queue</span>
+                                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Review</span>
                                 <AnimatePresence>
                                     {pendingCount > 0 && (
                                         <motion.span 
@@ -216,43 +288,13 @@ function StoryPageInner() {
                         )}
                     </div>
                   </div>
-
-                    {heroData && heroData.isVisible !== false && (
-                         <div className="flex-1 grid grid-cols-2 gap-3 sm:gap-4">
-                            {[
-                              { label: "Colleges", value: heroData?.collegesCount || "14", icon: <School className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> },
-                              { label: "Community", value: heroData?.autoCountCommunity ? `${liveUserCount}+` : (heroData?.communityCount || "1.2k+"), icon: <Users className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" /> },
-                              { label: "Stories", value: stories.length || (heroData?.storiesFallback || "85+"), icon: <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" /> },
-                              { label: "Impact", value: heroData?.impactLevel || "High", icon: <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" /> },
-                            ].map((stat, i) => (
-                              <div key={i} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-2 border-white dark:border-gray-700 shadow-sm animate-slide-in-up" 
-                                   style={{ animationDelay: `${i * 0.1}s` }}>
-                                {!heroData ? (
-                                    <div className="space-y-2 animate-pulse">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gray-100 dark:bg-gray-700" />
-                                        <div className="h-6 bg-gray-100 dark:bg-gray-700 rounded w-1/2" />
-                                        <div className="h-3 bg-gray-50 dark:bg-gray-800 rounded w-1/3" />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-3 sm:mb-4">
-                                          {stat.icon}
-                                        </div>
-                                        <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-gray-100">{stat.value}</div>
-                                        <div className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{stat.label}</div>
-                                    </>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                    )}
-                </div>
+                )}
               </div>
             </div>
 
             {/* ═══════════ FEED ═══════════ */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-6 sm:-mt-10 pb-12 sm:pb-20">
-              <div className="sticky top-4 z-40 mb-10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-28 sm:pb-20">
+              <div className="mb-6 sm:mb-10">
                 <StoryFilter 
                   activeTab={activeTab} 
                   onTabChange={setActiveTab} 
@@ -264,11 +306,11 @@ function StoryPageInner() {
               <div className="relative">
                 <div className={!user ? "blur-md select-none pointer-events-none transition-all" : ""}>
                   {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
                       {[...Array(6)].map((_, i) => <StorySkeleton key={i} />)}
                     </div>
                   ) : filteredStories.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
                       {filteredStories.map((story) => (
                         <StoryCard 
                             key={story.id} 
@@ -351,6 +393,22 @@ function StoryPageInner() {
                 profile={profile}
                 type="stories"
             />
+
+            {/* Mobile Floating Action Button (FAB) */}
+            {user && (
+                <button
+                    onClick={() => {
+                        if (requireVerification("share stories")) {
+                            setShowSubmitModal(true);
+                        }
+                    }}
+                    className="fixed bottom-20 right-4 sm:hidden z-40 p-3.5 bg-primary text-white rounded-full shadow-2xl shadow-primary/30 hover:bg-primary/90 active:scale-95 flex items-center justify-center border-2 border-white/20 backdrop-blur-sm"
+                    aria-label="Share My Journey"
+                    title="Share My Journey"
+                >
+                    <PenLine className="w-5 h-5" />
+                </button>
+            )}
 
             {/* Generic Share Modal */}
             <AnimatePresence>
