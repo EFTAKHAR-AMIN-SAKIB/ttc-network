@@ -104,9 +104,10 @@ export async function claimUsername(
         });
 
         return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("[username] Failed to claim username:", err);
-        const message = err?.message?.includes("already taken")
+        const errMessage = err instanceof Error ? err.message : String(err);
+        const message = errMessage.includes("already taken")
             ? "Username is already taken"
             : "Failed to save username. Please try again.";
         return { success: false, error: message };

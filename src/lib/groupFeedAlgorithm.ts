@@ -14,17 +14,18 @@ export type ScoredGroupPost = (GroupPostDoc & { id: string }) & {
 /**
  * Safely extracts epoch milliseconds from Firestore Timestamp, Date, string, or number.
  */
-function getTimestampMs(ts: any): number {
+function getTimestampMs(ts: unknown): number {
     if (!ts) return 0;
-    if (typeof ts.toMillis === "function") return ts.toMillis();
-    if (typeof ts.toDate === "function") return ts.toDate().getTime();
+    const obj = ts as { toMillis?: () => number; toDate?: () => Date; seconds?: number; nanoseconds?: number };
+    if (typeof obj.toMillis === "function") return obj.toMillis();
+    if (typeof obj.toDate === "function") return obj.toDate().getTime();
     if (ts instanceof Date) return ts.getTime();
     if (typeof ts === "number") return ts;
     if (typeof ts === "string") {
         const parsed = Date.parse(ts);
         return isNaN(parsed) ? 0 : parsed;
     }
-    if (ts.seconds) return ts.seconds * 1000 + (ts.nanoseconds || 0) / 1000000;
+    if (typeof obj.seconds === "number") return obj.seconds * 1000 + (obj.nanoseconds || 0) / 1000000;
     return 0;
 }
 

@@ -15,7 +15,6 @@
  *    NEVER import this in server components or API routes.
  */
 
-import { getAuthInstance } from "./firebase";
 import { compressImage, validateFile, isImageFile } from "./image-utils";
 
 // ═══════════════════════════════════════════════════
