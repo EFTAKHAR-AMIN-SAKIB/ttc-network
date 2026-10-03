@@ -55,15 +55,20 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { colleges } from "@/data/colleges";
+import OfficialContactCard from "@/components/OfficialContactCard";
 import {
     getApprovedGifts,
     getSupportSettings,
     getSupportPhases,
     submitGift,
     updateSupportSettings,
+    getOfficialSettings,
+    updateOfficialSettings,
+    subscribeOfficialSettings,
     type FirestoreGift,
     type SupportSettings,
     type SupportPhase,
+    type FirestoreOfficialSettings,
 } from "@/lib/firestore";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1568,7 +1573,11 @@ function HowToSend({
 /* ═══════════════════════════════════════════════════
    COMMUNITY HELP DESK & FAQS
    ═══════════════════════════════════════════════════ */
-function HelpDeskSection() {
+function HelpDeskSection({
+    officialSettings,
+}: {
+    officialSettings: FirestoreOfficialSettings | null;
+}) {
     const [openIndex, setOpenIndex] = useState<number | null>(0);
 
     const faqs = [
@@ -1652,50 +1661,8 @@ function HelpDeskSection() {
                 })}
             </div>
 
-            {/* Direct Connect Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <a
-                    href="https://wa.me/8801805107667"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 hover:border-emerald-500/40 transition-all flex items-center justify-between group shadow-2xs"
-                >
-                    <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-xl bg-[#25D366] text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-                            <MessageCircle size={20} />
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                                WhatsApp Direct Support
-                            </h4>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-                                Fast resolution for verification or payment queries
-                            </p>
-                        </div>
-                    </div>
-                    <ExternalLink size={14} className="text-gray-400 group-hover:text-emerald-500 transition-colors" />
-                </a>
-
-                <a
-                    href="mailto:contact@ttcnetwork.com"
-                    className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 hover:border-blue-500/40 transition-all flex items-center justify-between group shadow-2xs"
-                >
-                    <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-xl bg-primary text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-                            <Mail size={20} />
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-blue-400 transition-colors">
-                                Official Support Email
-                            </h4>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-                                contact@ttcnetwork.com
-                            </p>
-                        </div>
-                    </div>
-                    <ExternalLink size={14} className="text-gray-400 group-hover:text-primary transition-colors" />
-                </a>
-            </div>
+            {/* Official Links & Contact Card (Synced with Homepage & Admin Panel) */}
+            {officialSettings && <OfficialContactCard settings={officialSettings} />}
         </div>
     );
 }
@@ -1732,6 +1699,9 @@ export default function SupportPage() {
     });
     const [phases, setPhases] = useState<(SupportPhase & { id: string })[]>([]);
 
+    const [officialSettings, setOfficialSettings] = useState<FirestoreOfficialSettings | null>(null);
+    const [tempOfficialSettings, setTempOfficialSettings] = useState<FirestoreOfficialSettings | null>(null);
+
     const [isEditingSettings, setIsEditingSettings] = useState(false);
     const [tempSettings, setTempSettings] = useState<Partial<SupportSettings>>({});
 
@@ -1762,8 +1732,15 @@ export default function SupportPage() {
     const handleSaveSettings = async () => {
         setIsSaving(true);
         try {
-            await updateSupportSettings(tempSettings);
+            const promises: Promise<any>[] = [updateSupportSettings(tempSettings)];
+            if (tempOfficialSettings) {
+                promises.push(updateOfficialSettings(tempOfficialSettings));
+            }
+            await Promise.all(promises);
             setSettings((prev) => ({ ...prev, ...tempSettings }));
+            if (tempOfficialSettings) {
+                setOfficialSettings(tempOfficialSettings);
+            }
             setIsEditingSettings(false);
             showToast("Settings updated successfully!", "success");
         } catch (err) {
@@ -1787,6 +1764,15 @@ export default function SupportPage() {
                 setPhases(sorted);
             })
             .catch((err) => console.error("[SupportPage] Error fetching phases:", err));
+
+        const unsubOfficial = subscribeOfficialSettings((st) => {
+            setOfficialSettings(st);
+            setTempOfficialSettings((prev) => prev || st);
+        });
+
+        return () => {
+            unsubOfficial();
+        };
     }, []);
 
     const handleOpenGiftModal = (method?: "bKash" | "upay", amt?: string, phaseId?: string) => {
@@ -2087,6 +2073,177 @@ export default function SupportPage() {
                                     </div>
                                 </div>
 
+                                {/* Official Links & Contact Controls */}
+                                <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-white/5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                                            <Globe size={12} className="text-emerald-500" />
+                                            Official Links & Contact
+                                        </label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={tempOfficialSettings?.isVisible ?? officialSettings?.isVisible ?? true}
+                                                onChange={(e) =>
+                                                    setTempOfficialSettings((prev) => ({
+                                                        ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                        isVisible: e.target.checked,
+                                                    }))
+                                                }
+                                                className="w-3.5 h-3.5 rounded text-emerald-500 focus:ring-emerald-500"
+                                            />
+                                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                                                Visible
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div>
+                                            <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                Section Title
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={tempOfficialSettings?.title ?? officialSettings?.title ?? ""}
+                                                onChange={(e) =>
+                                                    setTempOfficialSettings((prev) => ({
+                                                        ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                        title: e.target.value,
+                                                    }))
+                                                }
+                                                placeholder="Official TTC Network"
+                                                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-xs font-bold"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                Tagline
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={tempOfficialSettings?.tagline ?? officialSettings?.tagline ?? ""}
+                                                onChange={(e) =>
+                                                    setTempOfficialSettings((prev) => ({
+                                                        ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                        tagline: e.target.value,
+                                                    }))
+                                                }
+                                                placeholder="Connect, follow, or reach out"
+                                                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-xs font-bold"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                Official Email
+                                            </label>
+                                            <input
+                                                type="email"
+                                                value={tempOfficialSettings?.email ?? officialSettings?.email ?? ""}
+                                                onChange={(e) =>
+                                                    setTempOfficialSettings((prev) => ({
+                                                        ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                        email: e.target.value,
+                                                    }))
+                                                }
+                                                placeholder="contact@ttcnetwork.com"
+                                                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-xs font-bold"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                Trust Line (Badge Text)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={tempOfficialSettings?.trustLine ?? officialSettings?.trustLine ?? ""}
+                                                onChange={(e) =>
+                                                    setTempOfficialSettings((prev) => ({
+                                                        ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                        trustLine: e.target.value,
+                                                    }))
+                                                }
+                                                placeholder="OFFICIAL COMMUNICATION CHANNELS"
+                                                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-xs font-bold"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                    Website URL
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={tempOfficialSettings?.websiteUrl ?? officialSettings?.websiteUrl ?? ""}
+                                                    onChange={(e) =>
+                                                        setTempOfficialSettings((prev) => ({
+                                                            ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                            websiteUrl: e.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="https://ttcnetwork.xyz"
+                                                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-[11px] font-medium"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                    Facebook URL
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={tempOfficialSettings?.facebookUrl ?? officialSettings?.facebookUrl ?? ""}
+                                                    onChange={(e) =>
+                                                        setTempOfficialSettings((prev) => ({
+                                                            ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                            facebookUrl: e.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="https://facebook.com/..."
+                                                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-[11px] font-medium"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                    Twitter / X URL
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={tempOfficialSettings?.twitterUrl ?? officialSettings?.twitterUrl ?? ""}
+                                                    onChange={(e) =>
+                                                        setTempOfficialSettings((prev) => ({
+                                                            ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                            twitterUrl: e.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="https://x.com/..."
+                                                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-[11px] font-medium"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black uppercase text-slate-400 block mb-0.5">
+                                                    LinkedIn URL
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={tempOfficialSettings?.linkedinUrl ?? officialSettings?.linkedinUrl ?? ""}
+                                                    onChange={(e) =>
+                                                        setTempOfficialSettings((prev) => ({
+                                                            ...(prev || officialSettings || ({} as FirestoreOfficialSettings)),
+                                                            linkedinUrl: e.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="https://linkedin.com/..."
+                                                    className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950/50 border border-gray-100 dark:border-white/5 rounded-lg text-[11px] font-medium"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <button
                                     onClick={handleSaveSettings}
                                     disabled={isSaving}
@@ -2326,7 +2483,7 @@ export default function SupportPage() {
                4. HELP DESK, FAQS & DIRECT ASSISTANCE
                ═══════════════════════════════════════════════════ */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 border-t border-gray-200/70 dark:border-white/5">
-                <HelpDeskSection />
+                <HelpDeskSection officialSettings={officialSettings} />
             </section>
 
             {/* ═══════════════════════════════════════════════════

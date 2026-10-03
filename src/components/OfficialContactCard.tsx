@@ -12,13 +12,18 @@ interface OfficialContactCardProps {
 export default function OfficialContactCard({ settings }: OfficialContactCardProps) {
     if (!settings?.isVisible) return null;
 
-    const socialLinks = [
-        { icon: Globe, url: settings.websiteUrl, label: "Website", color: "hover:text-blue-500" },
-        { icon: Mail, url: `mailto:${settings.email}`, label: "Email", color: "hover:text-red-500" },
-        { icon: Facebook, url: settings.facebookUrl, label: "Facebook", color: "hover:text-blue-600" },
-        { icon: Twitter, url: settings.twitterUrl, label: "Twitter", color: "hover:text-sky-400" },
-        { icon: Linkedin, url: settings.linkedinUrl, label: "LinkedIn", color: "hover:text-blue-700" },
+    const rawSocialLinks = [
+        { icon: Globe, url: settings.websiteUrl?.trim(), label: "Website", color: "hover:text-blue-500" },
+        { icon: Mail, url: settings.email?.trim() ? `mailto:${settings.email.trim()}` : undefined, label: "Email", color: "hover:text-red-500" },
+        { icon: Facebook, url: settings.facebookUrl?.trim(), label: "Facebook", color: "hover:text-blue-600" },
+        { icon: Twitter, url: settings.twitterUrl?.trim(), label: "Twitter", color: "hover:text-sky-400" },
+        { icon: Linkedin, url: settings.linkedinUrl?.trim(), label: "LinkedIn", color: "hover:text-blue-700" },
     ];
+
+    // Filter out options that have no input or are empty so only active channels are displayed
+    const socialLinks = rawSocialLinks.filter(
+        (link): link is typeof link & { url: string } => Boolean(link.url && link.url.length > 0)
+    );
 
     return (
         <motion.div
@@ -26,7 +31,7 @@ export default function OfficialContactCard({ settings }: OfficialContactCardPro
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="mt-8 max-w-2xl mx-auto"
+            className="mt-8 max-w-2xl mx-auto w-full"
         >
             <div className="relative group">
                 {/* Background Glass Effect */}
@@ -34,52 +39,62 @@ export default function OfficialContactCard({ settings }: OfficialContactCardPro
 
                 <div className="relative p-6 sm:p-8 flex flex-col items-center text-center">
                     {/* Header */}
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Globe size={16} className="text-primary" />
+                    {settings.title?.trim() && (
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Globe size={16} className="text-primary" />
+                            </div>
+                            <h3 className="text-lg font-extrabold text-gray-900 dark:text-white font-english">
+                                {settings.title.trim()}
+                            </h3>
                         </div>
-                        <h3 className="text-lg font-extrabold text-gray-900 dark:text-white font-english">
-                            {settings.title}
-                        </h3>
-                    </div>
+                    )}
                     
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
-                        {settings.tagline}
-                    </p>
+                    {settings.tagline?.trim() && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
+                            {settings.tagline.trim()}
+                        </p>
+                    )}
 
-                    {/* Social Icons Row */}
-                    <div className="flex items-center justify-center gap-4 sm:gap-6 mb-6">
-                        {socialLinks.map((link, i) => (
-                            <motion.a
-                                key={i}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                whileHover={{ scale: 1.15, y: -2 }}
-                                whileTap={{ scale: 0.95 }}
-                                className={`p-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-gray-400 ${link.color} transition-all duration-300 shadow-sm hover:shadow-md hover:border-current/20`}
-                                title={link.label}
-                            >
-                                <link.icon size={20} />
-                            </motion.a>
-                        ))}
-                    </div>
+                    {/* Social Icons Row - Only shown when at least one active channel exists */}
+                    {socialLinks.length > 0 && (
+                        <div className="flex items-center justify-center flex-wrap gap-4 sm:gap-6 mb-6">
+                            {socialLinks.map((link, i) => (
+                                <motion.a
+                                    key={i}
+                                    href={link.url}
+                                    target={!link.url.startsWith("mailto:") ? "_blank" : undefined}
+                                    rel={!link.url.startsWith("mailto:") ? "noopener noreferrer" : undefined}
+                                    whileHover={{ scale: 1.15, y: -2 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className={`p-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-gray-500 dark:text-gray-300 ${link.color} transition-all duration-300 shadow-sm hover:shadow-md hover:border-current/20`}
+                                    title={link.label}
+                                >
+                                    <link.icon size={20} />
+                                </motion.a>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Email Display */}
-                    <a 
-                        href={`mailto:${settings.email}`}
-                        className="text-sm font-bold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors mb-4 block"
-                    >
-                        {settings.email}
-                    </a>
+                    {settings.email?.trim() && (
+                        <a 
+                            href={`mailto:${settings.email.trim()}`}
+                            className="text-sm font-bold text-gray-700 dark:text-gray-300 hover:text-primary transition-colors mb-4 block"
+                        >
+                            {settings.email.trim()}
+                        </a>
+                    )}
 
                     {/* Trust Line */}
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-4">
-                        <ShieldCheck size={12} className="text-emerald-500" />
-                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
-                            {settings.trustLine}
-                        </span>
-                    </div>
+                    {settings.trustLine?.trim() && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-4">
+                            <ShieldCheck size={12} className="text-emerald-500" />
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                                {settings.trustLine.trim()}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Privacy Policy Link */}
                     <Link 

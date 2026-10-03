@@ -30,6 +30,7 @@ import GroupModerationPanel from "@/components/GroupModerationPanel";
 import InviteModal from "@/components/InviteModal";
 import SafeAvatar from "@/components/SafeAvatar";
 import { TimeAgo } from "@/components/Social/SocialUtils";
+import { rankGroupPosts, type GroupFeedSortMode } from "@/lib/groupFeedAlgorithm";
 
 interface GroupPageProps {
     params: { id: string };
@@ -68,6 +69,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
     // Filter & Search states inside the group
     const [searchQuery, setSearchQuery] = useState("");
     const [postFilter, setPostFilter] = useState<"all" | "pinned" | "photos" | "polls">("all");
+    const [groupSortMode, setGroupSortMode] = useState<GroupFeedSortMode>("activity");
     const [aboutExpanded, setAboutExpanded] = useState(false);
     const [memberSearchQuery, setMemberSearchQuery] = useState("");
     
@@ -493,8 +495,8 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
             });
         }
 
-        return result;
-    }, [posts, postFilter, searchQuery]);
+        return rankGroupPosts(result, { currentUserId: user?.uid, isMultiGroupFeed: false }, groupSortMode);
+    }, [posts, postFilter, searchQuery, user?.uid, groupSortMode]);
 
     const pinnedPosts = useMemo(() => filteredPosts.filter(p => p.isPinned), [filteredPosts]);
     const standardPosts = useMemo(() => filteredPosts.filter(p => !p.isPinned), [filteredPosts]);
@@ -1267,6 +1269,42 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
                                                                         {chip.label}
                                                                     </button>
                                                                 ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Feed Sort Controls (Facebook Style: Recent Activity vs New Posts) */}
+                                                        <div className="flex items-center justify-between px-1 text-xs">
+                                                            <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 font-bold text-[11px]">
+                                                                <span>Sorting:</span>
+                                                                <span className="text-gray-900 dark:text-white font-black">
+                                                                    {groupSortMode === "activity" ? "Recent Activity (Bumping)" : "New Posts (Chronological)"}
+                                                                </span>
+                                                            </div>
+                                                            <div className="inline-flex p-0.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200/60 dark:border-white/5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setGroupSortMode("activity")}
+                                                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all select-none cursor-pointer ${
+                                                                        groupSortMode === "activity"
+                                                                            ? "bg-white dark:bg-[#1a1c24] text-primary shadow-xs"
+                                                                            : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                                    }`}
+                                                                >
+                                                                    <Activity size={12} className={groupSortMode === "activity" ? "text-primary" : ""} />
+                                                                    <span>Activity</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setGroupSortMode("recent")}
+                                                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all select-none cursor-pointer ${
+                                                                        groupSortMode === "recent"
+                                                                            ? "bg-white dark:bg-[#1a1c24] text-primary shadow-xs"
+                                                                            : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                                                    }`}
+                                                                >
+                                                                    <Clock size={12} className={groupSortMode === "recent" ? "text-primary" : ""} />
+                                                                    <span>New</span>
+                                                                </button>
                                                             </div>
                                                         </div>
 

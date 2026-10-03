@@ -38,6 +38,7 @@ import {
 } from "firebase/firestore";
 import { getDb, getAuthInstance } from "./firebase";
 export { getDb, getAuthInstance };
+import { rankGroupPosts } from "./groupFeedAlgorithm";
 import { uploadFile as cloudinaryUpload, deleteFromCloudinary } from "./storage";
 
 // ═══════════════════════════════════════════════════
@@ -3223,15 +3224,15 @@ const DEFAULT_BUILDER_SETTINGS: FirestoreBuilderSettings = {
     isVisible: true,
 };
 
-const DEFAULT_OFFICIAL_SETTINGS: FirestoreOfficialSettings = {
+export const DEFAULT_OFFICIAL_SETTINGS: FirestoreOfficialSettings = {
     isVisible: true,
-    title: "Official TTC Network",
-    tagline: "Connect, follow, or reach out",
-    email: "contact@ttcnetwork.com",
-    websiteUrl: "https://ttcnetwork.com",
-    facebookUrl: "https://facebook.com/ttcnetwork",
-    twitterUrl: "https://twitter.com/ttcnetwork",
-    linkedinUrl: "https://linkedin.com/company/ttcnetwork",
+    title: "Official Links & Contact",
+    tagline: "Follow & Stay Connected",
+    email: "ttcnetwork.xyz@gmail.com",
+    websiteUrl: "https://ttcnetwork.xyz",
+    facebookUrl: "https://facebook.com/ttcnetwork.xyz",
+    twitterUrl: "",
+    linkedinUrl: "",
     trustLine: "Official Communication Channels",
 };
 
@@ -3248,6 +3249,24 @@ export async function updateBuilderSettings(settings: FirestoreBuilderSettings):
 export async function getOfficialSettings(): Promise<FirestoreOfficialSettings> {
     const snap = await getDoc(doc(getDb(), "settings", "official"));
     return snap.exists() ? (snap.data() as FirestoreOfficialSettings) : DEFAULT_OFFICIAL_SETTINGS;
+}
+
+export function subscribeOfficialSettings(callback: (settings: FirestoreOfficialSettings) => void) {
+    const ref = doc(getDb(), "settings", "official");
+    return onSnapshot(
+        ref,
+        (snap) => {
+            if (snap.exists()) {
+                callback(snap.data() as FirestoreOfficialSettings);
+            } else {
+                callback(DEFAULT_OFFICIAL_SETTINGS);
+            }
+        },
+        (error) => {
+            console.warn("[subscribeOfficialSettings] error:", error);
+            callback(DEFAULT_OFFICIAL_SETTINGS);
+        }
+    );
 }
 
 export async function updateOfficialSettings(settings: FirestoreOfficialSettings): Promise<void> {
@@ -5815,6 +5834,7 @@ export interface GroupPostDoc {
     reactedBy: Record<string, string[]>;
     commentsCount: number;
     createdAt?: any;
+    lastActivityAt?: any;
     isPinned: boolean;
 }
 
@@ -6119,6 +6139,7 @@ export async function createGroupPost(
         reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         commentsCount: 0,
         createdAt: serverTimestamp(),
+        lastActivityAt: serverTimestamp(),
         isPinned: false
     };
 
@@ -6221,12 +6242,8 @@ export function subscribeMyGroupFeed(groupIds: string[], callback: (posts: (Grou
     
     return safeSubscribe(q, (snap: any) => {
         const posts = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-        posts.sort((a: any, b: any) => {
-            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-            return tB - tA;
-        });
-        callback(posts);
+        const ranked = rankGroupPosts(posts, { isMultiGroupFeed: true }, "activity");
+        callback(ranked);
     });
 }
 
@@ -6321,14 +6338,8 @@ export function subscribeGroupPosts(groupId: string, callback: (posts: (GroupPos
     const q = query(collection(db, "groupPosts"), where("groupId", "==", groupId));
     return safeSubscribe(q, (snap: any) => {
         const posts = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-        posts.sort((a: any, b: any) => {
-            if (a.isPinned && !b.isPinned) return -1;
-            if (!a.isPinned && b.isPinned) return 1;
-            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-            return tB - tA;
-        });
-        callback(posts);
+        const ranked = rankGroupPosts(posts, { isMultiGroupFeed: false }, "activity");
+        callback(ranked);
     });
 }
 

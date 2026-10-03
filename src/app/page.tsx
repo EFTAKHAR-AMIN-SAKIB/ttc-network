@@ -39,6 +39,7 @@ import {
   getAdmissionSettings,
   getBuilderSettings,
   getOfficialSettings,
+  subscribeOfficialSettings,
   type FirestoreAdmissionStep,
   type FirestoreAdmissionCostItem,
   type FirestoreAdmissionSettings,
@@ -377,7 +378,10 @@ export default function HomePage() {
       .finally(() => setLoadingAdmission(false));
 
     getBuilderSettings().then(setBuilderSettings).catch(console.error);
-    getOfficialSettings().then(setOfficialSettings).catch(console.error);
+    const unsubOfficial = subscribeOfficialSettings(setOfficialSettings);
+    return () => {
+      unsubOfficial();
+    };
   }, []);
 
   return (

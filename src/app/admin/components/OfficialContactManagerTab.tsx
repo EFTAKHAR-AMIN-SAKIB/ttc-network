@@ -77,22 +77,22 @@ export default function OfficialContactManagerTab() {
                     <div className="space-y-4">
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Type size={12}/> Section Title</label>
-                            <input value={settings.title} onChange={e => setSettings({ ...settings, title: e.target.value })}
+                            <input value={settings.title || ""} onChange={e => setSettings({ ...settings, title: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Type size={12}/> Tagline / Short Line</label>
-                            <input value={settings.tagline} onChange={e => setSettings({ ...settings, tagline: e.target.value })}
+                            <input value={settings.tagline || ""} onChange={e => setSettings({ ...settings, tagline: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><ShieldCheck size={12}/> Trust Line (Badge Text)</label>
-                            <input value={settings.trustLine} onChange={e => setSettings({ ...settings, trustLine: e.target.value })}
+                            <input value={settings.trustLine || ""} onChange={e => setSettings({ ...settings, trustLine: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Mail size={12}/> Official Email</label>
-                            <input value={settings.email} onChange={e => setSettings({ ...settings, email: e.target.value })}
+                            <input value={settings.email || ""} onChange={e => setSettings({ ...settings, email: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                     </div>
@@ -101,22 +101,22 @@ export default function OfficialContactManagerTab() {
                     <div className="space-y-4">
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Globe size={12}/> Website URL</label>
-                            <input value={settings.websiteUrl} onChange={e => setSettings({ ...settings, websiteUrl: e.target.value })} placeholder="https://..."
+                            <input value={settings.websiteUrl || ""} onChange={e => setSettings({ ...settings, websiteUrl: e.target.value })} placeholder="https://..."
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Facebook size={12}/> Facebook Page URL</label>
-                            <input value={settings.facebookUrl} onChange={e => setSettings({ ...settings, facebookUrl: e.target.value })} placeholder="https://facebook.com/..."
+                            <input value={settings.facebookUrl || ""} onChange={e => setSettings({ ...settings, facebookUrl: e.target.value })} placeholder="https://facebook.com/..."
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Twitter size={12}/> X / Twitter URL</label>
-                            <input value={settings.twitterUrl} onChange={e => setSettings({ ...settings, twitterUrl: e.target.value })} placeholder="https://twitter.com/..."
+                            <input value={settings.twitterUrl || ""} onChange={e => setSettings({ ...settings, twitterUrl: e.target.value })} placeholder="https://twitter.com/..."
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-1"><Linkedin size={12}/> LinkedIn Company URL</label>
-                            <input value={settings.linkedinUrl} onChange={e => setSettings({ ...settings, linkedinUrl: e.target.value })} placeholder="https://linkedin.com/..."
+                            <input value={settings.linkedinUrl || ""} onChange={e => setSettings({ ...settings, linkedinUrl: e.target.value })} placeholder="https://linkedin.com/..."
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                         </div>
                     </div>
