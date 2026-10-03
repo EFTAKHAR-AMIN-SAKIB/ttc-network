@@ -39,7 +39,7 @@ import {
 import { getDb, getAuthInstance } from "./firebase";
 export { getDb, getAuthInstance };
 import { rankGroupPosts } from "./groupFeedAlgorithm";
-import { uploadFile as cloudinaryUpload, deleteFromCloudinary } from "./storage";
+import { uploadFile as cloudinaryUpload, deleteFromStorage, deleteFromCloudinary } from "./storage";
 
 // ═══════════════════════════════════════════════════
 //  TYPES
@@ -177,6 +177,13 @@ export interface PollDetails {
     totalVotes?: number;
 }
 
+export interface PostMediaItem {
+    url: string;
+    type: "image" | "video";
+    name?: string;
+    thumbnail?: string;
+}
+
 export interface FirestorePost {
     id?: string;
     type: "event" | "club";
@@ -207,6 +214,7 @@ export interface FirestorePost {
     timestamp: Timestamp | null;
     visibility?: "public" | "campus" | "private"; // "campus" = same college only
     thumbnailUrl?: string; // Optional clickable thumbnail image / Event cover banner
+    media?: PostMediaItem[]; // Multiple media attachments (photos, videos)
     isAuthorShadowBanned?: boolean; // Visibility control
     eventDetails?: EventDetails;
     poll?: PollDetails;
@@ -1822,20 +1830,42 @@ export async function rsvpToEvent(postId: string, status: "going" | "interested"
 }
 
 export async function deletePost(id: string): Promise<void> {
-    // Clean up thumbnail from Cloudinary before deleting
+    const db = getDb();
+    const postRef = doc(db, "posts", id);
+
+    // 1. Fetch post doc to collect all media URLs to delete from storage servers
+    const mediaUrlsToDelete: string[] = [];
     try {
-        const postSnap = await getDoc(doc(getDb(), "posts", id));
+        const postSnap = await getDoc(postRef);
         if (postSnap.exists()) {
             const data = postSnap.data() as FirestorePost;
             if (data.thumbnailUrl) {
-                await deleteFromCloudinary(data.thumbnailUrl);
+                mediaUrlsToDelete.push(data.thumbnailUrl);
+            }
+            if (Array.isArray(data.media)) {
+                data.media.forEach((item: any) => {
+                    const u = typeof item === "string" ? item : item?.url;
+                    if (u) mediaUrlsToDelete.push(u);
+                    if (typeof item === "object" && item?.thumbnail) {
+                        mediaUrlsToDelete.push(item.thumbnail);
+                    }
+                });
             }
         }
     } catch (err) {
-        console.warn("[Firestore] Error cleaning up post thumbnail:", err);
+        console.warn("[Firestore] Error fetching post before delete:", err);
     }
-    await deleteDoc(doc(getDb(), "posts", id));
+
+    // 2. Delete post doc and comments from Firestore
+    await deleteDoc(postRef);
     await deleteAllCommentsForContent(id);
+
+    // 3. Purge all media files from storage servers (R2 / Cloudinary)
+    if (mediaUrlsToDelete.length > 0) {
+        deleteFromStorage(mediaUrlsToDelete).catch((err) => {
+            console.warn("[Firestore] Error purging post media from storage:", err);
+        });
+    }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2144,14 +2174,7 @@ export async function deleteOwnPost(postId: string): Promise<void> {
     const data = postSnap.data() as FirestorePost;
     if (data.creatorId !== user.uid) throw new Error("You can only delete your own posts");
 
-    // Clean up thumbnail
-    try {
-        if (data.thumbnailUrl) await deleteFromCloudinary(data.thumbnailUrl);
-    } catch (err) {
-        console.warn("[Firestore] Thumbnail cleanup error:", err);
-    }
-    await deleteDoc(postRef);
-    await deleteAllCommentsForContent(postId);
+    await deletePost(postId);
 }
 
 /**
@@ -4690,22 +4713,25 @@ export const rejectStudyPost = async (id: string, reason: string = "") => {
 
 export const deleteStudyPost = async (id: string) => {
     // Clean up media files before deleting
+    const urlsToDelete: string[] = [];
     try {
         const postSnap = await getDoc(doc(getDb(), "studyPosts", id));
         if (postSnap.exists()) {
             const data = postSnap.data() as FirestoreStudyPost;
-            if (data.thumbnailUrl) {
-                await deleteFromCloudinary(data.thumbnailUrl);
-            }
-            if (data.fileUrl) {
-                await deleteFromCloudinary(data.fileUrl);
-            }
+            if (data.thumbnailUrl) urlsToDelete.push(data.thumbnailUrl);
+            if (data.fileUrl) urlsToDelete.push(data.fileUrl);
         }
     } catch (err) {
         console.warn("[Firestore] Error cleaning up study post files:", err);
     }
     await deleteDoc(doc(getDb(), "studyPosts", id));
     await deleteAllCommentsForContent(id);
+
+    if (urlsToDelete.length > 0) {
+        deleteFromStorage(urlsToDelete).catch((err) => {
+            console.warn("[Firestore] Error purging study post files from storage:", err);
+        });
+    }
 };
 
 /** In-memory caches (fast path within same page load) */
@@ -5826,6 +5852,7 @@ export interface GroupPostDoc {
     isAnonymous: boolean;
     content: string;
     imageUrl?: string;
+    media?: PostMediaItem[];
     poll?: {
         question: string;
         options: Array<{ id: string; text: string; votes: string[] }>;
@@ -6104,7 +6131,8 @@ export async function createGroupPost(
     content: string, 
     imageUrl: string, 
     isAnonymous: boolean,
-    poll?: { question: string; options: string[] }
+    poll?: { question: string; options: string[] },
+    media?: PostMediaItem[]
 ): Promise<string> {
     const profile = await getCurrentUserProfile();
     if (!profile) throw new Error("Auth required");
@@ -6124,6 +6152,7 @@ export async function createGroupPost(
         };
     }
 
+    const firstMediaUrl = media && media.length > 0 ? media[0].url : "";
     const post: Omit<GroupPostDoc, "id"> = {
         groupId,
         groupName,
@@ -6133,7 +6162,8 @@ export async function createGroupPost(
         creatorRole: profile.role,
         isAnonymous,
         content: content.trim(),
-        imageUrl: imageUrl || "",
+        imageUrl: imageUrl || firstMediaUrl || "",
+        ...(media && media.length > 0 ? { media } : {}),
         ...(pollFormatted ? { poll: pollFormatted } : {}),
         reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
         reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
@@ -6165,7 +6195,33 @@ export async function createGroupPost(
 // 12. Delete Group Post
 export async function deleteGroupPost(postId: string, groupId: string): Promise<void> {
     const db = getDb();
-    await deleteDoc(doc(db, "groupPosts", postId));
+    const postRef = doc(db, "groupPosts", postId);
+
+    // 1. Fetch group post data to gather all media URLs (images, videos)
+    const mediaUrlsToDelete: string[] = [];
+    try {
+        const postSnap = await getDoc(postRef);
+        if (postSnap.exists()) {
+            const data = postSnap.data() as GroupPostDoc;
+            if (data.imageUrl) {
+                mediaUrlsToDelete.push(data.imageUrl);
+            }
+            if (Array.isArray(data.media)) {
+                data.media.forEach((item: any) => {
+                    const u = typeof item === "string" ? item : item?.url;
+                    if (u) mediaUrlsToDelete.push(u);
+                    if (typeof item === "object" && item?.thumbnail) {
+                        mediaUrlsToDelete.push(item.thumbnail);
+                    }
+                });
+            }
+        }
+    } catch (err) {
+        console.warn("[Firestore] Error fetching group post before delete:", err);
+    }
+
+    // 2. Delete document, decrement count, clean up comments and reports
+    await deleteDoc(postRef);
     await updateDoc(doc(db, "groups", groupId), { postCount: increment(-1) }).catch(console.error);
     await deleteAllCommentsForContent(postId);
     
@@ -6176,6 +6232,13 @@ export async function deleteGroupPost(postId: string, groupId: string): Promise<
         const batch = writeBatch(db);
         reportsSnap.docs.forEach(d => batch.delete(d.ref));
         await batch.commit();
+    }
+
+    // 3. Purge all media files from storage servers (R2 / Cloudinary)
+    if (mediaUrlsToDelete.length > 0) {
+        deleteFromStorage(mediaUrlsToDelete).catch((err) => {
+            console.warn("[Firestore] Error purging group post media from storage:", err);
+        });
     }
 }
 

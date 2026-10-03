@@ -53,10 +53,13 @@ function getClient(): S3Client {
 const ALLOWED_TYPES = new Set([
     "image/jpeg", "image/png", "image/webp", "image/gif",
     "image/svg+xml", "application/pdf",
+    "video/mp4", "video/webm", "video/quicktime", "video/ogg",
+    "video/x-matroska", "video/x-msvideo", "video/3gpp",
 ]);
 
-const MAX_IMAGE = 10 * 1024 * 1024;   // 10MB
+const MAX_IMAGE = 50 * 1024 * 1024;   // 50MB
 const MAX_DOC = 20 * 1024 * 1024;     // 20MB
+const MAX_VIDEO = 50 * 1024 * 1024;   // 50MB
 
 function getExt(mime: string, name: string): string {
     const dot = name.lastIndexOf(".");
@@ -67,6 +70,9 @@ function getExt(mime: string, name: string): string {
     const map: Record<string, string> = {
         "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
         "image/gif": "gif", "image/svg+xml": "svg", "application/pdf": "pdf",
+        "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
+        "video/ogg": "ogv", "video/x-matroska": "mkv", "video/x-msvideo": "avi",
+        "video/3gpp": "3gp",
     };
     return map[mime] || "bin";
 }
@@ -124,16 +130,18 @@ export async function POST(request: NextRequest) {
 
         if (!ALLOWED_TYPES.has(file.type)) {
             return NextResponse.json(
-                { error: `Unsupported file type: "${file.type}". Allowed: JPEG, PNG, WebP, GIF, SVG, PDF.` },
+                { error: `Unsupported file type: "${file.type}". Allowed: Images (JPEG, PNG, WebP, GIF), Videos (MP4, WebM, MOV), Documents (PDF).` },
                 { status: 400 },
             );
         }
 
         const isPdf = file.type === "application/pdf";
-        const limit = isPdf ? MAX_DOC : MAX_IMAGE;
+        const isVideo = file.type.startsWith("video/");
+        const limit = isVideo ? MAX_VIDEO : isPdf ? MAX_DOC : MAX_IMAGE;
+        const limitLabel = isVideo ? "50MB" : isPdf ? "20MB" : "50MB";
         if (file.size > limit) {
             return NextResponse.json(
-                { error: `File too large (${(file.size / 1048576).toFixed(1)}MB). Max: ${isPdf ? "20MB" : "10MB"}.` },
+                { error: `File too large (${(file.size / 1048576).toFixed(1)}MB). Max: ${limitLabel}.` },
                 { status: 400 },
             );
         }

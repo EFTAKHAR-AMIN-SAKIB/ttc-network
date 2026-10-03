@@ -9,13 +9,15 @@ import {
     Check, ChevronDown, Building2, ShieldCheck,
     Trash2, ExternalLink, Pencil, Calendar, BarChart2,
     Clock, MapPin, Plus, Video, Ticket, Tag, CheckSquare,
-    Radio, Info
+    Radio, Info, Play
 } from "lucide-react";
 import { 
     createPost, updatePost, getMyClubs, 
-    type FirestoreClub, type EventDetails, type PollDetails 
+    type FirestoreClub, type EventDetails, type PollDetails,
+    type PostMediaItem
 } from "@/lib/firestore";
-import { uploadFile, deleteFromCloudinary } from "@/lib/storage";
+import { uploadFile, deleteFromStorage, deleteFromCloudinary } from "@/lib/storage";
+import { validateFile, isVideoFile } from "@/lib/image-utils";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -23,6 +25,15 @@ import { useMentionAutosuggest, MentionDropdown } from "@/components/Social/Ment
 import { formatExternalUrl } from "@/lib/url-utils";
 
 export type ComposerMode = "post" | "event" | "poll";
+
+export interface PendingMediaItem {
+    id: string;
+    file?: File;
+    url: string;
+    type: "image" | "video";
+    name?: string;
+    size?: number;
+}
 
 interface PostCreationModalProps {
     isOpen: boolean;
@@ -212,11 +223,62 @@ export default function PostCreationModal({
     const [selectedClubName, setSelectedClubName] = useState("");
     const [myClubs, setMyClubs] = useState<(FirestoreClub & {id: string})[]>([]);
 
-    // Thumbnail state
+    // Thumbnail / Banner state (for Event cover banner)
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
     const [existingThumbnailUrl, setExistingThumbnailUrl] = useState<string | null>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
+    // Multi-media state (photos, videos up to 50MB, Facebook style)
+    const [mediaList, setMediaList] = useState<PendingMediaItem[]>([]);
+    const mediaInputRef = useRef<HTMLInputElement>(null);
+
+    // Multi-media file handler (Facebook style, up to 50MB per file)
+    const handleMediaFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const newItems: PendingMediaItem[] = [];
+        for (const file of files) {
+            const error = validateFile(file);
+            if (error) {
+                showToast(`${file.name}: ${error}`, "error");
+                continue;
+            }
+            const isVid = isVideoFile(file);
+            const objUrl = URL.createObjectURL(file);
+            newItems.push({
+                id: `media-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                file,
+                url: objUrl,
+                type: isVid ? "video" : "image",
+                name: file.name,
+                size: file.size,
+            });
+        }
+
+        if (newItems.length > 0) {
+            setMediaList(prev => [...prev, ...newItems]);
+            if (!thumbnailPreview) {
+                setThumbnailPreview(newItems[0].url);
+            }
+        }
+        if (e.target) e.target.value = "";
+    };
+
+    const handleRemoveMediaItem = (id: string) => {
+        setMediaList(prev => {
+            const itemToRemove = prev.find(item => item.id === id);
+            if (itemToRemove?.url && itemToRemove.url.startsWith("blob:")) {
+                try { URL.revokeObjectURL(itemToRemove.url); } catch (_) {}
+            }
+            const next = prev.filter(item => item.id !== id);
+            if (thumbnailPreview === itemToRemove?.url) {
+                setThumbnailPreview(next[0]?.url || null);
+            }
+            return next;
+        });
+    };
 
     // Fetch user's clubs
     useEffect(() => {
@@ -261,12 +323,13 @@ export default function PostCreationModal({
         return () => clearTimeout(timer);
     }, [shareLink]);
 
-    // Thumbnail file handler
+    // Thumbnail file handler (for events)
     const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            showToast("Image must be under 5MB", "error");
+        const error = validateFile(file);
+        if (error) {
+            showToast(error, "error");
             return;
         }
         setThumbnailFile(file);
@@ -328,6 +391,12 @@ export default function PostCreationModal({
             setThumbnailPreview(null);
             setExistingThumbnailUrl(null);
             setSelectedPresetBanner(null);
+            mediaList.forEach(item => {
+                if (item.url?.startsWith("blob:")) {
+                    try { URL.revokeObjectURL(item.url); } catch (_) {}
+                }
+            });
+            setMediaList([]);
             setMode(initialMode || "post");
             setEventCategory("Academic");
             setEventFormat("in_person");
@@ -342,6 +411,7 @@ export default function PostCreationModal({
             setPollDuration("3_days");
             setPollAllowsMultiple(false);
             if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+            if (mediaInputRef.current) mediaInputRef.current.value = "";
         } else if (editPost) {
             const postMode: ComposerMode = 
                 editPost.postType ? editPost.postType :
@@ -363,6 +433,34 @@ export default function PostCreationModal({
             setThumbnailFile(null);
             setThumbnailPreview(editPost.thumbnailUrl || null);
             setExistingThumbnailUrl(editPost.thumbnailUrl || null);
+
+            // Populate multi-media
+            if (Array.isArray(editPost.media) && editPost.media.length > 0) {
+                const loadedMedia: PendingMediaItem[] = editPost.media.map((m: any, idx: number) => {
+                    const url = typeof m === "string" ? m : m.url;
+                    const type = typeof m === "object" && m.type 
+                        ? m.type 
+                        : (/\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(url) || url?.includes("/video/upload/")) ? "video" : "image";
+                    return {
+                        id: `edit-media-${idx}-${Date.now()}`,
+                        url,
+                        type,
+                        name: typeof m === "object" ? m.name : undefined
+                    };
+                });
+                setMediaList(loadedMedia);
+                setThumbnailPreview(loadedMedia[0]?.url || null);
+            } else if (editPost.thumbnailUrl) {
+                const isVid = /\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(editPost.thumbnailUrl) || editPost.thumbnailUrl.includes("/video/upload/");
+                setMediaList([{
+                    id: `edit-media-0`,
+                    url: editPost.thumbnailUrl,
+                    type: isVid ? "video" : "image"
+                }]);
+                setThumbnailPreview(editPost.thumbnailUrl);
+            } else {
+                setMediaList([]);
+            }
 
             // Populate event details if present
             if (editPost.eventDetails) {
@@ -392,6 +490,7 @@ export default function PostCreationModal({
             setMode(initialMode || "post");
             if (defaultType) setType(defaultType);
             setExistingThumbnailUrl(null);
+            setMediaList([]);
             setTimeout(() => {
                 titleInputRef.current?.focus();
             }, 100);
@@ -402,7 +501,7 @@ export default function PostCreationModal({
     const isFormValid = (): boolean => {
         if (isSubmitting) return false;
         if (mode === "post") {
-            return !!(eventName.trim() || description.trim());
+            return !!(eventName.trim() || description.trim() || mediaList.length > 0 || shareLink.trim());
         }
         if (mode === "event") {
             return !!(eventName.trim() && eventStartDate);
@@ -435,17 +534,51 @@ export default function PostCreationModal({
                 ? { clubId: selectedClubId, clubName: selectedClubName } 
                 : { clubId: null, clubName: null };
 
-            let finalThumbnailUrl: string | null = selectedPresetBanner || existingThumbnailUrl || null;
-            if (thumbnailFile) {
+            let finalMedia: PostMediaItem[] = [];
+
+            if (mediaList.length > 0) {
+                for (const item of mediaList) {
+                    if (item.file) {
+                        const folder = item.type === "video" ? "videos" : "thumbnails";
+                        const uploadedUrl = await uploadFile(folder, item.file);
+                        finalMedia.push({
+                            url: uploadedUrl,
+                            type: item.type,
+                            name: item.name
+                        });
+                        if (existingThumbnailUrl && existingThumbnailUrl === item.url && !existingThumbnailUrl.includes("unsplash.com")) {
+                            deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);
+                        }
+                    } else if (item.url) {
+                        finalMedia.push({
+                            url: item.url,
+                            type: item.type,
+                            name: item.name
+                        });
+                    }
+                }
+            } else if (thumbnailFile) {
                 const resultUrl = await uploadFile("thumbnails", thumbnailFile);
-                finalThumbnailUrl = resultUrl;
+                finalMedia.push({
+                    url: resultUrl,
+                    type: "image"
+                });
                 if (existingThumbnailUrl && existingThumbnailUrl !== resultUrl && !existingThumbnailUrl.includes("unsplash.com")) {
                     deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);
                 }
-            } else if (!thumbnailPreview && existingThumbnailUrl && !existingThumbnailUrl.includes("unsplash.com")) {
-                deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);
-                finalThumbnailUrl = null;
+            } else if (selectedPresetBanner) {
+                finalMedia.push({
+                    url: selectedPresetBanner,
+                    type: "image"
+                });
+            } else if (existingThumbnailUrl && thumbnailPreview) {
+                finalMedia.push({
+                    url: existingThumbnailUrl,
+                    type: "image"
+                });
             }
+
+            const finalThumbnailUrl: string = finalMedia[0]?.url || "";
 
             let postTypePayload: Partial<any> = {};
 
@@ -459,7 +592,8 @@ export default function PostCreationModal({
                     postType: "post",
                     eventName: finalTitle,
                     description: trimmedDesc,
-                    thumbnailUrl: finalThumbnailUrl || "",
+                    thumbnailUrl: finalThumbnailUrl,
+                    media: finalMedia,
                     shareLink: normalizedShareLink,
                     linkPreview: normalizedShareLink ? (linkPreview || null) : null,
                 };
@@ -488,6 +622,7 @@ export default function PostCreationModal({
                     eventName: eventName.trim(),
                     description: description.trim(),
                     thumbnailUrl: finalThumbnailUrl || "",
+                    media: finalMedia,
                     shareLink: normalizedRegLink || normalizedShareLink,
                     eventDetails,
                 };
@@ -521,12 +656,33 @@ export default function PostCreationModal({
                     eventName: pollQuestion.trim(),
                     description: description.trim(),
                     thumbnailUrl: finalThumbnailUrl || "",
+                    media: finalMedia,
                     poll: pollDetails,
                 };
             }
 
             if (editPost) {
                 // EDIT MODE
+                // Collect old media URLs to delete any removed items
+                const oldUrls: string[] = [];
+                if (editPost.thumbnailUrl) oldUrls.push(editPost.thumbnailUrl);
+                if (Array.isArray(editPost.media)) {
+                    editPost.media.forEach((m: any) => {
+                        const u = typeof m === "string" ? m : m?.url;
+                        if (u) oldUrls.push(u);
+                        if (typeof m === "object" && m?.thumbnail) oldUrls.push(m.thumbnail);
+                    });
+                }
+                const newUrls = new Set([
+                    finalThumbnailUrl,
+                    ...finalMedia.map(m => m.url),
+                    ...finalMedia.map(m => m.thumbnail).filter(Boolean) as string[],
+                ]);
+                const removedUrls = oldUrls.filter(u => u && !newUrls.has(u));
+                if (removedUrls.length > 0) {
+                    deleteFromStorage(removedUrls).catch(console.warn);
+                }
+
                 const updatedData: any = {
                     ...postTypePayload,
                     visibility,
@@ -1246,9 +1402,106 @@ export default function PostCreationModal({
                         </div>
                     )}
 
-                    {/* Photo / Image Preview Card */}
+                    {/* Multi-Media Gallery Preview (Facebook Style) */}
                     <AnimatePresence>
-                        {thumbnailPreview && (
+                        {mediaList.length > 0 ? (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="space-y-2 shrink-0"
+                            >
+                                <div className="flex items-center justify-between px-1">
+                                    <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                        <ImageIcon size={13} className="text-emerald-500" />
+                                        Media Attachments ({mediaList.length})
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => mediaInputRef.current?.click()}
+                                        className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                    >
+                                        <Plus size={12} /> Add more
+                                    </button>
+                                </div>
+
+                                <div className={`grid gap-2.5 ${
+                                    mediaList.length === 1 
+                                        ? "grid-cols-1" 
+                                        : mediaList.length === 2 
+                                            ? "grid-cols-2" 
+                                            : "grid-cols-2 sm:grid-cols-3"
+                                }`}>
+                                    {mediaList.map((item) => (
+                                        <motion.div 
+                                            key={item.id}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            className={`relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 group bg-black/5 dark:bg-black/30 shadow-xs ${
+                                                mediaList.length === 1 ? "max-h-72 sm:max-h-80" : "aspect-video"
+                                            } flex items-center justify-center`}
+                                        >
+                                            {item.type === "video" ? (
+                                                <div className="relative w-full h-full bg-black flex items-center justify-center">
+                                                    <video 
+                                                        src={item.url} 
+                                                        className="w-full h-full object-cover" 
+                                                        preload="metadata"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                                                        <div className="w-10 h-10 rounded-full bg-white/25 backdrop-blur-md border border-white/40 flex items-center justify-center text-white shadow-lg">
+                                                            <Play size={18} className="fill-white translate-x-0.5" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/75 backdrop-blur-md rounded-md text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                                                        <Video size={10} className="text-red-400" /> Video
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <img 
+                                                    src={item.url} 
+                                                    alt="Post attachment" 
+                                                    className="w-full h-full object-cover" 
+                                                />
+                                            )}
+
+                                            {/* Top-Right Delete Action */}
+                                            <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveMediaItem(item.id)}
+                                                    className="p-1.5 bg-black/70 hover:bg-red-600 text-white rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer"
+                                                    title="Remove file"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+
+                                            {/* File Size Badge */}
+                                            {item.size && (
+                                                <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-white text-[9px] font-semibold">
+                                                    {(item.size / (1024 * 1024)).toFixed(1)} MB
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    ))}
+
+                                    {/* Add more tile */}
+                                    <button
+                                        type="button"
+                                        onClick={() => mediaInputRef.current?.click()}
+                                        className={`border-2 border-dashed border-gray-200 dark:border-white/10 hover:border-primary/50 hover:bg-primary/5 rounded-2xl transition-all flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-primary cursor-pointer ${
+                                            mediaList.length === 1 ? "h-28" : "aspect-video"
+                                        }`}
+                                    >
+                                        <Plus size={20} />
+                                        <span className="text-[11px] font-black uppercase tracking-wider">Add Photo/Video</span>
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ) : thumbnailPreview ? (
                             <motion.div 
                                 initial={{ opacity: 0, scale: 0.96 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -1257,7 +1510,7 @@ export default function PostCreationModal({
                             >
                                 <img 
                                     src={thumbnailPreview} 
-                                    alt="Post attachment" 
+                                    alt="Event cover banner" 
                                     className="w-full h-auto max-h-64 sm:max-h-80 object-cover"
                                 />
                                 
@@ -1278,7 +1531,7 @@ export default function PostCreationModal({
                                     </div>
                                 )}
                             </motion.div>
-                        )}
+                        ) : null}
                     </AnimatePresence>
 
                     {/* Link Input Row (Expandable for Regular Post) */}
@@ -1362,7 +1615,18 @@ export default function PostCreationModal({
                     </AnimatePresence>
                 </div>
 
-                {/* Hidden File Input for Custom Media / Banner */}
+                {/* Hidden File Input for Multi-Media (Photos & Videos up to 50MB, Facebook style) */}
+                <input 
+                    ref={mediaInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleMediaFilesChange}
+                    className="hidden"
+                    id="post-media-file-input"
+                />
+
+                {/* Hidden File Input for Custom Media / Banner (Events) */}
                 <input 
                     ref={thumbnailInputRef}
                     type="file"
@@ -1377,21 +1641,37 @@ export default function PostCreationModal({
                     <div className="flex items-center justify-between gap-2">
                         {/* Media Action Buttons */}
                         <div className="flex items-center gap-1 sm:gap-2">
-                            <button
-                                type="button"
-                                onClick={() => thumbnailInputRef.current?.click()}
-                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                    thumbnailPreview 
-                                        ? "bg-primary/10 text-primary border border-primary/20" 
-                                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
-                                }`}
-                                title={mode === "event" ? "Upload custom event cover" : "Attach photo"}
-                            >
-                                <ImageIcon size={18} className={thumbnailPreview ? "text-primary" : "text-emerald-500"} />
-                                <span className="hidden sm:inline">
-                                    {mode === "event" ? "Custom Banner" : "Photo"}
-                                </span>
-                            </button>
+                            {mode === "event" ? (
+                                <button
+                                    type="button"
+                                    onClick={() => thumbnailInputRef.current?.click()}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                        thumbnailPreview 
+                                            ? "bg-primary/10 text-primary border border-primary/20" 
+                                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                                    }`}
+                                    title="Upload custom event cover"
+                                >
+                                    <ImageIcon size={18} className={thumbnailPreview ? "text-primary" : "text-emerald-500"} />
+                                    <span className="hidden sm:inline">Custom Banner</span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => mediaInputRef.current?.click()}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                        mediaList.length > 0 
+                                            ? "bg-primary/10 text-primary border border-primary/20" 
+                                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                                    }`}
+                                    title="Attach Photos or Videos (up to 50MB)"
+                                >
+                                    <ImageIcon size={18} className={mediaList.length > 0 ? "text-primary" : "text-emerald-500"} />
+                                    <span className="hidden sm:inline">
+                                        {mediaList.length > 0 ? `Photo/Video (${mediaList.length})` : "Photo/Video"}
+                                    </span>
+                                </button>
+                            )}
 
                             {mode !== "event" && (
                                 <button

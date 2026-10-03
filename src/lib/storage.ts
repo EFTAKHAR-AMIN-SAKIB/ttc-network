@@ -35,7 +35,10 @@ export type UploadFolder =
     | "colleges"
     | "users"
     | "branding"
-    | "faculty";
+    | "faculty"
+    | "posts"
+    | "group-posts"
+    | "videos";
 
 export interface StorageUploadResult {
     /** Public URL of the uploaded file */
@@ -166,35 +169,57 @@ export async function uploadFile(
 // ═══════════════════════════════════════════════════
 
 /**
- * Delete a file by its URL.
- * Sends the URL to the delete API route which extracts the
- * Cloudinary public_id and deletes the asset.
+ * Delete a file or multiple files by URL.
+ * Sends the URL(s) to the delete API route which identifies the
+ * storage provider (R2 / Cloudinary) and deletes the asset(s).
  *
  * Silently fails if deletion doesn't work (non-critical for UX).
  *
- * @param url - The full public URL of the file to delete
+ * @param target - A single URL string or an array of URLs to delete
  */
-export async function deleteFromStorage(url: string): Promise<void> {
-    if (!url) return;
+export async function deleteFromStorage(
+    target: string | (string | undefined | null)[]
+): Promise<void> {
+    if (!target) return;
 
-    // Only attempt deletion for known storage providers
-    const isKnown = url.includes("cloudinary.com") || url.includes("r2.dev") || url.includes("r2.cloudflarestorage.com");
-    if (!isKnown) return;
+    const rawList = Array.isArray(target) ? target : [target];
+    const urls = rawList
+        .filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+        .filter((u) => {
+            // Skip data:, blob: URLs
+            if (u.startsWith("data:") || u.startsWith("blob:")) return false;
+            // Skip external third party providers like Unsplash, YouTube, Google
+            if (u.includes("unsplash.com") || u.includes("youtube.com") || u.includes("youtu.be") || u.includes("google.com")) return false;
+            // Only attempt deletion for known storage providers
+            return (
+                u.includes("cloudinary.com") ||
+                u.includes("r2.dev") ||
+                u.includes("r2.cloudflarestorage.com") ||
+                u.startsWith("https://pub-")
+            );
+        });
+
+    if (urls.length === 0) return;
+
+    // Deduplicate
+    const uniqueUrls = Array.from(new Set(urls));
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const payload = uniqueUrls.length === 1 ? { url: uniqueUrls[0] } : { urls: uniqueUrls };
 
         await fetch("/api/upload/delete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url }),
+            body: JSON.stringify(payload),
             signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
     } catch (err) {
-        console.warn("[Storage] Failed to delete file:", err);
+        console.warn("[Storage] Failed to delete file(s):", err);
     }
 }
 

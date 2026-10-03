@@ -6,11 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     Clock, MoreHorizontal, Pin, Trash2, MessageCircle, 
     AlertTriangle, Check, ShieldAlert, Loader2, Sparkles, Pencil,
-    Globe, Lock, Share2, Bookmark
+    Globe, Lock, Share2, Bookmark, Maximize2
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
+import PostMediaLightbox from "@/components/Social/PostMediaLightbox";
+import PostMediaGrid from "@/components/Social/PostMediaGrid";
 import { TimeAgo, ExpandableText } from "@/components/Social/SocialUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -18,6 +20,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { 
     deleteGroupPost, pinGroupPost, voteInPoll, reportGroupPost, 
     updateGroupPost, subscribeComments, type GroupPostDoc,
+    type PostMediaItem,
     subscribeGroupDetails, toggleSavePost
 } from "@/lib/firestore";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -57,6 +60,22 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
     const [isSaved, setIsSaved] = useState(false);
     const [isSavingPost, setIsSavingPost] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [isMediaLightboxOpen, setIsMediaLightboxOpen] = useState(false);
+    const [mediaLightboxIndex, setMediaLightboxIndex] = useState(0);
+
+    const postMediaList: PostMediaItem[] = useMemo(() => {
+        if (Array.isArray(post.media) && post.media.length > 0) {
+            return post.media.map((m: any) => typeof m === "string" ? {
+                url: m,
+                type: /\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(m) ? "video" : "image"
+            } : m);
+        }
+        if (post.imageUrl) {
+            const isVid = /\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(post.imageUrl) || post.imageUrl.includes("/video/upload/");
+            return [{ url: post.imageUrl, type: isVid ? "video" : "image" }];
+        }
+        return [];
+    }, [post.media, post.imageUrl]);
 
     useEffect(() => {
         if (!user?.uid || !post.id) return;
@@ -470,10 +489,17 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                 <ExpandableText text={post.content} limit={280} />
             </div>
 
-            {/* Image (if any) */}
-            {post.imageUrl && (
-                <div className="relative rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-black/20 mb-4 max-h-[380px] flex items-center justify-center">
-                    <img src={post.imageUrl} alt="" className="object-contain max-h-[380px] w-full" />
+            {/* Media Grid (Facebook Style multi-media / video / image) */}
+            {postMediaList.length > 0 && (
+                <div className="mb-4">
+                    <PostMediaGrid 
+                        media={postMediaList}
+                        onMediaClick={(idx) => {
+                            setMediaLightboxIndex(idx);
+                            setIsMediaLightboxOpen(true);
+                        }}
+                        altText={post.content}
+                    />
                 </div>
             )}
 
@@ -726,6 +752,31 @@ export default function GroupPostCard({ post, userRole, isGroupMember }: GroupPo
                 thumbnailUrl: post.imageUrl
             }}
         />
+
+        {/* Facebook-style Media Lightbox for Group Post */}
+        {postMediaList.length > 0 && (
+            <PostMediaLightbox 
+                isOpen={isMediaLightboxOpen}
+                onClose={() => setIsMediaLightboxOpen(false)}
+                media={postMediaList}
+                initialIndex={mediaLightboxIndex}
+                src={postMediaList[mediaLightboxIndex]?.url}
+                alt={post.content || "Group post media"}
+                post={post}
+                contentType="groupPost"
+                author={{
+                    name: authorName,
+                    avatar: authorPhoto,
+                    role: authorRole,
+                    uid: post.isAnonymous ? undefined : post.creatorId,
+                    groupName: groupDetails?.name || post.groupName,
+                    groupId: post.groupId,
+                    isAnonymous: post.isAnonymous
+                }}
+                isSaved={isSaved}
+                onSave={handleSaveGroupPost}
+            />
+        )}
         </>
     );
 }

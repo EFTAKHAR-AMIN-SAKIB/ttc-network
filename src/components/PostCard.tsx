@@ -8,12 +8,14 @@ import {
     MoreHorizontal, Edit2, Trash2, MessageCircle, 
     Share2, Bookmark, Lock, LogIn,
     Calendar, CalendarPlus, Video, Globe, Users,
-    Check, Star, BarChart2, RotateCcw, Ticket
+    Check, Star, BarChart2, RotateCcw, Ticket, Maximize2
 } from "lucide-react";
 import Link from "next/link";
 import { ReactionBtn, ReactionSummary } from "@/components/Social/ReactionSystem";
 import { CommentDrawer } from "@/components/Social/CommentSystem";
-import { subscribeComments, rsvpToEvent, voteOnPoll, type EventDetails, type PollDetails } from "@/lib/firestore";
+import PostMediaLightbox from "@/components/Social/PostMediaLightbox";
+import PostMediaGrid from "@/components/Social/PostMediaGrid";
+import { subscribeComments, rsvpToEvent, voteOnPoll, type EventDetails, type PollDetails, type PostMediaItem } from "@/lib/firestore";
 import { ExpandableText, RichText, TimeAgo } from "@/components/Social/SocialUtils";
 import ShareModal from "@/components/ShareModal";
 import { isContentRestrictedForUser } from "@/lib/permissions";
@@ -421,6 +423,22 @@ export default function PostCard({
 
     const [showOptions, setShowOptions] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [isMediaLightboxOpen, setIsMediaLightboxOpen] = useState(false);
+    const [mediaLightboxIndex, setMediaLightboxIndex] = useState(0);
+
+    const postMediaList: PostMediaItem[] = useMemo(() => {
+        if (Array.isArray(post.media) && post.media.length > 0) {
+            return post.media.map((m: any) => typeof m === "string" ? {
+                url: m,
+                type: /\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(m) ? "video" : "image"
+            } : m);
+        }
+        if (post.thumbnailUrl) {
+            const isVid = /\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(post.thumbnailUrl) || post.thumbnailUrl.includes("/video/upload/");
+            return [{ url: post.thumbnailUrl, type: isVid ? "video" : "image" }];
+        }
+        return [];
+    }, [post.media, post.thumbnailUrl]);
     
     const isOwner = profile?.uid === post.creatorId;
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
@@ -593,12 +611,21 @@ export default function PostCard({
                     <div className="space-y-4">
                         {/* Event Hero Banner */}
                         {post.thumbnailUrl && (
-                            <div className="relative rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner group/img aspect-[16/9] w-full bg-gray-100 dark:bg-gray-800">
+                            <div 
+                                onClick={() => setIsMediaLightboxOpen(true)}
+                                className="relative rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner group/img aspect-[16/9] w-full bg-gray-100 dark:bg-gray-800 cursor-pointer"
+                            >
                                 <img 
                                     src={post.thumbnailUrl} 
                                     alt={post.eventName}
                                     className="w-full h-full object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
                                 />
+                                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/15 transition-colors pointer-events-none flex items-center justify-center">
+                                    <div className="opacity-0 group-hover/img:opacity-100 transition-all scale-95 group-hover/img:scale-100 bg-black/60 backdrop-blur-md text-white px-3.5 py-1.5 rounded-full shadow-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-white/20">
+                                        <Maximize2 size={14} />
+                                        <span>View Photo</span>
+                                    </div>
+                                </div>
                                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         {categoryMeta && (
@@ -955,40 +982,32 @@ export default function PostCard({
 
                         <ExpandableText text={post.description || ""} onTagClick={onTagClick || undefined} />
                         
-                        {!post.thumbnailUrl && <LinkPreviewCard post={post} />}
-                        {post.thumbnailUrl && (
+                        {postMediaList.length === 0 && !post.shareLink && <LinkPreviewCard post={post} />}
+                        {postMediaList.length > 0 && (
                             <div className="relative group/media-link">
-                                 {post.shareLink ? (
+                                <PostMediaGrid
+                                    media={postMediaList}
+                                    onMediaClick={(idx) => {
+                                        setMediaLightboxIndex(idx);
+                                        setIsMediaLightboxOpen(true);
+                                    }}
+                                    altText={post.eventName}
+                                />
+                                {post.shareLink && (
                                     <a 
                                         href={formatExternalUrl(post.shareLink)} 
                                         target="_blank" 
                                         rel="noopener noreferrer" 
                                         onClick={(e) => e.stopPropagation()}
-                                        className="block rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner mt-4 group/img relative"
+                                        className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xl border border-white/20 backdrop-blur-md transition-all hover:scale-105 active:scale-95 z-10"
                                     >
-                                        <img 
-                                            src={post.thumbnailUrl} 
-                                            alt={post.eventName}
-                                            className="w-full h-auto object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
-                                        />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <div className="bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/30 text-white transform translate-y-4 group-hover/img:translate-y-0 transition-transform duration-500">
-                                                <ExternalLink size={24} />
-                                            </div>
-                                            <span className="text-white text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover/img:opacity-100 translate-y-4 group-hover/img:translate-y-0 transition-all duration-500 delay-75">Visit Link</span>
-                                        </div>
+                                        <ExternalLink size={13} />
+                                        <span>Visit Link</span>
                                     </a>
-                                 ) : (
-                                    <div className="rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner mt-4 group/img">
-                                        <img 
-                                            src={post.thumbnailUrl} 
-                                            alt={post.eventName}
-                                            className="w-full h-auto object-cover group-hover/img:scale-[1.02] transition-transform duration-700"
-                                        />
-                                    </div>
-                                 )}
+                                )}
                             </div>
                         )}
+                        {postMediaList.length === 0 && post.shareLink && <LinkPreviewCard post={post} />}
                     </>
                 )}
             </div>
@@ -1108,6 +1127,32 @@ export default function PostCard({
                     />
                 )}
             </AnimatePresence>
+
+            {/* Facebook-style Media Lightbox */}
+            {postMediaList.length > 0 && (
+                <PostMediaLightbox 
+                    isOpen={isMediaLightboxOpen}
+                    onClose={() => setIsMediaLightboxOpen(false)}
+                    media={postMediaList}
+                    initialIndex={mediaLightboxIndex}
+                    src={postMediaList[mediaLightboxIndex]?.url}
+                    alt={post.eventName || "Post media"}
+                    post={post}
+                    contentType="post"
+                    author={{
+                        name: post.createdBy?.name || "Member",
+                        avatar: post.createdBy?.avatar,
+                        role: post.createdBy?.role,
+                        uid: post.creatorId,
+                        collegeName: post.collegeName,
+                        clubName: post.clubName,
+                        visibility: post.visibility
+                    }}
+                    isSaved={isSaved}
+                    onSave={() => onSave?.(post.id)}
+                    onTagClick={onTagClick}
+                />
+            )}
         </motion.div>
     );
 }

@@ -303,6 +303,17 @@ export const ALLOWED_IMAGE_TYPES = new Set([
     "image/svg+xml",
 ]);
 
+/** Allowed video MIME types */
+export const ALLOWED_VIDEO_TYPES = new Set([
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/ogg",
+    "video/x-matroska",
+    "video/3gpp",
+]);
+
 /** Allowed document MIME types */
 export const ALLOWED_DOCUMENT_TYPES = new Set([
     "application/pdf",
@@ -311,11 +322,15 @@ export const ALLOWED_DOCUMENT_TYPES = new Set([
 /** All allowed upload MIME types */
 export const ALLOWED_UPLOAD_TYPES = new Set([
     ...Array.from(ALLOWED_IMAGE_TYPES),
+    ...Array.from(ALLOWED_VIDEO_TYPES),
     ...Array.from(ALLOWED_DOCUMENT_TYPES),
 ]);
 
-/** Max file size for images: 10MB */
-export const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+/** Max file size for images: 50MB (compressed client-side) */
+export const MAX_IMAGE_SIZE = 50 * 1024 * 1024;
+
+/** Max file size for videos: 50MB */
+export const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
 /** Max file size for documents: 20MB */
 export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
@@ -330,15 +345,16 @@ export function validateFile(file: File): string | null {
     }
 
     if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
-        return `File type "${file.type || "unknown"}" is not supported. Allowed: JPEG, PNG, WebP, GIF, SVG, PDF.`;
+        return `File type "${file.type || "unknown"}" is not supported. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, MOV, PDF.`;
     }
 
     const isDocument = ALLOWED_DOCUMENT_TYPES.has(file.type);
-    const maxSize = isDocument ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
-    const maxLabel = isDocument ? "20MB" : "10MB";
+    const isVideo = ALLOWED_VIDEO_TYPES.has(file.type);
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : isDocument ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
+    const maxLabel = isVideo ? "50MB" : isDocument ? "20MB" : "50MB";
 
     if (file.size > maxSize) {
-        return `File is too large (${formatFileSize(file.size)}). Maximum: ${maxLabel}.`;
+        return `File is too large (${formatFileSize(file.size)}). Maximum allowed size is ${maxLabel}.`;
     }
 
     return null;
@@ -354,8 +370,15 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * Check if a file is an image (vs a document like PDF).
+ * Check if a file is an image (vs a document like PDF or video).
  */
 export function isImageFile(file: File): boolean {
     return file.type.startsWith("image/");
+}
+
+/**
+ * Check if a file is a video.
+ */
+export function isVideoFile(file: File): boolean {
+    return file.type.startsWith("video/") || ALLOWED_VIDEO_TYPES.has(file.type);
 }

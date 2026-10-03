@@ -5,17 +5,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     X, Send, ImageIcon, BarChart2, UserCheck, UserX, 
     AlertCircle, Plus, Trash2, Loader2, Sparkles, ShieldAlert,
-    Check
+    Check, Video, Play
 } from "lucide-react";
 import { 
     createGroupPost, subscribeGroupDetails, subscribeGroupMember, reportGroupPost,
-    updateGroupPost, type GroupPostDoc
+    updateGroupPost, type GroupPostDoc, type PostMediaItem
 } from "@/lib/firestore";
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
+import { validateFile, isVideoFile } from "@/lib/image-utils";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteField } from "firebase/firestore";
 import { useMentionAutosuggest, MentionDropdown } from "@/components/Social/MentionDropdown";
+
+export interface PendingMediaItem {
+    id: string;
+    file?: File;
+    url: string;
+    type: "image" | "video";
+    name?: string;
+    size?: number;
+}
 
 interface GroupPostCreationModalProps {
     isOpen: boolean;
@@ -50,10 +60,48 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
     const [group, setGroup] = useState<any>(null);
     const [myMemberRecord, setMyMemberRecord] = useState<any>(null);
 
-    // Image state
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    // Multi-media state (photos, videos up to 50MB, Facebook style)
+    const [mediaList, setMediaList] = useState<PendingMediaItem[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleMediaFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const newItems: PendingMediaItem[] = [];
+        for (const file of files) {
+            const error = validateFile(file);
+            if (error) {
+                showToast(`${file.name}: ${error}`, "error");
+                continue;
+            }
+            const isVid = isVideoFile(file);
+            const objUrl = URL.createObjectURL(file);
+            newItems.push({
+                id: `media-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                file,
+                url: objUrl,
+                type: isVid ? "video" : "image",
+                name: file.name,
+                size: file.size,
+            });
+        }
+
+        if (newItems.length > 0) {
+            setMediaList(prev => [...prev, ...newItems]);
+        }
+        if (e.target) e.target.value = "";
+    };
+
+    const handleRemoveMediaItem = (id: string) => {
+        setMediaList(prev => {
+            const itemToRemove = prev.find(item => item.id === id);
+            if (itemToRemove?.url && itemToRemove.url.startsWith("blob:")) {
+                try { URL.revokeObjectURL(itemToRemove.url); } catch (_) {}
+            }
+            return prev.filter(item => item.id !== id);
+        });
+    };
 
     // Poll state
     const [showPoll, setShowPoll] = useState(false);
@@ -110,8 +158,30 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
             if (editPost) {
                 setContent(editPost.content || "");
                 setIsAnonymous(editPost.isAnonymous || false);
-                setImageFile(null);
-                setImagePreview(editPost.imageUrl || null);
+                if (Array.isArray(editPost.media) && editPost.media.length > 0) {
+                    const loadedMedia: PendingMediaItem[] = editPost.media.map((m: any, idx: number) => {
+                        const url = typeof m === "string" ? m : m.url;
+                        const type = typeof m === "object" && m.type 
+                            ? m.type 
+                            : (/\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(url) || url?.includes("/video/upload/")) ? "video" : "image";
+                        return {
+                            id: `edit-media-${idx}-${Date.now()}`,
+                            url,
+                            type,
+                            name: typeof m === "object" ? m.name : undefined
+                        };
+                    });
+                    setMediaList(loadedMedia);
+                } else if (editPost.imageUrl) {
+                    const isVid = /\.(mp4|webm|mov|mkv|3gp|ogg)(\?.*)?$/i.test(editPost.imageUrl) || editPost.imageUrl.includes("/video/upload/");
+                    setMediaList([{
+                        id: `edit-media-0`,
+                        url: editPost.imageUrl,
+                        type: isVid ? "video" : "image"
+                    }]);
+                } else {
+                    setMediaList([]);
+                }
                 if (editPost.poll) {
                     setShowPoll(true);
                     setPollQuestion(editPost.poll.question || "");
@@ -124,8 +194,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
             } else {
                 setContent("");
                 setIsAnonymous(false);
-                setImageFile(null);
-                setImagePreview(null);
+                setMediaList([]);
                 setShowPoll(false);
                 setPollQuestion("");
                 setPollOptions(["", ""]);
@@ -133,31 +202,18 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
         } else {
             setContent("");
             setIsAnonymous(false);
-            setImageFile(null);
-            setImagePreview(null);
+            mediaList.forEach(item => {
+                if (item.url?.startsWith("blob:")) {
+                    try { URL.revokeObjectURL(item.url); } catch (_) {}
+                }
+            });
+            setMediaList([]);
             setShowPoll(false);
             setPollQuestion("");
             setPollOptions(["", ""]);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     }, [isOpen, editPost]);
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            showToast("Image must be under 5MB", "error");
-            return;
-        }
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
-    };
-
-    const handleRemoveImage = () => {
-        setImageFile(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-    };
 
     const handleAddPollOption = () => {
         if (pollOptions.length >= 8) {
@@ -191,8 +247,8 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
             return;
         }
 
-        if (!content.trim() && !imageFile && !imagePreview && (!showPoll || !pollQuestion.trim())) {
-            showToast("Please add some text, an image, or a poll question", "info");
+        if (!content.trim() && mediaList.length === 0 && (!showPoll || !pollQuestion.trim())) {
+            showToast("Please add some text, photo/video, or a poll question", "info");
             return;
         }
 
@@ -235,16 +291,29 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
         }
 
         try {
-            let imageUrl = editPost?.imageUrl || "";
-            if (imageFile) {
-                imageUrl = await uploadFile("group-posts", imageFile);
-                if (editPost?.imageUrl) {
-                    await deleteFromStorage(editPost.imageUrl).catch(e => console.error("Failed to delete old image:", e));
+            let finalMedia: PostMediaItem[] = [];
+
+            if (mediaList.length > 0) {
+                for (const item of mediaList) {
+                    if (item.file) {
+                        const folder = item.type === "video" ? "videos" : "group-posts";
+                        const uploadedUrl = await uploadFile(folder, item.file);
+                        finalMedia.push({
+                            url: uploadedUrl,
+                            type: item.type,
+                            name: item.name
+                        });
+                    } else if (item.url) {
+                        finalMedia.push({
+                            url: item.url,
+                            type: item.type,
+                            name: item.name
+                        });
+                    }
                 }
-            } else if (!imagePreview && editPost?.imageUrl) {
-                imageUrl = "";
-                await deleteFromStorage(editPost.imageUrl).catch(e => console.error("Failed to delete old image:", e));
             }
+
+            const firstImageUrl = finalMedia.find(m => m.type === "image")?.url || finalMedia[0]?.url || "";
 
             const pollData = showPoll && pollQuestion.trim()
                 ? { 
@@ -270,9 +339,30 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
             let postId = "";
             if (editPost) {
                 postId = editPost.id;
+                // Collect old media URLs to delete any removed items
+                const oldUrls: string[] = [];
+                if (editPost.imageUrl) oldUrls.push(editPost.imageUrl);
+                if (Array.isArray(editPost.media)) {
+                    editPost.media.forEach((m: any) => {
+                        const u = typeof m === "string" ? m : m?.url;
+                        if (u) oldUrls.push(u);
+                        if (typeof m === "object" && m?.thumbnail) oldUrls.push(m.thumbnail);
+                    });
+                }
+                const newUrls = new Set([
+                    firstImageUrl,
+                    ...finalMedia.map(m => m.url),
+                    ...finalMedia.map(m => m.thumbnail).filter(Boolean) as string[],
+                ]);
+                const removedUrls = oldUrls.filter(u => u && !newUrls.has(u));
+                if (removedUrls.length > 0) {
+                    deleteFromStorage(removedUrls).catch(console.warn);
+                }
+
                 const updates: any = {
                     content: content.trim(),
-                    imageUrl,
+                    imageUrl: firstImageUrl,
+                    media: finalMedia,
                     isAnonymous,
                 };
                 if (pollData) {
@@ -290,9 +380,10 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                     groupId,
                     groupName,
                     content,
-                    imageUrl,
+                    firstImageUrl,
                     isAnonymous,
-                    pollDataForCreation
+                    pollDataForCreation,
+                    finalMedia
                 );
             }
 
@@ -406,19 +497,107 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                                 />
                             </div>
 
-                            {/* Image Preview */}
-                            {imagePreview && (
-                                <div className="relative rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 max-h-[220px] flex items-center justify-center bg-gray-50 dark:bg-black/15">
-                                    <img src={imagePreview} alt="Upload preview" className="object-contain max-h-[220px] w-full" />
-                                    <button
-                                        type="button"
-                                        onClick={handleRemoveImage}
-                                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all"
+                            {/* Facebook-Style Multi-Media Preview Gallery */}
+                            <AnimatePresence>
+                                {mediaList.length > 0 && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="space-y-2"
                                     >
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                            )}
+                                        <div className="flex items-center justify-between px-1">
+                                            <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                                <ImageIcon size={13} className="text-emerald-500" />
+                                                Attached Media ({mediaList.length})
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                            >
+                                                <Plus size={12} /> Add more
+                                            </button>
+                                        </div>
+
+                                        <div className={`grid gap-2.5 ${
+                                            mediaList.length === 1 
+                                                ? "grid-cols-1" 
+                                                : mediaList.length === 2 
+                                                    ? "grid-cols-2" 
+                                                    : "grid-cols-2 sm:grid-cols-3"
+                                        }`}>
+                                            {mediaList.map((item) => (
+                                                <motion.div 
+                                                    key={item.id}
+                                                    layout
+                                                    initial={{ opacity: 0, scale: 0.9 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.8 }}
+                                                    className={`relative rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 group bg-black/5 dark:bg-black/30 shadow-xs ${
+                                                        mediaList.length === 1 ? "max-h-64 sm:max-h-72" : "aspect-video"
+                                                    } flex items-center justify-center`}
+                                                >
+                                                    {item.type === "video" ? (
+                                                        <div className="relative w-full h-full bg-black flex items-center justify-center">
+                                                            <video 
+                                                                src={item.url} 
+                                                                className="w-full h-full object-cover" 
+                                                                preload="metadata"
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                                                                <div className="w-10 h-10 rounded-full bg-white/25 backdrop-blur-md border border-white/40 flex items-center justify-center text-white shadow-lg">
+                                                                    <Play size={18} className="fill-white translate-x-0.5" />
+                                                                </div>
+                                                            </div>
+                                                            <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/75 backdrop-blur-md rounded-md text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                                                                <Video size={10} className="text-red-400" /> Video
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <img 
+                                                            src={item.url} 
+                                                            alt="Group post media" 
+                                                            className="w-full h-full object-cover" 
+                                                        />
+                                                    )}
+
+                                                    {/* Top-Right Delete Action */}
+                                                    <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveMediaItem(item.id)}
+                                                            className="p-1.5 bg-black/70 hover:bg-red-600 text-white rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer"
+                                                            title="Remove file"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* File Size Badge */}
+                                                    {item.size && (
+                                                        <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-white text-[9px] font-semibold">
+                                                            {(item.size / (1024 * 1024)).toFixed(1)} MB
+                                                        </div>
+                                                    )}
+                                                </motion.div>
+                                            ))}
+
+                                            {/* Add more tile */}
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className={`border-2 border-dashed border-gray-200 dark:border-white/10 hover:border-primary/50 hover:bg-primary/5 rounded-2xl transition-all flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-primary cursor-pointer ${
+                                                    mediaList.length === 1 ? "h-24" : "aspect-video"
+                                                }`}
+                                            >
+                                                <Plus size={18} />
+                                                <span className="text-[10px] font-black uppercase tracking-wider">Add Photo/Video</span>
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Poll Creator */}
                             {showPoll && (
@@ -499,12 +678,13 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                             )}
                         </form>
 
-                        {/* Hidden File Input */}
+                        {/* Hidden File Input for Multi-Media (Photos & Videos up to 50MB, Facebook style) */}
                         <input
                             type="file"
-                            accept="image/*"
+                            accept="image/*,video/*"
+                            multiple
                             ref={fileInputRef}
-                            onChange={handleImageChange}
+                            onChange={handleMediaFilesChange}
                             className="hidden"
                         />
 
@@ -516,10 +696,14 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isSubmitting}
-                                    className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center gap-1 text-[11px] font-black uppercase tracking-wider"
-                                    title="Add Photo"
+                                    className={`p-2.5 rounded-xl transition-all flex items-center gap-1 text-[11px] font-black uppercase tracking-wider ${
+                                        mediaList.length > 0 
+                                            ? "bg-primary/10 text-primary border border-primary/20" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-700"
+                                    }`}
+                                    title="Add Photos or Videos (up to 50MB)"
                                 >
-                                    <ImageIcon size={16} /> <span className="hidden sm:inline">Photo</span>
+                                    <ImageIcon size={16} /> <span className="hidden sm:inline">{mediaList.length > 0 ? `Photo/Video (${mediaList.length})` : "Photo/Video"}</span>
                                 </button>
                                 
                                 <button
