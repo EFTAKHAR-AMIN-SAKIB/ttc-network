@@ -28,6 +28,7 @@ import {
     BookText,
     LayoutGrid,
     UserCheck,
+    ShieldCheck,
 } from "lucide-react";
 import Image from "next/image";
 import { getColleges, updateCollege, uploadFile, subscribeClubs, getAdminPendingCounts, type FirestoreCollege, type FirestoreClub, type FacultyEntry, type AdminPendingCounts } from "@/lib/firestore";
@@ -43,6 +44,7 @@ import UsersTab from "./components/UsersTab";
 import ManagementTab from "./components/ManagementTab";
 import CampusManagersTab from "./components/CampusManagersTab";
 import SiteSettingsTab from "./components/SiteSettingsTab";
+import RolePermissionsTab from "./components/RolePermissionsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { deleteFromCloudinary } from "@/lib/storage";
@@ -562,7 +564,7 @@ function CollegeEditor({ college, onSave, onMessage, userProfile }: {
 }
 
 /* ─── Tab Config ─── */
-type TabId = "management" | "campus-managers" | "colleges" | "posts" | "stories" | "study" | "notices" | "qa" | "gifts" | "users" | "settings";
+type TabId = "management" | "campus-managers" | "colleges" | "posts" | "stories" | "study" | "notices" | "qa" | "gifts" | "users" | "permissions" | "settings";
 const tabs: { id: TabId; label: string; icon: typeof Building2; desc?: string }[] = [
     { id: "management", label: "Management", icon: Shield, desc: "Approvals & Access Roles" },
     { id: "campus-managers", label: "Campus Managers", icon: UserCheck, desc: "Applications & Chapter Leads" },
@@ -574,13 +576,14 @@ const tabs: { id: TabId; label: string; icon: typeof Building2; desc?: string }[
     { id: "qa", label: "Homepage", icon: Globe, desc: "Landing Showcase & Guides" },
     { id: "gifts", label: "Supporters", icon: Gift, desc: "Donations & Recognition" },
     { id: "users", label: "Users", icon: Users, desc: "Member Directory & Badges" },
+    { id: "permissions", label: "Permissions", icon: ShieldCheck, desc: "Role Capabilities & Control" },
     { id: "settings", label: "Settings", icon: Settings, desc: "Branding & Privacy Rules" },
 ];
 
 const TAB_GROUPS: { name: string; ids: TabId[] }[] = [
     { name: "Operations & Directory", ids: ["management", "campus-managers", "users", "colleges"] },
     { name: "Content & Moderation", ids: ["posts", "stories", "study", "notices"] },
-    { name: "Platform & Growth", ids: ["qa", "gifts", "settings"] },
+    { name: "Platform & Growth", ids: ["qa", "gifts", "permissions", "settings"] },
 ];
 
 /* ─── MAIN ADMIN PAGE ─── */
@@ -642,6 +645,7 @@ export default function AdminPage() {
     const totalPendingCount = pendingCounts.posts + pendingCounts.stories + pendingCounts.notices + pendingCounts.studyPosts + pendingCounts.gifts + (pendingCounts.campusManagers || 0);
 
     const isTabAllowed = (tabId: TabId) => {
+        if (tabId === "permissions" && profile?.role !== "admin") return false;
         if (tabId === "gifts" && profile?.role !== "admin") return false;
         if (tabId === "settings" && profile?.role !== "admin") return false;
         if (tabId === "campus-managers" && profile?.role !== "admin" && profile?.role !== "super_manager") return false;
@@ -937,6 +941,7 @@ export default function AdminPage() {
                 {activeSection === "qa" && <QAManagerTab profile={profile as any} />}
                 {activeSection === "gifts" && <GiftsTab profile={profile as any} />}
                 {activeSection === "users" && <UsersTab profile={profile as any} />}
+                {activeSection === "permissions" && <RolePermissionsTab profile={profile as any} />}
                 {activeSection === "settings" && <SiteSettingsTab profile={profile as any} />}
             </div>
 

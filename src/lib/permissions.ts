@@ -1,5 +1,6 @@
 import { UserProfile } from "@/contexts/AuthContext";
 import { FirestoreNotice, FirestorePost, FirestoreStory, FirestoreClub, FirestoreStudyPost } from "./firestore";
+import { hasPermission } from "./rolePermissions";
 
 export type ActionPermission = {
     canEdit: boolean;
@@ -14,17 +15,21 @@ export type ActionPermission = {
 /**
  * Check if a user can edit a college profile.
  * - Admins can edit any college directly.
- * - Managers can edit their own college directly.
- * - Teachers/Students cannot edit.
+ * - Super Managers can edit any college directly.
+ * - Managers / Teachers can edit their own college if permitted by role permissions.
  */
 export function canEditCollege(profile: UserProfile | null, targetCollegeId: string): { allowed: boolean; needsReview: boolean } {
     if (!profile) return { allowed: false, needsReview: false };
+
+    if (!hasPermission(profile.role, "canEditCollegeProfile")) {
+        return { allowed: false, needsReview: false };
+    }
 
     if (profile.role === "admin" || profile.role === "super_manager") {
         return { allowed: true, needsReview: false };
     }
 
-    if (profile.role === "manager" && profile.collegeId === targetCollegeId) {
+    if (profile.collegeId === targetCollegeId) {
         return { allowed: true, needsReview: false };
     }
 
@@ -34,118 +39,123 @@ export function canEditCollege(profile: UserProfile | null, targetCollegeId: str
 /**
  * Check permissions for a Post (News Feed).
  * - Authors can edit/delete their own posts.
- * - Admins can delete/approve/reject any post.
- * - Managers can delete/approve/reject posts for their own college.
+ * - Users with moderation permissions can delete/approve/reject based on dynamic role permissions and college scope.
  */
 export function canEditPost(profile: UserProfile | null, post: FirestorePost): ActionPermission {
     if (!profile) return { canEdit: false, canDelete: false, canApprove: false, canReject: false };
 
     const isAuthor = profile.uid === post.creatorId;
-    const isAdmin = profile.role === "admin" || profile.role === "super_manager";
-    const isManagerSameCollege = profile.role === "manager" && profile.collegeId === post.collegeId;
-    const isModerator = isAdmin || isManagerSameCollege;
+    const isPlatformAdmin = profile.role === "admin";
+    const isGlobal = profile.role === "admin" || profile.role === "super_manager";
+    const isSameCollege = profile.collegeId === post.collegeId;
+    const hasScope = isGlobal || isSameCollege;
+
+    const canApprove = hasPermission(profile.role, "canApprovePosts") && hasScope && post.status === "pending";
+    const canDeleteOthers = hasPermission(profile.role, "canDeleteOthersContent") && hasScope;
+    const canEdit = isAuthor || isPlatformAdmin;
 
     return {
-        canEdit: isAuthor,
-        canDelete: isAuthor || isModerator,
-        canApprove: isModerator && post.status === "pending",
-        canReject: isModerator && post.status === "pending",
+        canEdit,
+        canDelete: isAuthor || canDeleteOthers,
+        canApprove,
+        canReject: canApprove,
     };
 }
 
 /**
  * Check permissions for a Story.
  * - Authors can edit/delete their own stories.
- * - Admins can delete/approve/reject any story.
- * - Managers can delete/approve/reject stories for their own college.
+ * - Users with moderation permissions can delete/approve/reject stories.
  */
 export function canEditStory(profile: UserProfile | null, story: FirestoreStory): ActionPermission {
     if (!profile) return { canEdit: false, canDelete: false, canApprove: false, canReject: false };
 
     const isAuthor = profile.uid === story.authorId;
-    const isAdmin = profile.role === "admin" || profile.role === "super_manager";
-    const isManagerSameCollege = profile.role === "manager" && profile.collegeId === story.collegeId;
-    const isModerator = isAdmin || isManagerSameCollege;
+    const isGlobal = profile.role === "admin" || profile.role === "super_manager";
+    const isSameCollege = profile.collegeId === story.collegeId;
+    const hasScope = isGlobal || isSameCollege;
+
+    const canApprove = hasPermission(profile.role, "canApproveStories") && hasScope && story.status === "pending";
+    const canDeleteOthers = hasPermission(profile.role, "canDeleteOthersContent") && hasScope;
 
     return {
         canEdit: isAuthor,
-        canDelete: isAuthor || isModerator,
-        canApprove: isModerator && story.status === "pending",
-        canReject: isModerator && story.status === "pending",
+        canDelete: isAuthor || canDeleteOthers,
+        canApprove,
+        canReject: canApprove,
     };
 }
 
 /**
  * Check permissions for a Study Post.
  * - Authors can edit/delete their own posts.
- * - Admins can delete/approve/reject any post.
- * - Managers can delete/approve/reject posts for their own college.
+ * - Users with moderation permissions can delete/approve/reject study posts.
  */
 export function canEditStudyPost(profile: UserProfile | null, post: FirestoreStudyPost): ActionPermission {
     if (!profile) return { canEdit: false, canDelete: false, canApprove: false, canReject: false };
 
     const isAuthor = profile.uid === post.authorId;
-    const isAdmin = profile.role === "admin" || profile.role === "super_manager";
-    const isManagerSameCollege = profile.role === "manager" && profile.collegeId === post.collegeId;
-    const isModerator = isAdmin || isManagerSameCollege;
+    const isGlobal = profile.role === "admin" || profile.role === "super_manager";
+    const isSameCollege = profile.collegeId === post.collegeId;
+    const hasScope = isGlobal || isSameCollege;
+
+    const canApprove = hasPermission(profile.role, "canApproveStudyPosts") && hasScope && post.status === "pending";
+    const canDeleteOthers = hasPermission(profile.role, "canDeleteOthersContent") && hasScope;
 
     return {
         canEdit: isAuthor,
-        canDelete: isAuthor || isModerator,
-        canApprove: isModerator && post.status === "pending",
-        canReject: isModerator && post.status === "pending",
+        canDelete: isAuthor || canDeleteOthers,
+        canApprove,
+        canReject: canApprove,
     };
 }
 
 /**
  * Check permissions for a Notice.
  * - Authors can edit/delete their own notices.
- * - Admins can pin/urgent/delete any notice.
- * - Managers can pin/urgent/delete notices for their own college.
- * - Teachers/Managers can approve/reject notices for their own college. Admins can approve any.
+ * - Pinning, urgent toggle, approving, and deleting are controlled by dynamic role permissions.
  */
 export function canEditNotice(profile: UserProfile | null, notice: FirestoreNotice): ActionPermission {
     if (!profile) return { canEdit: false, canDelete: false, canPin: false, canToggleUrgent: false, canApprove: false, canReject: false };
 
     const isAuthor = profile.uid === notice.authorId;
-    const isAdmin = profile.role === "admin" || profile.role === "super_manager";
-    const isTeacherSameCollege = profile.role === "teacher" && profile.collegeId === notice.collegeId;
-    const isManagerSameCollege = profile.role === "manager" && profile.collegeId === notice.collegeId;
-    const isModerator = isAdmin || isManagerSameCollege;
-    const canApproveRights = isAdmin || isManagerSameCollege || isTeacherSameCollege;
+    const isGlobal = profile.role === "admin" || profile.role === "super_manager";
+    const isSameCollege = profile.collegeId === notice.collegeId;
+    const hasScope = isGlobal || isSameCollege;
+
+    const canPin = hasPermission(profile.role, "canPinNotices") && hasScope;
+    const canToggleUrgent = hasPermission(profile.role, "canMarkUrgentNotices") && hasScope;
+    const canApprove = hasPermission(profile.role, "canApproveNotices") && hasScope && notice.status === "pending";
+    const canDeleteOthers = hasPermission(profile.role, "canDeleteOthersContent") && hasScope;
 
     return {
         canEdit: isAuthor,
-        canDelete: isAuthor || isModerator,
-        canPin: isModerator,
-        canToggleUrgent: isModerator,
-        canApprove: canApproveRights && notice.status === "pending",
-        canReject: canApproveRights && notice.status === "pending",
+        canDelete: isAuthor || canDeleteOthers,
+        canPin,
+        canToggleUrgent,
+        canApprove,
+        canReject: canApprove,
     };
 }
 
 /**
  * Check permissions for a Club.
- * - Super Admins can manage all clubs.
- * - College Managers can manage clubs within their college.
- * - Club Presidents can manage their own club.
+ * - Controlled by dynamic canManageClubs permission and scope, or Club President.
  */
 export async function canManageClub_Local(profile: UserProfile | null, club: FirestoreClub): Promise<ActionPermission> {
     if (!profile) return { canEdit: false, canDelete: false, canApprove: false, canReject: false };
 
-    const isAdmin = profile.role === "admin" || profile.role === "super_manager";
-    const isManagerSameCollege = profile.role === "manager" && profile.collegeId === club.collegeId;
-    
-    // For Club President, we need to check if they are the president of THIS specific club.
-    // This profile check is usually done in the firestore layer with canManageClub(clubId), 
-    // but we add a hook here for UI visibility.
-    const isClubPresident = profile.clubPosition === "President" && profile.collegeId === club.collegeId;
+    const isGlobal = profile.role === "admin" || profile.role === "super_manager";
+    const isSameCollege = profile.collegeId === club.collegeId;
+    const hasScope = isGlobal || isSameCollege;
+    const hasClubPermission = hasPermission(profile.role, "canManageClubs") && hasScope;
 
-    const isModerator = isAdmin || isManagerSameCollege || isClubPresident;
+    const isClubPresident = profile.clubPosition === "President" && isSameCollege;
+    const isModerator = hasClubPermission || isClubPresident;
 
     return {
         canEdit: isModerator,
-        canDelete: isAdmin || isManagerSameCollege, // Only admins/managers can delete clubs entirely
+        canDelete: hasClubPermission,
         canApprove: isModerator,
         canReject: isModerator,
     };
@@ -161,9 +171,8 @@ export function canPostNotice(profile: UserProfile | null): boolean {
 
 /**
  * Check if a user can delete a gallery photo.
- * - Admins can delete any photo.
- * - Managers can delete photos in their own college.
- * - The Uploader can delete their own photo.
+ * - Uploader can delete their own photo.
+ * - Roles with canDeleteGalleryPhotos can delete within their scope.
  */
 export function canDeleteGalleryPhoto(
     profile: UserProfile | null, 
@@ -172,16 +181,15 @@ export function canDeleteGalleryPhoto(
 ): boolean {
     if (!profile) return false;
 
-    // 1. Admins/Super Managers can delete anything
-    if (profile.role === "admin" || profile.role === "super_manager") return true;
-
-    // 2. Managers can delete any photo in their college
-    if (profile.role === "manager" && profile.collegeId === targetCollegeId) return true;
-
-    // 3. Uploader can delete their own photo
+    // 1. Uploader can always delete their own photo
     if (photo.uploaderUid && profile.uid === photo.uploaderUid) return true;
 
-    return false;
+    // 2. Check dynamic permission
+    const isGlobal = profile.role === "admin" || profile.role === "super_manager";
+    const isSameCollege = profile.collegeId === targetCollegeId;
+    const hasScope = isGlobal || isSameCollege;
+
+    return hasPermission(profile.role, "canDeleteGalleryPhotos") && hasScope;
 }
 
 /**

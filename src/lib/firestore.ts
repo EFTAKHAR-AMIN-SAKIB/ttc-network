@@ -40,6 +40,7 @@ import { getDb, getAuthInstance } from "./firebase";
 export { getDb, getAuthInstance };
 import { rankGroupPosts } from "./groupFeedAlgorithm";
 import { uploadFile as cloudinaryUpload, deleteFromStorage, deleteFromCloudinary } from "./storage";
+import { hasPermission } from "./rolePermissions";
 
 // ═══════════════════════════════════════════════════
 //  TYPES
@@ -1278,9 +1279,9 @@ export async function createPost(post: Omit<FirestorePost, "timestamp" | "reacti
     // Managers are auto-approved ONLY if it's for their own college.
     // Verified users (roleVerified) are auto-approved on the Global Feed (type "event") only.
     const isOwnerOrAdmin = profile.role === "admin" || profile.role === "super_manager";
-    const isManagerOfOwnCollege = profile.role === "manager" && profile.collegeId === targetCollegeId;
+    const hasRoleAutoApproval = hasPermission(profile.role, "postsAutoApproved") && (isOwnerOrAdmin || profile.collegeId === targetCollegeId);
     const isVerifiedOnGlobalFeed = profile.roleVerified === true && post.type === "event";
-    const isAutoApproved = isOwnerOrAdmin || isManagerOfOwnCollege || isVerifiedOnGlobalFeed;
+    const isAutoApproved = isOwnerOrAdmin || hasRoleAutoApproval || isVerifiedOnGlobalFeed;
 
     const fullPost: Record<string, unknown> = {
         ...post,
@@ -1724,6 +1725,21 @@ export async function rejectModerationItem(collectionName: string, id: string, r
 
 
 export async function updatePost(id: string, data: Partial<FirestorePost>): Promise<void> {
+    const profile = await getCurrentUserProfile();
+    if (!profile) throw new Error("Unauthorized: Please log in.");
+
+    const postRef = doc(getDb(), "posts", id);
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) throw new Error("Post not found.");
+    const post = postSnap.data() as FirestorePost;
+
+    const isAuthor = profile.id === post.creatorId;
+    const isPlatformAdmin = profile.role === "admin";
+
+    if (!isAuthor && !isPlatformAdmin) {
+        throw new Error("Unauthorized: Only the author or a Platform Administrator can edit this post.");
+    }
+
     // Allowlist: prevent mutation of sensitive fields
     const ALLOWED_POST_FIELDS = [
         'title', 'content', 'type', 'postType', 'tags', 'thumbnailUrl', 'eventName', 
@@ -1734,10 +1750,9 @@ export async function updatePost(id: string, data: Partial<FirestorePost>): Prom
         Object.entries(data).filter(([k]) => ALLOWED_POST_FIELDS.includes(k))
     );
     if (Object.keys(clean).length === 0) return;
-    await updateDoc(doc(getDb(), "posts", id), clean);
+    await updateDoc(postRef, clean);
 
-    const profile = await getCurrentUserProfile();
-    if (profile && (data.eventName || data.description)) {
+    if (data.eventName || data.description) {
         try {
             await handleMentions(
                 `${data.eventName || ""} ${data.description || ""}`,
@@ -2476,7 +2491,7 @@ export async function createNotice(notice: Omit<FirestoreNotice, "date" | "statu
         college: college.shortName || college.name,
         collegeColor: college.color || "#6366f1",
         postedBy: profile.displayName,
-        status: (profile.role === "admin" || profile.role === "manager" || profile.role === "teacher") ? "approved" : "pending",
+        status: (hasPermission(profile.role, "noticesAutoApproved") || profile.role === "admin" || profile.role === "super_manager") ? "approved" : "pending",
         date: serverTimestamp() as Timestamp,
         isAuthorShadowBanned: profile.isShadowBanned || false,
     };
@@ -4636,7 +4651,7 @@ export const createStudyPost = async (post: Partial<FirestoreStudyPost>) => {
         collegeName: (userProfile as any).collegeName || post.collegeName || "Global Community",
         // Sync visibility with privacy for backward compatibility
         visibility: post.privacy || "public",
-        status: (userProfile.role === "admin" || userProfile.role === "manager" || userProfile.role === "teacher") ? "approved" : "pending",
+        status: (hasPermission(userProfile.role, "studyPostsAutoApproved") || userProfile.role === "admin" || userProfile.role === "super_manager") ? "approved" : "pending",
         reactions: { love: 0, like: 0, haha: 0, sad: 0, angry: 0, wow: 0 },
         reactedBy: { love: [], like: [], haha: [], sad: [], angry: [], wow: [] },
         createdAt: serverTimestamp(),

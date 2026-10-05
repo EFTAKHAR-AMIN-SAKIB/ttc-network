@@ -15,6 +15,12 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isStrictAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().role == 'admin';
+    }
+
     function isAdmin() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -183,8 +189,9 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() && isNotBanned() && isNotRestricted('posts') && isVerifiedOrAdmin();
       allow update: if isAuthenticated() && (
-        isAdminOrManager() || 
+        isStrictAdmin() || 
         (isOwner(resource.data.creatorId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'creatorId', 'collegeId'])) || 
+        (isAdminOrManager() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'rejectReason'])) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactedBy', 'commentsCount', 'likes', 'likedBy', 'poll', 'eventDetails'])
       );
       allow delete: if isAdminOrManager() || isOwner(resource.data.creatorId);

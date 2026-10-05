@@ -10,6 +10,7 @@ import { SiteSettingsProvider } from "@/contexts/SiteSettingsContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import { VerificationProvider } from "@/contexts/VerificationContext";
+import { RolePermissionsProvider } from "@/contexts/RolePermissionsContext";
 import VerificationBanner from "@/components/VerificationBanner";
 import OfflineBanner from "@/components/OfflineBanner";
 import PwaRegister from "@/components/PwaRegister";
@@ -148,18 +149,20 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <VerificationProvider>
-              <SiteSettingsProvider>
-                <ToastProvider>
-                  <ConfirmProvider>
-                    <VerificationBanner />
-                    <Navbar />
-                    <OfflineBanner />
-                    <main className="pb-24 md:pb-14">{children}</main>
-                    <MobileDock />
-                    <DeveloperStrip />
-                  </ConfirmProvider>
-                </ToastProvider>
-              </SiteSettingsProvider>
+              <RolePermissionsProvider>
+                <SiteSettingsProvider>
+                  <ToastProvider>
+                    <ConfirmProvider>
+                      <VerificationBanner />
+                      <Navbar />
+                      <OfflineBanner />
+                      <main className="pb-24 md:pb-14">{children}</main>
+                      <MobileDock />
+                      <DeveloperStrip />
+                    </ConfirmProvider>
+                  </ToastProvider>
+                </SiteSettingsProvider>
+              </RolePermissionsProvider>
             </VerificationProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -19,6 +19,7 @@ import { subscribeComments, rsvpToEvent, voteOnPoll, type EventDetails, type Pol
 import { ExpandableText, RichText, TimeAgo } from "@/components/Social/SocialUtils";
 import ShareModal from "@/components/ShareModal";
 import { isContentRestrictedForUser } from "@/lib/permissions";
+import { hasPermission } from "@/lib/rolePermissions";
 import { useToast } from "@/contexts/ToastContext";
 import { formatExternalUrl } from "@/lib/url-utils";
 
@@ -441,8 +442,12 @@ export default function PostCard({
     }, [post.media, post.thumbnailUrl]);
     
     const isOwner = profile?.uid === post.creatorId;
+    const isPlatformAdmin = profile?.role === "admin";
     const isAdmin = profile?.role === "admin" || profile?.role === "super_manager";
-    const canManage = !hideManageOptions && (isOwner || isAdmin || (profile?.role === "manager" && profile?.collegeId === post.collegeId));
+    const canDeleteOthers = hasPermission(profile?.role, "canDeleteOthersContent") && (isAdmin || profile?.collegeId === post.collegeId);
+    const canDelete = isOwner || canDeleteOthers;
+    const canEdit = isOwner || isPlatformAdmin;
+    const canManage = !hideManageOptions && (canEdit || canDelete);
     
     const isRestricted = isContentRestrictedForUser(post, profile, profile?.uid);
     
@@ -546,26 +551,30 @@ export default function PostCard({
                                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
                                             className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1a1b23] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-2xl z-[70] overflow-hidden p-1.5"
                                         >
-                                            <button 
-                                                onClick={(e) => { 
-                                                    e.stopPropagation();
-                                                    setShowOptions(false); 
-                                                    onEdit?.(post); 
-                                                }}
-                                                className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
-                                            >
-                                                <Edit2 size={14} className="text-primary" /> Edit Post
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { 
-                                                    e.stopPropagation();
-                                                    if (onDelete) onDelete(post.id);
-                                                    setTimeout(() => setShowOptions(false), 50); 
-                                                }}
-                                                className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
-                                            >
-                                                <Trash2 size={14} /> Delete
-                                            </button>
+                                            {canEdit && onEdit && (
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation();
+                                                        setShowOptions(false); 
+                                                        onEdit(post); 
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+                                                >
+                                                    <Edit2 size={14} className="text-primary" /> Edit Post
+                                                </button>
+                                            )}
+                                            {canDelete && onDelete && (
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation();
+                                                        onDelete(post.id);
+                                                        setTimeout(() => setShowOptions(false), 50); 
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                                                >
+                                                    <Trash2 size={14} /> Delete
+                                                </button>
+                                            )}
                                         </motion.div>
                                     </>
                                 )}

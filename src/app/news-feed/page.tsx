@@ -509,6 +509,12 @@ function NewsFeedInner() {
 
     const handleEditStart = (post: Post) => {
         if (!requireVerification("edit posts")) return;
+        const isAuthor = profile?.uid === post.creatorId;
+        const isPlatformAdmin = profile?.role === "admin";
+        if (!isAuthor && !isPlatformAdmin) {
+            showToast("Only the author or a Platform Administrator can edit this post.", "error");
+            return;
+        }
         setEditingPost(post);
     };
 
@@ -559,7 +565,11 @@ function NewsFeedInner() {
                 setActiveTab(requiredTab);
             }
             if (searchParams.get("edit") === "true") {
-                setEditingPost(targetPost);
+                const isAuthor = profile?.uid === targetPost.creatorId;
+                const isPlatformAdmin = profile?.role === "admin";
+                if (isAuthor || isPlatformAdmin) {
+                    setEditingPost(targetPost);
+                }
             }
         }
 
