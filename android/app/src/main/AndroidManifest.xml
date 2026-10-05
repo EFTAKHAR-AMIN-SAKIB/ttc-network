@@ -31,14 +31,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep linking for ttc-network.vercel.app and ttcnetwork.xyz -->
+            <!-- Deep linking for ttcnetwork.xyz and ttc-network.vercel.app -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="ttc-network.vercel.app" />
                 <data android:scheme="https" android:host="ttcnetwork.xyz" />
                 <data android:scheme="https" android:host="www.ttcnetwork.xyz" />
+                <data android:scheme="https" android:host="ttc-network.vercel.app" />
             </intent-filter>
         </activity>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminConfigured, adminDb } from "@/lib/firebase-admin";
 import { getMessaging } from "firebase-admin/messaging";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://ttc-network.vercel.app");
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://ttcnetwork.xyz");
 
 function toAbsoluteUrl(url?: string, defaultPath: string = "/icon-192.png"): string {
     if (!url || typeof url !== "string" || url.trim() === "") {
