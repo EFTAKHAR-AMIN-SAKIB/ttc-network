@@ -48,6 +48,7 @@ next-env.d.ts
 !firestore.indexes.json
 !public/manifest.json
 !public/*.json
+!vercel.json
 
 # dev/test artifacts
 analysis_results.md

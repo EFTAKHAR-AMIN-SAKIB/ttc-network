@@ -289,6 +289,8 @@ export interface FirestoreNotice {
     visibility?: "public" | "campus" | "private"; // "campus" = same college only
     thumbnailUrl?: string; // Optional clickable thumbnail image
     isAuthorShadowBanned?: boolean; // Visibility control
+    deadline?: Timestamp | null; // Deadline date (optional)
+    autoDeleteAt?: Timestamp | null; // Auto-deleted 14 days after deadline
 }
 
 export interface FirestoreGift {
@@ -2517,7 +2519,16 @@ export function subscribeNotices(callback: (data: (FirestoreNotice & { id: strin
     const q = query(collection(getDb(), "notices"), orderBy("date", "desc"));
     return onSnapshot(q, (snap) => {
         const notices = snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreNotice) }));
-        callback(notices.filter(n => !n.isAuthorShadowBanned));
+        const now = Date.now();
+        const validNotices = notices.filter(n => {
+            if (n.isAuthorShadowBanned) return false;
+            if (n.autoDeleteAt) {
+                const autoDeleteTime = typeof n.autoDeleteAt.toDate === "function" ? n.autoDeleteAt.toDate().getTime() : new Date(n.autoDeleteAt as unknown as string).getTime();
+                if (autoDeleteTime <= now) return false;
+            }
+            return true;
+        });
+        callback(validNotices);
     });
 }
 
@@ -2527,7 +2538,16 @@ export async function getNotices(): Promise<(FirestoreNotice & { id: string })[]
         orderBy("date", "desc")
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...(d.data() as FirestoreNotice) }));
+    const now = Date.now();
+    return snap.docs
+        .map(d => ({ id: d.id, ...(d.data() as FirestoreNotice) }))
+        .filter(n => {
+            if (n.autoDeleteAt) {
+                const autoDeleteTime = typeof n.autoDeleteAt.toDate === "function" ? n.autoDeleteAt.toDate().getTime() : new Date(n.autoDeleteAt as unknown as string).getTime();
+                if (autoDeleteTime <= now) return false;
+            }
+            return true;
+        });
 }
 
 export async function updateNoticeStatus(id: string, status: "approved" | "rejected"): Promise<void> {
@@ -2543,7 +2563,8 @@ export async function updateNotice(id: string, data: Partial<FirestoreNotice>): 
     // Allowlist: prevent mutation of sensitive fields
     const ALLOWED_NOTICE_FIELDS = [
         'title', 'body', 'programme', 'attachmentUrl', 'visibility', 
-        'isPinned', 'isUrgent', 'thumbnailUrl', 'collegeId'
+        'isPinned', 'isUrgent', 'thumbnailUrl', 'collegeId',
+        'deadline', 'autoDeleteAt'
     ];
     const clean = Object.fromEntries(
         Object.entries(data).filter(([k]) => ALLOWED_NOTICE_FIELDS.includes(k))

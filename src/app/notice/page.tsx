@@ -33,12 +33,12 @@ import {
     Copy,
     Maximize2,
     Building2,
-    Sparkles,
     RotateCcw,
-    ChevronRight,
     ChevronDown,
     ChevronUp,
+    Clock,
 } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
 import { 
     subscribeNotices, createNotice, getColleges, updateNotice, deleteNotice, subscribeModerationCount, type FirestoreNotice,
     toggleSaveNotice, subscribeSavedNotices
@@ -90,11 +90,99 @@ const programmeFilter = [
     { label: "M.Ed", value: "MEd" },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatDate(ts: any) {
-    if (!ts) return "";
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
+type TimestampLike = { toDate?: () => Date } | string | number | Date | null | undefined;
+
+function parseTimestamp(ts: TimestampLike): Date | null {
+    if (!ts) return null;
+    if (typeof ts === "object" && "toDate" in ts && typeof ts.toDate === "function") {
+        return ts.toDate();
+    }
+    const d = new Date(ts as string | number | Date);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDate(ts: TimestampLike) {
+    const d = parseTimestamp(ts);
+    if (!d) return "";
     return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function formatDeadlineDate(dateStr: string) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatAutoDeleteDate(dateStr: string) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + 14);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getNoticeDeadlineStatus(deadlineTs: TimestampLike, autoDeleteTs: TimestampLike) {
+    const deadlineDate = parseTimestamp(deadlineTs);
+    if (!deadlineDate) return null;
+    const now = new Date();
+    
+    // Day difference
+    const diffMs = deadlineDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    
+    const formattedDeadline = deadlineDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+    });
+
+    let remainingLabel = "";
+    let purgeNote = "Auto-cleans 14d post-deadline";
+    let isUrgent = false;
+
+    if (diffDays > 3) {
+        remainingLabel = `${diffDays} days left`;
+        isUrgent = false;
+    } else if (diffDays > 0) {
+        remainingLabel = `${diffDays} ${diffDays === 1 ? "day" : "days"} left!`;
+        isUrgent = true;
+    } else if (diffDays === 0) {
+        remainingLabel = "Due today!";
+        isUrgent = true;
+    } else {
+        remainingLabel = "Deadline passed";
+        isUrgent = false;
+
+        if (autoDeleteTs) {
+            const autoDeleteDate = autoDeleteTs.toDate ? autoDeleteTs.toDate() : new Date(autoDeleteTs);
+            const purgeDiffMs = autoDeleteDate.getTime() - now.getTime();
+            const daysLeft = Math.ceil(purgeDiffMs / (1000 * 60 * 60 * 24));
+            if (daysLeft <= 0) {
+                purgeNote = "Purging from server today";
+            } else {
+                purgeNote = `Auto-cleans in ${daysLeft}d from server`;
+            }
+        }
+    }
+
+    const isPassed = diffDays < 0;
+
+    return {
+        status: isPassed ? "passed" : (isUrgent ? "urgent" : "active"),
+        dateLabel: `Deadline: ${formattedDeadline}`,
+        compactLabel: `Due ${deadlineDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+        remainingLabel,
+        purgeNote,
+        isUrgent,
+        badgeClass: isUrgent 
+            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25" 
+            : (isPassed ? "bg-gray-100 dark:bg-white/[0.06] text-gray-500 border border-gray-200 dark:border-gray-800" : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25"),
+        calloutClass: isUrgent 
+            ? "bg-rose-500/[0.04] dark:bg-rose-500/[0.08] border-rose-500/20 text-rose-950 dark:text-rose-200" 
+            : (isPassed ? "bg-gray-50 dark:bg-white/[0.02] border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300" : "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border-amber-500/20 text-amber-950 dark:text-amber-200"),
+        calloutIconClass: isUrgent 
+            ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" 
+            : (isPassed ? "bg-gray-200/60 dark:bg-white/10 text-gray-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"),
+    };
 }
 
 /* ═══════════════════════════════════════════════════
@@ -113,6 +201,8 @@ function PostNoticeModal({
     const [body, setBody] = useState("");
     const [programme, setProgramme] = useState<"BEd" | "BEdHonours" | "MEd" | "Both" | "All">("All");
     const [isUrgent, setIsUrgent] = useState(false);
+    const [hasDeadline, setHasDeadline] = useState(false);
+    const [deadlineDate, setDeadlineDate] = useState("");
     const [attachmentUrl, setAttachmentUrl] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
@@ -162,6 +252,17 @@ function PostNoticeModal({
                 thumbnailUrl = resultUrl;
             }
 
+            let deadlineTimestamp: Timestamp | null = null;
+            let autoDeleteTimestamp: Timestamp | null = null;
+
+            if (hasDeadline && deadlineDate) {
+                const deadlineObj = new Date(`${deadlineDate}T23:59:59`);
+                // Auto-delete exactly 14 days after the notice deadline:
+                const autoDeleteObj = new Date(deadlineObj.getTime() + 14 * 24 * 60 * 60 * 1000);
+                deadlineTimestamp = Timestamp.fromDate(deadlineObj);
+                autoDeleteTimestamp = Timestamp.fromDate(autoDeleteObj);
+            }
+
             await createNotice({
                 title: title.trim(),
                 body: body.trim(),
@@ -171,7 +272,8 @@ function PostNoticeModal({
                 attachmentUrl: attachmentUrl.trim(),
                 visibility,
                 ...(thumbnailUrl ? { thumbnailUrl } : {}),
-                ...(isAdmin && selectedCollegeId ? { collegeId: selectedCollegeId } : {})
+                ...(isAdmin && selectedCollegeId ? { collegeId: selectedCollegeId } : {}),
+                ...(deadlineTimestamp ? { deadline: deadlineTimestamp, autoDeleteAt: autoDeleteTimestamp } : {})
             });
             showToast("Notice posted successfully! Pending review.", "success");
             onClose();
@@ -359,9 +461,9 @@ function PostNoticeModal({
                     </div>
 
                     {/* Urgent Alert Switch */}
-                    <div className="p-3.5 rounded-xl bg-red-50/70 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 flex items-center justify-between gap-3">
+                    <div className="p-3.5 rounded-2xl bg-red-500/[0.04] dark:bg-red-500/[0.08] border border-red-500/20 dark:border-red-500/30 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center flex-shrink-0">
                                 <AlertTriangle size={16} />
                             </div>
                             <div>
@@ -369,13 +471,187 @@ function PostNoticeModal({
                                 <p className="text-[11px] text-gray-500 dark:text-gray-400">Highlights notice in red and signals priority</p>
                             </div>
                         </div>
-                        <button
+                        <motion.button
                             type="button"
+                            role="switch"
+                            aria-checked={isUrgent}
+                            whileTap={{ scale: 0.92 }}
                             onClick={() => setIsUrgent(!isUrgent)}
-                            className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${isUrgent ? "bg-red-500 shadow-sm" : "bg-gray-300 dark:bg-gray-700"}`}
+                            className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                                isUrgent ? "bg-red-500 shadow-sm shadow-red-500/30" : "bg-gray-300 dark:bg-gray-700"
+                            }`}
                         >
-                            <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all shadow-xs ${isUrgent ? "left-5.5 translate-x-0.5" : "left-0.5"}`} />
-                        </button>
+                            <motion.span
+                                layout
+                                transition={{ type: "spring", stiffness: 600, damping: 35 }}
+                                animate={{ x: isUrgent ? 20 : 0 }}
+                                className="w-5 h-5 rounded-full bg-white shadow-sm block pointer-events-none"
+                            />
+                        </motion.button>
+                    </div>
+
+                    {/* Notice Expiry & Application Deadline Setting */}
+                    <div className={`p-4 rounded-2xl border transition-all duration-200 ${
+                        hasDeadline 
+                            ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border-amber-500/30 dark:border-amber-500/40 shadow-xs" 
+                            : "bg-slate-50/60 dark:bg-white/[0.02] border-gray-200/80 dark:border-gray-800/80"
+                    }`}>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    hasDeadline 
+                                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20" 
+                                        : "bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-gray-500"
+                                }`}>
+                                    <Clock size={17} />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs font-bold text-gray-900 dark:text-white">Notice Deadline & Auto-Clean</p>
+                                        {hasDeadline && (
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                Active
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Auto-deletes from entire server 14 days after the deadline
+                                    </p>
+                                </div>
+                            </div>
+                            <motion.button
+                                type="button"
+                                role="switch"
+                                aria-checked={hasDeadline}
+                                whileTap={{ scale: 0.92 }}
+                                onClick={() => {
+                                    if (hasDeadline) {
+                                        setHasDeadline(false);
+                                        setDeadlineDate("");
+                                    } else {
+                                        setHasDeadline(true);
+                                        const d = new Date();
+                                        d.setDate(d.getDate() + 7);
+                                        setDeadlineDate(d.toISOString().split("T")[0]);
+                                    }
+                                }}
+                                className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                                    hasDeadline ? "bg-amber-500 shadow-sm shadow-amber-500/30" : "bg-gray-300 dark:bg-gray-700"
+                                }`}
+                            >
+                                <motion.span
+                                    layout
+                                    transition={{ type: "spring", stiffness: 600, damping: 35 }}
+                                    animate={{ x: hasDeadline ? 20 : 0 }}
+                                    className="w-5 h-5 rounded-full bg-white shadow-sm block pointer-events-none"
+                                />
+                            </motion.button>
+                        </div>
+
+                        <AnimatePresence>
+                            {hasDeadline && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="mt-3.5 pt-3.5 border-t border-amber-200/50 dark:border-amber-800/40 space-y-3.5">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                                                Quick Select Preset
+                                            </label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {[
+                                                    { label: "+3 Days", days: 3 },
+                                                    { label: "+7 Days (1 Wk)", days: 7 },
+                                                    { label: "+14 Days (2 Wks)", days: 14 },
+                                                    { label: "+30 Days (1 Mo)", days: 30 },
+                                                ].map(preset => {
+                                                    const target = new Date();
+                                                    target.setDate(target.getDate() + preset.days);
+                                                    const isoStr = target.toISOString().split("T")[0];
+                                                    const isSelected = deadlineDate === isoStr;
+                                                    return (
+                                                        <button
+                                                            key={preset.label}
+                                                            type="button"
+                                                            onClick={() => setDeadlineDate(isoStr)}
+                                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                                                                isSelected 
+                                                                    ? "bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/25 scale-[1.02]" 
+                                                                    : "bg-white/80 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700/80 hover:border-amber-400/60 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 active:scale-95"
+                                                            }`}
+                                                        >
+                                                            {isSelected && <Check size={12} className="stroke-[3]" />}
+                                                            {preset.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
+                                                Select Specific Deadline Date
+                                            </label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-amber-500/80">
+                                                    <Calendar size={15} />
+                                                </div>
+                                                <input
+                                                    type="date"
+                                                    min={new Date().toISOString().split("T")[0]}
+                                                    value={deadlineDate}
+                                                    onChange={(e) => setDeadlineDate(e.target.value)}
+                                                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border text-xs outline-none focus:ring-2 focus:ring-amber-500/30 transition-all font-semibold font-mono cursor-pointer"
+                                                    style={{
+                                                        background: "var(--bg)",
+                                                        borderColor: "var(--card-border)",
+                                                        color: "var(--text-primary)",
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {deadlineDate && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -4 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/[0.08] border border-amber-500/20 space-y-2"
+                                            >
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+                                                        <Clock size={14} className="text-amber-600 dark:text-amber-400" />
+                                                        Notice / Application Deadline:
+                                                    </span>
+                                                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300">
+                                                        {formatDeadlineDate(deadlineDate)}
+                                                    </span>
+                                                </div>
+                                                <div className="pt-2 border-t border-amber-500/15 flex items-start justify-between gap-2 text-[11px]">
+                                                    <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 font-medium">
+                                                        <Trash2 size={13} className="text-rose-500 shrink-0 mt-0.5" />
+                                                        <span>Auto-purge from entire server:</span>
+                                                    </span>
+                                                    <span className="text-right font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                                                        {formatAutoDeleteDate(deadlineDate)}
+                                                        <span className="block text-[9.5px] font-sans font-normal text-gray-500 dark:text-gray-400">
+                                                            (14 days after deadline)
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-amber-500/10">
+                                                    ✨ Notice and attached scans will be permanently removed from cloud storage & database.
+                                                </p>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* Attachments: Image / Routine scan */}
@@ -481,7 +757,7 @@ function NoticePageContent() {
     const [selectedImageForLightbox, setSelectedImageForLightbox] = useState<string | null>(null);
     const [savedNoticeIds, setSavedNoticeIds] = useState<string[]>([]);
     const [isShareOpen, setIsShareOpen] = useState(false);
-    const [shareNotice, setShareNotice] = useState<any | null>(null);
+    const [shareNotice, setShareNotice] = useState<Notice | null>(null);
     const [targetNoticeId, setTargetNoticeId] = useState<string | null>(null);
     const [temporaryHighlightId, setTemporaryHighlightId] = useState<string | null>(null);
     const hasScrolledRef = useRef<string | null>(null);
@@ -495,6 +771,7 @@ function NoticePageContent() {
     const [expandedNoticeIds, setExpandedNoticeIds] = useState<Record<string, boolean>>({});
     const [isCollegeMenuOpen, setIsCollegeMenuOpen] = useState(false);
     const [collegeSearchQuery, setCollegeSearchQuery] = useState("");
+    const [onlyWithDeadlines, setOnlyWithDeadlines] = useState(false);
 
     const filteredCollegeList = useMemo(() => {
         if (!collegeSearchQuery.trim()) return collegeList;
@@ -532,6 +809,8 @@ function NoticePageContent() {
     const [editIsPinned, setEditIsPinned] = useState(false);
     const [editAttachmentUrl, setEditAttachmentUrl] = useState("");
     const [editSelectedCollegeId, setEditSelectedCollegeId] = useState("");
+    const [editHasDeadline, setEditHasDeadline] = useState(false);
+    const [editDeadlineDate, setEditDeadlineDate] = useState("");
     
     // Media Edit state
     const [editThumbnailFile, setEditThumbnailFile] = useState<File | null>(null);
@@ -554,6 +833,25 @@ function NoticePageContent() {
     const collegeName = profile?.collegeId
         ? notices.find(n => n.collegeId === profile.collegeId)?.college || profile.collegeId
         : "";
+
+    // Automated server cleanup check for expired notices
+    useEffect(() => {
+        try {
+            const lastCleanup = sessionStorage.getItem("last_notice_cleanup");
+            const now = Date.now();
+            if (!lastCleanup || now - parseInt(lastCleanup, 10) > 30 * 60 * 1000) {
+                fetch("/api/notices/auto-cleanup")
+                    .then(res => res.json())
+                    .then(data => {
+                        sessionStorage.setItem("last_notice_cleanup", now.toString());
+                        if (data.deletedCount > 0) {
+                            console.log(`[Auto-Cleanup] Successfully removed ${data.deletedCount} expired notice(s) from server.`);
+                        }
+                    })
+                    .catch(err => console.warn("[Auto-Cleanup] Non-critical background ping:", err));
+            }
+        } catch {}
+    }, []);
 
     // Real-time listener via onSnapshot
     useEffect(() => {
@@ -653,7 +951,7 @@ function NoticePageContent() {
         }
     };
 
-    const handleShareNotice = (notice: any) => {
+    const handleShareNotice = (notice: Notice) => {
         setShareNotice(notice);
         setIsShareOpen(true);
     };
@@ -695,6 +993,8 @@ function NoticePageContent() {
                 searchQuery &&
                 !n.title.toLowerCase().includes(searchQuery.toLowerCase())
             )
+                return false;
+            if (onlyWithDeadlines && !n.deadline)
                 return false;
             return true;
         })
@@ -751,9 +1051,10 @@ function NoticePageContent() {
         setSelectedCollege("All");
         setSelectedProgramme("All");
         setSearchQuery("");
+        setOnlyWithDeadlines(false);
     };
 
-    const hasActiveFilters = selectedCollege !== "All" || selectedProgramme !== "All" || searchQuery.trim().length > 0;
+    const hasActiveFilters = selectedCollege !== "All" || selectedProgramme !== "All" || searchQuery.trim().length > 0 || onlyWithDeadlines;
 
     const handleEditStart = (notice: Notice) => {
         if (!requireVerification("edit notices")) return;
@@ -769,12 +1070,27 @@ function NoticePageContent() {
         setEditThumbnailFile(null);
         setEditThumbnailPreview(notice.thumbnailUrl || null);
         setEditExistingThumbnailUrl(notice.thumbnailUrl || null);
+        if (notice.deadline) {
+            const d = parseTimestamp(notice.deadline);
+            if (d) {
+                setEditHasDeadline(true);
+                setEditDeadlineDate(d.toISOString().split("T")[0]);
+            } else {
+                setEditHasDeadline(false);
+                setEditDeadlineDate("");
+            }
+        } else {
+            setEditHasDeadline(false);
+            setEditDeadlineDate("");
+        }
     };
 
     const handleEditCancel = () => {
         setEditingNoticeId(null);
         setEditThumbnailFile(null);
         setEditThumbnailPreview(null);
+        setEditHasDeadline(false);
+        setEditDeadlineDate("");
     };
 
     const handleEditSave = async (id: string) => {
@@ -799,6 +1115,17 @@ function NoticePageContent() {
                 finalThumbnailUrl = "";
             }
 
+            let finalDeadline: Timestamp | null = null;
+            let finalAutoDeleteAt: Timestamp | null = null;
+
+            if (editHasDeadline && editDeadlineDate) {
+                const deadlineObj = new Date(`${editDeadlineDate}T23:59:59`);
+                // Auto-delete exactly 14 days after the notice deadline:
+                const autoDeleteObj = new Date(deadlineObj.getTime() + 14 * 24 * 60 * 60 * 1000);
+                finalDeadline = Timestamp.fromDate(deadlineObj);
+                finalAutoDeleteAt = Timestamp.fromDate(autoDeleteObj);
+            }
+
             // 2. Update Firestore
             await updateNotice(id, { 
                 title: editTitle.trim(), 
@@ -809,11 +1136,15 @@ function NoticePageContent() {
                 isPinned: editIsPinned,
                 attachmentUrl: editAttachmentUrl.trim(),
                 thumbnailUrl: finalThumbnailUrl,
-                ...(isAdmin && editSelectedCollegeId ? { collegeId: editSelectedCollegeId } : {})
+                ...(isAdmin && editSelectedCollegeId ? { collegeId: editSelectedCollegeId } : {}),
+                deadline: finalDeadline,
+                autoDeleteAt: finalAutoDeleteAt,
             });
             
             setEditingNoticeId(null);
             setEditThumbnailFile(null);
+            setEditHasDeadline(false);
+            setEditDeadlineDate("");
         } catch (err) {
             console.error(err);
             showToast("Failed to save changes.", "error");
@@ -1292,6 +1623,27 @@ function NoticePageContent() {
                                     </button>
                                 );
                             })}
+
+                            {/* Deadline Quick Filter */}
+                            {notices.some(n => !!n.deadline) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setOnlyWithDeadlines(!onlyWithDeadlines)}
+                                    className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                                        onlyWithDeadlines
+                                            ? "bg-amber-500 text-white border-amber-500 shadow-xs font-bold"
+                                            : "bg-amber-50/70 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-200/70 dark:border-amber-800/40 hover:bg-amber-100/60"
+                                    }`}
+                                >
+                                    <Clock size={11} className={onlyWithDeadlines ? "" : "text-amber-600 dark:text-amber-400"} />
+                                    <span>Has Deadline</span>
+                                    <span className={`text-[10px] px-1 py-0.2 rounded-full ${
+                                        onlyWithDeadlines ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold"
+                                    }`}>
+                                        {notices.filter(n => !!n.deadline).length}
+                                    </span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Reset filters pill if active */}
@@ -1355,7 +1707,6 @@ function NoticePageContent() {
                     /* Compact List View */
                     <div className="space-y-2.5">
                         {filteredNotices.map((notice, index) => {
-                            const permissions = canEditNotice(profile, notice);
                             return (
                                 <motion.div
                                     key={notice.id}
@@ -1419,6 +1770,17 @@ function NoticePageContent() {
                                                         <FileText size={10} /> PDF
                                                     </span>
                                                 )}
+                                                {notice.deadline && (() => {
+                                                    const dInfo = getNoticeDeadlineStatus(notice.deadline, notice.autoDeleteAt);
+                                                    if (!dInfo) return null;
+                                                    return (
+                                                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${dInfo.badgeClass}`}>
+                                                            <Clock size={10} className={dInfo.isUrgent ? "animate-pulse" : ""} />
+                                                            <span>{dInfo.compactLabel}</span>
+                                                            <span className="opacity-80 font-normal">• {dInfo.remainingLabel}</span>
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
 
                                             <h4 
@@ -1568,7 +1930,7 @@ function NoticePageContent() {
                                                         Rejected
                                                     </span>
                                                 )}
-                                            </div>
+                                             </div>
 
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs text-gray-400 hidden xs:flex items-center gap-1">
@@ -1796,26 +2158,159 @@ function NoticePageContent() {
                                                     )}
                                                 </div>
 
-                                                <div className="flex flex-wrap items-center gap-4 py-2">
-                                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                                        <div 
+                                                <div className="flex flex-wrap items-center gap-6 py-2">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <motion.button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={editIsUrgent}
+                                                            whileTap={{ scale: 0.92 }}
                                                             onClick={() => setEditIsUrgent(!editIsUrgent)}
-                                                            className={`w-10 h-5 rounded-full relative transition-all ${editIsUrgent ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-gray-200 dark:bg-gray-700'}`}
+                                                            className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                                                                editIsUrgent ? "bg-red-500 shadow-sm shadow-red-500/25" : "bg-gray-200 dark:bg-gray-700"
+                                                            }`}
                                                         >
-                                                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${editIsUrgent ? 'right-1' : 'left-1'}`} />
-                                                        </div>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-red-500 transition-colors">Mark Urgent</span>
-                                                    </label>
+                                                            <motion.span
+                                                                layout
+                                                                transition={{ type: "spring", stiffness: 600, damping: 35 }}
+                                                                animate={{ x: editIsUrgent ? 20 : 0 }}
+                                                                className="w-5 h-5 rounded-full bg-white shadow-sm block pointer-events-none"
+                                                            />
+                                                        </motion.button>
+                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Mark Urgent</span>
+                                                    </div>
 
-                                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                                        <div 
+                                                    <div className="flex items-center gap-2.5">
+                                                        <motion.button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={editIsPinned}
+                                                            whileTap={{ scale: 0.92 }}
                                                             onClick={() => setEditIsPinned(!editIsPinned)}
-                                                            className={`w-10 h-5 rounded-full relative transition-all ${editIsPinned ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'bg-gray-200 dark:bg-gray-700'}`}
+                                                            className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                                                                editIsPinned ? "bg-indigo-500 shadow-sm shadow-indigo-500/25" : "bg-gray-200 dark:bg-gray-700"
+                                                            }`}
                                                         >
-                                                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${editIsPinned ? 'right-1' : 'left-1'}`} />
+                                                            <motion.span
+                                                                layout
+                                                                transition={{ type: "spring", stiffness: 600, damping: 35 }}
+                                                                animate={{ x: editIsPinned ? 20 : 0 }}
+                                                                className="w-5 h-5 rounded-full bg-white shadow-sm block pointer-events-none"
+                                                            />
+                                                        </motion.button>
+                                                        <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Pin to Top</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Notice Deadline Setting in Edit Form */}
+                                                <div className={`p-3.5 rounded-2xl border transition-all duration-200 ${
+                                                    editHasDeadline 
+                                                        ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border-amber-500/30 dark:border-amber-500/40" 
+                                                        : "bg-slate-50/60 dark:bg-white/[0.02] border-gray-200 dark:border-gray-800"
+                                                }`}>
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                                                editHasDeadline 
+                                                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" 
+                                                                    : "bg-gray-200/70 dark:bg-white/10 text-gray-400"
+                                                            }`}>
+                                                                <Clock size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-900 dark:text-white">Notice Deadline & Auto-Clean</p>
+                                                                <p className="text-[10px] text-gray-500 dark:text-gray-400">Purges 14d post-deadline</p>
+                                                            </div>
                                                         </div>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-indigo-500 transition-colors">Pin to Top</span>
-                                                    </label>
+                                                        <motion.button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={editHasDeadline}
+                                                            whileTap={{ scale: 0.92 }}
+                                                            onClick={() => {
+                                                                if (editHasDeadline) {
+                                                                    setEditHasDeadline(false);
+                                                                    setEditDeadlineDate("");
+                                                                } else {
+                                                                    setEditHasDeadline(true);
+                                                                    const d = new Date();
+                                                                    d.setDate(d.getDate() + 7);
+                                                                    setEditDeadlineDate(d.toISOString().split("T")[0]);
+                                                                }
+                                                            }}
+                                                            className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                                                                editHasDeadline ? "bg-amber-500 shadow-sm shadow-amber-500/25" : "bg-gray-300 dark:bg-gray-700"
+                                                            }`}
+                                                        >
+                                                            <motion.span
+                                                                layout
+                                                                transition={{ type: "spring", stiffness: 600, damping: 35 }}
+                                                                animate={{ x: editHasDeadline ? 20 : 0 }}
+                                                                className="w-5 h-5 rounded-full bg-white shadow-sm block pointer-events-none"
+                                                            />
+                                                        </motion.button>
+                                                    </div>
+
+                                                    <AnimatePresence>
+                                                        {editHasDeadline && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, height: 0 }}
+                                                                animate={{ opacity: 1, height: "auto" }}
+                                                                exit={{ opacity: 0, height: 0 }}
+                                                                transition={{ duration: 0.25, ease: "easeInOut" }}
+                                                                className="overflow-hidden"
+                                                            >
+                                                                <div className="mt-3 pt-3 border-t border-amber-200/60 dark:border-amber-800/40 space-y-2.5">
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {[
+                                                                            { label: "+3 Days", days: 3 },
+                                                                            { label: "+7 Days", days: 7 },
+                                                                            { label: "+14 Days", days: 14 },
+                                                                            { label: "+30 Days", days: 30 },
+                                                                        ].map(p => {
+                                                                            const target = new Date();
+                                                                            target.setDate(target.getDate() + p.days);
+                                                                            const isoStr = target.toISOString().split("T")[0];
+                                                                            const isSelected = editDeadlineDate === isoStr;
+                                                                            return (
+                                                                                <button
+                                                                                    key={p.label}
+                                                                                    type="button"
+                                                                                    onClick={() => setEditDeadlineDate(isoStr)}
+                                                                                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all ${
+                                                                                        isSelected
+                                                                                            ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                                                                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-amber-400"
+                                                                                    }`}
+                                                                                >
+                                                                                    {p.label}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                    <div className="relative">
+                                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-amber-500/80">
+                                                                            <Calendar size={14} />
+                                                                        </div>
+                                                                        <input
+                                                                            type="date"
+                                                                            min={new Date().toISOString().split("T")[0]}
+                                                                            value={editDeadlineDate}
+                                                                            onChange={e => setEditDeadlineDate(e.target.value)}
+                                                                            className="w-full pl-8.5 pr-3 py-2 border rounded-xl text-xs font-mono font-semibold outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                                            style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                                                                        />
+                                                                    </div>
+                                                                    {editDeadlineDate && (
+                                                                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                                                                            <span className="font-semibold">Deadline: {formatDeadlineDate(editDeadlineDate)}</span>
+                                                                            <span className="text-rose-600 dark:text-rose-400 font-bold">Purges: {formatAutoDeleteDate(editDeadlineDate)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
                                                 </div>
 
                                                 <div className="flex gap-2 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
@@ -1843,6 +2338,30 @@ function NoticePageContent() {
                                                 <h3 className="text-lg sm:text-xl font-bold font-bangla text-gray-900 dark:text-white tracking-tight leading-snug">
                                                     {notice.title}
                                                 </h3>
+
+                                                {/* Single Clean Notice Deadline Bar */}
+                                                {notice.deadline && (() => {
+                                                    const dInfo = getNoticeDeadlineStatus(notice.deadline, notice.autoDeleteAt);
+                                                    if (!dInfo) return null;
+                                                    return (
+                                                        <div className={`mt-2.5 mb-3 px-3 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs transition-colors ${dInfo.calloutClass}`}>
+                                                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${dInfo.calloutIconClass}`}>
+                                                                    <Clock size={13} className={dInfo.isUrgent ? "animate-pulse" : ""} />
+                                                                </div>
+                                                                <span className="font-bold text-xs tracking-tight">{dInfo.dateLabel}</span>
+                                                                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${dInfo.badgeClass}`}>
+                                                                    {dInfo.isUrgent && <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />}
+                                                                    {dInfo.remainingLabel}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-[10px] opacity-75 flex items-center gap-1 font-medium shrink-0">
+                                                                <Trash2 size={11} className="text-rose-500 shrink-0" />
+                                                                <span>{dInfo.purgeNote}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 {/* Notice Body with Expand/Collapse */}
                                                 <div className="text-xs sm:text-sm mt-2 text-gray-600 dark:text-gray-300 font-bangla leading-relaxed whitespace-pre-line">

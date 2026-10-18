@@ -7,7 +7,8 @@ import {
     AlertTriangle, 
     CheckCircle2, 
     Database,
-    Megaphone
+    Megaphone,
+    Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getNotices, deleteNotice, type FirestoreNotice } from "@/lib/firestore";
@@ -20,7 +21,27 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState("");
     const [seeding, setSeeding] = useState(false);
+    const [cleaning, setCleaning] = useState(false);
     const { confirm, setIsLoading: setConfirmLoading, close: closeConfirm } = useConfirm();
+
+    const handleCleanupExpired = async () => {
+        setCleaning(true);
+        try {
+            const res = await fetch("/api/notices/auto-cleanup");
+            const data = await res.json();
+            if (data.deletedCount > 0) {
+                setMessage(`✅ Purged ${data.deletedCount} expired notice(s) from server.`);
+            } else {
+                setMessage("ℹ️ No expired notices need purging.");
+            }
+            setTimeout(() => setMessage(""), 3500);
+            loadNotices();
+        } catch {
+            setMessage("❌ Failed to run notice auto-cleanup");
+        } finally {
+            setCleaning(false);
+        }
+    };
 
     const loadNotices = async () => {
         setLoading(true);
@@ -112,16 +133,27 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
                     </h2>
                     <p className="text-sm text-gray-500 font-medium">Create, edit, and moderate platform-wide notices.</p>
                 </div>
-                {profile.role === "admin" && (
+                <div className="flex items-center gap-2">
                     <button 
-                        onClick={handleSeed}
-                        disabled={seeding}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        onClick={handleCleanupExpired}
+                        disabled={cleaning}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/25 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        title="Purge notices 14+ days past deadline"
                     >
-                        <Database size={14} />
-                        {seeding ? "Seeding..." : "Seed Samples"}
+                        <Clock size={14} className={cleaning ? "animate-spin" : ""} />
+                        {cleaning ? "Purging..." : "Purge Expired"}
                     </button>
-                )}
+                    {profile.role === "admin" && (
+                        <button 
+                            onClick={handleSeed}
+                            disabled={seeding}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        >
+                            <Database size={14} />
+                            {seeding ? "Seeding..." : "Seed Samples"}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
@@ -132,7 +164,7 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
                         className="bg-white dark:bg-gray-800/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between group gap-3"
                     >
                         <div className="space-y-1 min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
                                     notice.isUrgent ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
                                 }`}>
@@ -141,6 +173,12 @@ export default function NoticesTab({ profile }: { profile: UserProfile }) {
                                 {notice.isPinned && (
                                     <span className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter flex items-center gap-1">
                                         Pinned
+                                    </span>
+                                )}
+                                {notice.deadline && (
+                                    <span className="bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
+                                        <Clock size={10} />
+                                        Deadline: {typeof notice.deadline.toDate === "function" ? notice.deadline.toDate().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : String(notice.deadline)}
                                     </span>
                                 )}
                             </div>

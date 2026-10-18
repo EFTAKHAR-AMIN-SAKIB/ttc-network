@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { cleanupExpiredNotices } from "@/lib/server-notice-deletion";
 
 export async function GET(request: NextRequest) {
     // ── Auth check: require valid admin session ─────────────
@@ -51,7 +52,13 @@ export async function GET(request: NextRequest) {
             }
         }
         
-        return NextResponse.json({ message: `Cleanup complete. Deleted ${deleted} orphaned comments.` });
+        const noticeCleanup = await cleanupExpiredNotices();
+
+        return NextResponse.json({ 
+            message: `Cleanup complete. Deleted ${deleted} orphaned comments and ${noticeCleanup.deletedCount} expired notices.`,
+            deletedComments: deleted,
+            deletedNotices: noticeCleanup.deletedNotices
+        });
     } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
