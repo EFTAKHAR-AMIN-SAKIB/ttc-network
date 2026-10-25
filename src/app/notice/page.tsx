@@ -37,6 +37,7 @@ import {
     ChevronDown,
     ChevronUp,
     Clock,
+    Loader2,
 } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { 
@@ -153,13 +154,15 @@ function getNoticeDeadlineStatus(deadlineTs: TimestampLike, autoDeleteTs: Timest
         isUrgent = false;
 
         if (autoDeleteTs) {
-            const autoDeleteDate = autoDeleteTs.toDate ? autoDeleteTs.toDate() : new Date(autoDeleteTs);
-            const purgeDiffMs = autoDeleteDate.getTime() - now.getTime();
-            const daysLeft = Math.ceil(purgeDiffMs / (1000 * 60 * 60 * 24));
-            if (daysLeft <= 0) {
-                purgeNote = "Purging from server today";
-            } else {
-                purgeNote = `Auto-cleans in ${daysLeft}d from server`;
+            const autoDeleteDate = parseTimestamp(autoDeleteTs);
+            if (autoDeleteDate) {
+                const purgeDiffMs = autoDeleteDate.getTime() - now.getTime();
+                const daysLeft = Math.ceil(purgeDiffMs / (1000 * 60 * 60 * 24));
+                if (daysLeft <= 0) {
+                    purgeNote = "Purging from server today";
+                } else {
+                    purgeNote = `Auto-cleans in ${daysLeft}d from server`;
+                }
             }
         }
     }
@@ -215,6 +218,28 @@ function PostNoticeModal({
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
+    // Lock body scroll & trigger mobile dock/navbar hide while composer is open
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent("ttc-composer-toggle", { detail: { open: true } }));
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            window.dispatchEvent(new CustomEvent("ttc-composer-toggle", { detail: { open: false } }));
+            document.body.style.overflow = originalOverflow;
+        };
+    }, []);
+
+    // Handle Escape key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && !submitting) {
+                onClose();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [submitting, onClose]);
 
     useEffect(() => {
         if (isAdmin) {
@@ -286,63 +311,64 @@ function PostNoticeModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-            {/* Backdrop */}
+        <div 
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => {
+                if (e.target === e.currentTarget && !submitting) onClose();
+            }}
+        >
+            {/* Modal Bottom Sheet Card */}
             <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-
-            {/* Modal */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 15 }}
-                className="relative w-full max-w-xl rounded-2xl border shadow-2xl z-10 max-h-[90vh] flex flex-col overflow-hidden"
+                initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                className="relative w-full sm:max-w-xl rounded-t-[2rem] sm:rounded-2xl border-t sm:border shadow-2xl flex flex-col h-[90dvh] sm:h-auto max-h-[92dvh] sm:max-h-[88vh] overflow-hidden bg-white dark:bg-[#12141a]"
                 style={{
-                    background: "var(--card-bg, #fff)",
                     borderColor: "var(--card-border, #e5e7eb)",
                 }}
             >
+                {/* Mobile Drawer Grabber */}
+                <div className="sm:hidden w-12 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2.5 mb-1 shrink-0" />
+
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10 flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                            <Megaphone size={20} />
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-3.5 border-b border-gray-100 dark:border-white/10 shrink-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Megaphone size={18} className="sm:w-5 sm:h-5" />
                         </div>
-                        <div>
-                            <h2 className="text-base sm:text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+                        <div className="min-w-0">
+                            <h2 className="text-sm sm:text-base font-bold truncate text-gray-900 dark:text-white">
                                 Post Official Notice
                             </h2>
-                            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            <p className="text-[11px] sm:text-xs truncate text-gray-500 dark:text-gray-400">
                                 Publish an announcement to the TTC Network bulletin
                             </p>
                         </div>
                     </div>
                     <button
+                        type="button"
                         onClick={onClose}
-                        className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        disabled={submitting}
+                        className="p-1.5 sm:p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors shrink-0 cursor-pointer"
                         title="Close"
                     >
-                        <X size={18} style={{ color: "var(--text-muted)" }} />
+                        <X size={18} />
                     </button>
                 </div>
 
                 {error && (
-                    <div className="mx-6 mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
-                        <AlertTriangle size={15} className="flex-shrink-0" />
+                    <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2 shrink-0">
+                        <AlertTriangle size={15} className="shrink-0" />
                         <span>{error}</span>
                     </div>
                 )}
 
                 {/* Scrollable Form Body */}
-                <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 overscroll-contain">
                     {/* College Selection */}
                     <div>
-                        <label className="text-xs font-bold block mb-1.5 flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                        <label className="text-xs font-bold block mb-1.5 flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
                             <Building2 size={13} className="text-primary" />
                             Target College
                         </label>
@@ -350,8 +376,7 @@ function PostNoticeModal({
                             <select
                                 value={selectedCollegeId}
                                 onChange={(e) => setSelectedCollegeId(e.target.value)}
-                                className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all font-medium"
-                                style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                                className="w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all font-medium bg-slate-50 dark:bg-white/5 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white"
                             >
                                 {colleges.map(c => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -359,52 +384,50 @@ function PostNoticeModal({
                             </select>
                         ) : (
                             <div
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-sm font-semibold bg-slate-50 dark:bg-white/5"
-                                style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold bg-slate-50 dark:bg-white/5 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white"
                             >
-                                <School size={15} className="text-primary flex-shrink-0" />
-                                <span>{collegeName || "Your College Campus"}</span>
+                                <School size={15} className="text-primary shrink-0" />
+                                <span className="truncate">{collegeName || "Your College Campus"}</span>
                             </div>
                         )}
                     </div>
 
                     {/* Notice Title */}
                     <div>
-                        <label className="text-xs font-bold block mb-1.5 flex items-center justify-between" style={{ color: "var(--text-secondary)" }}>
+                        <label className="text-xs font-bold block mb-1.5 flex items-center justify-between text-gray-700 dark:text-gray-300">
                             <span>Notice Title <span className="text-red-500">*</span></span>
                             <span className="text-[10px] font-normal text-gray-400">Bangla or English</span>
                         </label>
                         <input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all font-semibold"
-                            style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                            className="w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all font-semibold bg-slate-50/50 dark:bg-white/5 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400"
                             placeholder="e.g., পরীক্ষার সময়সূচি পরিবর্তন / Class Routine Announcement"
                         />
                     </div>
 
                     {/* Notice Body */}
                     <div>
-                        <label className="text-xs font-bold block mb-1.5 flex items-center justify-between" style={{ color: "var(--text-secondary)" }}>
+                        <label className="text-xs font-bold block mb-1.5 flex items-center justify-between text-gray-700 dark:text-gray-300">
                             <span>Notice Details & Content <span className="text-red-500">*</span></span>
                             <span className="text-[10px] font-normal text-gray-400">Supports paragraphs</span>
                         </label>
                         <textarea
                             value={body}
                             onChange={(e) => setBody(e.target.value)}
-                            rows={4}
-                            className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none resize-none focus:ring-2 focus:ring-primary/30 transition-all leading-relaxed"
-                            style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                            rows={3}
+                            className="w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm outline-none resize-none focus:ring-2 focus:ring-primary/30 transition-all leading-relaxed bg-slate-50/50 dark:bg-white/5 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400"
                             placeholder="Write the complete announcement or instructions here..."
                         />
                     </div>
 
-                    {/* Programme & Privacy (2-column on desktop) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Programme & Privacy (Responsive 1-col on mobile, 2-col on desktop) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                         {/* Programme */}
                         <div>
-                            <label className="text-xs font-bold block mb-1.5" style={{ color: "var(--text-secondary)" }}>
-                                Applicable Programme
+                            <label className="text-xs font-bold block mb-1.5 flex items-center justify-between text-gray-700 dark:text-gray-300">
+                                <span>Applicable Programme</span>
+                                <span className="text-[10px] font-normal text-gray-400">Target cohort</span>
                             </label>
                             <div className="grid grid-cols-3 gap-1.5">
                                 {([
@@ -416,10 +439,10 @@ function PostNoticeModal({
                                         type="button"
                                         key={p.value}
                                         onClick={() => setProgramme(p.value)}
-                                        className={`py-2 rounded-xl text-xs font-bold transition-all border text-center ${
+                                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center truncate cursor-pointer ${
                                             programme === p.value
                                                 ? "bg-primary text-white border-primary shadow-xs"
-                                                : "border-gray-200 dark:border-gray-700 hover:border-primary/50 text-gray-600 dark:text-gray-300"
+                                                : "border-gray-200 dark:border-gray-700/80 hover:border-primary/50 text-gray-600 dark:text-gray-300 bg-slate-50/50 dark:bg-white/[0.02]"
                                         }`}
                                     >
                                         {p.label}
@@ -430,45 +453,48 @@ function PostNoticeModal({
 
                         {/* Privacy */}
                         <div>
-                            <label className="text-xs font-bold block mb-1.5" style={{ color: "var(--text-secondary)" }}>
-                                Audience Visibility
+                            <label className="text-xs font-bold block mb-1.5 flex items-center justify-between text-gray-700 dark:text-gray-300">
+                                <span>Audience Visibility</span>
+                                <span className="text-[10px] font-normal text-gray-400">Who sees this</span>
                             </label>
                             <div className="grid grid-cols-2 gap-1.5">
                                 <button
                                     type="button"
                                     onClick={() => setVisibility("public")}
-                                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 truncate cursor-pointer ${
                                         visibility === "public"
                                             ? "bg-primary text-white border-primary shadow-xs"
-                                            : "border-gray-200 dark:border-gray-700 hover:border-primary/50 text-gray-600 dark:text-gray-300"
+                                            : "border-gray-200 dark:border-gray-700/80 hover:border-primary/50 text-gray-600 dark:text-gray-300 bg-slate-50/50 dark:bg-white/[0.02]"
                                     }`}
                                 >
-                                    <Globe size={13} /> Global (All)
+                                    <Globe size={13} className="shrink-0" />
+                                    <span className="truncate">Global (All)</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setVisibility("campus")}
-                                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 truncate cursor-pointer ${
                                         visibility === "campus"
                                             ? "bg-primary text-white border-primary shadow-xs"
-                                            : "border-gray-200 dark:border-gray-700 hover:border-primary/50 text-gray-600 dark:text-gray-300"
+                                            : "border-gray-200 dark:border-gray-700/80 hover:border-primary/50 text-gray-600 dark:text-gray-300 bg-slate-50/50 dark:bg-white/[0.02]"
                                     }`}
                                 >
-                                    <School size={13} /> Campus Only
+                                    <School size={13} className="shrink-0" />
+                                    <span className="truncate">Campus Only</span>
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Urgent Alert Switch */}
-                    <div className="p-3.5 rounded-2xl bg-red-500/[0.04] dark:bg-red-500/[0.08] border border-red-500/20 dark:border-red-500/30 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center flex-shrink-0">
+                    <div className="p-3 sm:p-3.5 rounded-2xl bg-red-500/[0.04] dark:bg-red-500/[0.08] border border-red-500/20 dark:border-red-500/30 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
                                 <AlertTriangle size={16} />
                             </div>
-                            <div>
-                                <p className="text-xs font-bold text-gray-900 dark:text-white">Mark as Urgent Notice</p>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400">Highlights notice in red and signals priority</p>
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Mark as Urgent Notice</p>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Highlights notice in red and signals priority</p>
                             </div>
                         </div>
                         <motion.button
@@ -477,7 +503,7 @@ function PostNoticeModal({
                             aria-checked={isUrgent}
                             whileTap={{ scale: 0.92 }}
                             onClick={() => setIsUrgent(!isUrgent)}
-                            className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                            className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none cursor-pointer ${
                                 isUrgent ? "bg-red-500 shadow-sm shadow-red-500/30" : "bg-gray-300 dark:bg-gray-700"
                             }`}
                         >
@@ -491,31 +517,31 @@ function PostNoticeModal({
                     </div>
 
                     {/* Notice Expiry & Application Deadline Setting */}
-                    <div className={`p-4 rounded-2xl border transition-all duration-200 ${
+                    <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 ${
                         hasDeadline 
                             ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border-amber-500/30 dark:border-amber-500/40 shadow-xs" 
                             : "bg-slate-50/60 dark:bg-white/[0.02] border-gray-200/80 dark:border-gray-800/80"
                     }`}>
                         <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                                     hasDeadline 
                                         ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20" 
                                         : "bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-gray-500"
                                 }`}>
-                                    <Clock size={17} />
+                                    <Clock size={16} className="sm:w-[17px] sm:h-[17px]" />
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <p className="text-xs font-bold text-gray-900 dark:text-white">Notice Deadline & Auto-Clean</p>
+                                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">Notice Deadline & Auto-Clean</p>
                                         {hasDeadline && (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                                 Active
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                    <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                                         Auto-deletes from entire server 14 days after the deadline
                                     </p>
                                 </div>
@@ -536,7 +562,7 @@ function PostNoticeModal({
                                         setDeadlineDate(d.toISOString().split("T")[0]);
                                     }
                                 }}
-                                className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none ${
+                                className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 shrink-0 focus:outline-none cursor-pointer ${
                                     hasDeadline ? "bg-amber-500 shadow-sm shadow-amber-500/30" : "bg-gray-300 dark:bg-gray-700"
                                 }`}
                             >
@@ -558,12 +584,12 @@ function PostNoticeModal({
                                     transition={{ duration: 0.25, ease: "easeInOut" }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="mt-3.5 pt-3.5 border-t border-amber-200/50 dark:border-amber-800/40 space-y-3.5">
+                                    <div className="mt-3.5 pt-3.5 border-t border-amber-200/50 dark:border-amber-800/40 space-y-3">
                                         <div>
                                             <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1.5">
                                                 Quick Select Preset
                                             </label>
-                                            <div className="flex flex-wrap gap-1.5">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                                 {[
                                                     { label: "+3 Days", days: 3 },
                                                     { label: "+7 Days (1 Wk)", days: 7 },
@@ -579,14 +605,14 @@ function PostNoticeModal({
                                                             key={preset.label}
                                                             type="button"
                                                             onClick={() => setDeadlineDate(isoStr)}
-                                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                                                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 truncate cursor-pointer ${
                                                                 isSelected 
-                                                                    ? "bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/25 scale-[1.02]" 
-                                                                    : "bg-white/80 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700/80 hover:border-amber-400/60 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 active:scale-95"
+                                                                    ? "bg-amber-500 text-white border-amber-500 shadow-xs" 
+                                                                    : "bg-white/80 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700/80 hover:border-amber-400/60"
                                                             }`}
                                                         >
-                                                            {isSelected && <Check size={12} className="stroke-[3]" />}
-                                                            {preset.label}
+                                                            {isSelected && <Check size={11} className="stroke-[3] shrink-0" />}
+                                                            <span className="truncate">{preset.label}</span>
                                                         </button>
                                                     );
                                                 })}
@@ -606,12 +632,7 @@ function PostNoticeModal({
                                                     min={new Date().toISOString().split("T")[0]}
                                                     value={deadlineDate}
                                                     onChange={(e) => setDeadlineDate(e.target.value)}
-                                                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border text-xs outline-none focus:ring-2 focus:ring-amber-500/30 transition-all font-semibold font-mono cursor-pointer"
-                                                    style={{
-                                                        background: "var(--bg)",
-                                                        borderColor: "var(--card-border)",
-                                                        color: "var(--text-primary)",
-                                                    }}
+                                                    className="w-full pl-9 pr-3.5 py-2 rounded-xl border text-xs outline-none focus:ring-2 focus:ring-amber-500/30 transition-all font-semibold font-mono cursor-pointer bg-white dark:bg-black/30 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
                                                 />
                                             </div>
                                         </div>
@@ -622,24 +643,24 @@ function PostNoticeModal({
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/[0.08] border border-amber-500/20 space-y-2"
                                             >
-                                                <div className="flex items-center justify-between text-xs">
+                                                <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
                                                     <span className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
-                                                        <Clock size={14} className="text-amber-600 dark:text-amber-400" />
-                                                        Notice / Application Deadline:
+                                                        <Clock size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                                        Notice Deadline:
                                                     </span>
                                                     <span className="font-mono font-bold text-amber-700 dark:text-amber-300">
                                                         {formatDeadlineDate(deadlineDate)}
                                                     </span>
                                                 </div>
-                                                <div className="pt-2 border-t border-amber-500/15 flex items-start justify-between gap-2 text-[11px]">
+                                                <div className="pt-2 border-t border-amber-500/15 flex flex-wrap items-center justify-between gap-1 text-[11px]">
                                                     <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 font-medium">
-                                                        <Trash2 size={13} className="text-rose-500 shrink-0 mt-0.5" />
-                                                        <span>Auto-purge from entire server:</span>
+                                                        <Trash2 size={12} className="text-rose-500 shrink-0" />
+                                                        <span>Auto-purge from server:</span>
                                                     </span>
-                                                    <span className="text-right font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                                                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
                                                         {formatAutoDeleteDate(deadlineDate)}
-                                                        <span className="block text-[9.5px] font-sans font-normal text-gray-500 dark:text-gray-400">
-                                                            (14 days after deadline)
+                                                        <span className="ml-1 text-[9.5px] font-sans font-normal text-gray-500 dark:text-gray-400">
+                                                            (+14d)
                                                         </span>
                                                     </span>
                                                 </div>
@@ -656,12 +677,12 @@ function PostNoticeModal({
 
                     {/* Attachments: Image / Routine scan */}
                     <div>
-                        <label className="text-xs font-bold block mb-1.5 flex items-center justify-between" style={{ color: "var(--text-secondary)" }}>
-                            <span className="flex items-center gap-1.5">
-                                <ImageIcon size={13} className="text-primary" />
+                        <label className="text-xs font-bold block mb-1.5 flex items-center justify-between text-gray-700 dark:text-gray-300">
+                            <span className="flex items-center gap-1.5 truncate">
+                                <ImageIcon size={13} className="text-primary shrink-0" />
                                 Notice Document / Routine Scan (Optional)
                             </span>
-                            <span className="text-[10px] font-normal text-gray-400">PNG, JPG up to 5MB</span>
+                            <span className="text-[10px] font-normal text-gray-400 shrink-0">PNG, JPG &lt; 5MB</span>
                         </label>
                         <input
                             ref={thumbnailInputRef}
@@ -673,11 +694,11 @@ function PostNoticeModal({
                         />
                         {thumbnailPreview ? (
                             <div className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-black/30 p-2">
-                                <img src={thumbnailPreview} alt="Preview" className="w-full h-44 sm:h-56 object-contain rounded-lg" />
+                                <img src={thumbnailPreview} alt="Preview" className="w-full h-36 sm:h-52 object-contain rounded-lg" />
                                 <button
                                     type="button"
                                     onClick={removeThumbnail}
-                                    className="absolute top-3 right-3 p-1.5 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors"
+                                    className="absolute top-3 right-3 p-1.5 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors cursor-pointer"
                                     title="Remove document"
                                 >
                                     <X size={14} />
@@ -687,39 +708,42 @@ function PostNoticeModal({
                             <button
                                 type="button"
                                 onClick={() => thumbnailInputRef.current?.click()}
-                                className="w-full flex flex-col items-center justify-center gap-1.5 py-5 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/40 rounded-xl transition-all text-gray-400 hover:text-primary group bg-slate-50/50 dark:bg-white/[0.02]"
+                                className="w-full flex flex-col items-center justify-center gap-1.5 py-4 sm:py-5 border-2 border-dashed border-gray-200 dark:border-gray-750 hover:border-primary/40 rounded-xl transition-all text-gray-400 hover:text-primary group bg-slate-50/50 dark:bg-white/[0.02] cursor-pointer"
                             >
-                                <div className="w-9 h-9 rounded-full bg-primary/5 group-hover:bg-primary/10 flex items-center justify-center text-primary transition-colors">
-                                    <ImageIcon size={18} />
+                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/5 group-hover:bg-primary/10 flex items-center justify-center text-primary transition-colors">
+                                    <ImageIcon size={17} />
                                 </div>
-                                <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Click to attach routine or notice image</span>
-                                <span className="text-[11px] text-gray-400">Will be shown in full uncropped view</span>
+                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Click to attach routine or notice scan</span>
+                                <span className="text-[10px] sm:text-[11px] text-gray-400">Shown in full uncropped view to students</span>
                             </button>
                         )}
                     </div>
 
                     {/* PDF Document Link */}
                     <div>
-                        <label className="text-xs font-bold block mb-1.5 flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-                            <LinkIcon size={13} className="text-primary" />
+                        <label className="text-xs font-bold block mb-1.5 flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+                            <LinkIcon size={13} className="text-primary shrink-0" />
                             Official PDF Document Link (Optional)
                         </label>
                         <input
                             value={attachmentUrl}
                             onChange={(e) => setAttachmentUrl(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                            style={{ background: "var(--bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                            className="w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all bg-slate-50/50 dark:bg-white/5 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400"
                             placeholder="https://nu.ac.bd/notices/circular.pdf"
                         />
                     </div>
                 </div>
 
                 {/* Sticky Action Footer */}
-                <div className="px-6 py-3.5 border-t border-gray-100 dark:border-white/10 flex items-center justify-end gap-2.5 bg-slate-50/80 dark:bg-black/40 backdrop-blur-md flex-shrink-0">
+                <div 
+                    className="px-4 sm:px-6 py-3 sm:py-3.5 border-t border-gray-100 dark:border-white/10 flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3 bg-white/95 dark:bg-[#12141a]/95 backdrop-blur-md shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]"
+                    style={{ paddingBottom: "max(14px, env(safe-area-inset-bottom, 14px))" }}
+                >
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        disabled={submitting}
+                        className="flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-center active:scale-98 cursor-pointer"
                     >
                         Cancel
                     </button>
@@ -727,11 +751,20 @@ function PostNoticeModal({
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50 shadow-md"
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
                         style={{ background: "var(--btn-primary)" }}
                     >
-                        <Plus size={15} />
-                        {submitting ? "Publishing..." : "Post Notice"}
+                        {submitting ? (
+                            <>
+                                <Loader2 size={15} className="animate-spin" />
+                                <span>Publishing...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Plus size={15} strokeWidth={2.5} />
+                                <span>Post Notice</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </motion.div>

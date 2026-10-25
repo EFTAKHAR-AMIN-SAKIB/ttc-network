@@ -31,11 +31,13 @@ export default function SafeAvatar({
     }, [src]);
 
     const initial = (alt?.trim()?.[0] || "U").toUpperCase();
+    const hasCustomSize = className.includes("w-") || className.includes("size-") || className.includes("h-");
+    const resolvedSizeClass = hasCustomSize ? "" : sizeClassName;
 
     if (!src || hasError) {
         return (
             <div 
-                className={`${sizeClassName} ${roundedClassName} ${fallbackBg} ${fallbackColor} flex items-center justify-center select-none uppercase font-black transition-all ${className}`}
+                className={`${resolvedSizeClass} ${roundedClassName} ${fallbackBg} ${fallbackColor} flex items-center justify-center select-none uppercase font-black transition-all ${className}`}
                 title={alt}
             >
                 <span className={textClassName}>{initial}</span>
@@ -49,7 +51,7 @@ export default function SafeAvatar({
             alt={alt}
             referrerPolicy="no-referrer"
             onError={() => setHasError(true)}
-            className={`${sizeClassName} ${roundedClassName} object-cover transition-all ${className}`}
+            className={`${resolvedSizeClass} ${roundedClassName} object-cover transition-all ${className}`}
         />
     );
 }

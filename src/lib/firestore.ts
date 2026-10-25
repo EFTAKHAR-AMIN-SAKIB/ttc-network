@@ -25,6 +25,7 @@ import {
     onSnapshot,
     serverTimestamp,
     Timestamp,
+    FieldValue,
     increment,
     arrayRemove,
     arrayUnion,
@@ -378,7 +379,7 @@ export interface SupportSettings {
 
 export interface FirestoreStudyPost {
     id?: string;
-    type: "material" | "schedule";
+    type: "material" | "schedule" | "marketplace";
     subType?: string; // e.g., "notes", "routine", "zoom"
     title: string;
     content: string;
@@ -444,6 +445,19 @@ export interface FirestoreStudyPost {
         recurring?: boolean;
         days?: string[];
     };
+    // --- Marketplace / Buy & Sell Fields ---
+    price?: number;                         // Selling price in BDT (৳), 0 if free
+    originalPrice?: number;                 // Original book price in BDT (৳)
+    pricingType?: "fixed" | "negotiable" | "free"; // Price flexibility
+    condition?: "new" | "like_new" | "good" | "fair"; // Condition rating
+    itemCategory?: string;                  // e.g. Textbook, Guide Book, Lecture Notes, Question Bank, Study Tools
+    edition?: string;                       // e.g. 2024 Edition or author/publisher
+    contactPhone?: string;                  // Phone number for calls
+    contactWhatsapp?: string;               // WhatsApp number
+    location?: string;                      // Campus / Handover location
+    isSold?: boolean;                       // Sold out flag
+    soldAt?: Timestamp | FieldValue | null;
+
 }
 
 
@@ -4748,7 +4762,7 @@ export const rejectStudyPost = async (id: string, reason: string = "") => {
 };
 
 export const deleteStudyPost = async (id: string) => {
-    // Clean up media files before deleting
+    // 1. Fetch file URLs to purge from storage servers before deleting document
     const urlsToDelete: string[] = [];
     try {
         const postSnap = await getDoc(doc(getDb(), "studyPosts", id));
@@ -4758,15 +4772,22 @@ export const deleteStudyPost = async (id: string) => {
             if (data.fileUrl) urlsToDelete.push(data.fileUrl);
         }
     } catch (err) {
-        console.warn("[Firestore] Error cleaning up study post files:", err);
+        console.warn("[Firestore] Error fetching study post files for deletion:", err);
     }
+
+    // 2. Permanently delete post document from Firestore
     await deleteDoc(doc(getDb(), "studyPosts", id));
+
+    // 3. Permanently delete all associated comments
     await deleteAllCommentsForContent(id);
 
+    // 4. Permanently purge media files from Cloudflare R2 / Cloudinary storage servers
     if (urlsToDelete.length > 0) {
-        deleteFromStorage(urlsToDelete).catch((err) => {
+        try {
+            await deleteFromStorage(urlsToDelete);
+        } catch (err) {
             console.warn("[Firestore] Error purging study post files from storage:", err);
-        });
+        }
     }
 };
 
@@ -4858,6 +4879,13 @@ export const updateStudyPost = async (id: string, data: Partial<FirestoreStudyPo
     });
 
     await updateDoc(doc(getDb(), "studyPosts", id), updateData);
+};
+
+export const toggleStudyPostSold = async (id: string, isSold: boolean) => {
+    return updateStudyPost(id, {
+        isSold,
+        soldAt: isSold ? serverTimestamp() : null
+    });
 };
 
 // ═══════════════════════════════════════════════════

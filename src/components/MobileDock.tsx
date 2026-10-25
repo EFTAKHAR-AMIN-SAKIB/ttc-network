@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { Home, Rss, BookOpen, School, Megaphone, BookText, Heart, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSectionUpdates } from "@/hooks/useSectionUpdates";
-import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 const dockLinks = [
     { href: "/", label: "Home", icon: Home },
@@ -21,7 +20,6 @@ const dockLinks = [
 export default function MobileDock() {
     const pathname = usePathname();
     const { lastSeen, latestUpdate, markAsSeen } = useSectionUpdates();
-    const { isScrollingDown } = useScrollDirection();
     const [isStandalone, setIsStandalone] = useState(false);
     const [isComposerOpen, setIsComposerOpen] = useState(false);
 
@@ -73,7 +71,7 @@ export default function MobileDock() {
     return (
         <div 
             style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}
-            className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] select-none bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out ${(isScrollingDown || isComposerOpen) ? "translate-y-full pointer-events-none" : "translate-y-0"}`}
+            className={`md:hidden fixed bottom-0 left-0 right-0 z-[100] select-none bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-800/50 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out ${isComposerOpen ? "translate-y-full pointer-events-none" : "translate-y-0"}`}
         >
             <div className="flex items-center justify-around px-1 pt-2 pb-1">
                 {links.map((link) => {
