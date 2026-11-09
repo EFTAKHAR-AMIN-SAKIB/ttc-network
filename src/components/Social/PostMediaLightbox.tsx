@@ -574,7 +574,11 @@ export default function PostMediaLightbox({
                                     >
                                         {item.type === "video" ? (
                                             <div className="w-full h-full bg-gray-900 flex items-center justify-center text-white relative">
-                                                <video src={item.url} className="w-full h-full object-cover" />
+                                                {item.thumbnail ? (
+                                                    <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <video src={item.url} className="w-full h-full object-cover" />
+                                                )}
                                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                                     <Play size={14} className="fill-white text-white" />
                                                 </div>

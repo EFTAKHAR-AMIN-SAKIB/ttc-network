@@ -316,7 +316,7 @@ export function FeedVideoPlayer({
             ref={containerRef}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
-            className="relative w-full max-h-[520px] bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center select-none group/video"
+            className={`relative w-full ${isPortrait ? "h-[460px] sm:h-[520px]" : "max-h-[520px]"} bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center select-none group/video`}
         >
 
             <video
@@ -359,7 +359,7 @@ export function FeedVideoPlayer({
                 onError={() => {
                     setIsBuffering(false);
                 }}
-                className="w-full max-h-[520px] object-contain cursor-pointer"
+                className={`w-full ${isPortrait ? "h-full" : "max-h-[520px]"} object-contain cursor-pointer`}
             />
 
             {/* Buffering Spinner: ONLY shown when actively playing and buffering */}
