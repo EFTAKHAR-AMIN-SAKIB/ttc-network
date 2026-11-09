@@ -418,9 +418,9 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
 
             showToast(editPost ? "Post updated successfully!" : "Post published inside the group!", "success");
             onClose();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error submitting group post:", err);
-            showToast(editPost ? "Failed to update post." : "Failed to create post.", "error");
+            showToast(err?.message || (editPost ? "Failed to update post." : "Failed to create post."), "error");
         } finally {
             setIsSubmitting(false);
         }

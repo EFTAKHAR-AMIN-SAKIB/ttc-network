@@ -854,9 +854,9 @@ export default function PostCreationModal({
                 );
                 onClose();
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Submit post error:", err);
-            showToast(editPost ? "Failed to update post." : "Failed to share post. Please try again.", "error");
+            showToast(err?.message || (editPost ? "Failed to update post." : "Failed to share post. Please try again."), "error");
         } finally {
             setIsSubmitting(false);
             setUploadProgress(null);

@@ -128,7 +128,89 @@ export async function uploadToStorage(
         // Fall back to cookie-only authentication
     }
 
-    // 5. Upload via XMLHttpRequest to get 100% accurate progress events
+    const targetFolder = subPath ? `${folder}/${subPath}` : folder;
+
+    // 5. Try Direct Presigned Upload to Cloudflare R2 (Bypasses Vercel 4.5MB limit entirely!)
+    try {
+        const presignRes = await fetch("/api/upload/presign", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(idToken ? { "Authorization": `Bearer ${idToken}` } : {}),
+            },
+            body: JSON.stringify({
+                filename: fileToUpload.name,
+                contentType: fileToUpload.type,
+                size: fileToUpload.size,
+                folder: targetFolder,
+                publicId: publicId || null,
+            }),
+        });
+
+        if (presignRes.ok) {
+            const presignData = await presignRes.json();
+            if (presignData.uploadUrl && presignData.publicUrl) {
+                return await new Promise<StorageUploadResult>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("PUT", presignData.uploadUrl);
+
+                    // Set Content-Type matching what was signed
+                    if (presignData.effectiveMime || fileToUpload.type) {
+                        xhr.setRequestHeader("Content-Type", presignData.effectiveMime || fileToUpload.type);
+                    }
+
+                    if (xhr.upload) {
+                        xhr.upload.onprogress = (event) => {
+                            if (event.lengthComputable && onProgress) {
+                                const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+                                onProgress({
+                                    loaded: event.loaded,
+                                    total: event.total,
+                                    percent,
+                                });
+                            }
+                        };
+                    }
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            onProgress?.({ loaded: fileToUpload.size, total: fileToUpload.size, percent: 100 });
+                            resolve({
+                                url: presignData.publicUrl,
+                                publicId: presignData.key || "",
+                                width: 0,
+                                height: 0,
+                            });
+                        } else {
+                            reject(new Error(`Direct storage upload failed with status ${xhr.status}. Cloudflare R2 bucket may require CORS configuration.`));
+                        }
+                    };
+
+                    xhr.onerror = () => {
+                        reject(new Error("Direct upload failed due to network or CORS. Please ensure Cloudflare R2 CORS policy is configured in your Cloudflare dashboard."));
+                    };
+
+                    xhr.ontimeout = () => {
+                        reject(new Error("Direct upload timed out. Please check your internet connection."));
+                    };
+
+                    xhr.timeout = 600000; // 10 minutes for large video uploads up to 300MB
+                    xhr.send(fileToUpload);
+                });
+            }
+        } else if (fileToUpload.size > 4.2 * 1024 * 1024) {
+            const errData = await presignRes.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to initiate direct large file upload.");
+        }
+    } catch (presignErr: any) {
+        // If file is > 4.2MB, Vercel proxy will 413, so surface error immediately
+        if (fileToUpload.size > 4.2 * 1024 * 1024) {
+            throw presignErr;
+        }
+        console.warn("[Presign Upload Fallback to Proxy]:", presignErr);
+    }
+
+    // 6. Fallback for smaller files (< 4.2MB): Upload via /api/upload proxy
     return new Promise<StorageUploadResult>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/api/upload");
@@ -166,6 +248,8 @@ export async function uploadToStorage(
                 } catch {
                     reject(new Error("Invalid response received from upload server"));
                 }
+            } else if (xhr.status === 413) {
+                reject(new Error("File exceeds Vercel proxy limit (4.5MB). Direct storage upload is required."));
             } else {
                 try {
                     const errorData = JSON.parse(xhr.responseText);
@@ -184,7 +268,7 @@ export async function uploadToStorage(
             reject(new Error("Upload timed out. Please try again with a smaller file or faster connection."));
         };
 
-        xhr.timeout = 300000; // 5 minutes timeout for large video uploads up to 300MB
+        xhr.timeout = 300000; // 5 minutes timeout
         xhr.send(formData);
     });
 }
