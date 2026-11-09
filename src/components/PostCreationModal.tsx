@@ -37,6 +37,10 @@ export interface PendingMediaItem {
     thumbnailBlob?: Blob;
     thumbnailPreview?: string;
     thumbnailUrl?: string;
+    width?: number;
+    height?: number;
+    aspectRatio?: number;
+    isPortrait?: boolean;
 }
 
 export interface UploadStatus {
@@ -299,13 +303,17 @@ export default function PostCreationModal({
                 if (item.type === "video" && item.file) {
                     const videoFile = item.file;
                     const itemId = item.id;
-                    extractVideoThumbnail(videoFile).then((thumbBlob) => {
-                        if (thumbBlob) {
-                            const thumbUrl = URL.createObjectURL(thumbBlob);
+                    extractVideoThumbnail(videoFile).then((thumbRes) => {
+                        if (thumbRes) {
+                            const thumbUrl = URL.createObjectURL(thumbRes.blob);
                             setMediaList(prev => prev.map(m => m.id === itemId ? {
                                 ...m,
-                                thumbnailBlob: thumbBlob,
+                                thumbnailBlob: thumbRes.blob,
                                 thumbnailPreview: thumbUrl,
+                                width: thumbRes.width,
+                                height: thumbRes.height,
+                                aspectRatio: thumbRes.aspectRatio,
+                                isPortrait: thumbRes.isPortrait,
                             } : m));
                             setThumbnailPreview(prev => (!prev || prev === item.url) ? thumbUrl : prev);
                         }
@@ -692,6 +700,10 @@ export default function PostCreationModal({
                             type: item.type,
                             name: item.name,
                             thumbnail: posterUrl,
+                            width: item.width,
+                            height: item.height,
+                            aspectRatio: item.aspectRatio,
+                            isPortrait: item.isPortrait,
                         });
                         if (existingThumbnailUrl && existingThumbnailUrl === item.url && !existingThumbnailUrl.includes("unsplash.com")) {
                             deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);

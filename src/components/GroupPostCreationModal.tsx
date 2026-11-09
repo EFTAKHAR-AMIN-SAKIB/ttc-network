@@ -28,6 +28,10 @@ export interface PendingMediaItem {
     thumbnailBlob?: Blob;
     thumbnailPreview?: string;
     thumbnailUrl?: string;
+    width?: number;
+    height?: number;
+    aspectRatio?: number;
+    isPortrait?: boolean;
 }
 
 interface GroupPostCreationModalProps {
@@ -98,13 +102,17 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                 if (item.type === "video" && item.file) {
                     const videoFile = item.file;
                     const itemId = item.id;
-                    extractVideoThumbnail(videoFile).then((thumbBlob) => {
-                        if (thumbBlob) {
-                            const thumbUrl = URL.createObjectURL(thumbBlob);
+                    extractVideoThumbnail(videoFile).then((thumbRes) => {
+                        if (thumbRes) {
+                            const thumbUrl = URL.createObjectURL(thumbRes.blob);
                             setMediaList(prev => prev.map(m => m.id === itemId ? {
                                 ...m,
-                                thumbnailBlob: thumbBlob,
+                                thumbnailBlob: thumbRes.blob,
                                 thumbnailPreview: thumbUrl,
+                                width: thumbRes.width,
+                                height: thumbRes.height,
+                                aspectRatio: thumbRes.aspectRatio,
+                                isPortrait: thumbRes.isPortrait,
                             } : m));
                         }
                     }).catch(() => {});
@@ -333,6 +341,10 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                             type: item.type,
                             name: item.name,
                             thumbnail: posterUrl,
+                            width: item.width,
+                            height: item.height,
+                            aspectRatio: item.aspectRatio,
+                            isPortrait: item.isPortrait,
                         });
                     } else if (item.url) {
                         finalMedia.push({

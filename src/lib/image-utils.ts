@@ -405,11 +405,20 @@ export function isDocumentFile(file: File): boolean {
     return ext === "pdf";
 }
 
+export interface VideoThumbnailResult {
+    blob: Blob;
+    width: number;
+    height: number;
+    aspectRatio: number;
+    isPortrait: boolean;
+}
+
 /**
- * Extract an ultra-lightweight WebP/JPEG thumbnail from a video file (frame at ~0.5s).
+ * Extract an ultra-lightweight WebP/JPEG thumbnail from a video file (frame at ~0.5s),
+ * along with intrinsic video dimensions and aspect ratio.
  * Used for instant feed poster frames, eliminating black boxes and buffering delays.
  */
-export function extractVideoThumbnail(file: File): Promise<Blob | null> {
+export function extractVideoThumbnail(file: File): Promise<VideoThumbnailResult | null> {
     return new Promise((resolve) => {
         if (typeof document === "undefined" || !isVideoFile(file)) {
             resolve(null);
@@ -454,8 +463,20 @@ export function extractVideoThumbnail(file: File): Promise<Blob | null> {
                         const format = supportsWebP() ? "image/webp" : "image/jpeg";
                         canvas.toBlob(
                             (blob) => {
+                                const w = video.videoWidth || 640;
+                                const h = video.videoHeight || 360;
                                 cleanup();
-                                resolve(blob);
+                                if (!blob) {
+                                    resolve(null);
+                                    return;
+                                }
+                                resolve({
+                                    blob,
+                                    width: w,
+                                    height: h,
+                                    aspectRatio: w / h,
+                                    isPortrait: h > w,
+                                });
                             },
                             format,
                             0.82

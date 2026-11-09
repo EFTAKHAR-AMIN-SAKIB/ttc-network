@@ -184,6 +184,10 @@ export interface PostMediaItem {
     type: "image" | "video";
     name?: string;
     thumbnail?: string;
+    width?: number;
+    height?: number;
+    aspectRatio?: number;
+    isPortrait?: boolean;
 }
 
 export interface FirestorePost {

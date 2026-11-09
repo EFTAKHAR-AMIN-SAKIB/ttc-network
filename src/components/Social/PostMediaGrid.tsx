@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize2, Loader2 } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Maximize2, Loader2, Sparkles } from "lucide-react";
 import type { PostMediaItem } from "@/lib/firestore";
 
 interface PostMediaGridProps {
@@ -26,8 +26,9 @@ let globalFeedAudioUnmuted = true;
  * FeedVideoPlayer: Facebook/Instagram style autoplaying social video player.
  * - Autoplays unmuted by default (falls back gracefully to muted if browser blocks cold audio)
  * - Remembers user's mute/unmute choice globally across all feed videos
+ * - Adapts dynamically to 9:16 vertical Reels vs 16:9 Landscape videos
  * - Preloads buffer when 350px near viewport for instant 0-lag playback
- * - Supports instant poster image and #t=0.001 mobile frame paint
+ * - Supports instant poster image and ambient blurred backdrop
  * - Pauses automatically when scrolled out of view
  * - Respects explicit user pause while post is in view
  * - 1-click mute/unmute with floating "Tap for Sound" chip
@@ -59,13 +60,19 @@ export function FeedVideoPlayer({
     const [showControls, setShowControls] = useState(false);
     const [isNearViewport, setIsNearViewport] = useState(false);
 
+    // Dynamic Aspect Ratio & Portrait Reel detection
+    const initialRatio = item.aspectRatio || (item.width && item.height ? item.width / item.height : null);
+    const [videoRatio, setVideoRatio] = useState<number | null>(initialRatio);
+    const isPortrait = item.isPortrait || (videoRatio !== null && videoRatio < 0.95);
+
     // Track if user explicitly clicked pause
     const userPausedRef = useRef(false);
     const playerIdRef = useRef(`vid-${Math.random().toString(36).slice(2, 9)}`);
 
     // Clean poster image (ignore if pointing to raw .mp4)
     const posterImage = (item.thumbnail && !item.thumbnail.endsWith(".mp4")) ? item.thumbnail : undefined;
-    const videoSource = item.url.includes("#") ? item.url : `${item.url}#t=0.001`;
+    // Clean video source (DO NOT append #t=0.001 to prevent media fragment seek lock!)
+    const videoSource = item.url;
 
     // Listen for other videos playing in feed to pause this one
     useEffect(() => {
@@ -311,6 +318,7 @@ export function FeedVideoPlayer({
             onMouseLeave={handleMouseLeave}
             className="relative w-full max-h-[520px] bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center select-none group/video"
         >
+
             <video
                 ref={videoRef}
                 src={videoSource}
@@ -329,21 +337,35 @@ export function FeedVideoPlayer({
                 onLoadedMetadata={() => {
                     if (videoRef.current) {
                         setDuration(videoRef.current.duration);
+                        const w = videoRef.current.videoWidth;
+                        const h = videoRef.current.videoHeight;
+                        if (w && h) {
+                            setVideoRatio(w / h);
+                        }
                     }
                 }}
-                onWaiting={() => setIsBuffering(true)}
+                onCanPlay={() => setIsBuffering(false)}
+                onWaiting={() => {
+                    if (isPlaying) setIsBuffering(true);
+                }}
                 onPlaying={() => {
                     setIsBuffering(false);
                     setIsPlaying(true);
                 }}
-                onPause={() => setIsPlaying(false)}
+                onPause={() => {
+                    setIsBuffering(false);
+                    setIsPlaying(false);
+                }}
+                onError={() => {
+                    setIsBuffering(false);
+                }}
                 className="w-full max-h-[520px] object-contain cursor-pointer"
             />
 
-            {/* Buffering Spinner */}
-            {isBuffering && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                    <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/10 text-white shadow-xl">
+            {/* Buffering Spinner: ONLY shown when actively playing and buffering */}
+            {isBuffering && isPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                    <div className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center border border-white/10 text-white shadow-xl">
                         <Loader2 size={24} className="animate-spin text-primary" />
                     </div>
                 </div>
@@ -354,23 +376,23 @@ export function FeedVideoPlayer({
                 <button
                     type="button"
                     onClick={toggleMute}
-                    className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 text-[11px] font-bold flex items-center gap-1.5 shadow-2xl transition-all hover:scale-105 active:scale-95 z-20 cursor-pointer"
+                    className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 text-[11px] font-bold flex items-center gap-1.5 shadow-2xl transition-all hover:scale-105 active:scale-95 z-30 cursor-pointer"
                 >
                     <VolumeX size={13} className="text-amber-400" />
                     <span>Tap for sound</span>
                 </button>
             )}
 
-            {/* Center Play Button Overlay (visible when paused or before interaction) */}
+            {/* Center Play Button Overlay (visible when paused or during control hover) */}
             {(!isPlaying || showControls) && (
                 <div
                     onClick={togglePlayPause}
-                    className={`absolute inset-0 flex items-center justify-center cursor-pointer transition-opacity duration-300 z-10 ${
+                    className={`absolute inset-0 flex items-center justify-center cursor-pointer transition-opacity duration-300 z-20 ${
                         !isPlaying ? "bg-black/25 opacity-100" : showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
                 >
                     {!isPlaying && (
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/65 hover:bg-primary/95 text-white flex items-center justify-center shadow-2xl backdrop-blur-md border border-white/25 hover:scale-110 active:scale-95 transition-all duration-300">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/70 hover:bg-primary text-white flex items-center justify-center shadow-2xl backdrop-blur-md border border-white/25 hover:scale-110 active:scale-95 transition-all duration-300">
                             <Play size={30} className="fill-white translate-x-1" />
                         </div>
                     )}
@@ -379,7 +401,7 @@ export function FeedVideoPlayer({
 
             {/* Top Info & Expand Bar */}
             <div
-                className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/70 via-black/30 to-transparent flex items-center justify-between z-20 transition-opacity duration-300 ${
+                className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/75 via-black/30 to-transparent flex items-center justify-between z-30 transition-opacity duration-300 ${
                     showControls || !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"
                 }`}
             >
