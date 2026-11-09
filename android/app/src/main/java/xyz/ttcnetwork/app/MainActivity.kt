@@ -225,6 +225,7 @@ class MainActivity : ComponentActivity() {
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         settings.setSupportMultipleWindows(false)
         settings.useWideViewPort = true
+        settings.mediaPlaybackRequiresUserGesture = false
         // Append custom client tag to User-Agent for native detection
         val currentUa = settings.userAgentString
         settings.userAgentString = "$currentUa TTCNetworkApp/1.0.0 (Android)"

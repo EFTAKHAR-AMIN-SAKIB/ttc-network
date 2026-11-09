@@ -17,7 +17,7 @@ import {
     type PostMediaItem
 } from "@/lib/firestore";
 import { uploadFile, deleteFromStorage, deleteFromCloudinary, type UploadProgress } from "@/lib/storage";
-import { validateFile, isVideoFile } from "@/lib/image-utils";
+import { validateFile, isVideoFile, extractVideoThumbnail } from "@/lib/image-utils";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
@@ -34,6 +34,9 @@ export interface PendingMediaItem {
     type: "image" | "video";
     name?: string;
     size?: number;
+    thumbnailBlob?: Blob;
+    thumbnailPreview?: string;
+    thumbnailUrl?: string;
 }
 
 export interface UploadStatus {
@@ -289,6 +292,25 @@ export default function PostCreationModal({
             setMediaList(prev => [...prev, ...newItems]);
             if (!thumbnailPreview) {
                 setThumbnailPreview(newItems[0].url);
+            }
+
+            // Client-side instant frame extraction for video attachments
+            for (const item of newItems) {
+                if (item.type === "video" && item.file) {
+                    const videoFile = item.file;
+                    const itemId = item.id;
+                    extractVideoThumbnail(videoFile).then((thumbBlob) => {
+                        if (thumbBlob) {
+                            const thumbUrl = URL.createObjectURL(thumbBlob);
+                            setMediaList(prev => prev.map(m => m.id === itemId ? {
+                                ...m,
+                                thumbnailBlob: thumbBlob,
+                                thumbnailPreview: thumbUrl,
+                            } : m));
+                            setThumbnailPreview(prev => (!prev || prev === item.url) ? thumbUrl : prev);
+                        }
+                    }).catch(() => {});
+                }
             }
         }
         if (e.target) e.target.value = "";
@@ -655,10 +677,21 @@ export default function PostCreationModal({
 
                         accumulatedBytes += currentFile.size;
 
+                        let posterUrl: string | undefined = undefined;
+                        if (item.type === "video" && item.thumbnailBlob) {
+                            try {
+                                const posterFile = new File([item.thumbnailBlob], `poster-${Date.now()}.webp`, { type: "image/webp" });
+                                posterUrl = await uploadFile("thumbnails", posterFile);
+                            } catch (e) {
+                                console.warn("Failed to upload video poster:", e);
+                            }
+                        }
+
                         finalMedia.push({
                             url: uploadedUrl,
                             type: item.type,
-                            name: item.name
+                            name: item.name,
+                            thumbnail: posterUrl,
                         });
                         if (existingThumbnailUrl && existingThumbnailUrl === item.url && !existingThumbnailUrl.includes("unsplash.com")) {
                             deleteFromCloudinary(existingThumbnailUrl).catch(console.warn);
@@ -667,7 +700,8 @@ export default function PostCreationModal({
                         finalMedia.push({
                             url: item.url,
                             type: item.type,
-                            name: item.name
+                            name: item.name,
+                            thumbnail: item.thumbnailUrl,
                         });
                     }
                 }
@@ -717,7 +751,9 @@ export default function PostCreationModal({
                 setUploadProgress(prev => prev ? { ...prev, overallPercent: 100 } : null);
             }
 
-            const finalThumbnailUrl: string = finalMedia[0]?.url || "";
+            const finalThumbnailUrl: string = finalMedia.find(m => m.type === "image")?.url 
+                || finalMedia[0]?.thumbnail 
+                || (finalMedia[0]?.type === "video" ? "" : (finalMedia[0]?.url || ""));
 
             let postTypePayload: Partial<any> = {};
 

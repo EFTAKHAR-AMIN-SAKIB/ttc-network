@@ -404,3 +404,79 @@ export function isDocumentFile(file: File): boolean {
     const ext = file.name ? file.name.split(".").pop()?.toLowerCase() : "";
     return ext === "pdf";
 }
+
+/**
+ * Extract an ultra-lightweight WebP/JPEG thumbnail from a video file (frame at ~0.5s).
+ * Used for instant feed poster frames, eliminating black boxes and buffering delays.
+ */
+export function extractVideoThumbnail(file: File): Promise<Blob | null> {
+    return new Promise((resolve) => {
+        if (typeof document === "undefined" || !isVideoFile(file)) {
+            resolve(null);
+            return;
+        }
+
+        try {
+            const video = document.createElement("video");
+            const url = URL.createObjectURL(file);
+            video.preload = "metadata";
+            video.src = url;
+            video.muted = true;
+            video.playsInline = true;
+
+            const cleanup = () => {
+                try { URL.revokeObjectURL(url); } catch (_) {}
+                video.remove();
+            };
+
+            const timer = setTimeout(() => {
+                cleanup();
+                resolve(null);
+            }, 6000);
+
+            video.onloadedmetadata = () => {
+                const targetTime = Math.min(0.5, video.duration > 0.6 ? 0.5 : 0.1);
+                video.currentTime = targetTime;
+            };
+
+            video.onseeked = () => {
+                clearTimeout(timer);
+                try {
+                    const canvas = document.createElement("canvas");
+                    const maxW = 960;
+                    const scale = video.videoWidth > maxW ? maxW / video.videoWidth : 1;
+                    canvas.width = Math.round(video.videoWidth * scale) || 640;
+                    canvas.height = Math.round(video.videoHeight * scale) || 360;
+
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const format = supportsWebP() ? "image/webp" : "image/jpeg";
+                        canvas.toBlob(
+                            (blob) => {
+                                cleanup();
+                                resolve(blob);
+                            },
+                            format,
+                            0.82
+                        );
+                        return;
+                    }
+                } catch {
+                    // ignore
+                }
+                cleanup();
+                resolve(null);
+            };
+
+            video.onerror = () => {
+                clearTimeout(timer);
+                cleanup();
+                resolve(null);
+            };
+        } catch {
+            resolve(null);
+        }
+    });
+}
+

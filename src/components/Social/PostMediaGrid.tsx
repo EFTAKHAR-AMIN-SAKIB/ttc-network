@@ -19,12 +19,18 @@ function formatVideoTime(seconds: number): string {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 }
 
+// Global feed audio preference across session (default to unmuted as requested by user)
+let globalFeedAudioUnmuted = true;
+
 /**
  * FeedVideoPlayer: Facebook/Instagram style autoplaying social video player.
- * - Autoplays muted on scroll when at least 50% in viewport
+ * - Autoplays unmuted by default (falls back gracefully to muted if browser blocks cold audio)
+ * - Remembers user's mute/unmute choice globally across all feed videos
+ * - Preloads buffer when 350px near viewport for instant 0-lag playback
+ * - Supports instant poster image and #t=0.001 mobile frame paint
  * - Pauses automatically when scrolled out of view
  * - Respects explicit user pause while post is in view
- * - Allows 1-click mute/unmute
+ * - 1-click mute/unmute with floating "Tap for Sound" chip
  * - Interactive scrubber & progress bar
  * - Center play/pause toggle with smooth transitions
  * - Expand button to open full lightbox
@@ -46,15 +52,20 @@ export function FeedVideoPlayer({
     const controlsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(true);
+    const [isMuted, setIsMuted] = useState(!globalFeedAudioUnmuted);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isBuffering, setIsBuffering] = useState(false);
     const [showControls, setShowControls] = useState(false);
+    const [isNearViewport, setIsNearViewport] = useState(false);
 
     // Track if user explicitly clicked pause
     const userPausedRef = useRef(false);
     const playerIdRef = useRef(`vid-${Math.random().toString(36).slice(2, 9)}`);
+
+    // Clean poster image (ignore if pointing to raw .mp4)
+    const posterImage = (item.thumbnail && !item.thumbnail.endsWith(".mp4")) ? item.thumbnail : undefined;
+    const videoSource = item.url.includes("#") ? item.url : `${item.url}#t=0.001`;
 
     // Listen for other videos playing in feed to pause this one
     useEffect(() => {
@@ -68,10 +79,42 @@ export function FeedVideoPlayer({
             }
         };
 
+        const handleAudioPref = (e: Event) => {
+            const customEv = e as CustomEvent<{ unmuted: boolean }>;
+            if (customEv.detail) {
+                const unmuted = customEv.detail.unmuted;
+                setIsMuted(!unmuted);
+                if (videoRef.current) {
+                    videoRef.current.muted = !unmuted;
+                }
+            }
+        };
+
         window.addEventListener("ttc-feed-video-playing", handleOtherPlay as EventListener);
+        window.addEventListener("ttc-feed-audio-preference", handleAudioPref as EventListener);
         return () => {
             window.removeEventListener("ttc-feed-video-playing", handleOtherPlay as EventListener);
+            window.removeEventListener("ttc-feed-audio-preference", handleAudioPref as EventListener);
         };
+    }, []);
+
+    // Proximity observer: buffer ahead of time when 350px near viewport
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const proximityObserver = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (entry && entry.isIntersecting) {
+                    setIsNearViewport(true);
+                }
+            },
+            { rootMargin: "350px 0px" }
+        );
+
+        proximityObserver.observe(container);
+        return () => proximityObserver.disconnect();
     }, []);
 
     // Intersection Observer for scroll-based autoplay
@@ -88,7 +131,11 @@ export function FeedVideoPlayer({
                 if (entry.isIntersecting && entry.intersectionRatio >= 0.45) {
                     // Autoplay when at least ~45-50% in viewport, unless user paused
                     if (!userPausedRef.current && video.paused) {
-                        video.muted = isMuted;
+                        // Attempt to play unmuted by default according to global feed setting
+                        const shouldBeMuted = !globalFeedAudioUnmuted;
+                        video.muted = shouldBeMuted;
+                        setIsMuted(shouldBeMuted);
+
                         const playPromise = video.play();
                         if (playPromise !== undefined) {
                             playPromise
@@ -101,7 +148,8 @@ export function FeedVideoPlayer({
                                     );
                                 })
                                 .catch(() => {
-                                    // Browser policy fallback: retry with mute guaranteed
+                                    // Browser policy blocked unmuted audio on cold scroll
+                                    // Fallback to muted so video plays smoothly without freezing
                                     video.muted = true;
                                     setIsMuted(true);
                                     video
@@ -128,7 +176,7 @@ export function FeedVideoPlayer({
         return () => {
             observer.disconnect();
         };
-    }, [isMuted]);
+    }, []);
 
     // Handle user play/pause toggle by clicking the video
     const togglePlayPause = (e: React.MouseEvent) => {
@@ -161,7 +209,7 @@ export function FeedVideoPlayer({
         }
     };
 
-    // Toggle mute/unmute
+    // Toggle mute/unmute and broadcast globally across feed
     const toggleMute = (e: React.MouseEvent) => {
         e.stopPropagation();
         const video = videoRef.current;
@@ -170,6 +218,12 @@ export function FeedVideoPlayer({
         const nextMuted = !isMuted;
         video.muted = nextMuted;
         setIsMuted(nextMuted);
+        globalFeedAudioUnmuted = !nextMuted;
+        window.dispatchEvent(
+            new CustomEvent("ttc-feed-audio-preference", {
+                detail: { unmuted: !nextMuted },
+            })
+        );
     };
 
     // Auto-hide controls during active playback
@@ -216,9 +270,10 @@ export function FeedVideoPlayer({
             >
                 <video
                     ref={videoRef}
-                    src={item.url}
+                    src={videoSource}
+                    poster={posterImage}
                     aria-label={altText}
-                    preload="metadata"
+                    preload={isNearViewport ? "auto" : "metadata"}
                     playsInline
                     muted={isMuted}
                     loop
@@ -258,9 +313,10 @@ export function FeedVideoPlayer({
         >
             <video
                 ref={videoRef}
-                src={item.url}
+                src={videoSource}
+                poster={posterImage}
                 aria-label={altText}
-                preload="metadata"
+                preload={isNearViewport ? "auto" : "metadata"}
                 playsInline
                 muted={isMuted}
                 loop
@@ -291,6 +347,18 @@ export function FeedVideoPlayer({
                         <Loader2 size={24} className="animate-spin text-primary" />
                     </div>
                 </div>
+            )}
+
+            {/* Quick Unmute Floating Badge when browser forced muted autoplay */}
+            {isMuted && isPlaying && !showControls && (
+                <button
+                    type="button"
+                    onClick={toggleMute}
+                    className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 text-[11px] font-bold flex items-center gap-1.5 shadow-2xl transition-all hover:scale-105 active:scale-95 z-20 cursor-pointer"
+                >
+                    <VolumeX size={13} className="text-amber-400" />
+                    <span>Tap for sound</span>
+                </button>
             )}
 
             {/* Center Play Button Overlay (visible when paused or before interaction) */}

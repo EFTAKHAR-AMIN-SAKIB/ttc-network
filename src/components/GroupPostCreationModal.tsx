@@ -12,7 +12,7 @@ import {
     updateGroupPost, type GroupPostDoc, type PostMediaItem
 } from "@/lib/firestore";
 import { uploadFile, deleteFromStorage } from "@/lib/storage";
-import { validateFile, isVideoFile } from "@/lib/image-utils";
+import { validateFile, isVideoFile, extractVideoThumbnail } from "@/lib/image-utils";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteField } from "firebase/firestore";
@@ -25,6 +25,9 @@ export interface PendingMediaItem {
     type: "image" | "video";
     name?: string;
     size?: number;
+    thumbnailBlob?: Blob;
+    thumbnailPreview?: string;
+    thumbnailUrl?: string;
 }
 
 interface GroupPostCreationModalProps {
@@ -89,6 +92,24 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
 
         if (newItems.length > 0) {
             setMediaList(prev => [...prev, ...newItems]);
+
+            // Client-side instant frame extraction for video attachments
+            for (const item of newItems) {
+                if (item.type === "video" && item.file) {
+                    const videoFile = item.file;
+                    const itemId = item.id;
+                    extractVideoThumbnail(videoFile).then((thumbBlob) => {
+                        if (thumbBlob) {
+                            const thumbUrl = URL.createObjectURL(thumbBlob);
+                            setMediaList(prev => prev.map(m => m.id === itemId ? {
+                                ...m,
+                                thumbnailBlob: thumbBlob,
+                                thumbnailPreview: thumbUrl,
+                            } : m));
+                        }
+                    }).catch(() => {});
+                }
+            }
         }
         if (e.target) e.target.value = "";
     };
@@ -298,22 +319,35 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                     if (item.file) {
                         const folder = item.type === "video" ? "videos" : "group-posts";
                         const uploadedUrl = await uploadFile(folder, item.file);
+
+                        let posterUrl: string | undefined = undefined;
+                        if (item.type === "video" && item.thumbnailBlob) {
+                            try {
+                                const posterFile = new File([item.thumbnailBlob], `poster-${Date.now()}.webp`, { type: "image/webp" });
+                                posterUrl = await uploadFile("thumbnails", posterFile);
+                            } catch (_) {}
+                        }
+
                         finalMedia.push({
                             url: uploadedUrl,
                             type: item.type,
-                            name: item.name
+                            name: item.name,
+                            thumbnail: posterUrl,
                         });
                     } else if (item.url) {
                         finalMedia.push({
                             url: item.url,
                             type: item.type,
-                            name: item.name
+                            name: item.name,
+                            thumbnail: item.thumbnailUrl,
                         });
                     }
                 }
             }
 
-            const firstImageUrl = finalMedia.find(m => m.type === "image")?.url || finalMedia[0]?.url || "";
+            const firstImageUrl = finalMedia.find(m => m.type === "image")?.url 
+                || finalMedia[0]?.thumbnail 
+                || (finalMedia[0]?.type === "video" ? "" : (finalMedia[0]?.url || ""));
 
             const pollData = showPoll && pollQuestion.trim()
                 ? { 
