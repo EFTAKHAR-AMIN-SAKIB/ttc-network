@@ -9,20 +9,21 @@ import {
     Check, ChevronDown, Building2, ShieldCheck,
     Trash2, ExternalLink, Pencil, Calendar, BarChart2,
     Clock, MapPin, Plus, Video, Ticket, Tag, CheckSquare,
-    Radio, Info, Play
+    Radio, Info, Play, Bold
 } from "lucide-react";
 import { 
     createPost, updatePost, getMyClubs, 
     type FirestoreClub, type EventDetails, type PollDetails,
     type PostMediaItem
 } from "@/lib/firestore";
-import { uploadFile, deleteFromStorage, deleteFromCloudinary } from "@/lib/storage";
+import { uploadFile, deleteFromStorage, deleteFromCloudinary, type UploadProgress } from "@/lib/storage";
 import { validateFile, isVideoFile } from "@/lib/image-utils";
 import { colleges } from "@/data/colleges";
 import { useToast } from "@/contexts/ToastContext";
 import { useVerifiedAccess } from "@/contexts/VerificationContext";
 import { useMentionAutosuggest, MentionDropdown } from "@/components/Social/MentionDropdown";
 import { formatExternalUrl } from "@/lib/url-utils";
+import { convertHtmlToMarkdown, convertMarkdownToHtml } from "@/lib/markdown-editor";
 
 export type ComposerMode = "post" | "event" | "poll";
 
@@ -33,6 +34,16 @@ export interface PendingMediaItem {
     type: "image" | "video";
     name?: string;
     size?: number;
+}
+
+export interface UploadStatus {
+    currentIndex: number;
+    totalFiles: number;
+    currentFileName: string;
+    currentFilePercent: number;
+    overallPercent: number;
+    totalBytes: number;
+    loadedBytes: number;
 }
 
 interface PostCreationModalProps {
@@ -180,7 +191,8 @@ export default function PostCreationModal({
     const { showToast } = useToast();
     const { requireVerification } = useVerifiedAccess();
 
-    const descInputRef = useRef<HTMLTextAreaElement>(null);
+    const postEditorRef = useRef<HTMLDivElement>(null);
+    const eventDescRef = useRef<HTMLTextAreaElement>(null);
     const titleInputRef = useRef<HTMLInputElement>(null);
     const audienceMenuRef = useRef<HTMLDivElement>(null);
 
@@ -193,7 +205,22 @@ export default function PostCreationModal({
     const descMention = useMentionAutosuggest({
         value: description,
         setValue: setDescription,
-        inputRef: descInputRef,
+        inputRef: (mode === "post" ? postEditorRef : eventDescRef) as any,
+        onMentionInserted: (nextVal) => {
+            if (mode === "post" && postEditorRef.current) {
+                postEditorRef.current.innerHTML = convertMarkdownToHtml(nextVal);
+                try {
+                    const range = document.createRange();
+                    range.selectNodeContents(postEditorRef.current);
+                    range.collapse(false);
+                    const sel = window.getSelection();
+                    if (sel) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                } catch (_) {}
+            }
+        }
     });
 
     useEffect(() => {
@@ -229,11 +256,12 @@ export default function PostCreationModal({
     const [existingThumbnailUrl, setExistingThumbnailUrl] = useState<string | null>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
-    // Multi-media state (photos, videos up to 50MB, Facebook style)
+    // Multi-media state (photos, videos up to 300MB, Facebook style)
     const [mediaList, setMediaList] = useState<PendingMediaItem[]>([]);
+    const [uploadProgress, setUploadProgress] = useState<UploadStatus | null>(null);
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
-    // Multi-media file handler (Facebook style, up to 50MB per file)
+    // Multi-media file handler (Facebook style, up to 300MB for videos, 50MB for photos)
     const handleMediaFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
@@ -264,6 +292,37 @@ export default function PostCreationModal({
             }
         }
         if (e.target) e.target.value = "";
+    };
+
+    // WYSIWYG Bold state & synchronization
+    const [isBoldActive, setIsBoldActive] = useState(false);
+
+    const updateBoldStatus = () => {
+        if (typeof document !== "undefined") {
+            try {
+                const boldState = document.queryCommandState("bold");
+                setIsBoldActive(!!boldState);
+            } catch (_) {}
+        }
+    };
+
+    const syncDescriptionFromDom = () => {
+        if (postEditorRef.current) {
+            const md = convertHtmlToMarkdown(postEditorRef.current);
+            setDescription(md);
+        }
+    };
+
+    // Toggle bold typing mode or bold selection (WYSIWYG)
+    const handleBoldToggle = (e?: React.MouseEvent) => {
+        e?.preventDefault();
+        const editor = postEditorRef.current;
+        if (!editor) return;
+
+        editor.focus();
+        document.execCommand("bold", false, undefined);
+        updateBoldStatus();
+        syncDescriptionFromDom();
     };
 
     const handleRemoveMediaItem = (id: string) => {
@@ -484,15 +543,33 @@ export default function PostCreationModal({
             }
 
             setTimeout(() => {
-                titleInputRef.current?.focus();
+                if (postEditorRef.current) {
+                    postEditorRef.current.innerHTML = convertMarkdownToHtml(editPost.description || "");
+                    updateBoldStatus();
+                }
+                if (editPost && editPost.postType && editPost.postType !== "post") {
+                    titleInputRef.current?.focus();
+                } else {
+                    postEditorRef.current?.focus();
+                }
             }, 100);
         } else {
             setMode(initialMode || "post");
             if (defaultType) setType(defaultType);
             setExistingThumbnailUrl(null);
             setMediaList([]);
+            setUploadProgress(null);
+            setDescription("");
             setTimeout(() => {
-                titleInputRef.current?.focus();
+                if (postEditorRef.current) {
+                    postEditorRef.current.innerHTML = "";
+                    updateBoldStatus();
+                }
+                if ((initialMode || "post") === "post") {
+                    postEditorRef.current?.focus();
+                } else {
+                    titleInputRef.current?.focus();
+                }
             }, 100);
         }
     }, [isOpen, defaultType, initialMode, editPost]);
@@ -501,7 +578,8 @@ export default function PostCreationModal({
     const isFormValid = (): boolean => {
         if (isSubmitting) return false;
         if (mode === "post") {
-            return !!(eventName.trim() || description.trim() || mediaList.length > 0 || shareLink.trim());
+            const currentDesc = postEditorRef.current ? convertHtmlToMarkdown(postEditorRef.current) : description;
+            return !!(currentDesc.trim() || mediaList.length > 0 || shareLink.trim());
         }
         if (mode === "event") {
             return !!(eventName.trim() && eventStartDate);
@@ -537,10 +615,46 @@ export default function PostCreationModal({
             let finalMedia: PostMediaItem[] = [];
 
             if (mediaList.length > 0) {
+                const filesToUpload = mediaList.filter(item => !!item.file);
+                const totalBytes = filesToUpload.reduce((acc, item) => acc + (item.file?.size || 0), 0);
+                let accumulatedBytes = 0;
+                let fileIdx = 0;
+
                 for (const item of mediaList) {
                     if (item.file) {
+                        fileIdx++;
+                        const currentFile = item.file;
                         const folder = item.type === "video" ? "videos" : "thumbnails";
-                        const uploadedUrl = await uploadFile(folder, item.file);
+
+                        setUploadProgress({
+                            currentIndex: fileIdx,
+                            totalFiles: filesToUpload.length,
+                            currentFileName: currentFile.name,
+                            currentFilePercent: 0,
+                            overallPercent: totalBytes > 0 ? Math.round((accumulatedBytes / totalBytes) * 100) : 0,
+                            totalBytes: totalBytes,
+                            loadedBytes: accumulatedBytes,
+                        });
+
+                        const uploadedUrl = await uploadFile(folder, currentFile, (prog) => {
+                            const curLoaded = accumulatedBytes + prog.loaded;
+                            const overall = totalBytes > 0 
+                                ? Math.min(99, Math.round((curLoaded / totalBytes) * 100))
+                                : prog.percent;
+
+                            setUploadProgress({
+                                currentIndex: fileIdx,
+                                totalFiles: filesToUpload.length,
+                                currentFileName: currentFile.name,
+                                currentFilePercent: prog.percent,
+                                overallPercent: overall,
+                                totalBytes: totalBytes,
+                                loadedBytes: curLoaded,
+                            });
+                        });
+
+                        accumulatedBytes += currentFile.size;
+
                         finalMedia.push({
                             url: uploadedUrl,
                             type: item.type,
@@ -558,7 +672,28 @@ export default function PostCreationModal({
                     }
                 }
             } else if (thumbnailFile) {
-                const resultUrl = await uploadFile("thumbnails", thumbnailFile);
+                setUploadProgress({
+                    currentIndex: 1,
+                    totalFiles: 1,
+                    currentFileName: thumbnailFile.name,
+                    currentFilePercent: 0,
+                    overallPercent: 0,
+                    totalBytes: thumbnailFile.size,
+                    loadedBytes: 0,
+                });
+
+                const resultUrl = await uploadFile("thumbnails", thumbnailFile, (prog) => {
+                    setUploadProgress({
+                        currentIndex: 1,
+                        totalFiles: 1,
+                        currentFileName: thumbnailFile.name,
+                        currentFilePercent: prog.percent,
+                        overallPercent: prog.percent,
+                        totalBytes: thumbnailFile.size,
+                        loadedBytes: prog.loaded,
+                    });
+                });
+
                 finalMedia.push({
                     url: resultUrl,
                     type: "image"
@@ -578,14 +713,21 @@ export default function PostCreationModal({
                 });
             }
 
+            if (uploadProgress) {
+                setUploadProgress(prev => prev ? { ...prev, overallPercent: 100 } : null);
+            }
+
             const finalThumbnailUrl: string = finalMedia[0]?.url || "";
 
             let postTypePayload: Partial<any> = {};
 
             if (mode === "post") {
-                const trimmedTitle = eventName.trim();
-                const trimmedDesc = description.trim();
-                const finalTitle = trimmedTitle || (trimmedDesc.length > 60 ? `${trimmedDesc.slice(0, 57)}...` : trimmedDesc);
+                const currentDesc = postEditorRef.current 
+                    ? convertHtmlToMarkdown(postEditorRef.current) 
+                    : description;
+                const trimmedDesc = currentDesc.trim();
+                // Facebook style: clean post with description.
+                const finalTitle = editPost?.eventName && editPost.eventName !== trimmedDesc ? editPost.eventName : "";
                 const normalizedShareLink = shareLink.trim() ? formatExternalUrl(shareLink) : "";
 
                 postTypePayload = {
@@ -717,6 +859,7 @@ export default function PostCreationModal({
             showToast(editPost ? "Failed to update post." : "Failed to share post. Please try again.", "error");
         } finally {
             setIsSubmitting(false);
+            setUploadProgress(null);
         }
     };
 
@@ -989,37 +1132,90 @@ export default function PostCreationModal({
                     </AnimatePresence>
 
                     {/* ════════════════════════════════════════════════
-                        MODE 1: REGULAR POST
+                        MODE 1: REGULAR POST (Facebook Style Single Section)
                        ════════════════════════════════════════════════ */}
                     {mode === "post" && (
-                        <>
-                            {/* Headline / Title Input */}
-                            <div className="relative shrink-0 z-20">
-                                <MentionDropdown
-                                    isOpen={titleMention.isOpen}
-                                    query={titleMention.query}
-                                    suggestions={titleMention.suggestions}
-                                    selectedIndex={titleMention.selectedIndex}
-                                    setSelectedIndex={titleMention.setSelectedIndex}
-                                    onSelect={titleMention.insertMention}
-                                    onClose={() => titleMention.setIsOpen(false)}
-                                    position="bottom"
-                                />
-                                <input 
-                                    ref={titleInputRef}
-                                    type="text"
-                                    value={eventName}
-                                    onChange={(e) => {
-                                        setEventName(e.target.value);
-                                        titleMention.checkMention();
-                                    }}
-                                    placeholder="What's the highlight? (Optional title / headline)"
-                                    className="w-full bg-transparent text-base sm:text-lg font-bold text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-b border-gray-100 dark:border-white/5 pb-2 focus:outline-none focus:border-primary/50 transition-colors"
-                                />
+                        <div className="relative flex-1 flex flex-col min-h-[160px] z-10 space-y-2">
+                            {/* Formatting Toolbar */}
+                            <div className="flex items-center justify-between pb-1.5 border-b border-gray-100 dark:border-white/5 shrink-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    {/* Toggleable WYSIWYG Bold Button */}
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            handleBoldToggle(e);
+                                        }}
+                                        title="Bold (Ctrl+B) - Click to toggle bold typing ON/OFF, or bold selected text"
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all select-none cursor-pointer ${
+                                            isBoldActive
+                                                ? "bg-primary text-white shadow-md shadow-primary/30 ring-2 ring-primary/40 scale-[1.02]"
+                                                : "text-gray-700 dark:text-gray-200 bg-gray-100/80 dark:bg-white/5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary border border-gray-200/60 dark:border-white/10 active:scale-95"
+                                        }`}
+                                    >
+                                        <Bold size={14} className={isBoldActive ? "stroke-[3.5]" : "stroke-[2.5]"} />
+                                        <span>Bold</span>
+                                        {isBoldActive && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                        )}
+                                    </button>
+
+                                    {/* Hashtag Quick Insertion */}
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            const editor = postEditorRef.current;
+                                            if (!editor) return;
+                                            editor.focus();
+                                            document.execCommand("insertText", false, "#");
+                                            syncDescriptionFromDom();
+                                            updateBoldStatus();
+                                            setTimeout(() => descMention.checkMention(), 0);
+                                        }}
+                                        title="Add Hashtag (#)"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                    >
+                                        <span className="font-extrabold text-sm">#</span>
+                                        <span>Tag</span>
+                                    </button>
+
+                                    {/* Mention Quick Insertion */}
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            const editor = postEditorRef.current;
+                                            if (!editor) return;
+                                            editor.focus();
+                                            document.execCommand("insertText", false, "@");
+                                            syncDescriptionFromDom();
+                                            updateBoldStatus();
+                                            setTimeout(() => descMention.checkMention(), 0);
+                                        }}
+                                        title="Mention someone (@)"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                    >
+                                        <span className="font-extrabold text-sm">@</span>
+                                        <span>Mention</span>
+                                    </button>
+                                </div>
+
+                                {/* Active Mode Hint */}
+                                <div className="text-[11px] text-gray-400 dark:text-gray-500 font-medium hidden sm:inline-flex items-center gap-1.5">
+                                    {isBoldActive ? (
+                                        <span className="text-primary font-bold inline-flex items-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                                            Bold mode ON (typing in bold)
+                                        </span>
+                                    ) : (
+                                        <span>Press <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-[10px] font-bold text-gray-600 dark:text-gray-300">Ctrl+B</kbd> or click Bold to toggle</span>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* Description Textarea */}
-                            <div className="relative flex-1 flex flex-col min-h-[140px] z-10">
+                            {/* Single Unified WYSIWYG ContentEditable Editor */}
+                            <div className="relative flex-1 flex flex-col min-h-[140px]">
                                 <MentionDropdown
                                     isOpen={descMention.isOpen}
                                     query={descMention.query}
@@ -1030,19 +1226,64 @@ export default function PostCreationModal({
                                     onClose={() => descMention.setIsOpen(false)}
                                     position="top"
                                 />
-                                <textarea 
-                                    ref={descInputRef}
-                                    rows={5}
-                                    value={description}
-                                    onChange={(e) => {
-                                        setDescription(e.target.value);
+
+                                {/* Placeholder overlay when empty */}
+                                {(!description || description.trim().length === 0) && (
+                                    <div 
+                                        onClick={() => postEditorRef.current?.focus()}
+                                        className={`absolute top-0 left-0 right-0 pointer-events-none select-none text-gray-400 dark:text-gray-500 font-normal leading-relaxed ${
+                                            mediaList.length === 0 ? "text-base sm:text-lg" : "text-sm sm:text-base"
+                                        }`}
+                                    >
+                                        {profile?.displayName 
+                                            ? `What's on your mind, ${profile.displayName.split(" ")[0]}? Share thoughts, photos, videos, @mentions or #hashtags...` 
+                                            : "What's on your mind? Share thoughts, photos, videos, @mentions or #hashtags..."
+                                        }
+                                    </div>
+                                )}
+
+                                <div 
+                                    ref={postEditorRef}
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onInput={() => {
+                                        syncDescriptionFromDom();
+                                        updateBoldStatus();
                                         descMention.checkMention();
                                     }}
-                                    placeholder="Share what's happening on campus... Use @mentions or #hashtags to connect with students"
-                                    className="w-full flex-1 bg-transparent text-sm sm:text-base font-normal text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none resize-none leading-relaxed min-h-[120px]"
+                                    onKeyUp={() => {
+                                        updateBoldStatus();
+                                        descMention.checkMention();
+                                    }}
+                                    onMouseUp={() => {
+                                        updateBoldStatus();
+                                    }}
+                                    onSelect={() => {
+                                        updateBoldStatus();
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+                                            e.preventDefault();
+                                            handleBoldToggle();
+                                            return;
+                                        }
+                                        handleKeyDown(e);
+                                    }}
+                                    onPaste={(e) => {
+                                        e.preventDefault();
+                                        const text = e.clipboardData.getData("text/plain");
+                                        document.execCommand("insertText", false, text);
+                                        syncDescriptionFromDom();
+                                        updateBoldStatus();
+                                    }}
+                                    className={`w-full flex-1 bg-transparent font-normal text-gray-900 dark:text-gray-100 outline-none leading-relaxed min-h-[130px] whitespace-pre-wrap break-words transition-all [&_strong]:font-black [&_strong]:text-gray-950 dark:[&_strong]:text-white [&_b]:font-black [&_b]:text-gray-950 dark:[&_b]:text-white ${
+                                        description.length < 80 && mediaList.length === 0 
+                                            ? "text-base sm:text-lg" 
+                                            : "text-sm sm:text-base"
+                                    }`}
                                 />
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {/* ════════════════════════════════════════════════
@@ -1202,7 +1443,7 @@ export default function PostCreationModal({
                                     <Sparkles size={13} className="text-primary" /> Event Details, Schedule & Rules
                                 </label>
                                 <textarea 
-                                    ref={descInputRef}
+                                    ref={eventDescRef}
                                     rows={4}
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
@@ -1391,7 +1632,7 @@ export default function PostCreationModal({
                                     <Sparkles size={13} className="text-primary" /> Context / Background Note (Optional)
                                 </label>
                                 <textarea 
-                                    ref={descInputRef}
+                                    ref={eventDescRef}
                                     rows={2}
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
@@ -1483,6 +1724,15 @@ export default function PostCreationModal({
                                             {item.size && (
                                                 <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-white text-[9px] font-semibold">
                                                     {(item.size / (1024 * 1024)).toFixed(1)} MB
+                                                </div>
+                                            )}
+
+                                            {/* Uploading Progress Overlay */}
+                                            {uploadProgress && uploadProgress.currentFileName === (item.name || item.file?.name) && (
+                                                <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px] flex flex-col items-center justify-center text-white z-20">
+                                                    <Loader2 size={24} className="animate-spin text-primary mb-1.5" />
+                                                    <span className="text-xs font-black">{uploadProgress.currentFilePercent}%</span>
+                                                    <span className="text-[10px] text-gray-300 font-medium">Uploading...</span>
                                                 </div>
                                             )}
                                         </motion.div>
@@ -1636,6 +1886,50 @@ export default function PostCreationModal({
                     id="post-thumbnail-file-input"
                 />
 
+                {/* Real-time Upload Progress Bar Card */}
+                <AnimatePresence>
+                    {uploadProgress && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                            className="mx-4 sm:mx-6 mb-2 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-accent/5 border border-primary/25 shadow-sm space-y-2 shrink-0"
+                        >
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-7 h-7 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                                        <Loader2 size={15} className="animate-spin" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-gray-900 dark:text-white truncate">
+                                            Uploading: {uploadProgress.currentFileName}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                            File {uploadProgress.currentIndex} of {uploadProgress.totalFiles} • {uploadProgress.currentFilePercent}%
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <span className="text-sm font-black text-primary">
+                                        {uploadProgress.overallPercent}%
+                                    </span>
+                                    <p className="text-[10px] text-gray-400 font-bold">
+                                        {(uploadProgress.loadedBytes / (1024 * 1024)).toFixed(1)} / {(uploadProgress.totalBytes / (1024 * 1024)).toFixed(1)} MB
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Animated Progress Track */}
+                            <div className="w-full h-2 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300"
+                                    style={{ width: `${uploadProgress.overallPercent}%` }}
+                                />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Bottom Native Action Toolbar */}
                 <div className="border-t border-gray-100 dark:border-white/5 px-4 sm:px-6 pt-3 pb-6 sm:pb-3.5 bg-gray-50/70 dark:bg-white/[0.02] shrink-0">
                     <div className="flex items-center justify-between gap-2">
@@ -1664,7 +1958,7 @@ export default function PostCreationModal({
                                             ? "bg-primary/10 text-primary border border-primary/20" 
                                             : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
                                     }`}
-                                    title="Attach Photos or Videos (up to 50MB)"
+                                    title="Attach Photos or Videos (Videos up to 300MB)"
                                 >
                                     <ImageIcon size={18} className={mediaList.length > 0 ? "text-primary" : "text-emerald-500"} />
                                     <span className="hidden sm:inline">

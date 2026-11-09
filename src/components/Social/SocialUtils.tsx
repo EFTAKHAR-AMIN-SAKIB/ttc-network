@@ -4,52 +4,77 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /**
+ * Helper to render hashtags and @mentions inside any text chunk
+ */
+function renderTagsAndMentions(str: string, keyPrefix: string, onTagClick?: (tag: string) => void) {
+    if (!str) return null;
+    const parts = str.split(/((?:^|\s)(?:#|@)[\w\u0980-\u09FF]+)/g);
+    
+    return parts.map((part, i) => {
+        const isTag = part.trim().startsWith("#");
+        const isMention = part.trim().startsWith("@");
+        const key = `${keyPrefix}-${i}`;
+        
+        if (isTag) {
+            return (
+                <button
+                    key={key}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onTagClick?.(part.trim().slice(1));
+                    }}
+                    className="text-primary font-bold hover:underline cursor-pointer"
+                >
+                    {part}
+                </button>
+            );
+        }
+        
+        if (isMention) {
+            const username = part.trim().slice(1);
+            return (
+                <Link
+                    key={key}
+                    href={`/profile/${username}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-primary font-bold hover:underline"
+                >
+                    {part}
+                </Link>
+            );
+        }
+        
+        return <span key={key}>{part}</span>;
+    });
+}
+
+/**
  * RichText Component
- * Highlight hashtags and @mentions
+ * Highlights hashtags (#tag), @mentions, and markdown **bold** text.
  */
 export function RichText({ text, onTagClick }: { text: string; onTagClick?: (tag: string) => void }) {
     if (!text) return null;
     
-    // Regex to find hashtags and @mentions
-    const parts = text.split(/((?:^|\s)(?:#|@)[\w\u0980-\u09FF]+)/g);
+    // Split text by **bold** or __bold__ tokens
+    const boldTokens = text.split(/(\*\*[\s\S]+?\*\*|__[\s\S]+?__)/g);
     
     return (
         <>
-            {parts.map((part, i) => {
-                const isTag = part.trim().startsWith("#");
-                const isMention = part.trim().startsWith("@");
-                
-                if (isTag) {
+            {boldTokens.map((segment, idx) => {
+                const isDoubleAsterisk = segment.startsWith("**") && segment.endsWith("**") && segment.length >= 4;
+                const isDoubleUnderscore = segment.startsWith("__") && segment.endsWith("__") && segment.length >= 4;
+
+                if (isDoubleAsterisk || isDoubleUnderscore) {
+                    const innerText = segment.slice(2, -2);
                     return (
-                        <button
-                            key={i}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onTagClick?.(part.trim().slice(1));
-                            }}
-                            className="text-primary font-bold hover:underline"
-                        >
-                            {part}
-                        </button>
+                        <strong key={`b-${idx}`} className="font-extrabold text-gray-950 dark:text-white">
+                            {renderTagsAndMentions(innerText, `b-${idx}`, onTagClick)}
+                        </strong>
                     );
                 }
-                
-                if (isMention) {
-                    const username = part.trim().slice(1);
-                    return (
-                        <Link
-                            key={i}
-                            href={`/profile/${username}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-primary font-bold hover:underline"
-                        >
-                            {part}
-                        </Link>
-                    );
-                }
-                
-                return <span key={i}>{part}</span>;
+
+                return renderTagsAndMentions(segment, `p-${idx}`, onTagClick);
             })}
         </>
     );
@@ -62,7 +87,15 @@ export function ExpandableText({ text, limit = 160, onTagClick }: { text: string
     const [expanded, setExpanded] = useState(false);
     if (!text) return null;
     const shouldTruncate = text.length > limit;
-    const displayText = expanded ? text : text.slice(0, limit);
+    
+    let displayText = expanded ? text : text.slice(0, limit);
+    // If truncated midway through a bold segment, balance it so formatting is clean
+    if (shouldTruncate && !expanded) {
+        const asteriskCount = (displayText.match(/\*\*/g) || []).length;
+        if (asteriskCount % 2 !== 0) {
+            displayText += "**";
+        }
+    }
 
     return (
         <div className="text-sm sm:text-base text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
@@ -75,7 +108,7 @@ export function ExpandableText({ text, limit = 160, onTagClick }: { text: string
                         e.stopPropagation();
                         setExpanded(!expanded);
                     }}
-                    className="text-primary font-bold hover:underline ml-1 text-sm inline-block"
+                    className="text-primary font-bold hover:underline ml-1 text-sm inline-block cursor-pointer"
                 >
                     {expanded ? "Show less" : "Read more"}
                 </button>

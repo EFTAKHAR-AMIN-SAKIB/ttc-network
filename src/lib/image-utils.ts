@@ -312,6 +312,11 @@ export const ALLOWED_VIDEO_TYPES = new Set([
     "video/ogg",
     "video/x-matroska",
     "video/3gpp",
+    "video/x-m4v",
+    "video/m4v",
+    "video/avi",
+    "video/mpeg",
+    "video/mp2t",
 ]);
 
 /** Allowed document MIME types */
@@ -329,8 +334,8 @@ export const ALLOWED_UPLOAD_TYPES = new Set([
 /** Max file size for images: 50MB (compressed client-side) */
 export const MAX_IMAGE_SIZE = 50 * 1024 * 1024;
 
-/** Max file size for videos: 50MB */
-export const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+/** Max file size for videos: 300MB */
+export const MAX_VIDEO_SIZE = 300 * 1024 * 1024;
 
 /** Max file size for documents: 20MB */
 export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
@@ -344,17 +349,19 @@ export function validateFile(file: File): string | null {
         return "No file selected or file is empty.";
     }
 
-    if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
-        return `File type "${file.type || "unknown"}" is not supported. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, MOV, PDF.`;
+    const isVideo = isVideoFile(file);
+    const isDoc = isDocumentFile(file);
+    const isImg = isImageFile(file);
+
+    if (!isVideo && !isDoc && !isImg) {
+        return `File type "${file.type || "unknown"}" is not supported. Allowed: Images (JPEG, PNG, WebP, GIF), Videos (MP4, WebM, MOV, MKV up to 300MB), PDF.`;
     }
 
-    const isDocument = ALLOWED_DOCUMENT_TYPES.has(file.type);
-    const isVideo = ALLOWED_VIDEO_TYPES.has(file.type);
-    const maxSize = isVideo ? MAX_VIDEO_SIZE : isDocument ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
-    const maxLabel = isVideo ? "50MB" : isDocument ? "20MB" : "50MB";
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : isDoc ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
+    const maxLabel = isVideo ? "300MB" : isDoc ? "20MB" : "50MB";
 
     if (file.size > maxSize) {
-        return `File is too large (${formatFileSize(file.size)}). Maximum allowed size is ${maxLabel}.`;
+        return `File is too large (${formatFileSize(file.size)}). Maximum allowed size for ${isVideo ? "videos" : isDoc ? "documents" : "images"} is ${maxLabel}.`;
     }
 
     return null;
@@ -373,12 +380,27 @@ export function formatFileSize(bytes: number): string {
  * Check if a file is an image (vs a document like PDF or video).
  */
 export function isImageFile(file: File): boolean {
-    return file.type.startsWith("image/");
+    if (file.type && file.type.startsWith("image/")) return true;
+    const ext = file.name ? file.name.split(".").pop()?.toLowerCase() : "";
+    return ["jpg", "jpeg", "png", "webp", "gif", "svg"].includes(ext || "");
 }
 
 /**
  * Check if a file is a video.
  */
 export function isVideoFile(file: File): boolean {
-    return file.type.startsWith("video/") || ALLOWED_VIDEO_TYPES.has(file.type);
+    if (file.type && (file.type.startsWith("video/") || ALLOWED_VIDEO_TYPES.has(file.type))) {
+        return true;
+    }
+    const ext = file.name ? file.name.split(".").pop()?.toLowerCase() : "";
+    return ["mp4", "webm", "mov", "mkv", "avi", "3gp", "m4v", "ogv", "wmv", "ts"].includes(ext || "");
+}
+
+/**
+ * Check if a file is a document.
+ */
+export function isDocumentFile(file: File): boolean {
+    if (file.type === "application/pdf") return true;
+    const ext = file.name ? file.name.split(".").pop()?.toLowerCase() : "";
+    return ext === "pdf";
 }

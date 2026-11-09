@@ -981,15 +981,18 @@ export default function PostCard({
                         </div>
                     </div>
                 ) : (
-                    /* ─── Regular Post (100% Backward Compatible) ─── */
+                    /* ─── Regular Post (Facebook Style) ─── */
                     <>
-                        <div className="flex items-center justify-between gap-4">
-                            <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight group-hover:text-primary transition-colors duration-500">
-                                <RichText text={post.eventName} onTagClick={onTagClick || undefined} />
-                            </h2>
-                        </div>
+                        {/* Only show separate headline if legacy post had a distinct headline from description */}
+                        {post.eventName && post.description && post.eventName.trim().toLowerCase() !== post.description.trim().slice(0, post.eventName.length).toLowerCase() && (
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                                <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight group-hover:text-primary transition-colors duration-500">
+                                    <RichText text={post.eventName} onTagClick={onTagClick || undefined} />
+                                </h2>
+                            </div>
+                        )}
 
-                        <ExpandableText text={post.description || ""} onTagClick={onTagClick || undefined} />
+                        <ExpandableText text={post.description || post.eventName || ""} onTagClick={onTagClick || undefined} />
                         
                         {postMediaList.length === 0 && !post.shareLink && <LinkPreviewCard post={post} />}
                         {postMediaList.length > 0 && (

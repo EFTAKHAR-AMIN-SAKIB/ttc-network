@@ -222,15 +222,33 @@ async function deleteSingleFile(url: string, isAdmin: boolean): Promise<{ succes
 
 export async function POST(request: NextRequest) {
     try {
-        // ── Auth check: require valid session ─────────────
+        // ── Auth check: accept valid session cookie OR Bearer ID token ─────────────
         const sessionCookie = request.cookies.get("ttc_session")?.value;
-        if (!sessionCookie || !adminAuth) {
+        const authHeader = request.headers.get("authorization");
+        const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
+
+        if (!sessionCookie && !bearerToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        let decodedToken;
-        try {
-            decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-        } catch {
+
+        let decodedToken: { uid: string; [key: string]: unknown } | undefined;
+        if (sessionCookie && adminAuth) {
+            try {
+                decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+            } catch {
+                // Session cookie verification failed, will try Bearer token below
+            }
+        }
+
+        if (!decodedToken && bearerToken && adminAuth) {
+            try {
+                decodedToken = await adminAuth.verifyIdToken(bearerToken);
+            } catch {
+                // Token invalid
+            }
+        }
+
+        if (!decodedToken) {
             return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
         }
 

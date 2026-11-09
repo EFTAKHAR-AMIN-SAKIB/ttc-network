@@ -51,6 +51,14 @@ export interface StorageUploadResult {
     height: number;
 }
 
+export interface UploadProgress {
+    loaded: number;
+    total: number;
+    percent: number;
+}
+
+export type OnUploadProgressCallback = (progress: UploadProgress) => void;
+
 // Backward-compatible alias
 export type CloudinaryUploadResult = StorageUploadResult;
 
@@ -61,38 +69,30 @@ export type CloudinaryUploadResult = StorageUploadResult;
 /**
  * Upload a file via the API route.
  * Returns the full result object with URL, publicId, and dimensions.
+ * Supports real-time upload progress tracking for large media (up to 300MB).
  *
  * This is a **drop-in replacement** for `uploadToCloudinary()`.
- * Same parameters, same return type.
  *
  * @param file - The File to upload
- * @param folder - Top-level folder category (e.g., "avatars", "thumbnails")
+ * @param folder - Top-level folder category (e.g., "avatars", "thumbnails", "videos")
  * @param subPath - Optional sub-path (e.g., user ID, college ID)
  * @param publicId - Optional publicId for overwriting (same image slot)
- *
- * @example
- * ```ts
- * // Avatar upload
- * const result = await uploadToStorage(photoFile, "avatars", user.uid);
- * const photoURL = result.url;
- *
- * // Site logo with fixed publicId (always overwrites same file)
- * const result = await uploadToStorage(logoFile, "branding", "site", "site-logo");
- * ```
+ * @param onProgress - Optional callback for byte-level upload progress tracking
  */
 export async function uploadToStorage(
     file: File,
     folder: UploadFolder | string,
     subPath?: string,
     publicId?: string,
+    onProgress?: OnUploadProgressCallback,
 ): Promise<StorageUploadResult> {
-    // 1. Validate file
+    // 1. Validate file (videos up to 300MB, images up to 50MB)
     const validationError = validateFile(file);
     if (validationError) {
         throw new Error(validationError);
     }
 
-    // 2. Compress images client-side (skip PDFs, documents, etc.)
+    // 2. Compress images client-side (skip videos, PDFs, documents)
     let fileToUpload = file;
     if (isImageFile(file)) {
         const compressed = await compressImage(file);
@@ -116,25 +116,77 @@ export async function uploadToStorage(
         formData.append("publicId", publicId);
     }
 
-    // 4. Upload via API route
-    const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Upload failed: ${res.status}`);
+    // 4. Retrieve Firebase ID token for bulletproof auth
+    let idToken: string | null = null;
+    try {
+        const { getAuth } = await import("firebase/auth");
+        const currentUser = getAuth().currentUser;
+        if (currentUser) {
+            idToken = await currentUser.getIdToken();
+        }
+    } catch {
+        // Fall back to cookie-only authentication
     }
 
-    const result = await res.json();
+    // 5. Upload via XMLHttpRequest to get 100% accurate progress events
+    return new Promise<StorageUploadResult>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload");
+        xhr.withCredentials = true;
 
-    return {
-        url: result.url,
-        publicId: result.publicId || "",
-        width: result.width || 0,
-        height: result.height || 0,
-    };
+        if (idToken) {
+            xhr.setRequestHeader("Authorization", `Bearer ${idToken}`);
+        }
+
+        if (xhr.upload) {
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable && onProgress) {
+                    const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+                    onProgress({
+                        loaded: event.loaded,
+                        total: event.total,
+                        percent,
+                    });
+                }
+            };
+        }
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const result = JSON.parse(xhr.responseText);
+                    // Emit 100% on complete
+                    onProgress?.({ loaded: fileToUpload.size, total: fileToUpload.size, percent: 100 });
+                    resolve({
+                        url: result.url,
+                        publicId: result.publicId || "",
+                        width: result.width || 0,
+                        height: result.height || 0,
+                    });
+                } catch {
+                    reject(new Error("Invalid response received from upload server"));
+                }
+            } else {
+                try {
+                    const errorData = JSON.parse(xhr.responseText);
+                    reject(new Error(errorData.error || `Upload failed: ${xhr.status}`));
+                } catch {
+                    reject(new Error(`Upload failed with status code ${xhr.status}`));
+                }
+            }
+        };
+
+        xhr.onerror = () => {
+            reject(new Error("Network connection error during file upload. Please check your internet connection."));
+        };
+
+        xhr.ontimeout = () => {
+            reject(new Error("Upload timed out. Please try again with a smaller file or faster connection."));
+        };
+
+        xhr.timeout = 300000; // 5 minutes timeout for large video uploads up to 300MB
+        xhr.send(formData);
+    });
 }
 
 // Backward-compatible alias
@@ -146,21 +198,23 @@ export const uploadToCloudinary = uploadToStorage;
 
 /**
  * Upload a file and return just the URL string.
- * Drop-in replacement for the old `uploadFile()` from cloudinary.ts.
+ * Drop-in replacement for the old `uploadFile()` from cloudinary.ts with optional progress tracking.
  *
- * @param path - Slash-separated path string (e.g., "thumbnails", "avatars/userId")
+ * @param path - Slash-separated path string (e.g., "videos", "thumbnails", "avatars/userId")
  * @param file - The File to upload
+ * @param onProgress - Optional progress tracking callback
  * @returns The public URL of the uploaded file
  */
 export async function uploadFile(
     path: string,
     file: File,
+    onProgress?: OnUploadProgressCallback,
 ): Promise<string> {
     const parts = path.split("/");
     const folder = parts[0] as UploadFolder;
     const subPath = parts.length > 1 ? parts.slice(1).join("/") : undefined;
 
-    const result = await uploadToStorage(file, folder, subPath);
+    const result = await uploadToStorage(file, folder, subPath, undefined, onProgress);
     return result.url;
 }
 
@@ -208,11 +262,22 @@ export async function deleteFromStorage(
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 12000);
 
+        let idToken: string | null = null;
+        try {
+            const { getAuth } = await import("firebase/auth");
+            idToken = await getAuth().currentUser?.getIdToken() || null;
+        } catch {
+            // fallback to cookie-only
+        }
+
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
+
         const payload = uniqueUrls.length === 1 ? { url: uniqueUrls[0] } : { urls: uniqueUrls };
 
         await fetch("/api/upload/delete", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify(payload),
             signal: controller.signal,
         });

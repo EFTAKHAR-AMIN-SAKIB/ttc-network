@@ -60,7 +60,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
     const [group, setGroup] = useState<any>(null);
     const [myMemberRecord, setMyMemberRecord] = useState<any>(null);
 
-    // Multi-media state (photos, videos up to 50MB, Facebook style)
+    // Multi-media state (photos, videos up to 300MB, Facebook style)
     const [mediaList, setMediaList] = useState<PendingMediaItem[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -701,7 +701,7 @@ export default function GroupPostCreationModal({ isOpen, onClose, groupId, group
                                             ? "bg-primary/10 text-primary border border-primary/20" 
                                             : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-gray-200 dark:hover:bg-gray-700"
                                     }`}
-                                    title="Add Photos or Videos (up to 50MB)"
+                                    title="Add Photos or Videos (Videos up to 300MB)"
                                 >
                                     <ImageIcon size={16} /> <span className="hidden sm:inline">{mediaList.length > 0 ? `Photo/Video (${mediaList.length})` : "Photo/Video"}</span>
                                 </button>

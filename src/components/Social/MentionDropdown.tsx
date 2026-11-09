@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -41,11 +42,13 @@ export function useMentionAutosuggest({
     setValue,
     inputRef,
     groupId,
+    onMentionInserted,
 }: {
     value: string;
     setValue: (val: string | ((prev: string) => string)) => void;
-    inputRef: React.RefObject<HTMLTextAreaElement | HTMLInputElement | null>;
+    inputRef: React.RefObject<HTMLTextAreaElement | HTMLInputElement | HTMLDivElement | null>;
     groupId?: string;
+    onMentionInserted?: (nextValue: string) => void;
 }) {
     const { user, profile } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
@@ -99,7 +102,24 @@ export function useMentionAutosuggest({
             return;
         }
 
-        const cursorPos = el.selectionStart ?? value.length;
+        let cursorPos = value.length;
+        if ("selectionStart" in el && typeof (el as any).selectionStart === "number") {
+            cursorPos = (el as HTMLTextAreaElement | HTMLInputElement).selectionStart ?? value.length;
+        } else if (typeof window !== "undefined") {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+                try {
+                    const range = sel.getRangeAt(0);
+                    const preRange = range.cloneRange();
+                    preRange.selectNodeContents(el);
+                    preRange.setEnd(range.endContainer, range.endOffset);
+                    cursorPos = preRange.toString().length;
+                } catch {
+                    // Ignore selection read errors
+                }
+            }
+        }
+
         const textBeforeCursor = value.slice(0, cursorPos);
 
         // Match @ followed by letters/numbers/underscore/dots, preceded by start of line or whitespace
@@ -213,16 +233,20 @@ export function useMentionAutosuggest({
             setIsOpen(false);
             setMentionRange(null);
 
+            onMentionInserted?.(nextValue);
+
             // Re-focus and update cursor
             setTimeout(() => {
                 const el = inputRef.current;
                 if (el) {
                     el.focus();
-                    el.setSelectionRange(nextCursorPos, nextCursorPos);
+                    if ("setSelectionRange" in el && typeof (el as any).setSelectionRange === "function") {
+                        (el as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(nextCursorPos, nextCursorPos);
+                    }
                 }
             }, 10);
         },
-        [mentionRange, value, setValue, inputRef]
+        [mentionRange, value, setValue, inputRef, onMentionInserted]
     );
 
     // Keyboard interception for textarea

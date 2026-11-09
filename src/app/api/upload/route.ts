@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 /**
  * Upload API Route — Cloudflare R2
  * ==================================
@@ -47,6 +48,14 @@ function getClient(): S3Client {
 }
 
 // ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  ROUTE CONFIG
+// ═══════════════════════════════════════════════════
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 minutes for uploads up to 300MB
+
+// ═══════════════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════════════
 
@@ -55,11 +64,40 @@ const ALLOWED_TYPES = new Set([
     "image/svg+xml", "application/pdf",
     "video/mp4", "video/webm", "video/quicktime", "video/ogg",
     "video/x-matroska", "video/x-msvideo", "video/3gpp",
+    "video/x-m4v", "video/m4v", "video/avi", "video/mpeg", "video/mp2t",
 ]);
 
 const MAX_IMAGE = 50 * 1024 * 1024;   // 50MB
 const MAX_DOC = 20 * 1024 * 1024;     // 20MB
-const MAX_VIDEO = 50 * 1024 * 1024;   // 50MB
+const MAX_VIDEO = 300 * 1024 * 1024;  // 300MB (Supports high-res campus videos)
+
+const EXT_TO_MIME: Record<string, string> = {
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mov: "video/quicktime",
+    mkv: "video/x-matroska",
+    avi: "video/x-msvideo",
+    "3gp": "video/3gpp",
+    m4v: "video/x-m4v",
+    ogv: "video/ogg",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+    svg: "image/svg+xml",
+    pdf: "application/pdf",
+};
+
+function resolveMime(mime: string, name: string): string {
+    if (ALLOWED_TYPES.has(mime)) return mime;
+    const dot = name.lastIndexOf(".");
+    if (dot > 0) {
+        const ext = name.substring(dot + 1).toLowerCase();
+        if (EXT_TO_MIME[ext]) return EXT_TO_MIME[ext];
+    }
+    return mime;
+}
 
 function getExt(mime: string, name: string): string {
     const dot = name.lastIndexOf(".");
@@ -72,7 +110,8 @@ function getExt(mime: string, name: string): string {
         "image/gif": "gif", "image/svg+xml": "svg", "application/pdf": "pdf",
         "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
         "video/ogg": "ogv", "video/x-matroska": "mkv", "video/x-msvideo": "avi",
-        "video/3gpp": "3gp",
+        "video/3gpp": "3gp", "video/x-m4v": "m4v", "video/m4v": "m4v",
+        "video/avi": "avi", "video/mpeg": "mpg", "video/mp2t": "ts",
     };
     return map[mime] || "bin";
 }
@@ -90,15 +129,36 @@ function randomId(len = 8): string {
 
 export async function POST(request: NextRequest) {
     try {
-        // ── Auth check: require valid session ─────────────
+        // ── Auth check: accept valid session cookie OR Bearer ID token ─────────────
         const sessionCookie = request.cookies.get("ttc_session")?.value;
-        if (!sessionCookie || !adminAuth) {
+        const authHeader = request.headers.get("authorization");
+        const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
+
+        if (!sessionCookie && !bearerToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        try {
-            await adminAuth.verifySessionCookie(sessionCookie, true);
-        } catch {
-            return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+
+        let authenticated = false;
+        if (sessionCookie && adminAuth) {
+            try {
+                await adminAuth.verifySessionCookie(sessionCookie, true);
+                authenticated = true;
+            } catch {
+                // Cookie verification failed, will try Bearer token below
+            }
+        }
+
+        if (!authenticated && bearerToken && adminAuth) {
+            try {
+                await adminAuth.verifyIdToken(bearerToken);
+                authenticated = true;
+            } catch {
+                // Token invalid
+            }
+        }
+
+        if (!authenticated) {
+            return NextResponse.json({ error: "Invalid or expired session. Please log in again." }, { status: 401 });
         }
 
         // Early return removed to allow Cloudinary fallback
@@ -128,17 +188,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
 
-        if (!ALLOWED_TYPES.has(file.type)) {
+        const effectiveMime = resolveMime(file.type, file.name);
+
+        if (!ALLOWED_TYPES.has(effectiveMime)) {
             return NextResponse.json(
-                { error: `Unsupported file type: "${file.type}". Allowed: Images (JPEG, PNG, WebP, GIF), Videos (MP4, WebM, MOV), Documents (PDF).` },
+                { error: `Unsupported file type: "${file.type || "unknown"}". Allowed: Images (JPEG, PNG, WebP, GIF), Videos (MP4, WebM, MOV, MKV up to 300MB), Documents (PDF).` },
                 { status: 400 },
             );
         }
 
-        const isPdf = file.type === "application/pdf";
-        const isVideo = file.type.startsWith("video/");
+        const isPdf = effectiveMime === "application/pdf";
+        const isVideo = effectiveMime.startsWith("video/") || ALLOWED_TYPES.has(effectiveMime) && effectiveMime.startsWith("video");
         const limit = isVideo ? MAX_VIDEO : isPdf ? MAX_DOC : MAX_IMAGE;
-        const limitLabel = isVideo ? "50MB" : isPdf ? "20MB" : "50MB";
+        const limitLabel = isVideo ? "300MB" : isPdf ? "20MB" : "50MB";
         if (file.size > limit) {
             return NextResponse.json(
                 { error: `File too large (${(file.size / 1048576).toFixed(1)}MB). Max: ${limitLabel}.` },
@@ -147,7 +209,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Build object key
-        const ext = getExt(file.type, file.name);
+        const ext = getExt(effectiveMime, file.name);
         let key: string;
         if (publicId) {
             // Fixed key for overwrite (same as Cloudinary's publicId concept)
@@ -164,7 +226,7 @@ export async function POST(request: NextRequest) {
                 Bucket: R2.bucket,
                 Key: key,
                 Body: buf,
-                ContentType: file.type,
+                ContentType: effectiveMime,
                 CacheControl: publicId ? "public, max-age=3600" : "public, max-age=31536000",
             }));
 
